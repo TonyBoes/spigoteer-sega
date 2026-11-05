@@ -5,9 +5,9 @@
 // "Special thanks to:" list in it.
 //
 // The music is the credits tune (TUNE_CREDITS), started by credits_enter while the screen is built (BONUS' own tune stops there). The whole
-// roll is tied to the tune's POSITION (the frames its engine has ticked: cr_pos, the same count as the tune's length, so a tempo change inside it
-// does not matter) and its LENGTH (music_tune_frames), not to constants: every boundary below is a share of the tune (units of 1/392), so a
-// longer arrangement slows everything in proportion. With the sound off the position is the frames on the screen (the same pace).
+// roll runs on its own clock (the frames on the screen, CR->t; owner 2026-11-05: the tune is not changed to fit): every boundary below is a share
+// (units of 1/392) of CR_PIC_FRAMES, 9692 frames (162 s). The tune is 8732 frames (146 s): it starts with the roll and runs out 16 s before it ends,
+// in silence, with no loop or restart; the cards and the roll go on at the same pace to the end.
 //
 //   units  0-6     "CAST OF CHARACTERS"
 //          7-270   32 cards: Sal Tapley AKA the Spigoteer, Dregs (each his story portrait, his sprite, his name), then for each venue the owner
@@ -15,7 +15,7 @@
 //                  3, 3 and 2, a name under each) and the boss (7; animated: his fight walk and gulp)
 //          271-361 the credits roll (text rows streamed in as before; its first 40 frames build it behind the fade)
 //          362-391 "THANKS FOR PLAYING!" alone, the tune's last bars and its ring; the roll ends when the tune has
-//          (the 162 s tune (11 orders: the A strain played a third time, tools/songs.py): a unit is 24.7 frames, a card 2.9 s, a patron card 4.5 s)
+//          (a unit is 24.7 frames: a card 2.9 s, a patron card 4.5 s; the tune ends at unit 352, in the roll)
 //
 // A card changes behind a fade to WHITE (trans.c trans_cast, palette RAM written in the VBlank only, ~9 frames each way, the tune's ticks kept
 // frame for frame): the old card fades out, the new one is built unit by unit WITH THE LCD ON (the library's tile writes wait for the picture's
@@ -51,12 +51,16 @@ extern uint8_t overlay_on, joy, story_phase;
 
 #define CR_FIRST      18      // the roll's first row, in world rows (just under the screen)
 #define CR_AHEAD      20      // rows are kept written up to T + CR_AHEAD (T: the top row of the screen)
+#ifdef CREDITS_SCROLL
+#define CR_BAND       CT_ROLL2_BAND   // the roll's row where the sprites' band starts (4 rows); this variant's roll has a blank row after each line of an entry
+#else
 #define CR_BAND       14      // the roll's row where the sprites' band starts (4 rows)
+#endif
 #define CR_T_P       100      // the patrons' OBJ tiles: 3 variants x 6 (OBJ ids 100-117, in dgag.c's patron range)
 #define CR_T_D        56      // Dregs's 8 OBJ tiles
 #define CR_T_HAT      64      // the topper (8x16)
 #ifdef CREDITS_SCROLL
-#define CR_T_BOSS    142      // BG ids: the boss's tile pairs (top, bottom; 30 at most, 60 tiles); the scroll's own slot (portraits 93-141, boss 142-201, DMG text 202-255)
+#define CR_T_BOSS    146      // BG ids: the boss's tile pairs (top, bottom; 29 at most, 58 tiles); the scroll's own slot (portraits 93-145: 53 tiles at most, boss 146-203, DMG text 204-255)
 #else
 #define CR_T_BOSS    100      // BG ids: the boss's tile pairs (top, bottom; 30 at most, 60 tiles)
 #endif
@@ -68,6 +72,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define OBJPAL_CAST    3      // Dregs's, the topper's
 #define BGPAL_BOSS     5
 #define BGPAL_HDR      6      // the venue header's BG palette (CGB): a copy of the HUD's, the fades leave it alone within a venue
+#define COL_GOLD  0x231E      // RGB15(30, 24, 8): the labels of CREDITS=SCROLL (palette 0 colour 1)
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
@@ -75,6 +80,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define CR_SHARE      392     // the tune's units: 1/392 of it (24.7 frames of the 162 s tune)
 #define CR_UNIT_PAT    11     // a patron card's units (owner Q80: held longer, to read all eight names); the other cards 7
 #define CR_UNIT_END   362     // the roll ends at this unit, "THANKS FOR PLAYING!" fills the rest
+#define CR_PIC_FRAMES 9692    // the cast and the roll run on their own clock: this many frames (162 s). The tune is shorter (8732 frames, 146 s) and runs out in silence (owner 2026-11-05: no music change)
 
 // state in story_scratch
 #ifdef CREDITS_SCROLL
@@ -82,19 +88,20 @@ extern uint8_t overlay_on, joy, story_phase;
 // of the same cards (the cast, then the text roll), no fade between them. See the block "the scrolling credits" below. 1 px every 2 frames.
 struct cr_state {
     uint8_t row[20];          // the row being built (queued rows are read at VBlank)
-    uint16_t scroll;          // world px scrolled (the roll's own stops at wroll * 8 + CR_LAST_T)
+    uint16_t scroll;          // world px scrolled, as the picture shows it (SCY moves in the VBlank only)
+    uint16_t pos;             // the timeline's position (px): scroll catches up with it in the VBlank
     uint16_t next;            // the next world row to build
     uint16_t t;               // frames on the screen
-    uint16_t f;               // the position in the tune's frames (cr_pos)
-    uint16_t T, f1;           // the tune's frames; the frame the roll ends at
     uint16_t gs;              // the world row card gc starts at
     uint16_t wroll;           // the world row the roll's own row 0 stands on
     uint16_t lw;              // the world row the text step is building
     uint16_t ss;              // the world row card sc (the sprites' cursor) starts at
-    uint16_t f0;              // the tune's frame the scroll began at (the first rows are built behind the white)
-    uint8_t from_story, gc, gl, sc, g, gr, live, pb, pp, bn, bp, pose, ft, ls, rt, ld, lr, skipq, txs, txd, phase, pq, pr;
-    // gc: the card being built (33: the roll), gl: its loads done (units; 255: all), g / gr: the blank rows between cards (and gr cards one more),
-    // live: the colours go to the hardware as they are made, pb / pp: the portrait's first BG tile / BG palette, rt: the text ring's next tile
+    uint16_t ts;              // the world row the stop's card (k) starts at
+    uint16_t ph;              // frames in the timeline's state
+    uint8_t from_story, gc, gl, sc, live, pb, pp, bn, bp, pose, ft, ls, rt, ld, lr, skipq, txs, txd, phase, pq, pr;
+    uint8_t k, st, nc, rr;    // the timeline: the stop's card, its state (0 hold, 1 glide, 2 the text roll, 3 its end), the glide's cruise frames and the px its ramps leave over
+    // gc: the card being built (33: the roll), gl: its loads done (units; 255: all), live: the colours go to the hardware as they are made, pb / pp: the portrait's first BG tile / BG palette,
+    // rt: the text ring's next tile
 };
 #else
 struct cr_state {
@@ -169,8 +176,15 @@ static uint8_t cr_boss(uint8_t v, uint8_t cmd, uint8_t a, uint8_t b, uint8_t *ds
     return boss_mothership_cast(cmd, a, b, dst);
 }
 
+#ifdef CREDITS_SCROLL
+#define CR_N CT_ROLL2_N
+#define CR_ROLL ct_roll2
+#define CR_LAST_T ((CR_FIRST + (CR_N - 2)) * 8 + 4 - 72)   // the scroll at which the last three rows (a blank between the lines) are in the middle of the screen
+#else
 #define CR_N CT_ROLL_N
+#define CR_ROLL ct_roll
 #define CR_LAST_T ((CR_FIRST + (CR_N - 2)) * 8 + 8 - 72)   // the scroll at which the last two rows are in the middle of the screen
+#endif
 
 static void cr_blank(void) { uint8_t i; for (i = 0; i < 20; i++) CR->row[i] = TILE_HUD_BLANK; }
 
@@ -188,7 +202,7 @@ static uint8_t cr_roll_step(uint8_t w, uint8_t max) {
     if (CR->lr != w) {
         CR->lr = w; CR->ld = 0;
         cr_blank();
-        r = w >= CR_FIRST && (uint8_t)(w - CR_FIRST) < CR_N ? ct_roll[w - CR_FIRST] : 255;
+        r = w >= CR_FIRST && (uint8_t)(w - CR_FIRST) < CR_N ? CR_ROLL[w - CR_FIRST] : 255;
         if (r == 255) CR_BUF[1] = 0;
         else credits_row_get(r, CR_BUF);
     }
@@ -216,6 +230,7 @@ static void cr_rows(uint8_t y, uint8_t n) {       // n rows from row y of the ro
 
 #endif
 
+#ifndef CREDITS_SCROLL
 // ---- the tune's position, in frames ---------------------------------------------------------------------------------------------------
 static uint16_t cr_pos(void) {
     if (sound_on && cur_tune == TUNE_CREDITS) return music_frames;   // the frames the engine has ticked since the tune began: its real position, whatever its tempo does
@@ -226,6 +241,8 @@ static uint16_t cr_share(uint16_t units) {        // units / 352 of the tune (16
     uint16_t q = CR->T / CR_SHARE, r = CR->T - q * CR_SHARE;
     return q * units + ((r >> 3) * units) / (CR_SHARE >> 3);
 }
+
+#endif
 
 // ---- the card's colours: in RAM, faded to the hardware by trans.c ----------------------------------------------------------------------
 #ifdef CREDITS_SCROLL
@@ -380,6 +397,13 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
                     if (p[nch] == bg) p[nch] = COL_BAND;
                     cr_pal(0, PPAL + n, p);
                 }
+#ifdef CREDITS_SCROLL
+                if (kd == CK_OWNER) {                  // BG palette 0: the labels (colour 1: gold) and the band (colour 2: the venue's); the HUD's colours 0 and 3 (they are brightened already)
+                    uint16_t *q = (uint16_t *)CR_PAL, *hq = (uint16_t *)(CR_PAL + 8 * BGPAL_HUD);
+                    q[0] = hq[0]; q[1] = BRIGHTEN(COL_GOLD); q[2] = BRIGHTEN(ct_bandcol[v]); q[3] = hq[3];
+                    if (CR->live) cr_hw(0, 0);
+                }
+#endif
             }
             return 0;
         }
@@ -617,50 +641,81 @@ static void cr_make(uint8_t c, uint8_t hd, uint8_t old) {   // card c's rows and
 
 #ifdef CREDITS_SCROLL
 // ---- the scrolling credits (CREDITS=SCROLL) ---------------------------------------------------------------------------------------------------
-// One world of map rows (row w sits in ring slot w & 31 of the 32-row map; SCY = scroll px): the cards of the cast one under the other with a few blank rows
-// between them (cr_hgt, cr_gap: they fill the tune's time up to the roll), then the text roll (its row 0 at wroll). The scroll is 1 px every 2 frames from the
-// time it begins (f >> 1), the roll's own end reached at the frame the tune's share says. Rows are built a frame at a time 20 rows ahead of the screen
-// (cr_gen: a card's tiles first, 4 units a frame, then its rows, text tiles 3 a frame), and queued to the next VBlank (a row 20 + 20 bytes: inside the budget).
+// One world of map rows (row w sits in ring slot w & 31 of the 32-row map; SCY = scroll px): the cards of the cast one under the other, then the text roll (its row 0
+// at wroll). The layout is tools/gen_credits.py's LAY (credits_text.h CT_*): a venue is its owner card (a larger gap, the divider, the venue's band, OWNER, the portrait
+// and the name), the regulars card (REGULARS, then the patrons in rows of 3, 3 and 2 with a name under each; DMG the middle row) and the boss card (BOSS, the boss, his
+// name), with the same gap CT_G between the cards. The timeline is FRAMES (CR->t, from sys_time; no music tick is counted): the screen glides from one stop to the next
+// (a block centred on the screen), holds, glides on. A glide is a ramp of speeds (1, 2, 3, 4 px a frame, 4 frames each), a cruise at 4, a ramp down (the px that do not
+// divide by 4 are one more frame at that speed in the ramp down: the speeds only ever go up, then down), so a block moves a whole number of px a frame and eases in
+// and out in 16 frames (0.27 s) each. The holds: the title 120 frames, the Spigoteer and Dregs 180, a venue's band and owner 180, the regulars 270, the boss 180.
+// After the last boss the screen glides to the roll (its first row just under the screen) and the text rolls at 1 px every 2 frames to its end, held 240 frames. The tune
+// is not asked about the pace: when it ends it ends (silence), and the roll goes on; the screen is left when the roll has ended and the tune is over.
+// Rows are built a frame at a time CR_AHEAD_C rows ahead of the screen (cr_gen: a card's tiles first, 3 units a frame, then its rows, text tiles 3 a frame), and queued
+// to the next VBlank (a row 20 + 20 bytes: inside the budget).
 // The limits:
-//   BG tiles   portraits 93-141 (the Spigoteer's, each owner's), the bosses' 142-201 (Dregs's portrait too: he follows the Spigoteer's), on the DMG the text 202-255
-//              as a ring; on Color the text is in VRAM bank 1 ids 0-126 (the cells' attribute bit 3), which nothing else uses. A card loads when its first row is
-//              built, 20 rows below the screen, and the card that used its slot is off the top by then (two cards of the same kind are 24 rows or more apart).
-//   BG pal     portraits 2-4 (Dregs 5-7), a boss 5, the text the HUD's 1: written to the hardware in HBlank / VBlank only (cr_hw) while no cell on the screen uses them.
+//   BG tiles   portraits 93-145 (the Spigoteer's, each owner's: 53 tiles at most, name plate included), the bosses' 146-203 (Dregs's portrait too: he follows the Spigoteer's).
+//              The cast's text is a ring of CT_RING_N tiles: DMG BG ids 204-255 then 0-75 (but 54, the blank), Color VRAM bank 1 ids 0-126 (the cells' attribute bit 3).
+//              The stripe's tile is BG id 76 (bank 0). A card loads when its load row is built (an owner card's is 6 rows above its divider), up to CR_AHEAD_C rows below the
+//              screen's top, and the card that used its slot is off the top by then: the cards of a kind are 33 rows or more apart (the Spigoteer's and the first owner's: 34).
+//   BG pal     portraits 2-4 (Dregs 5-7), a boss 5, the text the HUD's 1, 0 the labels (ink colour 1: gold) and the band (stripe colour 2: the venue's): written to the
+//              hardware in HBlank / VBlank only (cr_hw) while no cell on the screen uses them (palette 0's colour 2 only changes with the band's venue).
 //   OBJ tiles  Dregs 56-79, the toppers 64-67, a venue's three base looks 100-117 (the roll's robots reuse them when the last boss is off), the Color looks in bank 1.
 //   OBJ pal    Spigoteer 0, Dregs 3, patrons 1-7 (loaded when their card's rows begin: the card with the last patrons is long off), the topper 0 (after the Spigoteer's
 //              card; saved in CR_SAVE and put back before the roll), the robots 5-7. DMG: OBP0 for all, OBP1 the topper's (set at the start).
 //   sprites    a patron card: 6 a line at most (3 + 3 of 8x16), a boss 1, the Spigoteer or Dregs 2, the roll 6 + 4: never above 10 with the next card's.
-#define CR_LASTGAP   10     // blank rows from the last card to the roll's row 0 (the last boss's tiles are off before the roll's text ring writes over them)
-#define CR_TXT_D    202     // the DMG's text ring (54 tiles)
-#define CR_TXT_DN    54
+#define CR_AHEAD_R   26     // the same inside the text roll (its ring is BG ids 93-252: they are the portraits' and the bosses' slots, free from the last boss on)
+#define CR_AHEAD_C   30     // rows are kept built up to the screen's top row + this (the 32-row map: the row above the top is the last one that may be overwritten)
+#define CR_LASTGAP    4     // blank rows from the last card to the roll's row 0
+#define CR_STRIPE_ID 76     // the stripe's tile
+#define CR_TXT_D    204     // the DMG's text ring: ids 204-255, then 0-75 but 54
+#define CR_TXT_DN    52
 #define CR_TXT_CN   127     // Color: ids 0-126 of bank 1
+#define CR_W0         8     // the world row of the first card (the title): blank rows above it
+#define CR_VMAX       4     // the glide's cruise speed (px a frame); the ramps take CR_VLEN frames at each speed 1..CR_VMAX
+#define CR_VLEN       4
+#define CR_RAMP      40     // the px of one ramp: 4 * (1 + 2 + 3 + 4)
+#define CR_END_HOLD 240     // the roll's end is held this many frames
 
 static uint8_t cr_hgt(uint8_t c) {                // a card's rows
     uint8_t v = 0, kd;
     if (c >= CR_CARDS) return 0;
     kd = cr_kind(c, &v);
-    return kd == CK_TITLE ? 16 : kd <= CK_DREGS ? 13 : kd == CK_OWNER ? 14 : kd == CK_BOSS ? 8 : is_cgb ? 16 : 5;
+    return kd == CK_TITLE ? CT_H_TITLE : kd <= CK_DREGS ? CT_H_SD : kd == CK_OWNER ? CT_H_OWN : kd == CK_BOSS ? CT_H_BOSS : CT_H_PAT;
 }
 
-static uint8_t cr_gap(uint8_t c) { return c == CR_CARDS - 1 ? CR_LASTGAP : CR->g + (c < CR->gr); }
+static uint8_t cr_gap(uint8_t c) { return c == CR_CARDS - 1 ? CR_LASTGAP : c ? CT_G : CT_GAP_TITLE; }
 
-static void cr_layout(void) {                     // the roll's row, and the gaps that fill the time before it
-    uint16_t content = 16 + 13 + 13 + 10 * (14 + 8 + (is_cgb ? 16 : 5)), slack;
-    CR->wroll = (CR->f1 >> 4) - (CR_LAST_T >> 3);
-    if (CR->wroll < content + 32 + CR_LASTGAP) CR->wroll = content + 32 + CR_LASTGAP;   // (a short tune: the roll starts late and is cut off)
-    slack = CR->wroll - content - CR_LASTGAP;
-    CR->g = (uint8_t)(slack >> 5); CR->gr = (uint8_t)(slack & 31);
+static uint8_t cr_off(uint8_t c) {                // the px from the card's top to the middle of its stop's block
+    uint8_t v = 0, kd = cr_kind(c, &v);
+    return kd == CK_TITLE ? CT_OFF_TITLE : kd <= CK_DREGS ? CT_OFF_SD : kd == CK_OWNER ? CT_OFF_OWN : kd == CK_BOSS ? CT_OFF_BOSS : CT_OFF_PAT;
+}
+
+static uint8_t cr_lrow(uint8_t c) { return cr_kt[c] == CK_OWNER ? CT_R_DIV - 6 : 0; }   // the card's row its loads wait for (an owner's: inside the gap before the divider, early enough for the loads to be done in the hold before; the Spigoteer's portrait slot is 34 rows above it)
+
+static uint16_t cr_hold(uint8_t c) {              // frames
+    uint8_t kd = cr_kt[c];
+    return kd == CK_TITLE ? 120 : kd == CK_PATRONS ? 270 : 180;
+}
+
+static void cr_layout(void) {                     // the roll's row: after every card and its gap
+    uint16_t w = CR_W0;
+    uint8_t c;
+    for (c = 0; c < CR_CARDS; c++) w += cr_hgt(c) + cr_gap(c);
+    CR->wroll = w;
 }
 
 static void cr_attr_hud(void) { uint8_t i; if (is_cgb) for (i = 0; i < 20; i++) CR_ATT[i] = BGPAL_HUD; }
 
-// a pre-rendered text row r (its tiles to the ring, 3 a call); 1: the row is complete in CR->row (CR_ATT: bank 1 on Color)
-static uint8_t cr_tstep(uint8_t r) {
+// a pre-rendered text row r (its tiles to the ring, 3 a call); 1: the row is complete in CR->row (CR_ATT: bank 1 on Color). kd 0: the text, the HUD palette; 1: a label, palette 0;
+// 2: a band row, palette 0, the stripe all over but where the name's tiles are
+static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
     uint8_t n, i, id, m = 3;
     uint16_t *cell = (uint16_t *)(CR_BUF + 2);
     if (CR->lw != CR->next) {
         CR->lw = CR->next; CR->ld = 0;
         cr_blank(); cr_attr_hud();
+        if (kd && is_cgb) for (i = 0; i < 20; i++) CR_ATT[i] = 0;
+        if (kd == 2) for (i = 0; i < 20; i++) CR->row[i] = CR_STRIPE_ID;
         credits_row_get(r, CR_BUF);
     }
     n = CR_BUF[1];
@@ -671,10 +726,11 @@ static uint8_t cr_tstep(uint8_t r) {
             id = CR->rt;
             if (++CR->rt == CR_TXT_CN) CR->rt = 0;
             VBK_REG = VBK_BANK_1; credits_tile_put(cell[i], id); VBK_REG = VBK_BANK_0;
-            CR_ATT[CR_BUF[0] + i] = BGPAL_HUD | 8;
+            CR_ATT[CR_BUF[0] + i] = (kd ? 0 : BGPAL_HUD) | 8;
         } else {
-            id = CR_TXT_D + CR->rt;
-            if (++CR->rt == CR_TXT_DN) CR->rt = 0;
+            id = CR->rt;
+            if (++CR->rt == CT_RING_N) CR->rt = 0;
+            id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
             credits_tile_put(cell[i], id);
         }
         CR->row[CR_BUF[0] + i] = id;
@@ -691,21 +747,25 @@ static void cr_pose_fill(uint8_t *d, uint8_t v, uint8_t pose, uint8_t r) {    //
 
 // card c's local row r into CR->row / CR_ATT; 1: done, 0: call again (a text row's tiles)
 static uint8_t cr_card_row(uint8_t c, uint8_t r) {
-    uint8_t v = 0, kd = cr_kind(c, &v), tr = 255, k, L, h = CR_PT->h, w = CR_PT->w, i = 255;
+    uint8_t v = 0, kd = cr_kind(c, &v), tr = 255, tk = 0, k, L, h = CR_PT->h, w = CR_PT->w, i = 255;
     portrait_t *pt = CR_PT;
-    if (kd == CK_TITLE) { if (r == 8) tr = CT_TITLE; else if (r == 10) tr = CT_TITLE + 1; }
+    if (kd == CK_TITLE) { if (r == 0) tr = CT_TITLE; else if (r == 2) tr = CT_TITLE + 1; }
     else if (kd == CK_SPIGOTEER || kd == CK_DREGS) {
         if (r >= 1 && r < 1 + h) i = r - 1;
         else if (r == 3 + h || r == 5 + h) tr = (kd == CK_SPIGOTEER ? CT_SAL : CT_DREGS) + ((r - 3 - h) >> 1);
     } else if (kd == CK_OWNER) {
-        if (r == 1) tr = CT_HDR + v;
-        else if (r >= 3 && r < 3 + h) i = r - 3;
-        else if (r == 5 + h) tr = CT_OWNER + v;
+        if (r == CT_R_DIV) tr = CT_DIV;
+        else if (r >= CT_R_BAND && r < CT_R_BAND + 3) { tr = CT_BAND + 3 * v + r - CT_R_BAND; tk = 2; }
+        else if (r == CT_R_OLBL) { tr = CT_LBL; tk = 1; }
+        else if (r >= CT_R_PORT && r < CT_R_PORT + h) i = r - CT_R_PORT;
+        else if (r == CT_R_PORT + h + 1) tr = CT_OWNER + v;
     } else if (kd == CK_PATRONS) {
-        if (is_cgb) { if (r == 4 || r == 9 || r == 14) tr = CT_PATA + 10 * ((r - 4) / 5) + v; }
-        else if (r == 3) tr = CT_PATA + v;
-    } else if (r == 6) tr = CT_BOSS + v;
-    if (tr != 255) return cr_tstep(tr);
+        if (r == CT_R_PLBL) { tr = CT_LBL + 1; tk = 1; }
+        else if (is_cgb) { if (r == CT_R_PN || r == 2 * CT_R_PN || r == 3 * CT_R_PN) tr = CT_PATA + 10 * (r / CT_R_PN - 1) + v; }
+        else if (r == 2 * CT_R_PN) tr = CT_PATA + v;
+    } else if (r == CT_R_BLBL) { tr = CT_LBL + 2; tk = 1; }
+    else if (r == CT_R_BNAME) tr = CT_BOSS + v;
+    if (tr != 255) return cr_tstep(tr, tk);
     cr_blank(); cr_attr_hud();
     if (i != 255) {                                // a portrait row
         L = (20 - w) >> 1;
@@ -713,8 +773,8 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
             CR->row[L + k] = CR->pb + pt->map[i * w + k];
             if (is_cgb) CR_ATT[L + k] = CR->pp + pt->attr[i * w + k];
         }
-    } else if (kd == CK_BOSS && (r == 2 || r == 3)) {
-        cr_pose_fill(CR->row, v, CR->pose, r - 2);
+    } else if (kd == CK_BOSS && (r == CT_R_BBODY || r == CT_R_BBODY + 1)) {
+        cr_pose_fill(CR->row, v, CR->pose, r - CT_R_BBODY);
         if (is_cgb) { L = (20 - CR->bn) >> 1; for (k = 0; k < CR->bn; k++) CR_ATT[L + k] = BGPAL_BOSS; }
     }
     return 1;
@@ -726,8 +786,8 @@ static uint8_t cr_gen(void) {
     uint8_t c = CR->gc, m, i, v = 0, kd;
     while (c < CR_CARDS && w >= CR->gs + cr_hgt(c) + cr_gap(c)) { CR->gs += cr_hgt(c) + cr_gap(c); c++; CR->gl = 0; }
     CR->gc = c;
-    if (c < CR_CARDS && w < CR->gs + cr_hgt(c)) {          // a card's row
-        if (CR->gl != 255) {
+    if (c < CR_CARDS && w >= CR->gs && w < CR->gs + cr_hgt(c)) {          // a card's row
+        if (CR->gl != 255 && w - CR->gs >= cr_lrow(c)) {
             if (!CR->gl) { CR->pb = c == 2 ? CR_T_BOSS : STORY_PORTRAIT_BASE; CR->pp = c == 2 ? BGPAL_STAGE : BGPAL_PATRON; CR->pose = 0; }
             for (m = 0; m < (is_cgb ? 3 : 2); m++) {
                 if (cr_load_unit(c, CR->gl)) { CR->gl = 255; break; }
@@ -741,7 +801,7 @@ static uint8_t cr_gen(void) {
         if (!cr_card_row(c, (uint8_t)(w - CR->gs))) return 0;
     } else if (w >= CR->wroll) {                           // the roll
         if (w == CR->wroll) { CR->rt = 0; CR->lr = 255; }
-        if (CR->gl != 255 && w >= CR->wroll + 6) {          // its robots (the last boss and patrons are off), the Spigoteer's colours back
+        if (CR->gl != 255 && w >= CR->wroll + 8) {          // its robots (the last boss and patrons are off), the Spigoteer's colours back
             for (m = 0; m < 4; m++) {
                 i = CR->gl;
                 if (i < 18) load_patron_pose0(5, CR_T_P + 6 * (i / 6), i / 6, i % 6);
@@ -775,7 +835,7 @@ static void cr_pose(uint8_t v, uint8_t pose, uint16_t bw) {    // the boss's two
 }
 
 static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites (the cards that are loaded) and the roll's band
-    uint16_t cs, sc = CR->scroll, bw;
+    uint16_t cs, sc = CR->pos, bw;           // (the position of the NEXT frame: the sprites reach the picture a frame after SCY, which is written first thing in the update)
     int16_t y, y0;
     uint8_t c, k, t = (uint8_t)CR->t, kd, v, pose, bob, n;
     const uint8_t *cx, *lp;
@@ -792,19 +852,19 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             if (kd == CK_SPIGOTEER) cr_fig(0, y, CT_SAL_X, OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
             else cr_fig(4, y, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
         } else if (kd == CK_BOSS) {
-            bw = cs + 2;
+            bw = cs + CT_R_BBODY;
             pose = cr_seq[(t >> 4) & 7];
-            if ((pose != CR->pose || CR->pq) && !busy && CR->next >= bw + 3 && CR->next - bw <= 30) cr_pose(v, pose, bw);
-            cr_oam(24, y0 + 24, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
+            if ((pose != CR->pose || CR->pq) && !busy && CR->next >= bw + 3 && CR->next - bw <= 32) cr_pose(v, pose, bw);
+            cr_oam(24, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
         } else if (kd == CK_PATRONS) {
             cx = ct_cx[v]; lp = ct_lp[v];
             for (k = 0; k < (is_cgb ? 8 : 3); k++) {
                 bob = (((t >> 4) + k) & 3) ? 0 : 2;
-                if (is_cgb) {                                           // (the label rows are card rows 4, 9, 14; a sprite's OAM y is 4 above its row's top)
-                    y = y0 + (k < 3 ? 28 : k < 6 ? 68 : 108);
+                if (is_cgb) {                                           // (the names are on card rows 5, 10, 15; a sprite's OAM y is 4 above its name row's top)
+                    y = y0 + (k < 3 ? 8 * CT_R_PN - 4 : k < 6 ? 16 * CT_R_PN - 4 : 24 * CT_R_PN - 4);
                     pose = k < 3 ? CR_T_P + 6 * k : PATRON_X_S0 + 4 * (k - 3);
                     n = (1 + lp[k]) | (k < 3 ? 0 : 8);
-                } else { y = y0 + 16; pose = CR_T_P + 6 * k; n = 0; }
+                } else { y = y0 + 16 * CT_R_PN - 4; pose = CR_T_P + 6 * k; n = 0; }
                 cr_oam(8 + 2 * k, y - bob, cx[k], pose, n);
                 cr_oam(9 + 2 * k, y - bob, cx[k] + 8, pose + 2, n);
             }
@@ -820,6 +880,56 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
         }
         pose = ((t >> 4) & 3) == 1 ? BT_CATCH : BT_IDLE;
         cr_fig(0, y, CR_BT_X, OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
+    }
+}
+
+// ---- the timeline: a frame at a time (CR->st: 0 a stop's hold, 1 a glide to the next stop, 2 the text roll, 3 its end held) -------------------------------------------------
+static uint8_t cr_speed(uint8_t g) {              // the glide's speed (px) in its frame g
+    uint8_t L, sz;
+    if (g < CR_VMAX * CR_VLEN) return 1 + (g >> 2);
+    g -= CR_VMAX * CR_VLEN;
+    if (g < CR->nc) return CR_VMAX;
+    g -= CR->nc;                                   // the ramp down: each speed 4 frames, the one the remainder (rr) names one more
+    for (L = CR_VMAX; L > 1; L--) {
+        sz = CR_VLEN + (L == CR->rr);
+        if (g < sz) return L;
+        g -= sz;
+    }
+    return 1;
+}
+
+static void cr_glide(void) {                      // the glide from stop k to the next (the roll, after the last): its cruise and remainder from the distance
+    uint16_t d, a;
+    uint8_t c = CR->k;
+    a = CR->ts + cr_hgt(c) + cr_gap(c);            // the next card's top row
+    if (c + 1 < CR_CARDS) d = a * 8 + cr_off(c + 1) - 72;
+    else d = CR->wroll * 8;
+    d -= CR->pos;                                  // the px to go (>= 2 ramps: the layout)
+    d -= 2 * CR_RAMP;
+    CR->nc = (uint8_t)(d >> 2); CR->rr = (uint8_t)(d & 3);
+    CR->ph = 0; CR->st = 1;
+}
+
+static void cr_step(void) {                       // one frame
+    uint8_t c = CR->k;
+    switch (CR->st) {
+    case 0:
+        if (++CR->ph >= cr_hold(c)) cr_glide();
+        break;
+    case 1:
+        CR->pos += cr_speed((uint8_t)CR->ph);
+        if (++CR->ph >= 2 * CR_VMAX * CR_VLEN + CR->nc + (CR->rr != 0)) {
+            CR->ts += cr_hgt(c) + cr_gap(c);
+            CR->k = c + 1; CR->ph = 0;
+            CR->st = c + 1 < CR_CARDS ? 0 : 2;
+        }
+        break;
+    case 2:
+        if (CR->t & 1) CR->pos++;
+        if (CR->pos >= CR->wroll * 8 + CR_LAST_T) { CR->pos = CR->wroll * 8 + CR_LAST_T; CR->st = 3; CR->ph = 0; }
+        break;
+    default:
+        if (CR->ph < 0xFFFF) CR->ph++;
     }
 }
 #endif
@@ -853,15 +963,15 @@ void credits_enter(uint8_t from_story) BANKED {
     cr_white();                                       // (the screen white until the first card fades in)
     music_pump();
 #ifdef CREDITS_SCROLL
-    CR->T = music_tune_frames(TUNE_CREDITS);
-    CR->f1 = cr_share(CR_UNIT_END);
     cr_layout();
+    credits_tile_put(CT_STRIPE, CR_STRIPE_ID);        // (LCD off)
     if (is_cgb) for (y = 0; y < 8; y++) CR_SAVE[y] = o[64 + y];    // (OBJ 0, the Spigoteer's: the bosses' topper wears it in the cast)
     else o[2] = DMG_HAT_OBP1;                          // (OBP1: the topper's, for the whole cast; cr_leave puts it back)
-    CR->scroll = 0; CR->next = 0; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story; CR->f = 0;
-    CR->gc = 0; CR->gs = 0; CR->gl = 0; CR->sc = 0; CR->ss = 0; CR->live = 0; CR->lw = 0xFFFF; CR->rt = 0; CR->pb = STORY_PORTRAIT_BASE; CR->pp = BGPAL_PATRON; CR->pose = 0; CR->pq = 0;
+    CR->scroll = CR->pos = CR_W0 * 8 + CT_OFF_TITLE - 72; CR->next = 0; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story;
+    CR->gc = 0; CR->gs = CR_W0; CR->gl = 0; CR->sc = 0; CR->ss = CR_W0; CR->ts = CR_W0; CR->live = 0; CR->lw = 0xFFFF; CR->rt = 0; CR->pb = STORY_PORTRAIT_BASE; CR->pp = BGPAL_PATRON; CR->pose = 0; CR->pq = 0;
+    CR->k = 0; CR->st = 0; CR->ph = 0; CR->nc = 0; CR->rr = 0;
 #else
-    CR->T = music_tune_frames(TUNE_CREDITS);          // the timeline: shares of the tune (1/352: 7 a card, the title included; the roll to 322)
+    CR->T = CR_PIC_FRAMES;                            // the timeline: shares of 9692 frames (1/392: 7 a card, 11 a patron card, the title included; the roll to 362)
     CR->e_title = CR->card_len = cr_share(7);
     CR->pl = cr_share(CR_UNIT_PAT);
     CR->roll = CR->e_title + 22 * CR->card_len + 10 * CR->pl;   // (the 32 cards after the title: 22 of 7 units, the ten patron cards longer)
@@ -870,6 +980,9 @@ void credits_enter(uint8_t from_story) BANKED {
     CR->scroll = 0; CR->card = 255; CR->next = CR_AHEAD + 1; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story; CR->f = 0; CR->tmask = 0; CR->amask = 0;
 #endif
     SCX_REG = 0; SCY_REG = 0;
+#ifdef CREDITS_SCROLL
+    SCY_REG = (uint8_t)CR->scroll;
+#endif
     story_phase = STORY_PHASE_CREDITS;
     game_state = GS_STORY;
     music_load_now();                                 // the tune's first notes sound with the picture
@@ -889,7 +1002,9 @@ static void cr_leave(void) {
         LYC_REG = BANNER_LYC;
     }
     trans_cast_set(CR_PAL);                           // the card's own colours, whatever the fade was doing
-    SCY_REG = 0;
+#ifndef CREDITS_SCROLL
+    SCY_REG = 0;                                      // (the scroll: SCY stays where it is, the scene change's white fade covers the screen as it stands; its LCD-off resets the scroll)
+#endif
     TRANS_WANT();                                     // (src/trans.c: the next screen comes up behind the drink)
     if (s) story_end();
     else { title_back = TM_BONUS; title_back_sel = 0; title_enter(); }   // BONUS, the cursor on CREDITS (the first item)
@@ -903,9 +1018,9 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     if (pressed & (J_B | J_START)) { cr_leave(); return 1; }
     CR->t += (uint8_t)((uint8_t)sys_time - CR->ls);
     CR->ls = (uint8_t)sys_time;
-    f = cr_pos();
+    f = CR->t;                                                             // (the frames on the screen: the tune may have run out; its silence changes nothing)
     CR->f = f;
-    if (sound_on ? (cur_tune != TUNE_CREDITS && CR->t > 30) : f >= CR->T) { cr_leave(); return 1; }   // (the tune ends: cur_tune goes to TUNE_NONE)
+    if (f >= CR->T) { cr_leave(); return 1; }                              // (the roll's own end)
     if (f < CR->roll) {                                                    // the cast
         if (f < CR->e_title) c = 0;
         else {
@@ -978,17 +1093,12 @@ uint8_t credits_update(uint8_t pressed) BANKED {
 #ifdef CREDITS_SCROLL
 // story_update, every frame of the roll (GS_STORY). 1: the screen changed.
 uint8_t credits_update(uint8_t pressed) BANKED {
-    uint16_t f, p;
+    uint8_t d, busy = 0;
     if (pressed & (J_B | J_START)) { cr_leave(); return 1; }
-    CR->t += (uint8_t)((uint8_t)sys_time - CR->ls);
-    CR->ls = (uint8_t)sys_time;
-    f = cr_pos();
-    CR->f = f;
-    if (sound_on ? (cur_tune != TUNE_CREDITS && CR->t > 30) : f >= CR->T) { cr_leave(); return 1; }   // (the tune ends: cur_tune goes to TUNE_NONE)
     if (!CR->phase) {                                      // the first screen's rows (and tiles) behind the white, then the fade in
         CR->phase = 1;
         cr_begin();
-        while (!CR->skipq && CR->next <= CR_AHEAD) {
+        while (!CR->skipq && CR->next <= CR_AHEAD_C) {
             cr_gen();
             cr_pp();
         }
@@ -996,17 +1106,15 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         if (CR->skipq) { cr_leave(); return 1; }
         if (cr_fade(1, 1)) { cr_leave(); return 1; }
         CR->live = 1;
-        CR->f0 = cr_pos();
+        CR->ls = (uint8_t)sys_time;                        // (the timeline counts frames from here)
         return 0;
     }
-    p = f > CR->f0 ? (f - CR->f0) >> 1 : 0;
-    f = CR->wroll * 8 + CR_LAST_T;
-    if (p > f) p = f;
-    CR->scroll = p;
-    SCY_REG = (uint8_t)p;
-    f = CR->next <= (p >> 3) + CR_AHEAD;
-    if (f) cr_gen();
-    cr_sprites_v((uint8_t)f);
+    if (LY_REG >= 144) CR->scroll = CR->pos;               // (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
+    SCY_REG = (uint8_t)CR->scroll;
+    for (d = (uint8_t)((uint8_t)sys_time - CR->ls), CR->ls = (uint8_t)sys_time; d; d--) { CR->t++; cr_step(); }   // (frames, not the tune's ticks: a lost tick does not stretch it)
+    if (CR->st == 3 && CR->ph >= CR_END_HOLD && (!sound_on || cur_tune != TUNE_CREDITS)) { cr_leave(); return 1; }   // (the roll's end, and the tune over: it ends on its own, cur_tune goes to TUNE_NONE)
+    if (CR->next <= (CR->scroll >> 3) + (CR->next >= CR->wroll ? CR_AHEAD_R : CR_AHEAD_C)) { cr_gen(); busy = 1; }
+    cr_sprites_v(busy);
     return 0;
 }
 #endif
