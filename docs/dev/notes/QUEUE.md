@@ -479,3 +479,5 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Credits layout A (2dadf8ad): Color 8 looks per venue, DMG 3; names from the plan (base 3; extras from art labels). Patron card hold 2.9 s -> 4.5 s (credits tune A strain played a third time, 146 s -> 162 s; bank 22 122 B free). 16 new goldens; replaced 7 (3 cards on purpose; dregs.cgb, boss_chromecow dmg+cgb, boss_space.cgb = one-frame animation shift). Another repeat would give ~6 s if the owner wants longer.
 - Open Questions: "credits" view card. Agent's card GIFs had durations x60; fixed when copying.
 - Pocket Player v63, Open Questions v432.
+
+- 2026-11-05 owner bug: "Quitting a stage doesn't take me back to the map in story mode." Suspect: pause.c quit_to_map() excludes debug-select runs (save_lock == SAVE_LOCK_DEBUG), which the unlocked playtest build uses; tests use game.gb. Fix sent to a28259c6a051a5f91: every STORY run (debug-select too) quits to the map, verified on the unlocked ROM.
