@@ -18,3 +18,5 @@ When the credits are remade:
 - Ask for the lock confirmation before starting the credits.
 
 Related: [[saloon-patrons-sunday]], [[palette-plan-artifact]].
+
+UPDATE 2026-11-04: the owner said "Now that all the patrons are in we should probably work on updating the credits." The credits remake has started (patrons treated as locked). Boss cards use the game's own boss art, so later boss tweaks (the Critic's glass sprite, and Leo and the Mothership after the playtest) only change goldens.
