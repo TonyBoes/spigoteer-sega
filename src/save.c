@@ -215,11 +215,8 @@ void split6(uint8_t *d, uint32_t v) BANKED {
 // hi_score / hi_digits = table t's entry 1
 void hi_pick(uint8_t t) BANKED {
     uint32_t v = top_scores[t * TOP_N];
-    uint8_t i;
     hi_score = v;
-    // (still the 32-bit division: split6 here would be ~1 frame faster when the PLAY cursor changes the HI line, and
-    // that lag frame is in the debug_story golden's timing; left as it is)
-    for (i = 6; i != 0; i--) { hi_digits[i - 1] = (uint8_t)(v % 10); v /= 10; music_pump(); }   // (each 32-bit division takes a fifth of a frame: the tune ticks between them)
+    split6(hi_digits, v);
 }
 
 // The unlocks a story progress implies (an old save's, and every story_save): the title tune; the venues of the
