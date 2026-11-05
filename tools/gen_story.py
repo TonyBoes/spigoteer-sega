@@ -665,8 +665,9 @@ WATER_PHASES = 4
 
 
 def read_water():
-    """water.txt -> (jets {name: [(x, y)]}, phases {(jet, n): [(x, y)]}, pics {picture: (left jet, right jet)})"""
-    jets, phases, pics, cur = {}, {}, {}, None
+    """water.txt -> (jets {name: [(x, y)]}, phases {(jet, n): [(x, y)] highlights, then ("splash", x, y, key) splash pixels},
+    pics {picture: (left jet, right jet)})"""
+    jets, phases, pics, cur, spl = {}, {}, {}, None, False
     path = PIC_DIR / WATER_FILE
     for ln in path.read_text().splitlines():
         ln = ln.strip()
@@ -674,14 +675,20 @@ def read_water():
             continue
         w = ln.split()
         if w[0] == "@jet":
-            cur = jets.setdefault(w[1], [])
-        elif w[0] == "@phase":
-            cur = phases.setdefault((w[1], int(w[2])), [])
+            cur, spl = jets.setdefault(w[1], []), False
+        elif w[0] in ("@phase", "@splash"):
+            cur, spl = phases.setdefault((w[1], int(w[2])), []), w[0] == "@splash"
+            if spl and int(w[2]) == 0:
+                fail(f"{path}: {ln!r}: phase 0 is the picture as drawn (no splash pixels)")
         elif w[0] == "@pic":
             pics[w[1]] = (w[2], w[3])
             cur = None
         elif cur is None:
             fail(f"{path}: {ln!r} outside a @jet or @phase")
+        elif spl:
+            for t in w:
+                x, y, k = t.split(",")
+                cur.append(("splash", int(x), int(y), k))
         elif "," in w[0]:
             cur += [tuple(int(v) for v in t.split(",")) for t in w]
         else:
@@ -712,7 +719,19 @@ def water_build(p, jets, phases, pair):
                 if pix[y][x] not in "bW":
                     fail(f"{name}: jet {jet} pixel ({x},{y}) is {pix[y][x]!r}, not water b or spray W")
                 pix[y][x] = "b"
-            for x, y in phases[(jet, ph)]:
+            for e in phases[(jet, ph)]:
+                if e[0] == "splash":                  # a splash pixel: beside the jet, in its cells, a colour its cell's palette has
+                    _, x, y, k = e
+                    if (x, y) in cells or not (cx * 8 <= x < cx * 8 + 8 and WATER_CELLS[0][1] * 8 <= y < WATER_CELLS[2][1] * 8 + 8):
+                        fail(f"{name}: jet {jet} phase {ph} splash ({x},{y}) is on the jet or outside its cells")
+                    if p["pix"][y][x] == "#" or k not in p["key"]:
+                        fail(f"{name}: jet {jet} phase {ph} splash ({x},{y}) {k!r}: over the ink, or no such key")
+                    a = p["attr"][(y // 8) * 20 + x // 8]
+                    if a == "H" or p["pals"][a][p["key"][k]["dmg"]] != p["key"][k]["hex"]:
+                        fail(f"{name}: jet {jet} phase {ph} splash ({x},{y}) {k!r}: not a colour of its cell's palette")
+                    pix[y][x] = k
+                    continue
+                x, y = e
                 if (x, y) not in cells:
                     fail(f"{name}: jet {jet} phase {ph} highlight ({x},{y}) is not on the jet")
                 pix[y][x] = "W"

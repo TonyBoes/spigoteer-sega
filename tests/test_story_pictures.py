@@ -409,6 +409,40 @@ def test_the_water_tiles_are_the_jets_own():
             assert len({tuple(map(tuple, p["water"][ph][j * 3:j * 3 + 3])) for ph in range(4)}) == 4, (n, j)
 
 
+def _cell_pixels(tiles, side):
+    """a jet's three cells (one phase, story.json tiles) as {(x, y): DMG shade} in picture coordinates"""
+    out = {}
+    for k in range(3):
+        cx, cy = WATER_CELLS[side * 3 + k]
+        t = tiles[side * 3 + k]
+        for y in range(8):
+            for x in range(8):
+                out[cx * 8 + x, cy * 8 + y] = ((t[2 * y] >> (7 - x)) & 1) | (((t[2 * y + 1] >> (7 - x)) & 1) << 1)
+    return out
+
+
+def test_the_jets_splash_where_they_land():
+    """Owner 2026-11-04 ("animated splashes when the water hits the fountain"): beside each jet, where it lands on the basin's rim,
+    droplets change every phase (phases 1-3 differ from the picture's phase 0 off the jet), only in the jet's two bottom cells
+    (y 56-68: the rim and the rows above it), in the spray, water and wall shades; FINALE's right jet runs into the glass: no splash."""
+    g = gen_story()
+    jets, _, pics = g.read_water()
+    for n, (lj, rj) in pics.items():
+        p, key = PICS[n], g.parse_v2(ROOT / PICS[n]["art"])[0]
+        for side, jet in enumerate((lj, rj)):
+            on = set(jets[jet])
+            cells = [{xy: v for xy, v in _cell_pixels(p["water"][ph], side).items() if xy not in on} for ph in range(4)]
+            for ph in (1, 2, 3):
+                moved = {xy for xy in cells[0] if cells[ph][xy] != cells[0][xy]}
+                if jet == "right_glass":
+                    assert not moved, (n, ph)
+                    continue
+                assert 3 <= len(moved) <= 10, (n, jet, ph, sorted(moved))
+                assert all(56 <= y <= 68 for _, y in moved), (n, jet, ph)
+                assert {cells[ph][xy] for xy in moved} <= {key["W"]["dmg"], key["b"]["dmg"], key["H"]["dmg"]}, (n, jet, ph)
+            assert jet == "right_glass" or len({tuple(sorted(c.items())) for c in cells}) == 4, (n, jet)   # (four different splashes)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_start_skips_the_intro_before_and_during_the_flash(model):
     """START on page 1 and START in the middle of the white flash both end the scene cleanly: the same screen of the

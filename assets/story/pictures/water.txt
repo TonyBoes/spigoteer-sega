@@ -91,6 +91,33 @@
 @phase right_glass 3
 123,53 123,57
 
+; The splashes (owner 2026-11-04: "animated splashes when the water hits the fountain"): where each jet lands on the basin's
+; rim (y 69), droplets pop up beside it and fall back, in the jet's own two bottom cells (no new tile, no sprite). Phase 0 is
+; the picture: its two droplets as drawn (left jet 86,67 and 81,68; right jet 126,67 and 121,68). Phases 1-3 rub those out
+; (H, the wall) and draw their own. Every droplet is placed by hand; per side, one droplet is rising while another falls:
+;   left jet, inner (right) side: A born 85,67 > apex 86,64 > falling 87,66 (trail 87,65) > lands on the rim
+;                                 B born 85,68 > 86,67 (the picture's) > 87,66 > 87,68 > lands
+;   left jet, outer side:         C 81,68 (the picture's) > rising 81,65 (trail 81,66) > apex 80,63 > falling 80,67 (trail 80,66)
+;   right jet, inner (left) side: A born 122,67 > apex 121,64 > falling 120,67 (trail 120,66) > lands
+;                                 B born 122,68 > 121,68 (the picture's) > 120,66 > 120,68 > lands
+;   right jet, outer side:        C 126,67 (the picture's) > rising 127,65 (trail 127,66) > apex 127,63 > falling 127,66 (trail 127,65)
+; W = spray (the jet's highlight colour), b = water, H = the wall behind (rubs out the picture's droplet).
+; @splash JET N, then "x,y,KEY" on one line: phase N's splash pixels (phases 1-3; beside the jet, in its cells).
+; FINALE's right jet runs into the Spigoteer's glass, not the basin: no splash there.
+@splash left 1
+86,67,H 81,68,H 85,67,W 87,66,W 81,65,W 81,66,b
+@splash left 2
+86,67,H 81,68,H 86,64,W 87,68,W 80,63,W
+@splash left 3
+86,67,H 81,68,H 87,66,W 87,65,b 85,68,W 80,67,W 80,66,b
+
+@splash right 1
+126,67,H 121,68,H 122,67,W 120,66,W 127,65,W 127,66,b
+@splash right 2
+126,67,H 121,68,H 121,64,W 120,68,W 127,63,W
+@splash right 3
+126,67,H 121,68,H 120,67,W 120,66,b 122,68,W 127,66,W 127,65,b
+
 @pic intro_before left right
 @pic finale_a left right_glass
 @pic finale_contest left right
