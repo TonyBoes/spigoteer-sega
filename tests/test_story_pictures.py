@@ -1092,3 +1092,63 @@ def test_the_clouds_hide_for_the_contest_flash_and_come_back_after_its_fade_in()
             if k == 3:
                 assert 0 in seen and 3 in seen and seen[-1] == 1, seen
                 assert_picture(gb, "finale_contest")
+
+
+# ---- the contest switch fades (owner Q77, 2026-11-04: "quick fade"); the explosion's flash stays ---------------------
+def luma_now(gb):
+    return float(np.array(gb.image().convert("L"))[:104].mean())
+
+
+def switch_luma(gb, limit=60):
+    """Mean luminance of the picture area, one value per frame from the frame before the page turn (A held for the first
+    two frames, so the turn is read once) until the switch is over."""
+    out = [luma_now(gb)]
+    gb.hold("a")
+    while len(out) < limit:
+        gb.run(1)
+        if len(out) == 2:
+            gb.release("a")
+        out.append(luma_now(gb))
+        if len(out) > 3 and not picture_switching(gb):
+            break
+    return out
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_contest_switch_fades_without_a_sudden_white(model):
+    """FINALE page 4: the first-pour picture fades out to white in three steps (about 3 frames each), the reload, the
+    contest picture fades in. No frame jumps straight to white; the explosion (below) still does."""
+    with to_finale(model) as gb:
+        for _ in range(2):
+            page_ready(gb)
+            gb.press("a", 2)
+        page_ready(gb)
+        assert gb.mem("story_page") == 2                          # (the next press is the turn to page 4: the switch)
+        luma = switch_luma(gb)
+        assert gb.mem("story_page") == 3
+        assert len(luma) < 60 and not picture_switching(gb)
+        peak = max(luma)
+        assert peak > 240, "it does reach white in the middle"
+        span = peak - min(luma)
+        steps = [abs(b - a) for a, b in zip(luma, luma[1:])]
+        first_white = next(i for i, v in enumerate(luma) if v > 240)
+        assert max(steps[:first_white]) < 0.6 * span, f"the fade-out jumps: {luma}"
+        assert max(steps) < 0.6 * span, f"a frame jumps: {luma}"
+        assert first_white >= 5, f"white after only {first_white} frames of fade-out: {luma}"
+        assert len({round(v) for v in luma[:first_white]}) >= 3, f"at least two steps before the white: {luma}"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_explosion_switch_still_goes_straight_to_white(model):
+    """INTRO page 5: unchanged, the white flash is on purpose (owner)."""
+    with start_story(model) as gb:
+        for _ in range(6):
+            page_ready(gb)
+            gb.press("a", 2)
+        run_until(gb, lambda: picture_switching(gb) or gb.mem("story_page") == 5, 5)
+        n = 0
+        while not white_frame(gb):
+            gb.run(1)
+            n += 1
+            assert n <= 3, "the explosion's switch goes white at once"
+        assert picture_switching(gb)
