@@ -27,8 +27,8 @@ extern uint8_t smap_flags;
 #define A_ATTR_UI    240     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
 #define A_IDA        260     // Color: 22 bytes: the attribute bytes of the cells being written
 #define A_PSTG       282     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes)
-#define A_XSTG       300     // Color: 32 bytes: two more tiles of staging (the DMG's tables lie here: it stages two a frame, the Color four)
-#define NSTG_MAX     (is_cgb ? 4 : 2)
+#define A_XSTG       300     // Color: 96 bytes: the staging of up to five tiles a frame (general-purpose DMA reads them: from the first 16-byte boundary in it; the DMG's tables lie here)
+#define NSTG_MAX     (is_cgb ? 5 : 2)
 #define S_V          396     // the variables (V_N <= 68)
 #define S_T          464     // 56 bytes: tile staging (2 tiles) | the line's tile ids (22) | SCY, SCX; the panel's two rolling rows and the name tag's row lie over the first 40
 #define T_TILES      0
@@ -44,7 +44,7 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_W
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
        V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_WT, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
 typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PSTG && A_PSTG + 9 <= S_V
-                                && A_ATTR_UI + 20 <= A_IDA && A_PSTG + 9 <= A_XSTG && A_XSTG + 32 <= S_V && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
+                                && A_ATTR_UI + 20 <= A_IDA && A_PSTG + 9 <= A_XSTG && A_XSTG + 96 <= S_V && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
 #define J_NONE       0
 #define J_COL        1
@@ -67,10 +67,10 @@ extern vq_entry_t vq[];
 
 // The frame's spare time: the first slow job (a cell that needs a lookup or a load) of a frame always runs, the next ones only before line LY_WORK (a frame that starts late, in the
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
-#define LY_WORK 80                                    // (Color: double speed, the same work takes half the lines)
-#define LY_FIRST 80
-#define LY_WORK_C 120
-#define LY_FIRST_C 120
+#define LY_WORK 62                                    // (Color: double speed, the same work takes half the lines)
+#define LY_FIRST 62
+#define LY_WORK_C 100
+#define LY_FIRST_C 100
 #define LY_DOTS  24
 #define CAM_LAG  0                                    // Sal waits while the camera is behind him at all (px, both axes together): it never is, when the region keeps up
 // (the first slow job of a frame waits for the line LY_FIRST only while Sal walks with the camera in step: standing, or with the camera behind, it always runs: no deadlock)
@@ -88,7 +88,7 @@ static void qraw(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
     e->n = n; e->bank = bank; e->src = src; e->dst = (uint8_t *)dst;
 }
 
-static uint8_t room(void) { return qv_cost >= VQ_DRAIN_BUDGET ? 0 : (uint8_t)(VQ_DRAIN_BUDGET - qv_cost); }
+static uint8_t room(void) { return qv_cost + 5 >= VQ_DRAIN_BUDGET ? 0 : (uint8_t)(VQ_DRAIN_BUDGET - 5 - qv_cost); }      // (5: the camera's scroll entry, queued after the region's work)
 
 static uint16_t tile_addr(uint8_t id) { return id < 128 ? 0x9000 + ((uint16_t)id << 4) : 0x8800 + ((uint16_t)(id - 128) << 4); }
 static uint16_t map_addr(uint8_t cx, uint8_t cy) { return 0x9800 + ((uint16_t)(cy & 31) << 5) + (cx & 31); }

@@ -645,6 +645,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         else if (pressed & J_START) panel_open(P_MENU, 0);
     }
     if (!V(V_PANEL) && !vq_held) {
+        smap_region_work();                                  // (first: a line that is done this frame lets the camera step into it this frame, Sal never waits on a camera that was blocked a frame ago)
         ocx = g16(V_CAMX); ocy = g16(V_CAMY);
         if (smap_camera_step()) {
             SC(S_T + T_CAM)[0] = (uint8_t)g16(V_CAMY); SC(S_T + T_CAM)[1] = (uint8_t)g16(V_CAMX);
@@ -653,7 +654,6 @@ uint8_t smap_update(uint8_t pressed) BANKED {
             else oam_shift((int8_t)(ocx - g16(V_CAMX)), (int8_t)(ocy - g16(V_CAMY)));
         }
         if (!(V(V_TICK) & 31) && V(V_STATE) >= 10) V(V_DOTS) = 1;       // (the UFO bobs 1 px every 32 frames)
-        smap_region_work();
     }
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
