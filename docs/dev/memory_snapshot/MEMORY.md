@@ -48,3 +48,4 @@
 - [C build: speed not required](c-build-speed-not-required.md) — owner 11-01: C speed fails ok; C tests on HOLD until the patron import is done (asm only)
 - [No flashing lights](no-flashing-lights.md) — owner 11-04: stage colours fade, never cut or flash; check GIFs for strobing before showing
 - [Art: consistency, only flagged changes](art-consistency-only-flagged.md) — change only what the owner flagged (tower, not tavern roof, 11-04); same buildings/props/texture at every time of day
+- [No music changes without OK](no-music-changes-without-ok.md) — never repeat/stretch/cut a song to fit timing without the owner's OK; let the music run out (owner 11-05)
