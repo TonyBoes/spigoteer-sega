@@ -135,6 +135,15 @@ ROLL = [
     "", "", "", "", "", "", "", "", "", "", "", "",   # the screen empties before the last words
     "THANKS FOR", "PLAYING!",
 ]
+# CREDITS=SCROLL's layout (rows of the world; credits.c uses these through credits_text.h). G: the gap between blocks (a card's top rows and the cards' own blank rows
+# included in the heights); LG: the larger gap before a venue's divider (blank rows at the top of its owner card). Stops (the block centred on the screen) are at OFF px from the card's top.
+LAY_G, LAY_LG = 2, 12
+LAY = dict(G=LAY_G, LG=LAY_LG, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG + 3, R_OLBL=LAY_LG + 8, R_PORT=LAY_LG + 10, R_ONAME=LAY_LG + 18,
+           H_OWN=LAY_LG + 19, R_PLBL=0, R_PN=5, H_PAT=16, R_BLBL=2, R_BBODY=6, R_BNAME=10, H_BOSS=14,
+           OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 11), OFF_PAT=64, OFF_BOSS=56)
+LABELS = ["OWNER", "REGULARS", "BOSS"]
+BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
+SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
 ROLL_POOL = 160                                      # the roll's BG ids (credits.c CR_RING): the most tiles of 21 consecutive rows it may need
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
 
@@ -171,29 +180,36 @@ def tile_of(px, tx):
     return POOL_IDX[t]
 
 
-def row(name, items, edge=8):
-    """A row of the screen: items = [(text, centre x)]. The ink of each is centred on its x (to the pixel: the half pixel goes left); the tiles cut,
-    the empty ones at the ends dropped. Returns the ink boxes."""
-    full = [[BAND] * 160 for _ in range(8)]
-    boxes = []
-    for text, cx in items:
-        px, x0, x1 = strip(text)
-        dx = cx - (x0 + x1 + 1) // 2
-        assert x0 + dx >= edge and x1 + dx < 160 - edge, f"{name}: {text!r} reaches the screen's edge ({x0 + dx}..{x1 + dx})"
-        for y in range(8):
-            for x in range(len(px[0])):
-                if px[y][x] != BAND:
-                    full[y][x + dx] = px[y][x]
-        boxes.append((text, x0 + dx, x1 + dx))
+def cut_row(name, full, bg, store):
+    """The 20 cells of a row image (8 pixel rows of 160), the cells that are all `bg` dropped at the ends (and as 0xFFFF inside); one ROWS entry."""
     tiles = []
     for tx in range(20):
-        blank = all(full[y][tx * 8 + x] == BAND for y in range(8) for x in range(8))
+        blank = all(full[y][tx * 8 + x] == bg for y in range(8) for x in range(8))
         tiles.append(None if blank else tile_of(full, tx))
     live = [i for i, t in enumerate(tiles) if t is not None]
     c0, c1 = (live[0], live[-1]) if live else (0, -1)
     cells = [0xFFFF if t is None else t for t in tiles[c0:c1 + 1]]
     ROWS.append((name, c0, cells))
-    INFO[name] = {"col": c0, "n": len(cells), "cells": cells, "ink": [{"text": t, "x0": a, "x1": b} for t, a, b in boxes]}
+    store[name] = {"col": c0, "n": len(cells), "cells": cells}
+    return store[name]
+
+
+def row(name, items, edge=8, inkmap=None, store=None):
+    """A row of the screen: items = [(text, centre x)] (text: a string, or (pixel rows, ink x0, x1) of a picture). The ink of each is centred on its x (to the
+    pixel: the half pixel goes left); the tiles cut, the empty ones at the ends dropped. inkmap: the ink's colours changed (the labels'). Returns the ink boxes."""
+    full = [[BAND] * 160 for _ in range(8)]
+    boxes = []
+    for text, cx in items:
+        px, x0, x1 = strip(text) if isinstance(text, str) else text
+        dx = cx - (x0 + x1 + 1) // 2
+        assert x0 + dx >= edge and x1 + dx < 160 - edge, f"{name}: {text!r} reaches the screen's edge ({x0 + dx}..{x1 + dx})"
+        for y in range(8):
+            for x in range(len(px[0])):
+                if px[y][x] != BAND:
+                    full[y][x + dx] = (inkmap or {}).get(px[y][x], px[y][x])
+        boxes.append((text if isinstance(text, str) else name, x0 + dx, x1 + dx))
+    e = cut_row(name, full, BAND, INFO if store is None else store)
+    e["ink"] = [{"text": t, "x0": a, "x1": b} for t, a, b in boxes]
     return boxes
 
 
@@ -275,12 +291,83 @@ def main():
     cnt = [0 if r == 255 else sum(1 for c in ROWS[r][2] if c != 0xFFFF) for r in roll_ids]
     peak = max(sum(cnt[i:i + 21]) for i in range(len(cnt)))
     assert peak <= ROLL_POOL, f"the roll needs {peak} tiles at once, the ring has {ROLL_POOL}"
-    # a row with nothing in it (PATB of a venue that does not drop a row) stays out of the tables' way: one blank cell
-    n_rows = len(ROWS)
+    # ---- CREDITS=SCROLL's own rows (appended after every other row: the default build's tables are the same without them; emitted inside #ifdef CREDITS_SCROLL) ----
+    n_base_rows, n_base_pool = len(ROWS), len(POOL)
+    EXTRA = {}
+    ids["LBL0"] = len(ROWS)
+    for t in LABELS:                                  # the labels: the small font, the ink one shade on (DMG light grey, Color the venue palette 0's gold), centred
+        row("LBL_" + t, centred(t), inkmap={0: 1}, store=EXTRA)
+    ids["DIV"] = len(ROWS)
+    icon = [[IDX[c] for c in r] for r in story["spigot_icon"]]
+    xs = [x for x in range(8) if any(icon[y][x] != BAND for y in range(8))]
+    row("DIVIDER", [((icon, min(xs), max(xs)), 80)], store=EXTRA)
+    ids["BAND0"] = len(ROWS)
+    for v in range(10):                               # the venue band: the name's letters 8 px wide, 16 tall, on a stripe (colour 2); three rows of tiles
+        px, x0, x1 = strip(VENUES[v])
+        big = [px[y // 2] for y in range(16)]
+        ys = [y for y in range(16) if any(c != BAND for c in big[y])]
+        top = (BAND_H - (ys[-1] - ys[0] + 1)) // 2 - ys[0]
+        dx = 80 - (x0 + x1 + 1) // 2
+        assert x0 + dx >= 8 and x1 + dx < 152, (VENUES[v], x0 + dx, x1 + dx)
+        img = [[2] * 160 for _ in range(BAND_H)]
+        for y in range(16):
+            for x in range(len(px[0])):
+                if big[y][x] != BAND:
+                    img[y + top][x + dx] = big[y][x]
+        for j in range(3):
+            cut_row(f"BAND{v}_{j}", img[8 * j:8 * j + 8], 2, EXTRA)
+    stripe = tile_of([[2] * 160 for _ in range(8)], 0)
+    # the stripe's colour on Color: the venue's stage palette colour 2 (biker: its bar's colour 2, the stage's is a bright green)
+    vd = ROOT / "assets/approved/venues"
+    band_col = []
+    for t in ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"]:
+        pj = json.loads((vd / f"{t}_pal.json").read_text())
+        band_col.append(rgb555(pj["bar"]["hex"][2] if t == "biker" else pj["stage_a"]["hex"][2]))
+    # the cast's text ring: the most tiles any 32 consecutive world rows hold (credits.c builds up to 30 rows ahead of the screen's top)
+    L = LAY
+    def n(name):
+        return sum(1 for c in EXTRA.get(name, INFO.get(name))["cells"] if c != 0xFFFF)
+    world = {}
+    def put(y, name):
+        world[y] = world.get(y, 0) + n(name)
+    y0 = 8
+    def card(h, g):
+        nonlocal y0
+        c0 = y0
+        y0 += h + g
+        return c0
+    c0 = card(L["H_TITLE"], L["GAP_TITLE"]); put(c0, "TITLE0"); put(c0 + 2, "TITLE1")
+    for key in ("SAL", "DREGS"):
+        c0 = card(L["H_SD"], L["G"]); put(c0 + 10, key + "0"); put(c0 + 12, key + "1")
+    peaks = {}
+    for dmg in (0, 1):
+        world_d = dict(world)
+        yy = y0
+        cnt = dict(world)
+        for v in range(10):
+            for off, name in [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]:
+                cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
+            yy += L["H_OWN"] + L["G"]
+            cnt[yy] = n("LBL_REGULARS")
+            for k, nm in enumerate("ABC"):
+                if dmg and k != 1:
+                    continue
+                cnt[yy + L["R_PN"] * (k + 1)] = n(f"PAT{nm}{v}")
+            yy += L["H_PAT"] + L["G"]
+            cnt[yy + L["R_BLBL"]] = n("LBL_BOSS")
+            cnt[yy + L["R_BNAME"]] = n(f"BOSS{v}")
+            yy += L["H_BOSS"] + L["G"]
+        top = max(cnt)
+        peaks[dmg] = max(sum(cnt.get(a + i, 0) for i in range(32)) for a in range(0, top))
+    assert max(peaks.values()) <= SCROLL_RING, f"the scroll's cast needs {peaks} text tiles at once, the ring has {SCROLL_RING}"
+    n_all_rows = len(ROWS)
+    # (the default build's tables end at n_base_rows / n_base_pool)
+    n_rows = n_base_rows
     flat, offs = [], []
     for name, c0, cells in ROWS:
         offs.append(len(flat))
         flat += cells
+    n_flat_base = offs[n_base_rows]
     pool_b = []
     for t in POOL:
         for y in range(8):
@@ -289,26 +376,45 @@ def main():
                 lo |= (t[y][x] & 1) << (7 - x)
                 hi |= (t[y][x] >> 1) << (7 - x)
             pool_b += [lo, hi]
+    flat_all = flat
+    flat = flat_all[:n_flat_base]
 
     def arr(name, vals, ty="uint8_t"):
         return f"static const {ty} {name}[{len(vals)}] = {{ " + ", ".join(str(v) for v in vals) + " };"
+
+    lens = [len(r[2]) if any(x != 0xFFFF for x in r[2]) else 0 for r in ROWS]
     c = ["// generated by tools/gen_credits.py -- do not edit", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
-         arr("ct_pool", pool_b), arr("ct_off", offs, "uint16_t"), arr("ct_cell", flat, "uint16_t"),
-         arr("ct_col", [r[1] for r in ROWS]), arr("ct_len", [len(r[2]) if any(x != 0xFFFF for x in r[2]) else 0 for r in ROWS]), "",
+         arr("ct_pool", pool_b[:n_base_pool * 16]), arr("ct_off", offs[:n_base_rows], "uint16_t"), arr("ct_cell", flat, "uint16_t"),
+         arr("ct_col", [r[1] for r in ROWS[:n_base_rows]]), arr("ct_len", lens[:n_base_rows]), "",
+         "#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and tiles (after the others': the default build does not have them)",
+         arr("ct_pool2", pool_b[n_base_pool * 16:]), arr("ct_off2", [o - n_flat_base for o in offs[n_base_rows:]], "uint16_t"), arr("ct_cell2", flat_all[n_flat_base:], "uint16_t"),
+         arr("ct_col2", [r[1] for r in ROWS[n_base_rows:]]), arr("ct_len2", lens[n_base_rows:]), "#endif", "",
          "// pool tile idx to BG tile `to` (one tile: a library write with the LCD on takes a twentieth of a frame)",
          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED {",
+         "#ifdef CREDITS_SCROLL",
+         f"    if (idx >= {n_base_pool}) {{ set_bkg_data(to, 1, ct_pool2 + ((idx - {n_base_pool}) << 4)); return; }}",
+         "#endif",
          "    set_bkg_data(to, 1, ct_pool + (idx << 4));", "}", "",
          "// row r's cells: dst[0] the first column, dst[1] the count (0: nothing on the row), then the pool index of each (16 bits, 0xFFFF: empty)",
          "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED {",
-         "    uint8_t i, n = ct_len[r];",
+         "    uint8_t i, n;",
          "    uint16_t *d = (uint16_t *)(dst + 2);",
-         "    const uint16_t *s = ct_cell + ct_off[r];",
+         "    const uint16_t *s;",
+         "#ifdef CREDITS_SCROLL",
+         f"    if (r >= {n_base_rows}) {{",
+         f"        r -= {n_base_rows};",
+         "        n = ct_len2[r]; s = ct_cell2 + ct_off2[r]; dst[0] = ct_col2[r]; dst[1] = n;",
+         "        for (i = 0; i != n; i++) d[i] = s[i];",
+         "        return n;",
+         "    }",
+         "#endif",
+         "    n = ct_len[r]; s = ct_cell + ct_off[r];",
          "    dst[0] = ct_col[r]; dst[1] = n;",
          "    for (i = 0; i != n; i++) d[i] = s[i];",
          "    return n;", "}", ""]
     (out / "credits_text.c").write_text("\n".join(c))
     h = ["// generated by tools/gen_credits.py -- do not edit", "#ifndef CREDITS_TEXT_H", "#define CREDITS_TEXT_H", "#include <stdint.h>", "",
-         f"#define CT_POOL_TILES {len(POOL)}   // unique tiles ({len(POOL) * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
+         f"#define CT_POOL_TILES {n_base_pool}   // unique tiles ({n_base_pool * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
     for key in ("TITLE", "SAL", "DREGS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // two rows")
     for key in ("HDR", "OWNER", "PATA", "PATB", "PATC", "BOSS"):
@@ -321,10 +427,16 @@ def main():
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
           "static const uint8_t ct_lp[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in lp) + " }" for lp in LOOK_PAL) + " };   // each look's OBJ palette (Color): 1 + the index here (OBJ 0 is the Spigoteer's, kept for the roll)",
           "static const uint16_t ct_pcol[10][7][3] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in (pc + [0, 0, 0])[:3]) + " }" for pc in pcs + [[]] * (7 - len(pcs))) + " }" for pcs in PAL_COLS) + " };   // the palettes' colours 1-3 (RGB555, before BRIGHTEN)",
-          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "#endif", ""]
+          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", ""]
+    h += ["#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and layout (rows of the world: tools/gen_credits.py LAY)",
+          f"#define CT_LBL {ids['LBL0']}   // the labels OWNER, REGULARS, BOSS", f"#define CT_DIV {ids['DIV']}   // the divider's row (the spigot icon, centred)",
+          f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",
+          "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
+    h += [f"#define CT_{k} {v}" for k, v in LAY.items()]
+    h += [f"#define CT_RING_N {SCROLL_RING}   // the cast's text ring (peak {peaks})", "#endif", "", "#endif", ""]
     (out / "credits_text.h").write_text("\n".join(h))
     js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
-          "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "look_pal": LOOK_PAL, "pal_cols": PAL_COLS, "pool": len(POOL), "ring_peak": peak, "title": TITLE}
+          "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "look_pal": LOOK_PAL, "pal_cols": PAL_COLS, "pool": len(POOL), "ring_peak": peak, "extra": EXTRA, "layout": LAY, "ring_peaks": {str(k): v for k, v in peaks.items()}, "title": TITLE}
     (out / "credits_text.json").write_text(json.dumps(js, indent=1))
     print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, one row each")
 
