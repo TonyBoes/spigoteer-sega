@@ -43,6 +43,14 @@ ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
 
+# Playtest variant (owner 2026-11-05): the credits as one continuous scroll instead of a fade between cards (src/credits.c "the scrolling credits"):
+#   make BUILD=out/b_scroll OUT=out/o_scroll CREDITS=SCROLL unlocked
+CREDITS  ?=
+export CREDITS
+ifeq ($(CREDITS),SCROLL)
+LCCFLAGS += -DCREDITS_SCROLL
+endif
+
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patrons_robots_x.c $(BUILD)/patrons_divers_x.c $(BUILD)/patrons_punks_x.c $(BUILD)/patrons_ninjas_x.c $(BUILD)/patron_load.c
