@@ -473,3 +473,9 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Built: story pause label QUIT TO MAP; QUIT goes to the map at the venue (run, difficulty, HUD tint kept); A there: RESUME / ENTER / BACK (smap_flags bit 3 SMAP_RESUME, RAM only). RESUME = the shift (boss fight: Last call; mini-game: that step) again from its start with the lives and score it began with, kept in HRAM 0xFFF5-0xFFFA (story.c step_start). No snapshot, no SRAM, no new WRAM.
 - Golden changed on purpose: pause_menu_boss.dmg / .cgb (label), bbox 113,88,133,94.
 - Merged 3b08f9cd; replaced pause_menu_boss.dmg/.cgb (QUIT TO MAP label). Pocket Player v62.
+
+## 2026-11-05 Merged: DMG map asm pass + credits layout A
+- Map asm pass (ffdbbd61): DMG holds 8.3% -> 1.3%, p90 133 -> 110, worst 172 -> 139, 0 late frames; Color 84/72/0. UFO bob fixed. ROM_7 29 B free. No goldens. Still open (small): DMG 38-frame LCD-off map entry.
+- Credits layout A (2dadf8ad): Color 8 looks per venue, DMG 3; names from the plan (base 3; extras from art labels). Patron card hold 2.9 s -> 4.5 s (credits tune A strain played a third time, 146 s -> 162 s; bank 22 122 B free). 16 new goldens; replaced 7 (3 cards on purpose; dregs.cgb, boss_chromecow dmg+cgb, boss_space.cgb = one-frame animation shift). Another repeat would give ~6 s if the owner wants longer.
+- Open Questions: "credits" view card. Agent's card GIFs had durations x60; fixed when copying.
+- Pocket Player v63, Open Questions v432.

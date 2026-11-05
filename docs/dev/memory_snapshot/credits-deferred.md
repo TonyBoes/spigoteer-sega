@@ -20,3 +20,5 @@ When the credits are remade:
 Related: [[saloon-patrons-sunday]], [[palette-plan-artifact]].
 
 UPDATE 2026-11-04: the owner said "Now that all the patrons are in we should probably work on updating the credits." The credits remake has started (patrons treated as locked). Boss cards use the game's own boss art, so later boss tweaks (the Critic's glass sprite, and Leo and the Mothership after the playtest) only change goldens.
+
+UPDATE 2026-11-05: the credits patron cards are rebuilt (layout A, owner Q80) and merged: Color 8 looks per venue, DMG 3, a longer 4.5 s hold. Boss cards are unchanged.
