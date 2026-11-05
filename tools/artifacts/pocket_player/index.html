@@ -104,7 +104,9 @@ button, .seg label { font: inherit; }
       <button class="tool" id="tone">Test tone</button>
       <label class="tool" for="romfile" style="cursor:pointer">Open .gb file…</label>
       <input type="file" id="romfile" accept=".gb,.gbc" hidden>
+      <button class="tool" id="romdl" hidden>Download ROM</button>
     </div>
+    <div class="meta" id="dlstat" hidden></div>
     <div class="meta" id="audiostat">Sound: tap any control to start it.</div>
     <div class="meta">The save (cartridge battery) is kept in this browser, per ROM build.</div>
     <div class="meta">Quick-test emulator. Timing and graphics may differ from real hardware; SameBoy and a real Game Boy are the reference.</div>
@@ -449,9 +451,10 @@ var ROM_LIST = [
   // ---- ROM choice ------------------------------------------------------
   var sel = $("romsel");
   ROM_LIST.forEach(function (r) { var o = document.createElement("option"); o.value = r.id; o.textContent = r.label; sel.appendChild(o); });
-  function useRom(bytes, label) {
+  var romName = "spigoteer.gb";
+  function useRom(bytes, label, name) {
     if (ex) saveRam();
-    romBytes = bytes; romKey = hash(romBytes);
+    romBytes = bytes; romKey = hash(romBytes); romName = name || romName;
     $("romline").textContent = "ROM: " + label;
     if (ex) { boot(); running = true; }
   }
@@ -459,7 +462,7 @@ var ROM_LIST = [
     var done = function () {
       var r = window.ROMS && window.ROMS[id];
       if (!r) { statusEl.textContent = "Could not load that ROM (blocked script?)."; return; }
-      useRom(b64ToBytes(r.b64), r.label);
+      useRom(b64ToBytes(r.b64), r.label, "spigoteer-" + id + ".gb");
     };
     if (window.ROMS && window.ROMS[id]) { done(); return; }
     statusEl.textContent = "Loading ROM...";
@@ -475,9 +478,41 @@ var ROM_LIST = [
   $("romfile").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0]; if (!f) return;
     var rd = new FileReader();
-    rd.onload = function () { useRom(new Uint8Array(rd.result), "your file: " + f.name); };
+    rd.onload = function () { useRom(new Uint8Array(rd.result), "your file: " + f.name, f.name); };
     rd.onerror = function () { statusEl.textContent = "Could not read that file."; };
     rd.readAsArrayBuffer(f);
+  });
+
+  // ---- download the loaded ROM: a .gb is not a type the page may save, so it goes out inside a stored (uncompressed) .zip
+  var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(a) { var c = 0xFFFFFFFF; for (var i = 0; i < a.length; i++) c = CRC[(c ^ a[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zipOne(name, data) {
+    var nm = new TextEncoder().encode(name), crc = crc32(data), n = data.length;
+    var lh = new DataView(new ArrayBuffer(30)), ch = new DataView(new ArrayBuffer(46)), eo = new DataView(new ArrayBuffer(22));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 10, true); lh.setUint32(14, crc, true); lh.setUint32(18, n, true); lh.setUint32(22, n, true); lh.setUint16(26, nm.length, true);
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 10, true); ch.setUint16(6, 10, true); ch.setUint32(16, crc, true); ch.setUint32(20, n, true); ch.setUint32(24, n, true); ch.setUint16(28, nm.length, true);
+    var cdAt = 30 + nm.length + n;
+    eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, 1, true); eo.setUint16(10, 1, true); eo.setUint32(12, 46 + nm.length, true); eo.setUint32(16, cdAt, true);
+    return new Blob([lh.buffer, nm, data, ch.buffer, nm, eo.buffer], { type: "application/zip" });
+  }
+  var dl = null, dlstat = $("dlstat");
+  function dlSay(t) { dlstat.textContent = t; dlstat.hidden = !t; }
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then(function (d) { dl = d; $("romdl").hidden = !d; }, function () {});
+  }
+  $("romdl").addEventListener("click", function () {
+    wakeAudio();
+    if (!dl || !romBytes) return;
+    var base = romName.replace(/\.(gbc?|GBC?)$/, "");
+    dlSay("");
+    dl.save({ filename: base + ".zip", data: zipOne(base + ".gb", romBytes) }).then(function () {
+      dlSay("Saved " + base + ".zip (the .gb is inside).");
+    }, function (e) {
+      var c = e && e.code;
+      if (c === "declined") dlSay("");
+      else if (c === "rate_limited") dlSay("A save is already open. Try again in a moment.");
+      else { dlSay("Downloads are not available here."); $("romdl").hidden = true; }
+    });
   });
 
   if (typeof WasmBoyTsCore !== "function") {

@@ -53,6 +53,8 @@ Merges builds read its `out/atlas/data`.
   The page's `wakeAudio()` retries that on every such event until the audio context runs. Keep this behaviour when
   editing the page.
 - ROM .js files are generated and not committed. Rebuild them from the game's own ROMs.
+- Download ROM (menu, owner 2026-11-05): uses the `downloads` capability, declared on the artifact (`capabilities: {downloads: true}`; a
+  redeploy that omits `capabilities` keeps it). `.gb` is not an allowed download type, so the page saves `<rom>.zip` (stored, the .gb inside).
 
 ## Keeping these copies current
 
