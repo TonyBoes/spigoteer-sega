@@ -1370,6 +1370,7 @@ def _main():
     # BG ids of bank 1 (all free there): the 35 shifted poses of 6 tiles (look k, shift s: pose q = 7 k + s - 1) at 6 q for q < 34, the
     # blank pair at PATRON_BLANK (so a bank-1 look's shift-0 3rd column is the same id as bank 0's), the five shift-0 poses (4 tiles,
     # OBJ-able: even, >= 128) from X_S0, the five back views (4 tiles) from X_BACK, and the last pose (q = 34) at X_LAST.
+    xcases0, xext0 = [], []
     for tag in X_TAGS:   # (the Saloon's Color-only looks and each generated venue's: one layout, one blob and one loader apiece)
         xs = [r for _, r in blocks(ROOT / f"assets/art/patrons/{tag}.txt")]
         xb = [r for _, r in blocks(ROOT / f"assets/art/patrons/{tag}_back.txt")]
@@ -1396,6 +1397,8 @@ def _main():
                     xt[x_back + 4 * k + r * 2 + cx] = tile_bytes(v, tx, ty)
         assert all(t is not None for t in xt)
         xsym = f"patron_tiles_{tag}"
+        xext0 += [f"BANKREF_EXTERN({xsym})", f"extern const uint8_t {xsym}[];"]
+        xcases0.append(f"    case {0 if tag == 'saloon_x' else PATRON_GROUPS.index(tag[:-2])}: spr_data_far(X_S0 + 4 * k + t, 1, {xsym} + (X_S0 + 4 * k + t) * 16, BANK({xsym})); break;")
         # The loader sits in the blob's own bank (no bank switch to make while it runs) and
         # leaves the music to the caller's pump between its 8 parts (32 tiles each, the last 28).
         xload = ["// LCD off only: part 0..7 of the venue's Color-only looks into VRAM bank 1 (BG ids 0..251: ids 0..127 at 0x9000, 128..251 at 0x8800; the caller pumps the tune between the parts)",
@@ -1464,6 +1467,9 @@ def _main():
     load += cases + ["    }", "}", ""]
     load += ["// the credits' cast cards (src/credits.c): tile t (0-5: one tile, so that a build with the LCD on stays a fraction of a frame between its ticks) of variant v's shift-0 pose of the group as OBJ tile first + t",
              "void load_patron_pose0(uint8_t g, uint8_t first, uint8_t v, uint8_t t) BANKED {", "    switch (g) {"] + cases0 + ["    }", "}", ""]
+    load += ["// the credits' patron cards on Color (src/credits.c): tile t (0-3) of Color-only look k's shift-0 pose (group g's own _x blob) to bank 1, OBJ id X_S0 + 4 k + t",
+             "// (LCD on: a tile a call; the card build ticks the tune between)", "#define X_S0 %d" % (patron_first + blank_ofs + 2)] + xext0 + [
+             "void load_patron_x0(uint8_t g, uint8_t k, uint8_t t) BANKED {", "    VBK_REG = VBK_BANK_1;", "    switch (g) {"] + xcases0 + ["    }", "    VBK_REG = VBK_BANK_0;", "}", ""]
     (outdir / "patron_load.c").write_text("\n".join(load))
     h[-2:-2] = [f"#define PATRON_GROUPS {len(PATRON_GROUPS)}",
                 f"#define PATRON_SHIFTS {PATRON_SHIFTS}",
@@ -1486,6 +1492,8 @@ def _main():
                 "void load_punks_x(uint8_t part) BANKED;   // build/patrons_punks_x.c: the Chrome Cow's",
                 "void load_ninjas_x(uint8_t part) BANKED;   // build/patrons_ninjas_x.c: the Teahouse's",
                 *["void load_%s(uint8_t part) BANKED;   // build/patrons_%s.c: the venue's (the same layout and ids)" % (t, t) for t in ("sports_x", "lumberjacks_x", "chefs_x")],
+                "void load_patron_x0(uint8_t g, uint8_t k, uint8_t t) BANKED;   // build/patron_load.c: tile t (0-3) of Color-only look k's shift-0 pose to VRAM bank 1 as OBJ tile PATRON_X_S0 + 4 k + t (the credits cast, LCD on)",
+                f"#define PATRON_X_S0 {patron_first + blank_ofs + 2}   // = SALOON_X_S0: bank 1's shift-0 poses of the Color-only looks (even, >= 128)",
                 "void load_patron_pose0(uint8_t g, uint8_t first, uint8_t v, uint8_t t) BANKED;   // build/patron_load.c: tile t (0-5) of variant v's shift-0 pose as OBJ tile first + t (the credits cast)", ""]
 
     (outdir / "art.h").write_text("\n".join(h))

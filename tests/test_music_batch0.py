@@ -116,13 +116,13 @@ def test_the_pattern_route_in_the_game_steps_the_kick_and_the_snare(sgb):
 def test_the_credits_last_chord_fades_100_50_25_percent():
     """hUGEDriver reads the LOW nibble of Cxy for the wave channel: 0xC50 and 0xC20 both gave 25 %."""
     t = songs.SONGS["credits"]
-    assert t["fx_map"] == {574: [(3, 0xC05)], 576: [(3, 0xC02)]}
+    assert t["fx_map"] == {638: [(3, 0xC05)], 640: [(3, 0xC02)]}
     b = gm.build("credits", t, False)
     rows = [r for chunk in b["per"][3] for r in chunk]
-    assert rows[574][2] == 0xC05 and rows[576][2] == 0xC02
+    assert rows[638][2] == 0xC05 and rows[640][2] == 0xC02
     last = [(i, r) for i, r in enumerate(rows) if r[0] != gm.REST and r[2] != 0xC05][-1]
     assert last[1][1] == gm.BASS_HELD, "the last chord's bass is held (the pluck table would be silent before its fade)"
-    start = gm.pass_frames(571, 15, 0, t["tempo_map"])
+    start = gm.pass_frames(635, 15, 0, t["tempo_map"])
     with make_rom("cgb") as gb:                 # (sound on: the APU registers read back)
         gb.run(120)
         hold_stage_anim(gb)
@@ -131,7 +131,7 @@ def test_the_credits_last_chord_fades_100_50_25_percent():
         while gb.mem16("music_frames") < start - 3:
             gb.run(1)
         seq = []
-        while gb.mem("cur_tune") == 15 and gb.mem16("music_frames") < gm.pass_frames(579, 15, 0, t["tempo_map"]) - 2:
+        while gb.mem("cur_tune") == 15 and gb.mem16("music_frames") < gm.pass_frames(643, 15, 0, t["tempo_map"]) - 2:
             gb.run(1)
             v = gb.mem(NR32) & 0x60
             if not seq or seq[-1] != v:
