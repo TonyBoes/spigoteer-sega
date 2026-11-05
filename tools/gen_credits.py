@@ -291,6 +291,18 @@ def main():
     cnt = [0 if r == 255 else sum(1 for c in ROWS[r][2] if c != 0xFFFF) for r in roll_ids]
     peak = max(sum(cnt[i:i + 21]) for i in range(len(cnt)))
     assert peak <= ROLL_POOL, f"the roll needs {peak} tiles at once, the ring has {ROLL_POOL}"
+    # the scroll variant's roll (owner 2026-11-05): every line of an entry has its own blank row after it (a 16 px pitch: the 7 px letters nearly touched at 8),
+    # the gaps between entries as they are; the same text rows, so no new tiles
+    roll2 = []
+    for j, r in enumerate(roll_ids):
+        roll2.append(r)
+        if r != 255 and j + 1 < len(roll_ids) and roll_ids[j + 1] != 255:
+            roll2.append(255)
+    BAND_ROW = 14                                                  # (credits.c CR_BAND in the default roll: the sprites' band)
+    band2 = sum(2 if (roll_ids[k] != 255 and k + 1 < len(roll_ids) and roll_ids[k + 1] != 255) else 1 for k in range(BAND_ROW))
+    cnt2 = [0 if r == 255 else sum(1 for c in ROWS[r][2] if c != 0xFFFF) for r in roll2]
+    peak2 = max(sum(cnt2[i:i + 21]) for i in range(len(cnt2)))
+    assert peak2 <= ROLL_POOL, f"the scroll's roll needs {peak2} tiles at once, the ring has {ROLL_POOL}"
     # ---- CREDITS=SCROLL's own rows (appended after every other row: the default build's tables are the same without them; emitted inside #ifdef CREDITS_SCROLL) ----
     n_base_rows, n_base_pool = len(ROWS), len(POOL)
     EXTRA = {}
@@ -433,9 +445,11 @@ def main():
           f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",
           "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
     h += [f"#define CT_{k} {v}" for k, v in LAY.items()]
+    h += [f"#define CT_ROLL2_N {len(roll2)}   // the scroll's roll: a blank row after each line of an entry", f"#define CT_ROLL2_BAND {band2}   // its sprites' band (the roll's row 14, moved)",
+          "static const uint8_t ct_roll2[CT_ROLL2_N] = { " + ", ".join(str(r) for r in roll2) + " };"]
     h += [f"#define CT_RING_N {SCROLL_RING}   // the cast's text ring (peak {peaks})", "#endif", "", "#endif", ""]
     (out / "credits_text.h").write_text("\n".join(h))
-    js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
+    js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "roll2_ids": roll2, "roll2_band": band2, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
           "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "look_pal": LOOK_PAL, "pal_cols": PAL_COLS, "pool": len(POOL), "ring_peak": peak, "extra": EXTRA, "layout": LAY, "ring_peaks": {str(k): v for k, v in peaks.items()}, "title": TITLE}
     (out / "credits_text.json").write_text(json.dumps(js, indent=1))
     print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, one row each")
