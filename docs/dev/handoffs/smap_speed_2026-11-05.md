@@ -43,3 +43,22 @@ Goal, from the owner: "Map movement should be faster and less jerky"; then "I'm 
 6. **Report:** average px/frame per leg, old against new, on both models.
 7. **Goldens:** story_map_scroll_walking dmg/cgb will change. List them with their bbox.
 8. **Tearing check** of stride mode, SameBoy if possible.
+
+## Round 3 (adaptive pace, no gear table) - state at commit "WIP (not green): story map walk tests ..."
+
+What changed: the fitted gear table is gone (`tools/dev/smap_gear.py` and `tools/smap_gear.json` are obsolete, unused). `walk_step` in
+`src/smap.c` picks the pace each frame (2, 1, 1/2, 1/4, 1/8 px) from `smap_room()` (px Sal may still walk before the camera shows an
+unloaded cell) against the cells the loading line still needs at the rate it has been loading (`V_RATE`, a byte of the map's own
+scratch: V_SEL while walking). `ly_ok()` gates every cell on the frame's LY. A UFO bob moves OAM y directly (`ufo_bob`).
+
+Measured (out/mv/measure.py, per game frame): DMG 3471 frames, 1.098 px/frame (old 0.981), 0 holds (old 52), 5 late frames;
+Color at double speed 2116 frames, 1.777 px/frame (old 0.994), 5 holds, 1 late frame. Slowest stretches: DMG dense zones (the
+engine's per-cell C cost and the 2 tiles/frame staging), Color stops 6 up and 7 up.
+
+Open (the reasons this is not green):
+1. PERF guard: DMG worst frame 154 (guard 139), Color 143 (guard 84). The adaptive pace spends the frame up to its late line.
+2. vq_exec's GDMA/stride branch: +4 cycles per entry and -43 B ROM0 (400 free, floor 421). Tests that depend on the title timing
+   (test_qd winner sprays, test_rush boss win, test_story_difficulty prompt, test_rng stadium picks, test_mg_logroll, lr_fall.cgb)
+   move with ANY change there (a 4-nop experiment on main's vq_exec breaks the same five). hi_pick with split6 frees 292 B but
+   moves 15 other goldens, so it was reverted.
+3. Golden story_map_scroll_walking (dmg, cgb): the picture at Sal x >= 120 is a few px further on.
