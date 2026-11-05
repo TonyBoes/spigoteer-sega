@@ -462,3 +462,7 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - A at that venue then shows a panel: RESUME (back into the level where it was quit) / ENTER (re-enter the venue: start the chapter over, as A does today) / BACK.
 - Supervisor defaults (not owner words): RESUME lives in RAM only (power off -> CONTINUE -> map, no RESUME); walking to another venue or playing a cleared venue or festival game keeps RESUME unless memory forces dropping it (worker reports which); DMG and Color both.
 - Build: gb-worker a28259c6a051a5f91 (worktree agent-a28259c6a051a5f91), started 2026-11-05.
+
+## 2026-11-05 Owner answers Q80, Q81
+- Q80: "a, but make sure the pause on this screen is a little longer to read them all." -> credits layout A (one card per venue, rows 3-3-2, names under), Color all 8 looks per venue in plan palettes, DMG keeps 3; each patron card holds longer so all names can be read. Build: gb-worker abc75b4a411a4c238.
+- Q81: "do the assembly speed pass." -> DMG story-map walk: asm smap_d_fetch (+ add_cell / drop_run as needed), C twins kept; target holds <5%, no late frames. Build: map agent a5453c7a494f976a1 resumed.
