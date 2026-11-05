@@ -58,6 +58,23 @@ static uint8_t in_milkrun(void) { return game_state == GS_MINI && mg_id == MG_MI
 
 static void tile(uint8_t slot, uint8_t t) { set_bkg_data(slot, 1, fz_tiles + (uint16_t)t * 16); }
 
+// A tile between two others, a quarter at a time (L 0 = a, 4 = b): an ordered dither, so the whitening and the darkening of the drink are ramps, not a cut
+// (the cover's LCD-off blank is white: amber to white to amber in two jumps was a flash).
+static const uint8_t dmask[3][4] = { {0x88, 0x00, 0x22, 0x00}, {0xAA, 0x55, 0xAA, 0x55}, {0x77, 0xFF, 0xDD, 0xFF} };
+
+static void tile_mix(uint8_t slot, uint8_t ta, uint8_t tb, uint8_t L) {
+    uint8_t buf[16], k, m;
+    const uint8_t *a = fz_tiles + (uint16_t)ta * 16, *b = fz_tiles + (uint16_t)tb * 16;
+    if (L == 0) { tile(slot, ta); return; }
+    if (L >= 4) { tile(slot, tb); return; }
+    for (k = 0; k < 16; k++) { m = dmask[L - 1][(k >> 1) & 3]; buf[k] = (uint8_t)((b[k] & m) | (a[k] & ~m)); }
+    set_bkg_data(slot, 1, buf);
+}
+
+static void whiten(uint8_t L) {              // L 0 (amber, as it rose) .. 4 (all cream)
+    tile_mix(T_FILL, FZ_FILL, FZ_CREAM, L); tile_mix(T_BUB1, FZ_BUB, FZ_CREAM, L); tile_mix(T_BUB2, FZ_BUB + 3, FZ_CREAM, L);
+}
+
 static void load_tiles(uint8_t cream) {   // the foam, the fill and the first frame of each bubble; cream: the whitened screen (fill and bubbles all cream)
     tile(T_FOAM, FZ_FOAM);
     tile(T_FILL, cream ? FZ_CREAM : FZ_FILL); tile(T_BUB1, cream ? FZ_CREAM : FZ_BUB); tile(T_BUB2, cream ? FZ_CREAM : FZ_BUB + 3);
@@ -466,15 +483,17 @@ void trans_cover(void) BANKED {
         TWY(wy);
         for (j = 0; j < 40; j++) if (shadow_OAM[j].y > wy) shadow_OAM[j].y = 0;   // under the foam: gone (the old scene is not drawn again)
         volume((RISE_N - i) * 7 / RISE_N);
-        if (!(i & 3)) tile(T_BUB1, FZ_BUB + ((i >> 2) & 1));
-        if ((i & 3) == 2) tile(T_BUB2, FZ_BUB + 3 + ((i >> 2) & 1));
+        if (i < RISE_N - 5) {
+            if (!(i & 3)) tile(T_BUB1, FZ_BUB + ((i >> 2) & 1));
+            if ((i & 3) == 2) tile(T_BUB2, FZ_BUB + 3 + ((i >> 2) & 1));
+        } else if (i >= RISE_N - 4) whiten(i - (RISE_N - 4));      // the last frames of the rise: the amber whitens in quarters
         j = (uint8_t)((144 - wy + RISE_STEP + 7) >> 3);          // the rows the next step shows
         drink_rows(rows, j); if (j > rows) rows = j;
         music_tick();                                            // (as the main loop: the tick follows the frame's work)
     }
     for (i = 0; i < HOLD_N; i++) {
         vsync();
-        if (!i) load_tiles(1);                                   // the drink foams over: all cream (the LCD-off blank that follows is white too)
+        if (!i) load_tiles(1);                                   // the drink is all cream (the LCD-off blank that follows is white too)
         music_tick();
     }
     volume(0);
@@ -526,8 +545,11 @@ void trans_reveal(void) BANKED {
         wy = i < HOLD_N ? 0 : (i - HOLD_N) * RISE_STEP;
         TWY(wy);
         volume(i > RISE_N ? 7 : i * 7 / RISE_N);
-        if (i == 1) { tile(T_FILL, FZ_FILL); tile(T_BUB2, FZ_BUB + 3); }          // the cream darkens to amber
-        if (i < 8) { if (i == 1 || i == 4) tile(T_BUB1, FZ_BUB + (i >> 2)); }   // the shimmer, then the bubbles pop and are gone
+        if (i >= 1 && i <= 4) {                                                 // the cream darkens to amber in quarters (never a cut)
+            tile_mix(T_FILL, FZ_CREAM, FZ_FILL, i);
+            tile_mix(T_BUB1, FZ_CREAM, FZ_BUB, i); tile_mix(T_BUB2, FZ_CREAM, FZ_BUB + 3, i);
+        }
+        if (i < 8) { if (i == 5) tile(T_BUB1, FZ_BUB + 1); }                    // the shimmer, then the bubbles pop and are gone
         else if (i == 8) tile(T_BUB1, FZ_BUB + 2);
         else if (i == 11) tile(T_BUB1, FZ_FILL);
         if (i < 10) { if (i == 6) tile(T_BUB2, FZ_BUB + 4); }

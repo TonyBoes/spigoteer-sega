@@ -51,7 +51,11 @@ extern uint8_t overlay_on, joy, story_phase;
 
 #define CR_FIRST      18      // the roll's first row, in world rows (just under the screen)
 #define CR_AHEAD      20      // rows are kept written up to T + CR_AHEAD (T: the top row of the screen)
+#ifdef CREDITS_SCROLL
+#define CR_BAND       CT_ROLL2_BAND   // the roll's row where the sprites' band starts (4 rows); this variant's roll has a blank row after each line of an entry
+#else
 #define CR_BAND       14      // the roll's row where the sprites' band starts (4 rows)
+#endif
 #define CR_T_P       100      // the patrons' OBJ tiles: 3 variants x 6 (OBJ ids 100-117, in dgag.c's patron range)
 #define CR_T_D        56      // Dregs's 8 OBJ tiles
 #define CR_T_HAT      64      // the topper (8x16)
@@ -172,8 +176,15 @@ static uint8_t cr_boss(uint8_t v, uint8_t cmd, uint8_t a, uint8_t b, uint8_t *ds
     return boss_mothership_cast(cmd, a, b, dst);
 }
 
+#ifdef CREDITS_SCROLL
+#define CR_N CT_ROLL2_N
+#define CR_ROLL ct_roll2
+#define CR_LAST_T ((CR_FIRST + (CR_N - 2)) * 8 + 4 - 72)   // the scroll at which the last three rows (a blank between the lines) are in the middle of the screen
+#else
 #define CR_N CT_ROLL_N
+#define CR_ROLL ct_roll
 #define CR_LAST_T ((CR_FIRST + (CR_N - 2)) * 8 + 8 - 72)   // the scroll at which the last two rows are in the middle of the screen
+#endif
 
 static void cr_blank(void) { uint8_t i; for (i = 0; i < 20; i++) CR->row[i] = TILE_HUD_BLANK; }
 
@@ -191,7 +202,7 @@ static uint8_t cr_roll_step(uint8_t w, uint8_t max) {
     if (CR->lr != w) {
         CR->lr = w; CR->ld = 0;
         cr_blank();
-        r = w >= CR_FIRST && (uint8_t)(w - CR_FIRST) < CR_N ? ct_roll[w - CR_FIRST] : 255;
+        r = w >= CR_FIRST && (uint8_t)(w - CR_FIRST) < CR_N ? CR_ROLL[w - CR_FIRST] : 255;
         if (r == 255) CR_BUF[1] = 0;
         else credits_row_get(r, CR_BUF);
     }
