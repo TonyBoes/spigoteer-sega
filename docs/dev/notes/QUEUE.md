@@ -472,3 +472,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Owner: "quitting a level should quit to map ... option to resume the level"; then "Resume doesn't need to take you back exactly where you were. Just restart the shift."
 - Built: story pause label QUIT TO MAP; QUIT goes to the map at the venue (run, difficulty, HUD tint kept); A there: RESUME / ENTER / BACK (smap_flags bit 3 SMAP_RESUME, RAM only). RESUME = the shift (boss fight: Last call; mini-game: that step) again from its start with the lives and score it began with, kept in HRAM 0xFFF5-0xFFFA (story.c step_start). No snapshot, no SRAM, no new WRAM.
 - Golden changed on purpose: pause_menu_boss.dmg / .cgb (label), bbox 113,88,133,94.
+- Merged 3b08f9cd; replaced pause_menu_boss.dmg/.cgb (QUIT TO MAP label). Pocket Player v62.
