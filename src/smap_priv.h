@@ -64,9 +64,14 @@ extern vq_entry_t vq[];
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
 #define LY_WORK 64
 #define LY_FIRST 64
+#define LY_DOTS  24
 #define CAM_LAG  24                                   // Sal waits while the camera is further behind him than this (px, both axes together)
 // (the first slow job of a frame waits for the line LY_FIRST only while Sal walks with the camera in step: standing, or with the camera behind, it always runs: no deadlock)
-static uint8_t ly_ok(void) { uint8_t l = LY_REG; return l >= 144 || l < (V(V_SLOW) ? LY_WORK : (!V(V_WALK) || V(V_LAG) > CAM_LAG) ? 255 : LY_FIRST); }
+static uint8_t ly_ok(void) {
+    uint8_t l = LY_REG, lim = V(V_SLOW) ? LY_WORK : (!V(V_WALK) || V(V_LAG) > CAM_LAG) ? 255 : LY_FIRST;
+    if (lim != 255 && V(V_DOTS)) lim -= LY_DOTS;      // (the still sprites will be drawn in full this frame: that takes about 30 lines)
+    return l >= 144 || l < lim;
+}
 
 static void qraw(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
     vq_entry_t *e;

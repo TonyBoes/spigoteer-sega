@@ -209,7 +209,7 @@ def test_the_c_twin_of_the_asm_walks_the_same(monkeypatch, s, d):
 # ---- the cost ---------------------------------------------------------------------------------------------------------------------------------------------------
 # The logic's lines per frame (perf_logic_last: 154 lines a frame) over every leg, bounds taken from the measured walks and never to be raised: the DMG's worst
 # frame (a job abort or a load) and the Color's at double speed (owner Q92). A hold is a walking frame on which Sal did not move (the stream was behind).
-PERF = {"dmg": dict(worst=172, p90=133, holds=0.083), "cgb": dict(worst=93, p90=79, holds=0.0)}
+PERF = {"dmg": dict(worst=139, p90=110, holds=0.014), "cgb": dict(worst=84, p90=72, holds=0.0)}
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
