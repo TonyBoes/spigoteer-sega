@@ -149,6 +149,7 @@ static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, ui
 }
 
 static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 frames)
+static uint8_t walk_pic(void) { return pic_seq[((g16(V_FX) + g16(V_FY)) >> 2) & 3]; }   // (the feet follow the ground: a picture per 4 px, at any pace)
 
 // A sprite entry written inline (a call with seven arguments costs more than the entry's four stores): px, py the top-left of the 8-px column's art on screen
 // (it may lie off an edge: then the entry is hidden), vh its visible height; entries the window layer (wh lines from wy) covers are hidden too.
@@ -317,7 +318,7 @@ static void draw(void) {
     sx = (int16_t)g16(V_FX) - 8 - cx;               // Sal's top-left on the screen
     sy = (int16_t)g16(V_FY) - 24 - cy;
     nudge = (tk >> 4) & 1;                          // (the arrows bob 1 px every 16 frames, the UFO every 32)
-    if (V(V_WALK)) pic = pic_seq[(tk >> 2) & 3];
+    if (V(V_WALK)) pic = walk_pic();
     if (!panel && !V(V_WALK))                       // the arrows: where each button leads (none while a panel is up or Sal walks)
         for (d = 0; d < 4; d++) {
             s = smapw_exit[smap_stop][d];
@@ -346,7 +347,7 @@ static void draw(void) {
 
 // A walking frame on which the camera did not move and no window is up: only Sal's four entries change (the rest of the sprites keep their place in the shadow OAM)
 static void draw_walk(void) {
-    uint8_t t = pic_seq[(V(V_TICK) >> 2) & 3] * BARTENDER_TILES_PER_FRAME, cgbp = is_cgb, wh = 0;
+    uint8_t t = walk_pic() * BARTENDER_TILES_PER_FRAME, cgbp = is_cgb, wh = 0;
     int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY), ay, wy = 0, wend = 0;
     SPR(OAM_SAL, sx, sy, t, OBJPAL_BARTENDER, 0, 16);
     SPR(OAM_SAL + 1, sx + 8, sy, t + 2, OBJPAL_BARTENDER, 0, 16);
@@ -507,19 +508,39 @@ static void start_walk(uint8_t d) {
     if (t == NIL || !open_stop(t)) return;
     V(V_LEG) = leg; V(V_REV) = rev; V(V_DEST) = t;
     V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
-    V(V_WALK) = 1; V(V_DOTS) = V(V_FULL) = 1;
+    V(V_WALK) = 1; V(V_WT) = 0; V(V_DOTS) = V(V_FULL) = 1;
     if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
     SFX(SFX_DON);
 }
 
-static void walk_step(void) {
-    uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV);
-    uint16_t fx = g16(V_FX), fy = g16(V_FY), tx = smapw_leg_pt[leg][k][0], ty = smapw_leg_pt[leg][k][1];
+void walk_step(void) {
+    uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV), spd = V(V_WT), n, s;
+    uint16_t fx = g16(V_FX), fy = g16(V_FY), tx = smapw_leg_pt[leg][k][0], ty = smapw_leg_pt[leg][k][1], d;
     if (V(V_LAG) > CAM_LAG) return;                  // the camera is behind (the last camera step measured it): Sal waits for it
-    if (fx != tx) fx = fx < tx ? (tx - fx < WALK_SPD ? tx : fx + WALK_SPD) : (fx - tx < WALK_SPD ? tx : fx - WALK_SPD);
-    else if (fy != ty) fy = fy < ty ? (ty - fy < WALK_SPD ? ty : fy + WALK_SPD) : (fy - ty < WALK_SPD ? ty : fy - WALK_SPD);
+    d = fx != tx ? (fx < tx ? tx - fx : fx - tx) : (fy < ty ? ty - fy : fy - ty);
+    // the region loads ahead in the direction of the stretch (the camera may still stand: the world's edge, the first frames); the other axis keeps its lead, and bit 2 of the
+    // vertical direction asks for the rows first
+    if (fx != tx) { V(V_DIRX) = fx < tx ? 2 : 1; V(V_DIRY) &= 3; }
+    else V(V_DIRY) = (fy < ty ? 2 : 1) | 4;
+    if (d <= WALK_AHEAD && (rev ? k : k + 1 < smapw_leg_n[leg])) {   // the stretch after this one: its direction too, so that its first line is loaded when Sal turns
+        n = rev ? k - 1 : k + 1;
+        if (smapw_leg_pt[leg][n][0] != tx) V(V_DIRX) = smapw_leg_pt[leg][n][0] > tx ? 2 : 1;
+        else if (smapw_leg_pt[leg][n][1] != ty) V(V_DIRY) = smapw_leg_pt[leg][n][1] > ty ? 2 : 1;
+    }
+    // the pace: 2 px a frame on a stretch the stream keeps up with (smapw_gear), 1 on the others, and 1 for the first and the last WALK_EASE px of each stretch (the stream has
+    // the time to turn a corner, and the start and the stop do not snap)
+    n = smapw_gear[is_cgb][leg];                   // the stretch's pace: two bits of the leg's byte
+    for (s = rev ? k + 1 : k; s > 1; s--) n >>= 2;
+    n &= 3;
+    if (!n && (V(V_TICK) & 1)) return;             // (0: a px every other frame)
+    spd = spd < WALK_EASE || d <= WALK_EASE || n < 2 ? 1 : WALK_SPD;
+    n = d < spd ? (uint8_t)d : spd;
+    if (fx != tx) fx = fx < tx ? fx + n : fx - n;
+    else fy = fy < ty ? fy + n : fy - n;
     s16(V_FX, fx); s16(V_FY, fy);
+    if (V(V_WT) < 255 - WALK_SPD) V(V_WT) += n;
     if (fx != tx || fy != ty) return;
+    V(V_WT) = 0;
     if (rev ? !k : k + 1 == smapw_leg_n[leg]) {      // the last waypoint: Sal is there
         smap_stop = V(V_DEST);
         V(V_WALK) = 0; V(V_DOTS) = V(V_FULL) = 1;

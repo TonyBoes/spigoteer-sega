@@ -143,7 +143,7 @@ static uint8_t tbl_find(uint16_t t, uint8_t hint) {     // the slot holding tile
 
 // stage a tile load (the staging area holds two a frame; the caller has checked V_NSTG and the room) and queue it, or, with the LCD off, put it in VRAM
 static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
-    uint8_t *d = SC(S_T + T_TILES + (V(V_NSTG) << 4));
+    uint8_t *d = V(V_NSTG) < 2 ? SC(S_T + T_TILES + (V(V_NSTG) << 4)) : SC(A_XSTG + ((V(V_NSTG) - 2) << 4));
     if (is_cgb) smap_c_tile(tile, d); else smap_d_tile(tile, d);
     if (V(V_DIRECT)) {
         if (bank) VBK_REG = VBK_BANK_1;
@@ -204,7 +204,7 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     }
     if (!direct) {
         cost = CELL_COST(vert); ents = CELL_ENT(vert);
-        if (need_t) { if (V(V_NSTG) >= 2) return R_ROOM; cost += 19 + (bank << 1); ents++; }
+        if (need_t) { if (V(V_NSTG) >= NSTG_MAX) return R_ROOM; cost += 19 + (bank << 1); ents++; }
         if (need_p) { if (V(V_PALQ)) return R_ROOM; cost += 36; ents += 9; }
         if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
@@ -595,8 +595,10 @@ static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_
 uint8_t smap_camera_step(void) BANKED {
     int16_t cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), tx, ty, nx, ny, d;
     smap_cam_target(&tx, &ty);
-    if (tx != cx) V(V_DIRX) = tx > cx ? 2 : 1;
-    if (ty != cy) V(V_DIRY) = ty > cy ? 2 : 1;
+    if (!V(V_WALK)) {                                                 // (a walk sets them itself, by its stretches: smap.c walk_step)
+        if (tx != cx) V(V_DIRX) = tx > cx ? 2 : 1;
+        if (ty != cy) V(V_DIRY) = ty > cy ? 2 : 1;
+    }
     d = tx - cx; if (d > CAM_SPD) d = CAM_SPD; else if (d < -CAM_SPD) d = -CAM_SPD;
     nx = cx + d;
     while (nx != cx && !cov_x(nx)) nx += nx > cx ? -1 : 1;
@@ -617,12 +619,12 @@ uint8_t smap_camera_step(void) BANKED {
 void smap_region_work(void) BANKED {
     uint16_t cx = g16(V_CAMX), cy = g16(V_CAMY);
     uint8_t nc0 = (uint8_t)(cx >> 3), nc1 = (uint8_t)((cx + 159) >> 3), nr0 = (uint8_t)(cy >> 3), nr1 = (uint8_t)((cy + 143) >> 3);
-    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX), dy = V(V_DIRY), kind = V(V_JK), i, dk, di = 0, *eg = 0;
+    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX) & 3, dy = V(V_DIRY) & 3, rows1st = V(V_DIRY) & 4, kind = V(V_JK), i, dk, di = 0, *eg = 0;
     int8_t egd = 0;
-    if (dx == 1 && wc0) wc0--;
-    if (dx == 2 && wc1 < 63) wc1++;
-    if (dy == 1 && wr0) wr0--;
-    if (dy == 2 && wr1 < 47) wr1++;
+    if (dx == 1) wc0 = wc0 > LEAD ? wc0 - LEAD : 0;
+    if (dx == 2) wc1 = wc1 + LEAD > 63 ? 63 : wc1 + LEAD;
+    if (dy == 1) wr0 = wr0 > LEAD ? wr0 - LEAD : 0;
+    if (dy == 2) wr1 = wr1 + LEAD > 47 ? 47 : wr1 + LEAD;
     i = V(V_JI);
     if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) { if (!job_abort()) return; }       // (still taking its cells out: nothing else this frame)
     if (V(V_PANEL) || vq_held) return;
@@ -636,8 +638,9 @@ void smap_region_work(void) BANKED {
             else if (V(V_R1) > wr1 && V(V_R1) > V(V_R0)) { eg = &V(V_R1); egd = -1; di = (*eg)--; }
             else dk = J_NONE;
         }
+        if (dk != J_NONE && V(V_JK) != J_NONE && V(V_JK) != dk && !V(V_STALL)) { *eg -= egd; dk = J_NONE; }   // (an add job across it would add cells of the line that leaves: the line stays until the job is done, unless the job waits for a slot)
         if (dk != J_NONE) {
-            if (V(V_JK) != J_NONE && V(V_JK) != dk && !job_abort()) { *eg -= egd; return; }     // (an add job across it would add cells of the line that leaves: it goes first; the line stays)
+            if (V(V_JK) != J_NONE && V(V_JK) != dk && !job_abort()) { *eg -= egd; return; }     // (the job waits for a slot: it goes first; the line stays)
             V(V_DK) = dk; V(V_DI) = di; V(V_DP) = 0;
             if (dk == J_COL) { V(V_DA) = V(V_R0); V(V_DN) = V(V_R1) - V(V_R0) + 1; }
             else { V(V_DA) = V(V_C0); V(V_DN) = V(V_C1) - V(V_C0) + 1; }
@@ -645,7 +648,9 @@ void smap_region_work(void) BANKED {
     }
     if (V(V_DK) != J_NONE) drop_run(DROP_CAP);
     if (V(V_JK) == J_NONE) {
-        if (V(V_C0) > wc0) { V(V_JK) = J_COL; V(V_JI) = V(V_C0) - 1; }
+        if (rows1st && V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }     // (walking down or up: the rows first, a column's lead can wait)
+        else if (rows1st && V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
+        else if (V(V_C0) > wc0) { V(V_JK) = J_COL; V(V_JI) = V(V_C0) - 1; }
         else if (V(V_C1) < wc1) { V(V_JK) = J_COL; V(V_JI) = V(V_C1) + 1; }
         else if (V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }
         else if (V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
