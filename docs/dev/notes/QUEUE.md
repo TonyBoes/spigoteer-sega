@@ -449,3 +449,9 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - ROM grew 512 KB -> 1 MB (world tiles/maps). ROM0 443 B, WRAM unchanged.
 - OPEN (agent a5453c7a494f976a1, same branch): DMG walk stutter (~21% hold frames, p90 ~151-159 lines). Target <5% holds, p90 <143. Maybe shorten the 38-frame DMG map entry. Color is smooth at double speed.
 - Open Questions v429: "smap" view card replaces "map3". Pocket Player v60.
+
+## 2026-11-05 DMG map walk pass merged
+- Merged e0ed6742 (66f41eed): DMG holds 21% -> 8.3%, p90 159 -> 133, worst 241 -> 172; Color p90 79, 0 holds. Goal (<5%) not met; next step would be asm smap_d_fetch (riskier).
+- Replaced story_map_scroll_walking.cgb (5 px, Sal's walk pose tick).
+- Q81 asked: DMG walk smooth enough, or one more speed pass? Open Questions v430, Pocket Player v61.
+- Small: the UFO's 1 px bob freezes while Sal walks (agent note); DMG 38-frame map entry not cut.
