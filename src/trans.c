@@ -50,6 +50,10 @@ static void plain_isr(void) {         // Milk Run's raster handler (it walks LYC
     }
 }
 
+static void scroll_home(void) {       // the LCD is off after a cover: the old screen's scroll goes (the map's camera: src/smap.c leave leaves it to show until now)
+    if (game_state != GS_PAUSED) { SCX_REG = 0; SCY_REG = 0; }
+}
+
 static uint8_t in_milkrun(void) { return game_state == GS_MINI && mg_id == MG_MILKRUN; }
 
 static void tile(uint8_t slot, uint8_t t) { set_bkg_data(slot, 1, fz_tiles + (uint16_t)t * 16); }
@@ -319,6 +323,7 @@ static void cgb_cover(uint8_t v) {
     if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_AB, FADE_STEP, f, n, 0, ch ? co : 0);
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way) the LCD goes off in the white
+    scroll_home();
     if (game_state != GS_PAUSED) music_pump();                   // (the tick that fell due while the LCD went off)
     if (ch) chain_back(o, co);
     BCPS_REG = 0x80;                                             // the scene's own colours back (LCD off: palette RAM is free)
@@ -334,6 +339,7 @@ static void dmg_cover(void) {
     for (s = 1; s <= 3; s++) f += dstep(o, s, fr, f, 3 * fr, 0);
     volume(0);
     lcd_off_p();
+    scroll_home();
     if (game_state != GS_PAUSED) music_pump();
     dset(o, 0);
 }
@@ -473,6 +479,7 @@ void trans_cover(void) BANKED {
     }
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way)
+    scroll_home();
     SET_LYC(HR_LYC); TWY(BANNER_WY); HIDE_WIN; WIN_SYNC();              // the banner window as it stands when nothing shows it
     for (i = 0; i < 20; i++) b[i] = TILE_PANEL_TOP;              // the banner window's rows as win_init left them (the scene's own writes come after)
     win_put(0, b);

@@ -836,11 +836,11 @@ def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_ta
             assert not any(e["y"] for e in pieces_oam(gb))
             assert star_cells(gb) == 0
         for _ in range(12):                                               # (A until the last page lets go: its beat, its typing)
-            if gb.mem("story_scene") != SC["INTRO"]:
+            if gb.mem("story_scene") != SC["INTRO"] or gb.mem("story_phase") == 9:      # (the map: Sal at the town)
                 break
             gb.press("a", 2)
             gb.run(8)
-        assert gb.mem("story_scene") != SC["INTRO"]
+        assert gb.mem("story_scene") != SC["INTRO"] or gb.mem("story_phase") == 9
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -876,8 +876,8 @@ def mash_scene(model, scene):
     """A cut-scene ready to be crawled, and when to stop (INTRO and a PRE scene end at the goal banner, FINALE_A at the Pour-Off,
     FINALE_B on leaving the story state or when the credits roll has scrolled to its end)."""
     from test_flow import GS_GOAL
-    if scene == "INTRO":
-        return start_story(model), lambda g: state(g) == GS_GOAL
+    if scene == "INTRO":                         # (the INTRO ends at the map, Sal at the town since 2026-11-05: A there opens its panel, no PRE scene follows)
+        return start_story(model), lambda g: g.mem("story_phase") == 9 and state(g) == GS_STORY
     if scene == "PRE":
         return start_story(model, v7_image([], story=2), cont=True), lambda g: state(g) == GS_GOAL
     gb = to_finale(model)
