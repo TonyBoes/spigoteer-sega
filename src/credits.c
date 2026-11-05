@@ -56,7 +56,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define CR_T_D        56      // Dregs's 8 OBJ tiles
 #define CR_T_HAT      64      // the topper (8x16)
 #ifdef CREDITS_SCROLL
-#define CR_T_BOSS    142      // BG ids: the boss's tile pairs (top, bottom; 30 at most, 60 tiles); the scroll's own slot (portraits 93-141, boss 142-201, DMG text 202-255)
+#define CR_T_BOSS    146      // BG ids: the boss's tile pairs (top, bottom; 29 at most, 58 tiles); the scroll's own slot (portraits 93-145: 53 tiles at most, boss 146-203, DMG text 204-255)
 #else
 #define CR_T_BOSS    100      // BG ids: the boss's tile pairs (top, bottom; 30 at most, 60 tiles)
 #endif
@@ -622,7 +622,7 @@ static void cr_make(uint8_t c, uint8_t hd, uint8_t old) {   // card c's rows and
 // time it begins (f >> 1), the roll's own end reached at the frame the tune's share says. Rows are built a frame at a time 20 rows ahead of the screen
 // (cr_gen: a card's tiles first, 4 units a frame, then its rows, text tiles 3 a frame), and queued to the next VBlank (a row 20 + 20 bytes: inside the budget).
 // The limits:
-//   BG tiles   portraits 93-141 (the Spigoteer's, each owner's), the bosses' 142-201 (Dregs's portrait too: he follows the Spigoteer's), on the DMG the text 202-255
+//   BG tiles   portraits 93-145 (the Spigoteer's, each owner's: 53 tiles at most, name plate included), the bosses' 146-203 (Dregs's portrait too: he follows the Spigoteer's), on the DMG the text 204-255
 //              as a ring; on Color the text is in VRAM bank 1 ids 0-126 (the cells' attribute bit 3), which nothing else uses. A card loads when its first row is
 //              built, 20 rows below the screen, and the card that used its slot is off the top by then (two cards of the same kind are 24 rows or more apart).
 //   BG pal     portraits 2-4 (Dregs 5-7), a boss 5, the text the HUD's 1: written to the hardware in HBlank / VBlank only (cr_hw) while no cell on the screen uses them.
@@ -631,8 +631,8 @@ static void cr_make(uint8_t c, uint8_t hd, uint8_t old) {   // card c's rows and
 //              card; saved in CR_SAVE and put back before the roll), the robots 5-7. DMG: OBP0 for all, OBP1 the topper's (set at the start).
 //   sprites    a patron card: 6 a line at most (3 + 3 of 8x16), a boss 1, the Spigoteer or Dregs 2, the roll 6 + 4: never above 10 with the next card's.
 #define CR_LASTGAP   10     // blank rows from the last card to the roll's row 0 (the last boss's tiles are off before the roll's text ring writes over them)
-#define CR_TXT_D    202     // the DMG's text ring (54 tiles)
-#define CR_TXT_DN    54
+#define CR_TXT_D    204     // the DMG's text ring (52 tiles)
+#define CR_TXT_DN    52
 #define CR_TXT_CN   127     // Color: ids 0-126 of bank 1
 
 static uint8_t cr_hgt(uint8_t c) {                // a card's rows
@@ -889,7 +889,9 @@ static void cr_leave(void) {
         LYC_REG = BANNER_LYC;
     }
     trans_cast_set(CR_PAL);                           // the card's own colours, whatever the fade was doing
-    SCY_REG = 0;
+#ifndef CREDITS_SCROLL
+    SCY_REG = 0;                                      // (the scroll: SCY stays where it is, the scene change's white fade covers the screen as it stands; its LCD-off resets the scroll)
+#endif
     TRANS_WANT();                                     // (src/trans.c: the next screen comes up behind the drink)
     if (s) story_end();
     else { title_back = TM_BONUS; title_back_sel = 0; title_enter(); }   // BONUS, the cursor on CREDITS (the first item)
@@ -1002,7 +1004,8 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     p = f > CR->f0 ? (f - CR->f0) >> 1 : 0;
     f = CR->wroll * 8 + CR_LAST_T;
     if (p > f) p = f;
-    CR->scroll = p;
+    if (LY_REG >= 144) CR->scroll = p;                   // (SCY moves in the VBlank only: an update that starts late would tear the top lines; the next frame catches up)
+    p = CR->scroll;
     SCY_REG = (uint8_t)p;
     f = CR->next <= (p >> 3) + CR_AHEAD;
     if (f) cr_gen();
