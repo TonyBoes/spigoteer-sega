@@ -830,7 +830,7 @@ def test_a_portrait_has_no_square_backdrop_in_the_credits(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_cast_timeline_is_a_share_of_the_tunes_length(model):
     src = (ROOT / "src" / "credits.c").read_text()
-    assert "music_tune_frames(TUNE_CREDITS)" in src and "5280" not in re.sub(r"//[^\n]*", "", src), "the length comes from the tune, not a constant"
+    assert "CR->T = CR_PIC_FRAMES" in src and "music_tune_frames(TUNE_CREDITS)" not in re.sub(r"//[^\n]*", "", src), "the length is the picture's own clock (owner 2026-11-05: the tune runs out, never stretched to fit)"
 
     def share(T, units):                                       # (credits.c cr_share: 16-bit maths)
         q = T // 392
