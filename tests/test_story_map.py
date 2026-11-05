@@ -3,11 +3,12 @@
 # mini-game alone: the medal upgrades, the story's score and progress do not move), the town's FESTIVAL GAMES / THE POUR-OFF panel, the festival's gradual
 # unlock and its "!", the Pour-Off's lives (3 + the festival golds of this story run, NORMAL / HARD only, cap +3, reset by a new run), the greyed
 # THE POUR-OFF, the save block "SM" and its round trip, the goldens of the screen and its two panels.
+import contextlib
 import json
 
 import pytest
 import test_story as ts
-from conftest import K_CONTINUE, ROOT, check_golden, menu_items, menu_tap, title_pick
+from conftest import K_CONTINUE, ROOT, check_golden, double_speed, menu_items, menu_tap, title_pick
 from test_flow import GS_STORY, run_until, state
 from test_mg import mg_enter
 from test_scores import booted, v7_image
@@ -21,26 +22,40 @@ MG_MAP, MG_PRACTICE = 8, 1
 TOWN = 10
 SMAP = json.loads((ROOT / "build" / "smap.json").read_text())
 SM_AT = 0x1E
-N = None
-# the v14 snap table, written out here on its own (up, down, left, right per stop; None: the button does nothing). Stops 0-9 are the chapters.
-SNAP = [(1, N, N, 10), (2, 0, N, N), (N, 1, N, 3), (N, N, 2, 4), (N, 5, 3, N), (4, 6, N, N), (5, 7, N, N), (6, N, 8, N), (N, N, 9, 7), (10, N, N, 8), (N, 9, 0, N)]
+NIL = 255
+WORLD = json.loads((ROOT / "build" / "smap_world.json").read_text())
+STOPS, EXITS = WORLD["stops"], WORLD["exits"]                      # (the stops' world pixels: Sal's feet; up, down, left, right per stop, 255 none)
+SV, V_WALK, V_CAMX, V_CAMY = 396, 20, 12, 14                       # (story_scratch + the map's variables, src/smap_priv.h)
 DIRS = ("up", "down", "left", "right")
-STOP_TILE = [(2, 12), (0, 5), (3, 3), (10, 3), (17, 3), (16, 8), (16, 13), (17, 17), (9, 17), (6, 16), (11, 11)]   # the dots' tile coordinates (the v14 notes)
-OAM_ARROWS, OAM_SAL, OAM_BANG, OAM_DOTS = 0, 2, 4, 5
+OAM_ARROWS, OAM_SAL, OAM_BANG, OAM_DOTS = 0, 3, 7, 8
 OB = 56                                                  # the map's OBJ tiles start at this id (src/smap.c)
 DIM_BASE = 233                                           # the greyed letters (tools/gen_smap.py)
 INV = {v: k for k, v in ts.GLYPH.items()}
 INV.update({DIM_BASE + i: c for i, c in enumerate("THEPOURF-")})
 PAIR = SMAP["obj_pairs"]
+TAGS = ["CH1 THE SALOON", "CH2 THE STADIUM", "CH3 LUMBER LODGE", "CH4 THE BISTRO", "CH5 THE IGLOO", "CH6 ROBOT FACTORY", "CH7 THE CHROME COW", "CH8 THE TEAHOUSE",
+        "CH9 THE JUNGLE ZOO", "CH10 SPACE LOUNGE", "FESTIVAL SQUARE"]
+
+
+def var(sc, n):
+    return sc[SV + n] | sc[SV + n + 1] << 8
 
 
 def to_map(model, progress=3, step=0, ram=None, stop=None, flags=None, cards=True, tag_gone=True):
     """A rom on the story map: CONTINUE from a save with `progress` chapters cleared (a venue's step reached when step > 0). stop / flags are poked after."""
     if progress in (0, 10) and not step and ram is None:
         step = 1                                          # (a save CONTINUE offers: a step reached in chapter 1; all ten cleared and the finale not done)
-    rom = booted(model, ram if ram is not None else v7_image([], story=progress, step=step), cards=cards)
+    if ram is None:
+        ram = v7_image([], story=progress, step=step)
+        if stop is not None and (stop <= progress or stop == TOWN) and (flags or 0) & 0x88 == 0:   # (Sal stands where the save says: the map is built around him; a poke after the build would leave the picture behind)
+            ram = bytearray(ram)
+            ram[SM_AT:SM_AT + 6] = block(stop, flags or 0)
+            ram = bytes(ram)
+            stop = flags = None
+    rom = booted(model, ram, cards=cards)
     title_pick(rom, ts.K_PLAY, K_CONTINUE, press=False)
-    menu_tap(rom, "a")
+    rom.press("a", 8)                                    # (a long press: a 2-frame tap can fall inside a long pass of the title and not be read)
+    rom.run(1)
     run_until(rom, lambda: rom.mem("story_phase") == SP_MAP and state(rom) == GS_STORY, 400)
     rom.run(100 if tag_gone else 4)                      # (the name tag on the window layer is up for the first 90 frames)
     if stop is not None:
@@ -79,140 +94,180 @@ def sal_xy(gb):
 
 
 # ---- the screen -------------------------------------------------------------------------------------------------------------------------------------------------
+def cam(gb):
+    sc = gb.read("story_scratch", 520)
+    return var(sc, V_CAMX), var(sc, V_CAMY)
+
+
+def open_stop(t, progress):
+    return t != NIL and (t <= progress or t == TOWN)
+
+
+def go(gb, name, limit=1500):
+    """Press a direction and wait until Sal stands still again (the walk takes as long as the leg is)."""
+    gb.press(name, 4)
+    for _ in range(limit):
+        if not gb.read("story_scratch", 520)[SV + V_WALK]:
+            break
+        gb.run(1)
+    gb.run(2)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_map_is_up_with_its_stops_dots_and_sal(model):
     gb = to_map(model, 3)
     assert gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY and gb.mem("smap_stop") == 3, "CONTINUE: Sal at the next venue (chapter 4)"
-    for s, (tx, ty) in enumerate(STOP_TILE):
-        o = oam(gb, OAM_DOTS + s)
-        assert (o["x"] - 8, o["y"] - 16) == (tx * 8, ty * 8), s
-        openstop = s <= 3 or s == TOWN
-        assert o["tile"] == OB + PAIR["dot_open0" if openstop else "dot_locked0"], f"stop {s}: open = the filled diamond, locked = hollow with a cross"
-    assert sal_xy(gb) == (10 * 8 - 8, 3 * 8 - 14), "Sal stands left of and above the stop's dot"
+    cx, cy = cam(gb)
+    assert sal_xy(gb) == (STOPS[3][0] - 8 - cx, STOPS[3][1] - 24 - cy), "Sal stands on the stop, his feet at its centre"
+    assert 0 <= sal_xy(gb)[0] and sal_xy(gb)[0] + 16 <= 160 and 0 <= sal_xy(gb)[1] and sal_xy(gb)[1] + 24 <= 144, "the camera keeps him on the screen"
     used = sum(1 for o in gb.oam() if o["y"])
-    assert 16 <= used <= 19, used
-    per = [0] * 144                                      # 8x16 mode: the worst scanline stays under the hardware's 10
+    assert 5 <= used <= 22, used
+    per = [0] * 144                                      # the worst scanline stays under the hardware's 10 (every entry counted 16 lines tall)
     for o in gb.oam():
         for y in range(max(0, o["y"] - 16), min(144, o["y"])) if o["y"] else ():
             per[y] += 1
     assert max(per) <= 10, max(per)
 
 
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_picture_is_the_approved_one_tile_for_tile(model):
-    gb = to_map(model, 10, step=1)
-    assert [t & 0xFF for row in gb.bg_tilemap()[:18] for t in row[:20]] == SMAP["map"]
-    tiles = bytes.fromhex(SMAP["tiles_hex"])
-    for k, tid in enumerate(SMAP["ids"]):
-        a = 0x9000 + tid * 16 if tid < 128 else 0x8800 + (tid - 128) * 16
-        assert bytes(gb.pb.memory[a:a + 16]) == tiles[k * 16:k * 16 + 16], f"tile {k} at BG id {tid}"
+def test_the_sprite_tiles_are_loaded():
+    gb = to_map("dmg", 10, step=1)
     objs = bytes.fromhex(SMAP["obj_hex"])
     assert bytes(gb.pb.memory[0x8000 + OB * 16:0x8000 + OB * 16 + len(objs)]) == objs
 
 
-def test_the_art_budget():
-    assert SMAP["ntiles"] == 176 and max(SMAP["ids"]) < DIM_BASE and len(SMAP["bg_pal"]) == 8 and len(SMAP["obj_pal"]) == 6
-    assert SMAP["ids"][SMAP["ranges"][1][1]] == 93, "the picture sits around the font's ids 36-92"
-    assert SMAP["tile_bytes"] == 176 * 16 and SMAP["obj_bytes"] == 22 * 16
-
-
 # ---- movement ---------------------------------------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_dpad_snaps_along_the_table_with_every_stop_open(model):
-    gb = to_map(model, 10, step=1)
-    for s in range(11):
-        for d, name in enumerate(DIRS):
-            gb.write("smap_stop", s)
-            gb.run(2)
-            tap(gb, name, 4)
-            want = SNAP[s][d] if SNAP[s][d] is not None else s
-            assert gb.mem("smap_stop") == want, f"stop {s} {name}"
+@pytest.mark.parametrize("s", range(11))
+def test_the_dpad_walks_the_exits_with_every_stop_open_and_a_button_without_one_does_nothing(model, s):
+    gb = to_map(model, 10, step=1, stop=s)
+    assert gb.mem("smap_stop") == s
+    for d, name in enumerate(DIRS):
+        if EXITS[s][d] == NIL:
+            go(gb, name)
+            assert gb.mem("smap_stop") == s and not gb.read("story_scratch", 520)[SV + V_WALK], f"stop {s} {name}: no exit"
+    d = next(d for d in range(4) if EXITS[s][d] != NIL)
+    go(gb, DIRS[d])
+    assert gb.mem("smap_stop") == EXITS[s][d], f"stop {s} {DIRS[d]}"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("progress, moves", [
-    (3, [(3, "right", 10), (10, "down", 3), (10, "left", 0), (0, "up", 1), (1, "up", 2), (2, "right", 3), (3, "left", 2), (0, "right", 10)]),
-    (0, [(0, "up", 10), (0, "right", 10), (10, "left", 0), (10, "down", 0)]),                    # only the saloon and the town are open: the ring passes everything else
-    (6, [(6, "down", 10), (5, "down", 6), (6, "up", 5), (10, "down", 6), (4, "down", 5)]),
-])
-def test_locked_stops_are_skipped(model, progress, moves):
-    gb = to_map(model, progress)
-    for s, name, want in moves:
-        gb.write("smap_stop", s)
-        gb.run(2)
-        tap(gb, name, 4)
-        assert gb.mem("smap_stop") == want, f"progress {progress}: stop {s} {name} -> {gb.mem('smap_stop')}, wanted {want}"
+@pytest.mark.parametrize("progress, s", [(3, 3), (3, 0), (0, 0), (0, TOWN), (6, 6), (6, 5), (6, TOWN)])
+def test_a_locked_stop_is_not_walked_to(model, progress, s):
+    gb = to_map(model, progress, stop=s)
+    assert gb.mem("smap_stop") == s
+    for d, name in enumerate(DIRS):
+        t = EXITS[s][d]
+        if open_stop(t, progress):
+            continue
+        go(gb, name)
+        assert gb.mem("smap_stop") == s and not gb.read("story_scratch", 520)[SV + V_WALK], f"progress {progress}: stop {s} {name} -> {t} is locked"
+    for d, name in enumerate(DIRS):
+        t = EXITS[s][d]
+        if open_stop(t, progress):
+            go(gb, name)
+            assert gb.mem("smap_stop") == t, f"progress {progress}: stop {s} {name}"
+            break
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_dots_show_open_and_locked_stops(model):
-    gb = to_map(model, 4)
-    for s in range(11):
-        o = oam(gb, OAM_DOTS + s)
-        locked = s > 4 and s != TOWN
-        assert (o["tile"] - OB == PAIR["dot_locked0"]) == locked
+@pytest.mark.parametrize("progress, s", [(4, 4), (0, 0), (10, TOWN), (7, 2)])
+def test_the_dots_show_open_and_locked_stops(model, progress, s):
+    gb = to_map(model, progress, stop=s)
+    cx, cy = cam(gb)
+    pst = progress + 1 if progress < 9 else 10                             # (the engine's V_STATE: the stops before it are green, it itself red, none beyond)
+    seen = 0
+    for k in range(11):
+        o = oam(gb, OAM_DOTS + k)
+        x, y = STOPS[k][0] - 4 - cx, STOPS[k][1] - 8 - cy                  # (the dot's entry lies 4 px left of and 8 px above the stop)
+        hidden = k > pst and k != TOWN                                     # (no dot beyond the next stop)
+        if hidden or x < -8 or x >= 160 or y < -8 or y >= 144:
+            assert not o["y"], f"stop {k} is off the screen or beyond the next"
+            continue
+        if x < 0 or x > 152 or y < 0 or y > 136:
+            continue                                                       # (on the edge: either)
+        seen += 1
+        assert (o["x"] - 8, o["y"] - 16) == (x, y), k
+        locked = k >= pst and k != TOWN                           # (green: the cleared and the next venue and the town; red: the one on the cloud's edge)
+        assert (o["tile"] - OB == PAIR["dot_locked0"]) == locked, k
         if model == "cgb":
             assert (o["flags"] & 7) == (4 if locked else 3), "red palette 4 for a locked stop, green 3 for an open one"
+    assert seen >= 1
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_gold_arrows_show_the_open_directions(model):
-    gb = to_map(model, 10, step=1)
     for s in range(11):
-        gb.write("smap_stop", s)
+        gb = to_map(model, 10, step=1, stop=s)
         gb.run(3)
-        want = sorted(d for d in range(4) if SNAP[s][d] is not None)
-        arrows = [o for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 2] if o["y"]]
+        want = sorted(d for d in range(4) if EXITS[s][d] != NIL)
+        arrows = [o for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"]]
         assert len(arrows) == len(want), f"stop {s}"
         sx, sy = sal_xy(gb)
         got = []
         for o in arrows:
             ax, ay, t = o["x"] - 8, o["y"] - 16, o["tile"] - OB
             if t == PAIR["arrow_u0"]:
-                assert (ax, ay) == (sx + 4, sy - 9); got.append(0)
+                assert ax == sx + 4 and sy - 10 <= ay <= sy - 9; got.append(0)
             elif t == PAIR["arrow_d0"]:
-                assert (ax, ay) == (sx + 4, sy + 17); got.append(1)
+                assert ax == sx + 4 and sy + 25 <= ay <= sy + 26; got.append(1)
             elif o["flags"] & 0x20:
-                assert (ax, ay) == (sx - 9, sy + 4); got.append(2)
+                assert sx - 11 <= ax <= sx - 10 and ay == sy + 8; got.append(2)
             else:
-                assert (ax, ay) == (sx + 17, sy + 4); got.append(3)
+                assert sx + 18 <= ax <= sx + 19 and ay == sy + 8; got.append(3)
         assert sorted(got) == want, f"stop {s}"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_arrows_follow_the_open_stops_not_the_table(model):
-    gb = to_map(model, 3)                                # the bistro: the igloo past it is locked, so right leads round to the town
-    assert sum(1 for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 2] if o["y"]) == 2
-    gb.write("smap_stop", 0)
-    gb.run(3)
-    assert sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 2] if o["y"]) == sorted([PAIR["arrow_u0"], PAIR["arrow_r0"]])
-    gb.write("smap_stop", 3)
-    gb.run(3)
-    assert sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 2] if o["y"]) == [PAIR["arrow_r0"]] * 2
+    gb = to_map(model, 3)                                # the bistro: the igloo and the factory past it are locked, so only the way back (left) is open
+    got = sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"])
+    want = sorted({0: PAIR["arrow_u0"], 1: PAIR["arrow_d0"], 2: PAIR["arrow_r0"], 3: PAIR["arrow_r0"]}[d] for d in range(4) if open_stop(EXITS[3][d], 3))
+    assert got == want and len(got) == 1, (got, want)
+    gb = to_map(model, 4)
+    got = sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"])
+    assert got == [PAIR["arrow_r0"]], "the igloo: one way, back"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_arrow_shows_while_sal_walks(model):
+    gb = to_map(model, 10, step=1, stop=TOWN)
+    gb.press("left", 4)
+    gb.run(6)
+    assert gb.read("story_scratch", 520)[SV + V_WALK]
+    assert not any(o["y"] for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3])
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_name_tag_shows_90_frames_on_the_window_layer(model):
-    gb = to_map(model, 10, step=1, stop=1)
-    tap(gb, "up", 3)                     # the lodge: Sal in the top rows: the tag goes along the bottom
+    with double_speed() if model == "cgb" else contextlib.nullcontext():           # (a Color as shipped: at normal speed its map frames run late and the tag counts game frames)
+        gb = to_map(model, 10, step=1, stop=1)
+    go(gb, "right")                      # the stadium to the lodge
     assert gb.mem("smap_stop") == 2
     run_until(gb, lambda: gb.mem("overlay_on") == 3, 6)
-    assert gb.regs()["WY"] == 136 and win_text(gb, 0) == "CH3 LUMBER LODGE"
+    assert gb.regs()["WY"] in (0, 136) and win_text(gb, 0) == TAGS[2]
     n = 0
     while gb.mem("overlay_on") == 3 and n < 200:
         gb.run(1)
         n += 1
     assert 85 <= n <= 92, n
-    tap(gb, "down", 3)                   # the stadium: the tag at the top
-    assert gb.mem("smap_stop") == 1
+    with double_speed() if model == "cgb" else contextlib.nullcontext():
+        gb = to_map(model, 10, step=1, stop=0)
+    go(gb, "right")
+    assert gb.mem("smap_stop") == TOWN
     run_until(gb, lambda: gb.mem("overlay_on") == 3, 6)
-    assert gb.regs()["WY"] == 0 and win_text(gb, 0) == "CH2 THE STADIUM"
-    gb.write("smap_stop", 0)
-    tap(gb, "right", 3)
-    run_until(gb, lambda: gb.mem("overlay_on") == 3, 6)
-    assert gb.mem("smap_stop") == TOWN and win_text(gb, 0) == "FESTIVAL SQUARE"
+    assert win_text(gb, 0) == "FESTIVAL SQUARE"
     gb.run(95)
     assert gb.mem("overlay_on") == 0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_name_tag_goes_when_sal_sets_off(model):
+    """A frame that runs late drops the window for a frame (a flicker on the DMG): the tag is gone before the first step is drawn."""
+    gb = to_map(model, 10, step=1, stop=1, tag_gone=False)
+    run_until(gb, lambda: gb.mem("overlay_on") == 3, 60)
+    gb.press("right", 4)
+    gb.run(4)
+    assert gb.read("story_scratch", 520)[SV + V_WALK] and gb.mem("overlay_on") == 0
 
 
 # ---- A at a venue -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -400,7 +455,8 @@ def test_the_gold_bang_shows_over_the_tent_while_a_new_festival_game_has_not_bee
         gb.run(3)
         assert bang_shown(gb), f"game {k} just unlocked"
         o = oam(gb, OAM_BANG)
-        assert (o["x"] - 8, o["y"] - 16) == (72, 56), "over the tent"
+        cx, cy = cam(gb)
+        assert (o["x"] - 8, o["y"] - 16) == (220 - cx, 216 - cy), "over the tent"
         gb.write("smap_flags", gb.mem("smap_flags") | (1 << k))
         gb.run(3)
         assert not bang_shown(gb), f"game {k} was played"
@@ -639,7 +695,7 @@ def test_a_post_scene_returns_to_the_map_with_sal_on_the_venue_just_played(model
     ts.skip_scene(gb, stay=True)
     assert gb.mem("smap_stop") == 2 and gb.mem("story_chapter") == 2
     gb.run(130)
-    tap(gb, "right", 3)
+    go(gb, "right")
     assert gb.mem("smap_stop") == 3, "the next venue is open"
 
 
@@ -735,3 +791,56 @@ def test_golden_festival_panel(model):
     tap(gb, "a", 20)
     gb.run(10)
     check_golden(gb, "story_map_festival_panel")
+
+
+# ---- the goldens of the scrolling map (new names: the first four above are the old map's, replaced by the owner's decision) ----------------------------------------
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_saloon_at_the_start(model):
+    gb = to_map(model, 0, stop=0)
+    check_golden(gb, "story_map_scroll_saloon")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_mid_game_the_cow(model):
+    gb = to_map(model, 6, stop=6)
+    check_golden(gb, "story_map_scroll_cow")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_all_open_the_town_with_its_bang(model):
+    gb = to_map(model, 10, step=1, stop=TOWN)
+    check_golden(gb, "story_map_scroll_town")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_halfway_on_a_leg(model):
+    gb = to_map(model, 10, step=1, stop=0)
+    gb.press("right", 4)
+    run_until(gb, lambda: var(gb.read("story_scratch", 520), 16) >= 120, 400)         # (Sal's x on the way: the picture is one position, whatever the frame count)
+    assert gb.read("story_scratch", 520)[SV + V_WALK]
+    check_golden(gb, "story_map_scroll_walking")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_name_tag_sliding_in(model):
+    gb = to_map(model, 3, stop=3, tag_gone=False)
+    gb.run(14)
+    check_golden(gb, "story_map_scroll_tag")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_venue_panel(model):
+    gb = to_map(model, 6, stop=3)
+    tap(gb, "a", 20)
+    gb.run(10)
+    check_golden(gb, "story_map_scroll_venue_panel")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_festival_panel(model):
+    gb = to_map(model, 5, stop=TOWN, flags=0x01)
+    tap(gb, "a", 20)
+    gb.run(8)
+    tap(gb, "a", 20)
+    gb.run(10)
+    check_golden(gb, "story_map_scroll_festival_panel")

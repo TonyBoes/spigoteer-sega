@@ -86,7 +86,7 @@ def test_load_saloon_x_copies_the_same_vram_bank_1(model):
 TWIN_TESTED = {                      # switch -> the file with its C-versus-asm test
     "ASM_F": "test_asm_equiv.py", "ASM_DRAW_HELD": "test_mugs_asm.py", "ASM_UPDATE_MUGS": "test_mugs_asm.py",
     "ASM_SCANS": "test_catch_asm.py", "ASM_CHOOSER": "test_chooser_trace.py", "ASM_LIFT_DRAW": "test_asm_twins.py",
-    "ASM_TILE_COPY": "test_asm_twins.py", "ASM_SPLIT_PAL": "(palette RAM: Color goldens and make check)"}
+    "ASM_TILE_COPY": "test_asm_twins.py", "ASM_SMAP": "test_story_map_world.py", "ASM_SPLIT_PAL": "(palette RAM: Color goldens and make check)"}
 
 
 def test_every_asm_switch_that_gates_code_has_a_twin_test():

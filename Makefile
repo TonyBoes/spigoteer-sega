@@ -181,10 +181,19 @@ BONUS_H  += $(BUILD)/dgag_art.h $(BUILD)/smap_art.h
 $(BUILD)/dgag_art.h: tools/gen_dgag.py tools/gen_art.py $(wildcard assets/art/dgag/*.txt) assets/art/dregs/dregs.txt assets/art/monkey/monkey.txt assets/art/dust.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_dgag.py $(BUILD) $(OUT)/preview
 
-# The story map (src/smap.c; the owner-approved v14 art, 2026-10-18): assets/story_map/*.png -> build/smap_art.h (BG tiles, map, attributes, palettes,
-# OBJ tiles), build/smap.json (tests), out/preview/smap_*_x4.png
+# The story map (src/smap.c; the owner-approved v14 sprites, 2026-10-18): assets/story_map/obj_*.png -> build/smap_art.h (OBJ tiles and palettes),
+# build/smap.json (tests)
 $(BUILD)/smap_art.h: tools/gen_smap.py $(wildcard assets/story_map/*.png) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_smap.py $(BUILD) $(OUT)/preview
+
+# The story map's scrolling world (owner 2026-11-04, Q76 / Q78): the concept's hand-typed 64 x 48 cell world (tools/smap_world/) -> four banked data files
+# (Color and DMG: cells, cloud, slot plan / allocator hints, tiles) with their accessors, build/smap_world.h (the stops, the legs), build/smap_world.json
+# (tests), out/preview/smap_world_*.png. The build fails when a window is over the tile or palette budget.
+SMAPW_C := $(BUILD)/smap_wc_a.c $(BUILD)/smap_wc_t.c $(BUILD)/smap_wd_a.c $(BUILD)/smap_wd_t.c
+GEN      += $(SMAPW_C)
+BONUS_H  += $(BUILD)/smap_world.h
+$(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_world.py $(wildcard tools/smap_world/*.py) $(wildcard assets/story_map/world/*.txt) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_smap_world.py $(BUILD) $(OUT)/preview
 
 preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 

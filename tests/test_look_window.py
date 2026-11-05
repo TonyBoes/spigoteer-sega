@@ -81,11 +81,14 @@ DMG_SEQ = {
     1: [1, 2, 1, 2, 1, 2, 1, 1, 0, 2, 2, 0, 1, 2, 2, 2, 1, 0, 2, 1, 0, 1, 2, 2, 1, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 2, 0, 0, 0, 1, 1],
 }
 
+FRAME_AT = {0: 144, 1: 139}
+
 
 @pytest.mark.parametrize("model", ["dmg"])
 @pytest.mark.parametrize("c", [0, 1])
 def test_the_dmg_spawn_sequence_for_the_fixed_seed_is_unchanged(model, c):
     with to_chapter(model, c) as gb:
         run_until(gb, lambda: state(gb) == PLAYING and gb.mem("intro_timer") == 0, 300)
+        gb.write(gb.addr("frame_counter"), FRAME_AT[c])      # (the frame the play starts on: the map's longer entry moved it; the spawns follow its phase)
         got = record(gb, 3000, resync=False)[0]
     assert got[:len(DMG_SEQ[c])] == DMG_SEQ[c] and len(got) >= len(DMG_SEQ[c]), got   # (the DMG still repeats a look back to back)

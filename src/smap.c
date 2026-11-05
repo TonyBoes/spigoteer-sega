@@ -1,8 +1,10 @@
-// The story map (owner 2026-10-18, Q59-Q70: build 1 of the approved v14 art): the screen between a story's chapters. One full 160x144 picture
-// (176 BG tiles, 8 CGB palettes, built by tools/gen_smap.py from assets/story_map/), eleven stops on one ring: the ten venues (stop c = chapter c) and the
-// town / fountain square (stop 10, always open). Sal (a 16x16 map sprite) SNAPS from stop to stop with the D-pad along the ring (assets: the v14 snap
-// table; LOCKED stops, the venues past the story's progress, are skipped); gold arrows beside him show where the D-pad leads. A short name tag
-// (venue and chapter) comes up on the window layer for 90 frames on each arrival, BG palette 0.
+// The story map (owner 2026-11-04, Q76 "definitely the right direction", Q78 "yes"; before it the v14 one-screen map of 2026-10-18, Q59-Q70): the screen
+// between a story's chapters. One scrolling world of 64 x 48 cells (512 x 384 px, built by tools/gen_smap_world.py from the hand-typed pieces of
+// tools/smap_world/): eleven stops (the ten venues, stop c = chapter c, and the town / fountain square, stop 10, always open) on 16 px roads. Sal walks
+// the roads at his full in-game size (the bartender's front frames, OBJ tiles 0-23 and palette 0, always facing the camera); the D-pad sends him along the
+// leg to the neighbour on that side (gold arrows show the exits that exist and are open) and the camera glides after him. Cloud hides the zones that are
+// not open yet; the next stop shows as a red dot on the cloud's edge, the open ones as green dots. A short name tag (venue and chapter) slides in on the
+// window layer for 90 frames on each arrival.
 //
 //   A at the next uncleared venue     its PRE scene and the chapter, as before (story.c story_map_venue)
 //   A at a cleared venue              a panel: PLAY <its mini-game> / BACK and the best medal; PLAY runs that mini-game alone (MG_PRACTICE | MG_MAP,
@@ -16,24 +18,41 @@
 // Festival lives (owner Q59c-d): the Pour-Off starts with 3 + the festival GOLDS won in the current story run (NORMAL or HARD; at most 3 games, so at most
 // +3). They are not spent from any bank: smap_flags bits 4-6 (one per game), saved with the map block (save.c "SM", 6 bytes at 0x1E).
 //
-// State (no more WRAM than these two bytes): smap_stop, smap_flags; the panels and the tag live in story_scratch (no scene or mini-game runs meanwhile).
-// The screen runs as GS_STORY with story_phase STORY_PHASE_MAP (story_update hands the frame here: no ROM0 case). Palettes: the map uses all eight BG
-// palettes and OBJ palettes 1-4, 6, 7 (never 0, the bartender's, nor 5, the coin's); the HUD palette (BG 1) is put back by smap_pal_back, which the
-// screens after the map call once their LCD is off (story.c scene_enter / shift_start, mg.c prelude). Window layer: row 0 the tag, rows 0-6 a panel
-// (the window map's row r is map row 32 + r); both reach the screen through the VBlank queue, three rows a frame at most.
+// State (no more WRAM than these two bytes): smap_stop, smap_flags; everything else lives in story_scratch (no scene or mini-game runs meanwhile):
+// the camera, Sal, the walk, the loaded region, the tile tables (src/scratch.h and tests/test_scratch_map.py list the bytes).
+// The screen runs as GS_STORY with story_phase STORY_PHASE_MAP (story_update hands the frame here: no ROM0 case).
+//
+// THE WORLD ON THE HARDWARE.  The 32 x 32 BG map holds a wrapped window of the world: cell (cx, cy) is at map (cx & 31, cy & 31); SCX / SCY are the
+// camera's low 8 bits, set through the VBlank copy list (an entry that writes 0xFF42-3) so that the scroll, the new cells and the new tiles all land
+// in one VBlank. The REGION is the rectangle of cells [c0, c1] x [r0, r1] whose map cells are valid and whose tiles are resident: it holds what the
+// camera shows (at most 21 x 19 cells) and one line ahead on each axis in the direction of travel (at most 22 x 20). Lines are added one at a time
+// (a JOB: a column or a row, a few cells a frame within the VBlank drain budget) and dropped when the camera has left them. The camera moves only
+// where the region already covers the view (it holds a frame when a line is not loaded yet; Sal waits when the camera is far behind).
+//   Color: a STATIC slot plan (a tile has one of 352 VRAM slots, two tiles share one only if no 22 x 20 window holds both): a cell needs its tile's slot to
+//          hold that tile's variant (4 bits per slot in story_scratch), else the tile is loaded. BG palettes are shared by reference counts: the 18 palettes
+//          of the world take the 8 hardware slots as cells enter and leave the region (a palette is written when its first cell enters).
+//   DMG:   a DYNAMIC allocator in 176 slots: a table of the 10-bit tile id in each slot, a use count per slot, a hint slot per tile (ROM); a tile that is
+//          not resident takes its hint slot when no cell uses it, else the next unused slot after a rotating pointer. No slot free: the job waits.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
 
+#include "asm_cfg.h"
 #include "game.h"
 #include "music.h"
 #include "story.h"
 #include "mg.h"
+#include "palettes.h"
 #include "smap_art.h"
+#include "smap_priv.h"
+#define SMAPW_GEOMETRY
+#include "smap_world.h"
+extern void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
+extern const uint8_t bartender_tiles[];
 extern uint8_t overlay_on, story_phase, story_chapter, save_lock, score_digits[6], play_mode;
 extern uint32_t score;
 extern uint8_t win_rows[5][20];
@@ -48,32 +67,8 @@ uint8_t smap_flags;                           // bits 0-2: festival game k was p
 #define F_PALS       0x80
 #define F_SAVED      0x77
 
-#define NSTOPS       11
-#define TOWN         10
-#define NIL          255
-#define FEST_N       3
-#define OB           56                       // the map's OBJ tiles start at this id (0-55 are the bartender's, the mugs' and the coin: boot-time tiles)
-#define BANG_X       72                       // the "!" over the tent
-#define BANG_Y       56
-#define TAG_FRAMES   90
-#define LYC_NONE     255                      // the window runs to the screen's bottom: no raster interrupt wanted
 
-// ---- the stops (tile coordinates of the dots) and the snap table: U, D, L, R ----------------------------------------------------------------------------
-static const uint8_t stop_x[NSTOPS] = { 2, 0, 3, 10, 17, 16, 16, 17, 9, 6, 11 };
-static const uint8_t stop_y[NSTOPS] = { 12, 5, 3, 3, 3, 8, 13, 17, 17, 16, 11 };
-static const uint8_t snap[NSTOPS][4] = {
-    { 1, NIL, NIL, 10 },     // 0 saloon
-    { 2, 0, NIL, NIL },      // 1 stadium
-    { NIL, 1, NIL, 3 },      // 2 lodge
-    { NIL, NIL, 2, 4 },      // 3 bistro
-    { NIL, 5, 3, NIL },      // 4 igloo
-    { 4, 6, NIL, NIL },      // 5 factory
-    { 5, 7, NIL, NIL },      // 6 The Chrome Cow
-    { 6, NIL, 8, NIL },      // 7 teahouse
-    { NIL, NIL, 9, 7 },      // 8 zoo
-    { 10, NIL, NIL, 8 },     // 9 space lounge
-    { NIL, 9, 0, NIL },      // 10 town
-};
+// ---- the stops (feet positions and the legs: build/smap_world.h) ----------------------------------------------------------------------------------------------
 static const char *const tag_name[NSTOPS] = {
     "CH1 THE SALOON", "CH2 THE STADIUM", "CH3 LUMBER LODGE", "CH4 THE BISTRO", "CH5 THE IGLOO", "CH6 ROBOT FACTORY",
     "CH7 THE CHROME COW", "CH8 THE TEAHOUSE", "CH9 THE JUNGLE ZOO", "CH10 SPACE LOUNGE", "FESTIVAL SQUARE" };
@@ -85,23 +80,8 @@ static const char *const medal_long[4] = { "NONE", "BRONZE", "SILVER", "GOLD" };
 static const char *const medal_short[4] = { "----", "BRNZ", "SLVR", "GOLD" };
 static const char dim_set[SMAP_DIM_N + 1] = "THEPOURF-";   // the letters of the one greyed line (THE POUR-OFF)
 
-// ---- story_scratch: the row buffers and the screen's variables --------------------------------------------------------------------------------------------
-#define ROWS_MAX     7
-#define ROWBUF(r)    (story_scratch + (uint8_t)(r) * 20)    // the panel's rows, then (140..) the attribute rows and the tag
-#define ATTR_PANEL   (story_scratch + 140)                  // 20 x palette 5 (the fountain's: cream text, light blue and gold rim on the dark band)
-#define ATTR_TAG     (story_scratch + 160)                  // 20 x palette 0 (snow)
-#define TAGROW       (story_scratch + 180)
-#define V(n)         (story_scratch[400 + (n)])
-enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_WH, V_DONE, V_PREV };
-// the map's bytes in order, none touching the next: the panel's rows, their attribute row, the tag's, the tag, then the variables
-typedef char smap_scratch_fits[(ROWS_MAX * 20 <= 140 && 140 + 20 <= 160 && 160 + 20 <= 180 && 180 + 20 <= 400 && 400 + V_PREV + 1 <= STORY_SCRATCH) ? 1 : -1];
-enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE, P_MENU };
-#define PAL_PANEL    5
-#define PAL_TAG      0
 
-static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
 
-static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= story_progress; }
 
 static uint8_t popcount3(uint8_t v) { return (v & 1) + ((v >> 1) & 1) + ((v >> 2) & 1); }
 
@@ -113,17 +93,6 @@ static uint8_t bang_wanted(void) {            // an unlocked festival game that 
     uint8_t k;
     for (k = 0; k < FEST_N; k++) if (fest_open(k) && !(smap_flags & F_PLAYED(k))) return 1;
     return 0;
-}
-
-// ---- movement: one hop along the ring in direction d, over locked stops --------------------------------------------------------------------------------------
-static uint8_t hop(uint8_t from, uint8_t d) {
-    uint8_t t = snap[from][d], prev = from, nx, k;
-    while (t != NIL && !open_stop(t)) {           // a locked stop is passed: on to the ring's next stop the way we are going
-        nx = NIL;
-        for (k = 0; k < 4; k++) if (snap[t][k] != NIL && snap[t][k] != prev) nx = snap[t][k];
-        prev = t; t = nx;
-    }
-    return t == NIL ? from : t;
 }
 
 // ---- text ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -150,22 +119,22 @@ static void centre_text(uint8_t *row, const char *s) {
     put_text(row, n >= 20 ? 0 : (20 - n) >> 1, s, 0);
 }
 
-static uint8_t *blank_row(uint8_t r) { fill(ROWBUF(r), TILE_HUD_BLANK, 20); return ROWBUF(r); }
+static uint8_t *blank_row(uint8_t *r) { fill(r, TILE_HUD_BLANK, 20); return r; }
+
 
 // ---- the sprites -----------------------------------------------------------------------------------------------------------------------------------------------
-// OBJ palettes (CGB): sal 1, ufo 2, open dot 3, locked dot 4, arrow 6, bang 7 (smap_art.h's order is sal, ufo, open, locked, arrow, bang). DMG: OBP0 for all.
-#define PAL_SAL    1
+// OBJ palettes (CGB): Sal 0 (the bartender's), ufo 2, open dot 3, locked dot 4, arrow 6, bang 7. DMG: OBP0 for all.
 #define PAL_UFO    2
 #define PAL_OPEN   3
 #define PAL_LOCKED 4
 #define PAL_ARROW  6
 #define PAL_BANG   7
-#define OAM_ARROWS 0       // 0-1: the two direction arrows
-#define OAM_SAL    2       // 2-3
-#define OAM_BANG   4
-#define OAM_DOTS   5       // 5..15
-#define OAM_UFO    16      // 16-18
-#define OAM_CURSOR 19      // the panel's selection arrow
+#define OAM_ARROWS 0       // 0-2: the direction arrows
+#define OAM_SAL    3       // 3-6: A B C D
+#define OAM_BANG   7
+#define OAM_DOTS   8       // 8..18
+#define OAM_UFO    19      // 19-21
+#define OAM_CURSOR 22      // the panel's selection arrow
 
 // px, py: the top-left of the 8-px column's art on screen (may be off the left / top edge); vh: its visible height (8 or 16). A sprite the window layer covers is not drawn.
 static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, uint8_t flip, uint8_t vh) {
@@ -173,46 +142,75 @@ static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, ui
     uint8_t wy = V(V_WY), wh = V(V_WH);
     if (px + 8 <= 0 || px >= 160 || py + vh <= 0 || py >= 144 || (i != OAM_CURSOR && wh && py < (int16_t)wy + wh && py + vh > (int16_t)wy)) { o->y = 0; return; }
     o->y = (uint8_t)(py + 16); o->x = (uint8_t)(px + 8);
-    o->tile = OB + tile;
+    o->tile = tile;
     o->prop = (is_cgb ? pal : 0) | flip;
 }
 
-static void sal_pos(int16_t *sx, int16_t *sy) {
-    uint8_t s = smap_stop;
-    if (s == 6) { *sx = stop_x[s] * 8 - 24; *sy = stop_y[s] * 8 - 12; }      // The Chrome Cow: beside the dot, the building is right above the door
-    else { *sx = stop_x[s] * 8 - 8; *sy = stop_y[s] * 8 - 14; }
-}
+static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 frames)
+
+// A sprite entry written inline (a call with seven arguments costs more than the entry's four stores): px, py the top-left of the 8-px column's art on screen
+// (it may lie off an edge: then the entry is hidden), vh its visible height; entries the window layer (wh lines from wy) covers are hidden too.
+#define SPR(i, px, py, tl, pl, fl, vh) do { \
+        OAM_item_t *o_ = shadow_OAM + (i); \
+        if ((uint16_t)((px) + 7) < 167 && (uint16_t)((py) + (vh) - 1) < (uint16_t)(143 + (vh)) && !(wh && (py) < wend && (py) + (vh) > wy)) { \
+            o_->y = (uint8_t)((py) + 16); o_->x = (uint8_t)((px) + 8); o_->tile = (tl); o_->prop = cgbp ? ((pl) | (fl)) : (fl); \
+        } else o_->y = 0; } while (0)
 
 static void draw(void) {
-    uint8_t s, d, n = 0, t;
-    int16_t sx, sy, ax, ay;
-    uint8_t panel = V(V_PANEL);
-    sal_pos(&sx, &sy);
-    for (d = 0; d < 4; d++) {                      // the arrows: where each button leads (none while a panel is up)
-        if (panel || hop(smap_stop, d) == smap_stop || n >= 2) continue;
-        ax = sx + 4; ay = sy - 9; t = SOB_ARROW_U0;
-        if (d == 1) { ay = sy + 17; t = SOB_ARROW_D0; }
-        else if (d == 2) { ax = sx - 9; ay = sy + 4; t = SOB_ARROW_R0; }
-        else if (d == 3) { ax = sx + 17; ay = sy + 4; t = SOB_ARROW_R0; }
-        put(OAM_ARROWS + n++, ax, ay, t, PAL_ARROW, d == 2 ? S_FLIPX : 0, 8);
-    }
-    for (; n < 2; n++) shadow_OAM[OAM_ARROWS + n].y = 0;
-    put(OAM_SAL, sx, sy, SOB_SAL0, PAL_SAL, 0, 16);
-    put(OAM_SAL + 1, sx + 8, sy, SOB_SAL1, PAL_SAL, 0, 16);
-    if (bang_wanted()) put(OAM_BANG, BANG_X, BANG_Y, SOB_BANG0, PAL_BANG, 0, 8);
+    uint8_t s, d, n = 0, t, ccx, ccy, p = V(V_STATE), pic = 0, nudge, panel = V(V_PANEL), wh = V(V_WH), cgbp = is_cgb, tk = V(V_TICK);
+    int16_t sx, sy, ax, ay, cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), wy = V(V_WY), wend = (int16_t)V(V_WY) + wh;
+    const uint16_t *sp = &smapw_stop[0][0];
+    sx = (int16_t)g16(V_FX) - 8 - cx;               // Sal's top-left on the screen
+    sy = (int16_t)g16(V_FY) - 24 - cy;
+    nudge = (tk >> 4) & 1;                          // (the arrows bob 1 px every 16 frames, the UFO every 32)
+    if (V(V_WALK)) pic = pic_seq[(tk >> 2) & 3];
+    if (!panel && !V(V_WALK))                       // the arrows: where each button leads (none while a panel is up or Sal walks)
+        for (d = 0; d < 4; d++) {
+            s = smapw_exit[smap_stop][d];
+            if (s == NIL || !open_stop(s) || n >= 3) continue;
+            ax = sx + 4; ay = sy - 9 - nudge; t = SOB_ARROW_U0;
+            if (d == 1) { ay = sy + 25 + nudge; t = SOB_ARROW_D0; }
+            else if (d == 2) { ax = sx - 10 - nudge; ay = sy + 8; t = SOB_ARROW_R0; }
+            else if (d == 3) { ax = sx + 18 + nudge; ay = sy + 8; t = SOB_ARROW_R0; }
+            SPR(OAM_ARROWS + n, ax, ay, OB + t, PAL_ARROW, d == 2 ? S_FLIPX : 0, 8);
+            n++;
+        }
+    for (; n < 3; n++) shadow_OAM[OAM_ARROWS + n].y = 0;
+    t = pic * BARTENDER_TILES_PER_FRAME;            // Sal: the bartender's front picture, four 8x16 entries
+    SPR(OAM_SAL, sx, sy, t, OBJPAL_BARTENDER, 0, 16);
+    SPR(OAM_SAL + 1, sx + 8, sy, t + 2, OBJPAL_BARTENDER, 0, 16);
+    ay = sy + 16;
+    SPR(OAM_SAL + 2, sx, ay, t + 4, OBJPAL_BARTENDER, 0, 8);
+    SPR(OAM_SAL + 3, sx + 8, ay, t + 6, OBJPAL_BARTENDER, 0, 8);
+    if (bang_wanted()) { ax = SMAPW_BANG_X - cx; ay = SMAPW_BANG_Y - cy; SPR(OAM_BANG, ax, ay, OB + SOB_BANG0, PAL_BANG, 0, 8); }
     else shadow_OAM[OAM_BANG].y = 0;
-    for (s = 0; s < NSTOPS; s++)
-        put(OAM_DOTS + s, stop_x[s] * 8, stop_y[s] * 8, open_stop(s) ? SOB_DOT_OPEN0 : SOB_DOT_LOCKED0, open_stop(s) ? PAL_OPEN : PAL_LOCKED, 0, 8);
-    put(OAM_UFO, 0, 104, SOB_UFO0, PAL_UFO, 0, 16);
-    put(OAM_UFO + 1, 8, 104, SOB_UFO1, PAL_UFO, 0, 16);
-    put(OAM_UFO + 2, 16, 104, SOB_UFO2, PAL_UFO, 0, 16);
+    cx += 4; cy += 8;                               // (the dot's entry lies 4 px left of and 8 px above the stop)
+    ccx = (uint8_t)(cx >> 3); ccy = (uint8_t)(cy >> 3);
+    for (s = 0; s < NSTOPS; s++, sp += 2) {         // the dots: green where Sal may go (the stops before the next, and the town), red at the next stop (on the cloud's edge); none beyond (their entries
+        if (s > p && s != TOWN) continue;           // stay hidden: smap_enter)
+        if ((uint8_t)(smapw_stopc[s][0] - ccx + 2) > 24 || (uint8_t)(smapw_stopc[s][1] - ccy + 2) > 22) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }     // (a quick cull in cells: well off the screen)
+        ax = (int16_t)sp[0] - cx;
+        if ((uint16_t)(ax + 7) >= 167) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }
+        ay = (int16_t)sp[1] - cy;
+        if (s < p || s == TOWN) SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_OPEN0, PAL_OPEN, 0, 8);
+        else SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_LOCKED0, PAL_LOCKED, 0, 8);
+    }
+    cx -= 4; cy -= 8;
+    if (p >= 10) {                                  // the UFO over the space lounge, once that is open (bobbing 1 px)
+        ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((tk >> 5) & 1) - cy;
+        SPR(OAM_UFO, ax, ay, OB + SOB_UFO0, PAL_UFO, 0, 16);
+        ax += 8;
+        SPR(OAM_UFO + 1, ax, ay, OB + SOB_UFO1, PAL_UFO, 0, 16);
+        ax += 8;
+        SPR(OAM_UFO + 2, ax, ay, OB + SOB_UFO2, PAL_UFO, 0, 16);
+    }
     if (panel && V(V_DONE) && panel != P_NUDGE) {  // the selection arrow, at the selected line's left
         s = V(V_PANEL) == P_VENUE ? 2 : 1;
-        put(OAM_CURSOR, 8, V(V_WY) + (s + V(V_SEL)) * 8, SOB_ARROW_R0, PAL_ARROW, 0, 8);
+        put(OAM_CURSOR, 8, V(V_WY) + (s + V(V_SEL)) * 8, OB + SOB_ARROW_R0, PAL_ARROW, 0, 8);
     } else shadow_OAM[OAM_CURSOR].y = 0;
 }
 
-// ---- the window layer -----------------------------------------------------------------------------------------------------------------------------------------
+// ---- the window layer ---------------------------------------------------------------------------------------------------------------------------------------
 static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over lines y .. y + h - 1; lyc: where the LCD interrupt cuts it (LYC_NONE: at the screen's end)
     WX_REG = 7; WY_REG = y; LYC_REG = lyc;
     V(V_WY) = y; V(V_WH) = h;
@@ -222,88 +220,105 @@ static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over l
 static void win_hide(void) {
     overlay_on = 0; HIDE_WIN;
     WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;      // (the banner window's own place again)
+    WX_REG = 7;
     V(V_WH) = 0; V(V_TAG) = 0;
 }
 
-static void tag_show(void) {                       // the name tag of the stop Sal stands at: queued now, shown from the next frame
-    fill(TAGROW, TILE_HUD_BLANK, 20);
-    centre_text(TAGROW, tag_name[smap_stop]);
-    vq_add(0, TAGROW, 0, 32, 20);
-    if (is_cgb) { vq_add(1, ATTR_TAG, 0, 32, 20); V(V_ATTR) &= ~1; }
-    V(V_BOTTOM) = stop_y[smap_stop] < 4;           // Sal in the top rows: the tag goes along the bottom edge
+static uint8_t ui_attr(void) {                     // Color: the attribute of the window layer's cells: the town palette's hardware slot (held for as long as the map is up)
+    return SC(A_PSLOT)[SMAPW_PAL_TOWN] & 7;
+}
+
+static void ui_attr_row(void) {
+    uint8_t a = ui_attr();
+    if (a != V(V_UIPAL) || !SC(A_ATTR_UI)[0]) { fill(SC(A_ATTR_UI), a, 20); V(V_UIPAL) = a; V(V_ATTR) = 0; }
+}
+
+static void tag_show(void) {                       // the name tag of the stop Sal stands at: queued now, shown from the next frame, sliding in from the right
+    fill(SC(S_T), TILE_HUD_BLANK, 20);              // (the row lies in the tile staging area: no tile is staged this frame)
+    centre_text(SC(S_T), tag_name[smap_stop]);
+    vq_add(0, SC(S_T), 0, 32, 20);
+    V(V_NSTG) = 2;
+    if (is_cgb) { ui_attr_row(); if (!(V(V_ATTR) & 1)) { vq_add(1, SC(A_ATTR_UI), 0, 32, 20); V(V_ATTR) |= 1; } }
+    V(V_BOTTOM) = (int16_t)g16(V_FY) - (int16_t)g16(V_CAMY) < 40;          // Sal in the top rows: the tag goes along the bottom edge
     V(V_TAG) = TAG_FRAMES + 1;
 }
 
 static void tag_tick(void) {
-    uint8_t t = V(V_TAG);
+    uint8_t t = V(V_TAG), e;
     if (!t) return;
     V(V_TAG) = --t;
     if (t == TAG_FRAMES) { if (V(V_BOTTOM)) win_show(136, 8, LYC_NONE); else win_show(0, 8, 7); }   // (the glyphs are 7 lines tall: the cut at line 7, as show_note)
-    else if (!t) win_hide();
+    else if (!t) { win_hide(); return; }
+    e = TAG_FRAMES + 1 - t;                         // frames shown: the tag slides in from the right in the first TAG_SLIDE
+    V(V_WXB) = 7 + (e < TAG_SLIDE ? (TAG_SLIDE - e) * 13 : 0);     // (through the copy list: the window's left edge moves in VBlank)
+    qraw(0, &V(V_WXB), 0xFF4B, 1);
 }
 
 // ---- panels -----------------------------------------------------------------------------------------------------------------------------------------------------------
 static uint8_t pour_off_open(void) { return story_progress >= STORY_CHAPTERS; }
 
-static void panel_rows(uint8_t kind) {             // compose the panel's rows into the buffers; V_ROWS
-    uint8_t k, g, n;
+// compose the panel's row `want` into out (the other rows into a sink): the panel's rolling two-row buffer is all the room the DMG map has. Returns the row count.
+static uint8_t panel_row(uint8_t kind, uint8_t want, uint8_t *out) {
+    uint8_t k, g, n, sink[20];
+#define ROW(i) ((i) == want ? out : sink)
     char b[20];
-    fill(ROWBUF(0), TILE_PANEL_TOP, 20);
+    fill(ROW(0), TILE_PANEL_TOP, 20);
     switch (kind) {
     case P_TOWN:
-        put_text(blank_row(1), 3, "FESTIVAL GAMES", 0);
-        put_text(blank_row(2), 3, "THE POUR-OFF", !pour_off_open());
-        centre_text(blank_row(3), pour_off_open() ? "" : "CLEAR ALL VENUES");
+        put_text(blank_row(ROW(1)), 3, "FESTIVAL GAMES", 0);
+        put_text(blank_row(ROW(2)), 3, "THE POUR-OFF", !pour_off_open());
+        centre_text(blank_row(ROW(3)), pour_off_open() ? "" : "CLEAR ALL VENUES");
         if (pour_off_open()) {
             b[0] = 'G'; b[1] = 'O'; b[2] = 'L'; b[3] = 'D'; b[4] = 'S'; b[5] = ':'; b[6] = ' '; b[7] = '0' + golds(); b[8] = 0;
-            centre_text(ROWBUF(3), b);
+            centre_text(ROW(3), b);
         }
         n = 5;
         break;
     case P_VENUE:
         g = smap_stop;
-        centre_text(blank_row(1), game_name[g]);
-        put_text(blank_row(2), 3, "PLAY", 0);
-        put_text(blank_row(3), 3, "BACK", 0);
+        centre_text(blank_row(ROW(1)), game_name[g]);
+        put_text(blank_row(ROW(2)), 3, "PLAY", 0);
+        put_text(blank_row(ROW(3)), 3, "BACK", 0);
         b[0] = 'B'; b[1] = 'E'; b[2] = 'S'; b[3] = 'T'; b[4] = ':'; b[5] = ' ';
         for (k = 0; (b[6 + k] = medal_long[mg_best[g] & 3][k]) != 0; k++) ;
-        centre_text(blank_row(4), b);
+        centre_text(blank_row(ROW(4)), b);
         n = 6;
         break;
     case P_FEST:
         for (k = 0; k < FEST_N; k++) {
-            blank_row(1 + k);
+            blank_row(ROW(1 + k));
             if (fest_open(k)) {
-                put_text(ROWBUF(1 + k), 3, fest_name[k], 0);
-                put_text(ROWBUF(1 + k), 15, medal_short[bonus_best(k, MG_D_NORMAL)], 0);
-            } else put_text(ROWBUF(1 + k), 3, "? ? ?", 0);
+                put_text(ROW(1 + k), 3, fest_name[k], 0);
+                put_text(ROW(1 + k), 15, medal_short[bonus_best(k, MG_D_NORMAL)], 0);
+            } else put_text(ROW(1 + k), 3, "? ? ?", 0);
         }
-        centre_text(blank_row(4), "GOLD: 1 LIFE");
+        centre_text(blank_row(ROW(4)), "GOLD: 1 LIFE");
         n = 6;
         break;
     case P_MENU:                                   // START: RESUME / QUIT TO TITLE
-        put_text(blank_row(1), 3, "RESUME", 0);
-        put_text(blank_row(2), 3, "QUIT TO TITLE", 0);
+        put_text(blank_row(ROW(1)), 3, "RESUME", 0);
+        put_text(blank_row(ROW(2)), 3, "QUIT TO TITLE", 0);
         n = 4;
         break;
     default:                                       // P_NUDGE: Dregs, text only (the owner's wording)
-        centre_text(blank_row(1), "DREGS");
-        centre_text(blank_row(2), "YOU'LL HAVE TO");           // (the owner's line, Q71b: "You'll have to practice hard at the festival to have a hope of beating me")
-        centre_text(blank_row(3), "PRACTICE HARD AT THE");
-        centre_text(blank_row(4), "FESTIVAL TO HAVE A");
-        centre_text(blank_row(5), "HOPE OF BEATING ME!");
+        centre_text(blank_row(ROW(1)), "DREGS");
+        centre_text(blank_row(ROW(2)), "YOU'LL HAVE TO");           // (the owner's line, Q71b: "You'll have to practice hard at the festival to have a hope of beating me")
+        centre_text(blank_row(ROW(3)), "PRACTICE HARD AT THE");
+        centre_text(blank_row(ROW(4)), "FESTIVAL TO HAVE A");
+        centre_text(blank_row(ROW(5)), "HOPE OF BEATING ME!");
         n = 7;
         break;
     }
-    fill(ROWBUF(n - 1), TILE_PANEL_BOT, 20);
-    V(V_ROWS) = n;
+    fill(ROW(n - 1), TILE_PANEL_BOT, 20);
+    return n;
 }
 
 static void panel_open(uint8_t kind, uint8_t sel) {
     win_hide();
     V(V_PANEL) = kind; V(V_SEL) = sel; V(V_STEP) = 0; V(V_DONE) = 0;
-    panel_rows(kind);
-    V(V_TOP) = stop_y[smap_stop] >= 9;
+    V(V_ROWS) = panel_row(kind, 255, SC(PANBUF));
+    V(V_TOP) = (int16_t)g16(V_FY) - (int16_t)g16(V_CAMY) > 72;
+    if (is_cgb) ui_attr_row();
 }
 
 static void panel_close(void) {
@@ -311,8 +326,8 @@ static void panel_close(void) {
     V(V_PANEL) = P_NONE; V(V_DONE) = 0;
 }
 
-// Queue the panel's rows, at most three entries (tile rows, and attribute rows where the window map does not hold the panel's palette yet) a frame
-// (the VBlank list's room: 3 x (20 + 3) bytes); when everything has gone, the window comes up on the next frame.
+// Queue the panel's rows, at most two entries (tile rows, and attribute rows where the window map does not hold the panel's palette yet) a frame
+// (the rolling buffer holds two rows: each is composed when its turn comes); when everything has gone, the window comes up on the next frame.
 static void panel_pump(void) {
     uint8_t n = 0, s = V(V_STEP), r, rows = V(V_ROWS);
     if (s >= 2 * rows) {
@@ -323,19 +338,52 @@ static void panel_pump(void) {
         }
         return;
     }
-    while (n < 3 && s < 2 * rows) {
+    while (n < 2 && s < 2 * rows) {
         r = s >> 1;
         if (!(s & 1)) {                            // an attribute row (CGB)
-            if (is_cgb && !((V(V_ATTR) >> r) & 1)) { vq_add(1, ATTR_PANEL, 0, 32 + r, 20); V(V_ATTR) |= 1 << r; n++; }
-        } else { vq_add(0, ROWBUF(r), 0, 32 + r, 20); n++; }
+            if (is_cgb && !((V(V_ATTR) >> r) & 1)) { vq_add(1, SC(A_ATTR_UI), 0, 32 + r, 20); V(V_ATTR) |= 1 << r; n++; }
+        } else { panel_row(V(V_PANEL), r, SC(PANBUF + 20 * n)); vq_add(0, SC(PANBUF + 20 * n), 0, 32 + r, 20); n++; }
         s++;
     }
     V(V_STEP) = s;
 }
 
+// ---- the camera, the region, the walk ------------------------------------------------------------------------------------------------------------------------------------
+
+static void start_walk(uint8_t d) {
+    uint8_t t = smapw_exit[smap_stop][d], e = smapw_exit_leg[smap_stop][d], leg = e & 0x7F, rev = e >> 7;
+    if (t == NIL || !open_stop(t)) return;
+    V(V_LEG) = leg; V(V_REV) = rev; V(V_DEST) = t;
+    V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
+    V(V_WALK) = 1;
+    if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
+    SFX(SFX_DON);
+}
+
+static void walk_step(void) {
+    uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV);
+    uint16_t fx = g16(V_FX), fy = g16(V_FY), tx = smapw_leg_pt[leg][k][0], ty = smapw_leg_pt[leg][k][1];
+    int16_t ctx, cty, lx, ly;
+    smap_cam_target(&ctx, &cty);
+    lx = ctx - (int16_t)g16(V_CAMX); ly = cty - (int16_t)g16(V_CAMY);
+    if (lx < 0) lx = -lx;
+    if (ly < 0) ly = -ly;
+    if (lx + ly > CAM_LAG) return;                   // the camera is behind: Sal waits for it
+    if (fx != tx) fx = fx < tx ? (tx - fx < WALK_SPD ? tx : fx + WALK_SPD) : (fx - tx < WALK_SPD ? tx : fx - WALK_SPD);
+    else if (fy != ty) fy = fy < ty ? (ty - fy < WALK_SPD ? ty : fy + WALK_SPD) : (fy - ty < WALK_SPD ? ty : fy - WALK_SPD);
+    s16(V_FX, fx); s16(V_FY, fy);
+    if (fx != tx || fy != ty) return;
+    if (rev ? !k : k + 1 == smapw_leg_n[leg]) {      // the last waypoint: Sal is there
+        smap_stop = V(V_DEST);
+        V(V_WALK) = 0;
+        tag_show();
+    } else V(V_WK) = rev ? k - 1 : k + 1;
+}
+
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
-static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the map block saved
+static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
     win_hide();
+    SCX_REG = 0; SCY_REG = 0;
     sm_put(smap_stop, smap_flags & F_SAVED);
 }
 
@@ -343,7 +391,7 @@ static uint8_t press_a(void) {                     // A with no panel up. 1: the
     uint8_t s = smap_stop;
     if (s == TOWN) { panel_open(P_TOWN, 0); return 0; }
     if (s < story_progress) { panel_open(P_VENUE, 0); return 0; }
-    if (s > story_progress) return 0;              // (a locked stop: the D-pad never lands on one)
+    if (s > story_progress) return 0;              // (a locked stop: Sal never stands on one)
     leave();                                       // the next uncleared venue
     story_map_venue(s);
     return 1;
@@ -393,7 +441,8 @@ static void panel_input(uint8_t pressed) {
 // ---- the screen -------------------------------------------------------------------------------------------------------------------------------------------------------
 // One frame (story.c story_update, STORY_PHASE_MAP). 1: the screen was left (the next one is up).
 uint8_t smap_update(uint8_t pressed) BANKED {
-    uint8_t d, t;
+    uint8_t d;
+    V(V_NSTG) = 0; V(V_PALQ) = 0; V(V_SLOW) = 0; V(V_TICK)++;
     if (V(V_PANEL)) {
         panel_pump();
         panel_input(pressed);
@@ -409,12 +458,20 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     }
     if (V(V_PREV)) { V(V_PREV) = 0; tag_show(); }
     tag_tick();
-    d = (pressed & J_UP) ? 0 : (pressed & J_DOWN) ? 1 : (pressed & J_LEFT) ? 2 : (pressed & J_RIGHT) ? 3 : 4;
-    if (d < 4) {
-        t = hop(smap_stop, d);
-        if (t != smap_stop) { smap_stop = t; tag_show(); SFX(SFX_DON); }
-    } else if ((pressed & J_A) && press_a()) return 1;
-    else if (pressed & J_START) panel_open(P_MENU, 0);
+    if (V(V_WALK)) walk_step();
+    else {
+        d = (pressed & J_UP) ? 0 : (pressed & J_DOWN) ? 1 : (pressed & J_LEFT) ? 2 : (pressed & J_RIGHT) ? 3 : 4;
+        if (d < 4) start_walk(d);
+        else if ((pressed & J_A) && press_a()) return 1;
+        else if (pressed & J_START) panel_open(P_MENU, 0);
+    }
+    if (!V(V_PANEL) && !vq_held) {
+        if (smap_camera_step()) {
+            SC(S_T + T_CAM)[0] = (uint8_t)g16(V_CAMY); SC(S_T + T_CAM)[1] = (uint8_t)g16(V_CAMX);
+            qraw(0, SC(S_T + T_CAM), 0xFF42, 2);
+        }
+        smap_region_work();
+    }
     draw();
     return 0;
 }
@@ -433,7 +490,9 @@ static void dim_load(void) {
 
 // the screen, LCD off. quick: back from a mini-game (the quick white fade); else the story's own change (a scene ended, CONTINUE)
 void smap_enter(uint8_t quick) BANKED {
-    uint8_t r;
+    uint16_t i;
+    uint16_t p4[4];
+    int16_t tx, ty;
     if (quick) TRANS_MENU(); else TRANS_WANT();
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; WY_REG = BANNER_WY; LYC_REG = BANNER_LYC; SCX_REG = 0; SCY_REG = 0;
@@ -446,24 +505,34 @@ void smap_enter(uint8_t quick) BANKED {
     music_fast = 0;
     music_play(TUNE_TITLE);
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
-    story_font_load();                             // (the font first: the picture's tiles take the ids around it)
-    for (r = 0; r < SMAP_NRANGES; r++) set_bkg_data(smap_range[r][0], smap_range[r][2], smap_tiles + (uint16_t)smap_range[r][1] * 16);
+    story_font_load();                             // (the font first: the world's tiles take the ids around it)
     dim_load();
-    set_bkg_tiles(0, 0, 20, 18, smap_map);
+    spr_data_far(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles, BANK(art_tiles));     // Sal's pictures (a Pour-Off or a mini-game may have used the ids)
     set_sprite_data(OB, SMAP_OBJ_TILES, smap_obj_tiles);
-    fill(ATTR_PANEL, PAL_PANEL, 20);
-    fill(ATTR_TAG, PAL_TAG, 20);
+    for (i = 0; i < STORY_SCRATCH; i++) story_scratch[i] = 0;
     if (is_cgb) {
-        VBK_REG = VBK_BANK_1;
-        set_bkg_tiles(0, 0, 20, 18, smap_attr);
-        VBK_REG = VBK_BANK_0;
-        set_bkg_palette(0, 8, smap_bg_pal[0]);
-        set_sprite_palette(PAL_SAL, 4, smap_obj_pal[0]);
-        set_sprite_palette(PAL_ARROW, 2, smap_obj_pal[4]);
+        fill(SC(A_NIB), 0xFF, 176);
+        fill(SC(A_PSLOT), NIL, SMAPW_NPAL);
+        fill(SC(A_PUSE), NIL, 8);
+        pal_get(PAL_BARTENDER, p4);
+        set_sprite_palette(OBJPAL_BARTENDER, 1, p4);
+        set_sprite_palette(PAL_UFO, 3, smap_obj_pal[0]);
+        set_sprite_palette(PAL_ARROW, 2, smap_obj_pal[3]);
         smap_flags |= F_PALS;
-    } else OBP0_REG = 0xD0;                        // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
-    for (r = 0; r < 12; r++) V(r) = 0;
+    } else {
+        fill(SC(A_TBL), 0xFF, 220);                // (every slot free: tile 0x3FF)
+        OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
+    }
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = story_progress < NSTOPS - 1 ? story_progress : TOWN;
+    V(V_STATE) = story_progress < 9 ? story_progress + 1 : 10;
+    s16(V_FX, smapw_stop[smap_stop][0]); s16(V_FY, smapw_stop[smap_stop][1]);
+    smap_cam_target(&tx, &ty);
+    s16(V_CAMX, tx); s16(V_CAMY, ty);
+    V(V_C0) = tx >> 3; V(V_C1) = V(V_C0) - 1;      // the view's cells, column by column (no lines ahead yet: the walk asks for them)
+    V(V_R0) = ty >> 3; V(V_R1) = (ty + 143) >> 3;
+    smap_pin_town();                               // (Color: the town palette is held for good: it is the window layer's)
+    smap_fill_view((uint8_t)(tx >> 3), (uint8_t)((tx + 159) >> 3));
+    SCX_REG = (uint8_t)tx; SCY_REG = (uint8_t)ty;
     V(V_PREV) = 1;                                 // (the arrival tag is queued by the first frame: the transition's reveal has put the window rows back by then)
     story_phase = STORY_PHASE_MAP;
     game_state = GS_STORY;
@@ -506,11 +575,12 @@ uint8_t smap_po_lives(void) BANKED {
     return story_on && play_mode == MODE_STORY ? golds() : 0;
 }
 
-// the screens after the map, LCD off: the HUD palette (BG 1, which the picture used) as the game keeps it, tinted as the run's difficulty tints it (main_cold.c)
+// the screens after the map, LCD off: the HUD palette (BG 1, which the world borrowed) as the game keeps it, tinted as the run's difficulty tints it (main_cold.c)
 void smap_pal_back(void) BANKED {
     uint16_t p[4];
     if (!(smap_flags & F_PALS)) return;
     smap_flags &= ~F_PALS;
+    SCX_REG = 0; SCY_REG = 0;
     if (!is_cgb) return;
     p[0] = (31) | (29 << 5) | ((uint16_t)22 << 10);
     p[1] = (24) | (20 << 5) | ((uint16_t)10 << 10);

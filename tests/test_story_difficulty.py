@@ -170,7 +170,7 @@ def test_the_prompt_appears_only_on_a_new_story(model):
         menu_to(rom, K_CONTINUE)
         menu_tap(rom, "a")
         assert rom.mem("title_menu") != TM_HARD
-        run_until(rom, lambda: state(rom) == GS_STORY, 30)       # CONTINUE: straight into the story, no question
+        run_until(rom, lambda: state(rom) == GS_STORY, 80)       # CONTINUE: straight into the story, no question
     for k in (K_ARCADE, K_CLASSIC):
         with booted(model) as rom:
             title_pick(rom, K_PLAY, k, press=False)

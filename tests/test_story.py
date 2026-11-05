@@ -484,7 +484,7 @@ def start_story(model, ram=None, cont=False):
 def skip_scene(gb, stay=False):
     s = gb.mem("story_scene")
     gb.press("start", 2)
-    run_until(gb, lambda: gb.mem("story_scene") != s or state(gb) in (GS_GOAL, TITLE) or (gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY), 30)
+    run_until(gb, lambda: gb.mem("story_scene") != s or state(gb) in (GS_GOAL, TITLE) or (gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY), 80)   # (the scrolling map builds its first view with the LCD off: about 40 frames on a DMG)
     if gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY:   # (INTRO, a POST scene: the story map, src/smap.c)
         if stay:
             return
