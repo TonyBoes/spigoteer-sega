@@ -67,16 +67,16 @@ extern vq_entry_t vq[];
 
 // The frame's spare time: the first slow job (a cell that needs a lookup or a load) of a frame always runs, the next ones only before line LY_WORK (a frame that starts late, in the
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
-#define LY_WORK 62                                    // (Color: double speed, the same work takes half the lines)
-#define LY_FIRST 62
+#define LY_WORK 56                                    // (Color: double speed, the same work takes half the lines)
+#define LY_FIRST 56
 #define LY_WORK_C 100
 #define LY_FIRST_C 100
-#define LY_DOTS  24
+#define LY_DOTS  (is_cgb ? 12 : 24)
 #define CAM_LAG  0                                    // Sal waits while the camera is behind him at all (px, both axes together): it never is, when the region keeps up
 // (the first slow job of a frame waits for the line LY_FIRST only while Sal walks with the camera in step: standing, or with the camera behind, it always runs: no deadlock)
 static uint8_t ly_ok(void) {
-    uint8_t l = LY_REG, lim = V(V_SLOW) ? (is_cgb ? LY_WORK_C : LY_WORK) : (!V(V_WALK) || V(V_LAG) > CAM_LAG) ? 255 : (is_cgb ? LY_FIRST_C : LY_FIRST);
-    if (lim != 255 && V(V_DOTS)) lim -= LY_DOTS;      // (the still sprites will be drawn in full this frame: that takes about 30 lines)
+    uint8_t l = LY_REG, lim = V(V_SLOW) ? (is_cgb ? LY_WORK_C : LY_WORK) : (!V(V_WALK) || (V(V_LAG) & 1)) ? 255 : (is_cgb ? LY_FIRST_C : LY_FIRST);
+    if (lim != 255 && (V(V_DOTS) || (V(V_LAG) & 2))) lim -= LY_DOTS;      // (the still sprites will be drawn in full this frame: that takes about 30 lines)
     return l >= 144 || l < lim;
 }
 
@@ -99,12 +99,20 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define CAM_MAXY 240                                  // 384 - 144
 #define WALK_SPD 2                                    // px a frame at full pace; the first WALK_EASE frames of a leg and its last WALK_EASE px go at 1
 #define WALK_EASE 8
+// The pace follows the room the region leaves the camera (smap_room, px) against the cells the line being loaded still needs at the rate it has been loading (V_RATE),
+// with WALK_S frames to spare
+#define WALK_LINE 20                                  // cells in a line (the room is 8 px or more when the line the stretch wants next is loaded)
+#define WALK_S   4
+#define WALK_SC  1
+#define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_TOP are free, panel_open sets them again) the walk's stretch length
+#define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
 #define LEAD     1                                    // lines the region loads ahead of the view, in the direction of travel
 #define ADD_CAP  6
 #define DROP_CAP 6
 
 // the engine (src/smap_eng.c)
+uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED;   // px Sal may walk on along an axis before the camera shows what the region does not hold
 uint8_t smap_camera_step(void) BANKED;                 // the camera moves toward Sal where the region covers its view. 1: it moved
 void smap_region_work(void) BANKED;                    // the region follows the camera: lines drop, lines load
 void smap_cam_target(int16_t *tx, int16_t *ty) BANKED; // where the camera wants to be (Sal at the centre, clamped to the world)

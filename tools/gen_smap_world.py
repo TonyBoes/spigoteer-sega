@@ -723,17 +723,6 @@ def main(build, preview):
         h.append("    { " + ", ".join(str(v) for v in exit_leg[s]) + " },")
     h.append("};")
     h.append(f"static const uint8_t smapw_leg_n[{len(legs)}] = {{ " + ", ".join(str(len(p)) for _, _, p in legs) + " };")
-    # the pace of each stretch of a leg (the stretch that ends at waypoint s, s = 1..3: two bits at 2 * (s - 1) of the leg's byte: 2 = 2 px a frame, 1 = 1 px a frame, 0 = 1 px
-    # every other frame): measured, per model, by tools/dev/smap_gear.py (the streaming's budget: the tile loads a VBlank can take and the logic's lines; a dense stretch cannot
-    # keep up at 2) and kept in tools/smap_gear.json: per model, per leg, the levels of its stretches
-    gear_file = ROOT / "tools" / "smap_gear.json"
-    gear = json.loads(gear_file.read_text()) if gear_file.exists() else {}
-    packed = {}
-    for m_ in ("dmg", "cgb"):
-        lv_ = gear.get(m_, [[1] * 3] * len(legs))
-        assert len(lv_) == len(legs) and all(len(l_) == 3 and all(v_ in (0, 1, 2) for v_ in l_) for l_ in lv_), f"tools/smap_gear.json: {m_}: three levels (0, 1, 2) a leg"
-        packed[m_] = [l_[0] | (l_[1] << 2) | (l_[2] << 4) for l_ in lv_]
-    h.append(f"static const uint8_t smapw_gear[2][{len(legs)}] = {{ {{ " + ", ".join(str(g_) for g_ in packed["dmg"]) + " }, { " + ", ".join(str(g_) for g_ in packed["cgb"]) + " } };   // (the pace of each stretch)")
     h.append(f"static const uint16_t smapw_leg_pt[{len(legs)}][4][2] = {{")
     for _, _, p in legs:
         pts = list(p) + [(0, 0)] * (4 - len(p))

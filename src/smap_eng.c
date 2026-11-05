@@ -506,9 +506,9 @@ static uint8_t job_run(uint8_t cap) {
                 }
             }
 #endif
+            if (!ly_ok()) { r = R_ROOM; break; }                        // (the cells that need no load count too: a Color cell takes a line or two)
             if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             else {
-                if (!ly_ok()) { r = R_ROOM; break; }
                 V(V_SLOW) = 1;
                 r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             }
@@ -520,6 +520,7 @@ static uint8_t job_run(uint8_t cap) {
     if (!V(V_DIRECT) && pos > first) { V(V_RES) = 0; V(V_RESE) = 0; flush_line(vert, idx, a, first, pos); }
     V(V_RES) = 0; V(V_RESE) = 0;
     V(V_JP) = pos;
+    if (V(V_WALK)) V(V_RATE) = (uint8_t)((V(V_RATE) + (pos - first) + 1) >> 1);     // (the pace of a walk follows it: smap.c walk_step)
     if (r == R_RES) { if (V(V_STALL) < 255) V(V_STALL)++; } else V(V_STALL) = 0;
     return pos >= n;
 }
@@ -588,6 +589,17 @@ void smap_cam_target(int16_t *tx, int16_t *ty) BANKED {
 static uint8_t cov_x(int16_t x) { return (uint8_t)(x >> 3) >= V(V_C0) && (uint8_t)((x + 159) >> 3) <= V(V_C1); }
 static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_t)((y + 143) >> 3) <= V(V_R1); }
 
+// How many px Sal may walk on, along x (horiz) or y, toward larger (up) or smaller coordinates, before the camera that follows him would show a cell the region does not hold
+// (255: as far as you like). fx or fy: his feet's coordinate on that axis. The camera follows him step for step (80 and 84: the feet's place on the screen), clamped to the world.
+uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED {
+    uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1);
+    int16_t lim;
+    if (up ? hi >= (horiz ? 63 : 47) : !lo) return 255;
+    if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 60) - (int16_t)f;
+    else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 84);
+    return lim < 0 ? 0 : lim > 255 ? 255 : (uint8_t)lim;
+}
+
 // the camera moves toward Sal, but only where the region already covers what it will show. 1: it moved
 uint8_t smap_camera_step(void) BANKED {
     int16_t cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), tx, ty, nx, ny, d;
@@ -605,7 +617,7 @@ uint8_t smap_camera_step(void) BANKED {
     if (!V(V_WALK) && nx == tx && ny == ty) { V(V_DIRX) = 0; V(V_DIRY) = 0; }
     d = tx - nx; if (d < 0) d = -d;                                   // how far the camera is behind Sal's spot (px, both axes together): the walk waits while it is too far
     d += ty > ny ? ty - ny : ny - ty;
-    V(V_LAG) = d > 255 ? 255 : (uint8_t)d;
+    if (!V(V_WALK)) V(V_LAG) = d > 255 ? 255 : (uint8_t)d;           // (a walk's: smap.c walk_step sets it, 1 on a hold)
     if (nx == cx && ny == cy) return 0;
     s16(V_CAMX, nx); s16(V_CAMY, ny);
     return 1;
