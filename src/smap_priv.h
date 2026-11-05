@@ -53,7 +53,10 @@ static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
 static uint16_t g16(uint8_t n) { return V(n) | ((uint16_t)V(n + 1) << 8); }
 static void s16(uint8_t n, uint16_t v) { V(n) = (uint8_t)v; V(n + 1) = (uint8_t)(v >> 8); }
 
-static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= story_progress; }
+extern uint8_t story_chapter, save_lock;
+// How far the map is open: the story's progress, or in a debug-select run (nothing saved: the real progress stays) the chapter being played, so that the quit lands on its stop
+static uint8_t map_progress(void) { return save_lock == SAVE_LOCK_DEBUG && (story_chapter & 0x7F) > story_progress && (story_chapter & 0x7F) < NSTOPS - 1 ? story_chapter & 0x7F : story_progress; }
+static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= map_progress(); }
 
 // ---- the VBlank copy list: entries the list's own vq_add cannot name (a raw address), with its tally ---------------------------------------------------------
 typedef struct { uint8_t n, bank; const uint8_t *src; uint8_t *dst; uint8_t pad[2]; } vq_entry_t;   // (render.c's list entry)

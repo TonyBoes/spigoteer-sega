@@ -177,3 +177,104 @@ def test_quit_from_a_story_mini_game_resumes_that_mini_game(model):
         mtap(gb, "a", 2)
         run_until(gb, lambda: state(gb) == GS_MINI, 300)
         assert gb.mem("mg_id") == gid and gb.mem("story_step") == step and gb.mem("mg_mode") == 0
+
+
+# ---- every story run quits to the map: a NEW GAME run, a CONTINUE run, a debug-select run (owner bug 2026-11-05: "quitting a stage doesn't take me back to the map") ----
+def debug_shift(model, c=2, k=0):
+    """The debug menu's STORY box on chapter c, shift k (nothing saved: save_lock 2), in play."""
+    from conftest import K_STORY
+    from test_debug import chap, open_on, pos, tap as dtap
+    from test_scores import booted, v7_image
+    from test_story import SHIFT_STEP
+    ram = v7_image([("ABC", 500)], story=1, step=1, tunes=0x21)
+    gb = booted(model, ram)
+    gb.ram_in = ram
+    open_on(gb, K_STORY)
+    for _ in range(c):
+        chap(gb, 1)
+    while gb.mem("debug_pos") != SHIFT_STEP[k] + 1:
+        pos(gb, 1)
+    dtap(gb, "a")
+    run_until(gb, lambda: state(gb) == GS_GOAL, 60)
+    gb.write("tip_chance", 0)
+    gb.press("a", 2)
+    run_until(gb, lambda: state(gb) == PLAYING, 30)
+    gb.run(60)
+    return gb
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_a_debug_select_run_quits_to_the_map_resumes_and_saves_nothing(model):
+    from test_scores import v7_image
+    from test_sound import save_ram
+    from conftest import with_unlock
+    with debug_shift(model, 2, 0) as gb:
+        assert gb.mem("save_lock") == 2 and gb.mem("story_on") == 1
+        start = dict(step=gb.mem("story_step"), lives=gb.mem("lives"), score=sc(gb))
+        set_score(gb, 4321)
+        tap(gb, "start", 3)
+        assert [pause_text(gb, r) for r in (2, 3)] == ["> RESUME", "QUIT TO MAP"]
+        quit_yes(gb)
+        run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
+        gb.run(100)
+        assert gb.mem("smap_stop") == 2 and gb.mem("smap_flags") & 8 and gb.mem("story_on") == 1
+        assert panel(gb) == ["RESUME", "ENTER", "BACK"]
+        mtap(gb, "a", 2)                                   # RESUME
+        run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+        gb.run(3)
+        assert gb.mem("story_chapter") == 2 and gb.mem("story_step") == start["step"] and gb.mem("lives") == start["lives"] and sc(gb) == start["score"]
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == PLAYING, 30)
+        gb.run(30)
+        open_pause(gb)
+        quit_yes(gb)
+        run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
+        gb.run(100)
+        panel(gb)
+        mtap(gb, "down", 4)
+        mtap(gb, "a", 2)                                   # ENTER: the chapter's PRE scene, then its first step
+        run_until(gb, lambda: gb.mem("story_phase") != SP_MAP, 300)
+        assert gb.mem("save_lock") == 2 and gb.mem("story_chapter") == 2
+        after = save_ram(gb)
+    assert after[:40] == with_unlock(gb.ram_in)[:40], "a debug-select run writes nothing"
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_a_new_game_run_quits_to_the_map_and_resumes(model):
+    with ts.start_story(model) as gb:
+        for _ in range(8):
+            if state(gb) == GS_GOAL:
+                break
+            ts.skip_scene(gb)
+        assert state(gb) == GS_GOAL and gb.mem("story_chapter") == 0 and gb.mem("save_lock") == 0
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == PLAYING, 30)
+        gb.run(60)
+        start_lives = gb.mem("lives")
+        open_pause(gb)
+        quit_yes(gb)
+        run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
+        gb.run(100)
+        assert gb.mem("smap_stop") == 0 and gb.mem("smap_flags") & 8 and gb.mem("story_on") == 1
+        assert panel(gb) == ["RESUME", "ENTER", "BACK"]
+        mtap(gb, "a", 2)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+        gb.run(3)
+        assert gb.mem("story_chapter") == 0 and gb.mem("lives") == start_lives
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_a_debug_select_run_quit_to_title_from_the_map_still_offers_continue(model):
+    from conftest import K_CONTINUE
+    with debug_shift(model, 2, 0) as gb:
+        open_pause(gb)
+        quit_yes(gb)
+        run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
+        gb.run(100)
+        mtap(gb, "start", 20)
+        gb.run(10)
+        mtap(gb, "down", 4)
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == 0 and gb.pb.memory[0xFF40] & 0x80, 200)
+        gb.run(60)
+        assert gb.mem("story_on") == 0 and gb.mem("story_chapter") & 0x80, "DEBUG_RESUME: CONTINUE resumes the debug run"
