@@ -1020,7 +1020,7 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+, \d+\}", src)]
     assert len(frames) == TUNE_COUNT + 1, "the listed tunes, then the credits tune (src/music.h TUNE_CREDITS)"
     t = songs.SONGS["credits"]
-    assert frames.pop() == gm.pass_frames(643, t["tempo"], 0, t["tempo_map"]) == 9692, "the credits tune: 162 s with its ritard, played once (tests/test_credits.py)"
+    assert frames.pop() == gm.pass_frames(579, t["tempo"], 0, t["tempo_map"]) == 8732, "the credits tune: 146 s with its ritard, played once (tests/test_credits.py)"
     assert frames[TUNE_TITLE] == gm.pass_frames(1216, 9, 0xAA) == 10336, "the title: the whole Entertainer, 173 s, looping (tests/test_music_batch1.py)"
     frames[TUNE_TITLE] = 60
     assert all(60 <= f <= 2400 for f in frames), frames

@@ -5,9 +5,9 @@
 // "Special thanks to:" list in it.
 //
 // The music is the credits tune (TUNE_CREDITS), started by credits_enter while the screen is built (BONUS' own tune stops there). The whole
-// roll is tied to the tune's POSITION (the frames its engine has ticked: cr_pos, the same count as the tune's length, so a tempo change inside it
-// does not matter) and its LENGTH (music_tune_frames), not to constants: every boundary below is a share of the tune (units of 1/392), so a
-// longer arrangement slows everything in proportion. With the sound off the position is the frames on the screen (the same pace).
+// roll runs on its own clock (the frames on the screen, CR->t; owner 2026-11-05: the tune is not changed to fit): every boundary below is a share
+// (units of 1/392) of CR_PIC_FRAMES, 9692 frames (162 s). The tune is 8732 frames (146 s): it starts with the roll and runs out 16 s before it ends,
+// in silence, with no loop or restart; the cards and the roll go on at the same pace to the end.
 //
 //   units  0-6     "CAST OF CHARACTERS"
 //          7-270   32 cards: Sal Tapley AKA the Spigoteer, Dregs (each his story portrait, his sprite, his name), then for each venue the owner
@@ -15,7 +15,7 @@
 //                  3, 3 and 2, a name under each) and the boss (7; animated: his fight walk and gulp)
 //          271-361 the credits roll (text rows streamed in as before; its first 40 frames build it behind the fade)
 //          362-391 "THANKS FOR PLAYING!" alone, the tune's last bars and its ring; the roll ends when the tune has
-//          (the 162 s tune (11 orders: the A strain played a third time, tools/songs.py): a unit is 24.7 frames, a card 2.9 s, a patron card 4.5 s)
+//          (a unit is 24.7 frames: a card 2.9 s, a patron card 4.5 s; the tune ends at unit 352, in the roll)
 //
 // A card changes behind a fade to WHITE (trans.c trans_cast, palette RAM written in the VBlank only, ~9 frames each way, the tune's ticks kept
 // frame for frame): the old card fades out, the new one is built unit by unit WITH THE LCD ON (the library's tile writes wait for the picture's
@@ -75,6 +75,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define CR_SHARE      392     // the tune's units: 1/392 of it (24.7 frames of the 162 s tune)
 #define CR_UNIT_PAT    11     // a patron card's units (owner Q80: held longer, to read all eight names); the other cards 7
 #define CR_UNIT_END   362     // the roll ends at this unit, "THANKS FOR PLAYING!" fills the rest
+#define CR_PIC_FRAMES 9692    // the cast and the roll run on their own clock: this many frames (162 s). The tune is shorter (8732 frames, 146 s) and runs out in silence (owner 2026-11-05: no music change)
 
 // state in story_scratch
 #ifdef CREDITS_SCROLL
@@ -861,7 +862,7 @@ void credits_enter(uint8_t from_story) BANKED {
     CR->scroll = 0; CR->next = 0; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story; CR->f = 0;
     CR->gc = 0; CR->gs = 0; CR->gl = 0; CR->sc = 0; CR->ss = 0; CR->live = 0; CR->lw = 0xFFFF; CR->rt = 0; CR->pb = STORY_PORTRAIT_BASE; CR->pp = BGPAL_PATRON; CR->pose = 0; CR->pq = 0;
 #else
-    CR->T = music_tune_frames(TUNE_CREDITS);          // the timeline: shares of the tune (1/352: 7 a card, the title included; the roll to 322)
+    CR->T = CR_PIC_FRAMES;                            // the timeline: shares of 9692 frames (1/392: 7 a card, 11 a patron card, the title included; the roll to 362)
     CR->e_title = CR->card_len = cr_share(7);
     CR->pl = cr_share(CR_UNIT_PAT);
     CR->roll = CR->e_title + 22 * CR->card_len + 10 * CR->pl;   // (the 32 cards after the title: 22 of 7 units, the ten patron cards longer)
@@ -903,9 +904,9 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     if (pressed & (J_B | J_START)) { cr_leave(); return 1; }
     CR->t += (uint8_t)((uint8_t)sys_time - CR->ls);
     CR->ls = (uint8_t)sys_time;
-    f = cr_pos();
+    f = CR->t;                                                             // (the frames on the screen: the tune may have run out; its silence changes nothing)
     CR->f = f;
-    if (sound_on ? (cur_tune != TUNE_CREDITS && CR->t > 30) : f >= CR->T) { cr_leave(); return 1; }   // (the tune ends: cur_tune goes to TUNE_NONE)
+    if (f >= CR->T) { cr_leave(); return 1; }                              // (the roll's own end)
     if (f < CR->roll) {                                                    // the cast
         if (f < CR->e_title) c = 0;
         else {
