@@ -47,7 +47,7 @@ typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH &&
 #define J_NONE       0
 #define J_COL        1
 #define J_ROW        2
-enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE, P_MENU };
+enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE, P_MENU, P_RESUME };
 
 static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
 static uint16_t g16(uint8_t n) { return V(n) | ((uint16_t)V(n + 1) << 8); }

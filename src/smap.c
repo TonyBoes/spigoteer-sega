@@ -12,6 +12,8 @@
 //   A at the town                     a panel: FESTIVAL GAMES / THE POUR-OFF. FESTIVAL: Shake Up, Perfect Pour, Tip Shower with their medals, unlocked
 //                                     by chapters 2, 4 and 7; a new one not yet played shows the gold "!" over the tent. THE POUR-OFF is greyed until all ten
 //                                     venues are cleared, then FINALE_A and the Pour-Off (Dregs's one-page nudge first with fewer than 3 festival golds).
+//   A at the venue whose shift was quit (pause.c QUIT TO MAP; smap_flags SMAP_RESUME): a panel RESUME / ENTER / BACK. RESUME restarts that shift (or mini-game)
+//                                     from its start with the lives and the score it began with (story.c story_resume); ENTER starts the venue over as A does
 //   START                             a panel: RESUME / QUIT TO TITLE (the map block is saved, CONTINUE returns to this stop); B or START resumes
 //   B                                 nothing
 //
@@ -61,11 +63,11 @@ void story_map_pouroff(void) BANKED;
 
 uint8_t smap_stop;                            // 0..10: the stop Sal stands at (venue = chapter, 10 the town)
 uint8_t smap_flags;                           // bits 0-2: festival game k was played since it unlocked (its "!" is gone); bits 4-6: it won GOLD in this story run;
-                                              // bit 7: the HUD palette is borrowed (smap_pal_back); bit 3 free
+                                              // bit 7: the HUD palette is borrowed (smap_pal_back); bit 3: SMAP_RESUME
 #define F_PLAYED(k)  (1 << (k))
 #define F_GOLD(k)    (0x10 << (k))
 #define F_PALS       0x80
-#define F_SAVED      0x77
+#define F_SAVED      0x77                          // (SMAP_RESUME, game.h, is bit 3: a quit shift can be restarted; never saved)
 
 
 // ---- the stops (feet positions and the legs: build/smap_world.h) ----------------------------------------------------------------------------------------------
@@ -380,6 +382,12 @@ static uint8_t panel_row(uint8_t kind, uint8_t want, uint8_t *out) {
         centre_text(blank_row(ROW(4)), "GOLD: 1 LIFE");
         n = 6;
         break;
+    case P_RESUME:                                 // a shift was quit from the pause menu (pause.c QUIT TO MAP): restart it, the venue over, or nothing
+        put_text(blank_row(ROW(1)), 3, "RESUME", 0);
+        put_text(blank_row(ROW(2)), 3, "ENTER", 0);
+        put_text(blank_row(ROW(3)), 3, "BACK", 0);
+        n = 5;
+        break;
     case P_MENU:                                   // START: RESUME / QUIT TO TITLE
         put_text(blank_row(ROW(1)), 3, "RESUME", 0);
         put_text(blank_row(ROW(2)), 3, "QUIT TO TITLE", 0);
@@ -470,6 +478,7 @@ static void leave(void) {                          // before any other screen: t
 static uint8_t press_a(void) {                     // A with no panel up. 1: the screen was left
     uint8_t s = smap_stop;
     if (s == TOWN) { panel_open(P_TOWN, 0); return 0; }
+    if ((smap_flags & SMAP_RESUME) && s == story_chapter && s == story_progress) { panel_open(P_RESUME, 0); return 0; }   // (a shift of this venue was quit)
     if (s < story_progress) { panel_open(P_VENUE, 0); return 0; }
     if (s > story_progress) return 0;              // (a locked stop: Sal never stands on one)
     leave();                                       // the next uncleared venue
@@ -483,10 +492,18 @@ static uint8_t panel_a(void) {                     // A in a panel. 1: the scree
         if (sel == 0) { panel_open(P_FEST, 0); return 0; }
         if (!pour_off_open()) return 0;            // (greyed)
         if (golds() < FEST_N) { panel_open(P_NUDGE, 0); return 0; }
-        leave(); story_map_pouroff();
+        leave(); smap_flags &= ~SMAP_RESUME; story_map_pouroff();
         return 1;
     }
-    if (kind == P_NUDGE) { leave(); story_map_pouroff(); return 1; }
+    if (kind == P_NUDGE) { leave(); smap_flags &= ~SMAP_RESUME; story_map_pouroff(); return 1; }
+    if (kind == P_RESUME) {
+        if (sel == 2) { panel_close(); return 0; }
+        leave();
+        smap_flags &= ~SMAP_RESUME;
+        if (sel) story_map_venue(smap_stop);       // ENTER: the venue over, as A at the next venue
+        else story_resume();                       // RESUME: the shift that was quit, from its start
+        return 1;
+    }
     if (kind == P_MENU) {
         if (!sel) { panel_close(); return 0; }
         leave();                                   // (the map block is saved: CONTINUE comes back to this stop) then as pause.c's quit of a story run
@@ -511,7 +528,7 @@ static uint8_t panel_a(void) {                     // A in a panel. 1: the scree
 }
 
 static void panel_input(uint8_t pressed) {
-    uint8_t kind = V(V_PANEL), sel = V(V_SEL), n = kind == P_TOWN || kind == P_VENUE || kind == P_MENU ? 2 : kind == P_FEST ? FEST_N : 1;
+    uint8_t kind = V(V_PANEL), sel = V(V_SEL), n = kind == P_TOWN || kind == P_VENUE || kind == P_MENU ? 2 : kind == P_FEST || kind == P_RESUME ? 3 : 1;
     if (!V(V_DONE)) return;
     if ((pressed & J_UP) && sel) V(V_SEL) = sel - 1;
     else if ((pressed & J_DOWN) && sel + 1 < n) V(V_SEL) = sel + 1;

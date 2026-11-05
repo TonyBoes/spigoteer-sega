@@ -467,3 +467,8 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Q80: "a, but make sure the pause on this screen is a little longer to read them all." -> credits layout A (one card per venue, rows 3-3-2, names under), Color all 8 looks per venue in plan palettes, DMG keeps 3; each patron card holds longer so all names can be read. Build: gb-worker abc75b4a411a4c238.
 - Q81: "do the assembly speed pass." -> DMG story-map walk: asm smap_d_fetch (+ add_cell / drop_run as needed), C twins kept; target holds <5%, no late frames. Build: map agent a5453c7a494f976a1 resumed.
 - 2026-11-05 owner revision: "Resume doesn't need to take you back exactly where you were. Just restart the shift the player was on. You don't need to keep the whole level in memory." -> RESUME = restart the current shift (run state as at that shift's start, like CONTINUE's save point); ENTER = the venue from its start. Sent to a28259c6a051a5f91.
+
+## 2026-11-05 QUIT TO MAP + RESUME (worktree-agent-a28259c6a051a5f91)
+- Owner: "quitting a level should quit to map ... option to resume the level"; then "Resume doesn't need to take you back exactly where you were. Just restart the shift."
+- Built: story pause label QUIT TO MAP; QUIT goes to the map at the venue (run, difficulty, HUD tint kept); A there: RESUME / ENTER / BACK (smap_flags bit 3 SMAP_RESUME, RAM only). RESUME = the shift (boss fight: Last call; mini-game: that step) again from its start with the lives and score it began with, kept in HRAM 0xFFF5-0xFFFA (story.c step_start). No snapshot, no SRAM, no new WRAM.
+- Golden changed on purpose: pause_menu_boss.dmg / .cgb (label), bbox 113,88,133,94.
