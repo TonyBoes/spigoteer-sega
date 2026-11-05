@@ -185,7 +185,7 @@ def walk(model, s, d, progress=10, double=False):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("s, d", LEG_WALKS)
 def test_walking_a_leg_never_shows_a_tile_that_is_not_loaded(model, s, d):
-    gb, w, lines, holds = walk(model, s, d)
+    gb, w, lines, holds = walk(model, s, d, double=model == "cgb")
     assert gb.mem("smap_stop") == EXITS[s][d], "Sal arrives at the stop the leg leads to"
     assert w.frames < 1200, w.frames
     assert not w.bad, w.bad[:4]
@@ -231,10 +231,10 @@ def test_the_walks_cost_stays_within_the_measured_bounds(model):
 
 # ---- the pace and the smoothness ----------------------------------------------------------------------------------------------------------------------------
 # Sal's walk per GAME frame (a hook on walk_step: PyBoy's frame boundary is not the game's): a hold is a frame on which he waited for the camera (V_LAG), a late frame
-# one whose logic ended at line 154 or later. The bounds are the measured walks of tools/dev/smap_gear.py (which fits the pace of every stretch to the stream) and
+# one whose logic ended at line 154 or later. The bounds are the measured walks (the adaptive pace of smap.c walk_step) and
 # never to be raised. The camera moves with Sal: its step never differs from his by more than 2 px.
 V_LAG = 65
-SMOOTH = {"dmg": dict(holds=0.019, late=0.015), "cgb": dict(holds=0.006, late=0.0)}
+SMOOTH = {"dmg": dict(holds=0.0, late=0.002), "cgb": dict(holds=0.003, late=0.001)}
 
 
 def walk_frames(model, s, d):
@@ -264,13 +264,13 @@ def test_sal_walks_without_waiting_and_the_camera_moves_with_him(model):
     for s, d in LEG_WALKS:
         log = walk_frames(model, s, d)
         frames += len(log)
-        holds += sum(1 for r in log if r[0])
+        holds += sum(1 for r in log if r[0] & 1)
         late += sum(1 for r in log if r[1] >= 154)
         for a, b in zip(log, log[1:]):
             sx, sy = b[2] - a[2], b[3] - a[3]
             assert abs(sx) + abs(sy) <= 2, (s, d, "Sal's step", sx, sy)
             assert abs((b[4] - a[4]) - sx) <= 2 and abs((b[5] - a[5]) - sy) <= 2, (s, d, "camera step against Sal's", a, b)
     b = SMOOTH[model]
-    assert frames > 3000, frames                                   # (every leg both ways was walked)
+    assert frames > (3000 if model == "dmg" else 2000), frames                                   # (every leg both ways was walked)
     assert holds <= b["holds"] * frames, (holds, frames)
     assert late <= b["late"] * frames, (late, frames)

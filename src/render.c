@@ -467,7 +467,18 @@ __asm
     ld   (hl+), a
     dec  b
     jr   nz, 3$
-    jr   4$
+4$:
+    pop  hl
+    inc  hl                 ; next entry (past dst high and the 2 pad bytes)
+    inc  hl
+    inc  hl
+    dec  c
+    jr   nz, 1$
+    xor  a, a
+    ldh  (0x4F), a          ; back to bank 0
+9$:
+    pop  bc
+    jr   8$
 5$:                         ; bank bit 1: into the map (0x98..): n bytes down a column (32 apart), else a tile: one 16-byte block by general-purpose DMA
     ld   a, h
     cp   a, #0x98
@@ -495,17 +506,8 @@ __asm
 7$:
     dec  b
     jr   nz, 6$
-4$:
-    pop  hl
-    inc  hl                 ; next entry (past dst high and the 2 pad bytes)
-    inc  hl
-    inc  hl
-    dec  c
-    jr   nz, 1$
-    xor  a, a
-    ldh  (0x4F), a          ; back to bank 0
-9$:
-    pop  bc
+    jr   4$
+8$:
 __endasm;
 }
 
