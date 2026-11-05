@@ -481,3 +481,5 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Pocket Player v63, Open Questions v432.
 
 - 2026-11-05 owner bug: "Quitting a stage doesn't take me back to the map in story mode." Suspect: pause.c quit_to_map() excludes debug-select runs (save_lock == SAVE_LOCK_DEBUG), which the unlocked playtest build uses; tests use game.gb. Fix sent to a28259c6a051a5f91: every STORY run (debug-select too) quits to the map, verified on the unlocked ROM.
+
+- 2026-11-05 owner ask: "In the credits, can I see a version where instead of flashing between cards we scroll the whole thing?" -> a test version (build switch, not replacing the current credits) where the credits scroll continuously instead of fading between cards; GIFs + a Pocket Player test ROM to compare. Owner calls the white fades between cards "flashing" (see no-flashing-lights). Build: gb-worker a1d8ae632b0d42c3b.
