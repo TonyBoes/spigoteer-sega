@@ -486,3 +486,8 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - 2026-11-05 owner bug: "There is a flash of garbage tiles when entering a venue from the map." -> map agent a5453c7a494f976a1 (reproduce on the unlocked ROM, DMG + Color, fix; no flash, no garbage).
 - 2026-11-05 owner rule: "When starting the story, Sal should start the map on the town." -> a new story's first map shows Sal at the town stop (stop 10), not the Saloon. Same agent.
 - Merged 72327f4a: debug-select story runs quit to the map too (pause.c !save_lock removed; smap map_progress() opens the map to the debug chapter). WATCH: agent saw SRAM 0x28 (BK boss-cards block) differ in a debug run's full dump, not traced. Pocket Player v64.
+
+## 2026-11-05 Merged: clean map exits, story starts in town, scrolling credits test
+- a51e0560: the garbage frame on leaving the map (SCX/SCY sent home before the cover; trans.c scroll_home() after the LCD is off). New tests/test_story_map_enter.py (36 cases). New story's first map at the town (stop 10). Replaced story_map_start dmg/cgb.
+- 76722248: CREDITS=SCROLL playtest variant (make BUILD=out/b_scroll OUT=out/o_scroll CREDITS=SCROLL unlocked); default build unchanged. Q82 asked: scroll or cards. Unchecked by eye: Dregs' portrait backdrop in the scroll; the roll's end; Color drops ~1% music ticks.
+- Pocket Player v65 adds "Credits scroll (test)" (remove when Q82 closes). Open Questions v433.
