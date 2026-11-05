@@ -357,6 +357,13 @@ static void draw_walk(void) {
     if (V(V_DOTS)) draw_still(0, 0, 0);
 }
 
+// the UFO's bob (draw_still: its y is one px lower in the odd 32-frame spans of the tick): its live entries move 1 px, nothing is drawn again
+static void ufo_bob(void) {
+    uint8_t k, up = (V(V_TICK) >> 5) & 1;
+    OAM_item_t *o = shadow_OAM + OAM_UFO;
+    for (k = 0; k < 3; k++, o++) if (o->y) o->y = up ? o->y + 1 : o->y - 1;
+}
+
 // ---- the window layer ---------------------------------------------------------------------------------------------------------------------------------------
 static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over lines y .. y + h - 1; lyc: where the LCD interrupt cuts it (LYC_NONE: at the screen's end)
     WX_REG = 7; WY_REG = y; LYC_REG = lyc;
@@ -708,7 +715,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
             if ((ocx >> 3) != (g16(V_CAMX) >> 3) || (ocy >> 3) != (g16(V_CAMY) >> 3) || V(V_WH)) V(V_DOTS) = 1;      // (another cell: all the still sprites are looked at again)
             else oam_shift((int8_t)(ocx - g16(V_CAMX)), (int8_t)(ocy - g16(V_CAMY)));
         }
-        if (!(V(V_TICK) & 31) && V(V_STATE) >= 10) V(V_DOTS) = 1;       // (the UFO bobs 1 px every 32 frames)
+        if (!(V(V_TICK) & 31) && V(V_STATE) >= 10) ufo_bob();            // (the UFO bobs 1 px every 32 frames)
     }
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
