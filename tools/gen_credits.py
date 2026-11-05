@@ -28,27 +28,85 @@ VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IG
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]      # the story's own names, in venue order
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
-# The patrons have no names in the game: one short label each (at most 6 letters), three a venue, in the order they STAND (slot A, B, C: left to
-# right). SLOT is the patron art variant (art order A, B, C) standing in each slot: only the lumber lodge is reordered (owner 2026-10-17: ASH in the
-# middle, so the three labels fit one row): CEDAR (variant A, the cap), ASH (C, the green hat), WILLOW (B, the red-haired one).
-PATRONS = [
-    ["DUSTY", "ROSIE", "HANK"],              # the saloon: the cowboy, the cowgirl, the ranch hand
-    ["PETE", "SERENA", "NORM"],              # the stadium: the cap fan, the band fan, the ref
-    ["CEDAR", "ASH", "WILLOW"],              # the lumber lodge
-    ["PIERRE", "BRIE", "BASIL"],             # the bistro
-    ["IGGY", "POLLY", "MOOSE"],              # the igloo: the parka man, the parka girl, the big parka
-    ["BOXY", "VOLTA", "BLIP"],               # the robot factory
-    ["SPIKE", "BANDIT", "SLICK"],            # the chrome cow
-    ["KAGE", "SAKURA", "RONIN"],             # the teahouse
-    ["COCO", "BAMBOO", "MUDDY"],             # the jungle zoo: the monkey, the panda, the hippo
-    ["ZORP", "XENO", "GLORP"],               # the space lounge: the green one with eye stalks, the grey one, the squid
-]
+# The patrons' names are the Graphics Atlas plan's (tools/artifacts/palette_plan/plan_data.py NAMES: the three base looks, art variants A, B, C; the Color-only
+# looks are the labels of assets/art/patrons/<group>_x.txt, the plan's EXTRA_LOOKS order). Owner Q80 (2026-11-04, layout A): one card a venue with all 8
+# looks on Color, in rows of 3, 3 and 2, the name under each; the DMG card keeps the three base looks, one row (the first row of the Color card).
+# SLOT is the base art variant standing in each of the first three places: only the lumber lodge is reordered (owner 2026-10-17: ASH in the middle, so
+# the three labels fit one row): CEDAR (variant A, the cap), ASH (C, the green hat), WILLOW (B, the red-haired one).
+GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]   # = gen_art.PATRON_GROUPS
 SLOT = [[0, 1, 2]] * 10
 SLOT[2] = [0, 2, 1]
-PAL = [list(s) for s in SLOT]             # the palette instance of each slot (Color): the variant's, but the Saloon's C (GUS) wears his own palette,
-PAL[2] = [0, 5, 1]                        # the Lodge's ASH: his pose is unswapped here (level.c swaps it on Color), so instance 5 = lumberjacks_c with colours 1 and 2 as before
-PAL[6] = [0, 6, 2]                        # the Chrome Cow's HARLEY: instance 6 = punks_harley_credits (her old skin; the game's punks_b has the deep skin, owner 2026-10-31)
-PAL[0] = [0, 1, 1]                        # EMMA's (owner 2026-10-29); instance 2 is the moss swap he never spawns in
+# the Saloon's palette instance of each look (plan_data SALOON_PRIMARY: each look's own); instance -> the plan's OBJ slot (plan_data INST_OBJ)
+SAL_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
+SAL_OBJ = [3, 6, 7, 4, 5]
+# the game swaps planes 1 and 2 of GUS's and ASH's tiles at level load (level.c swap_gus) and the plan's colours are for the swapped tiles; the card loads
+# the art as it is, so it writes their palettes with colours 1 and 2 swapped
+SWAPPED = {("cowboys", "GUS"), ("lumberjacks", "ASH")}
+PAT_ROWS = [(0, 3), (3, 6), (6, 8)]        # the looks of each card row (Color)
+PAT_GAP = [24, 24, 40]                     # the widest gap of each row
+PAT_MIN_GAP = 6                            # the narrowest gap any row may have (px)
+
+
+def plan_names():
+    """plan_data.NAMES, read without importing plan_data (which needs a built ROM's palettes.c)"""
+    import ast
+    tree = ast.parse((ROOT / "tools/artifacts/palette_plan/plan_data.py").read_text())
+    for n in tree.body:
+        if isinstance(n, ast.Assign) and n.targets[0].id == "NAMES":
+            return ast.literal_eval(n.value)
+
+
+def x_labels(g):
+    """the first word of each label of assets/art/patrons/<x>.txt, in art order (the venue's Color-only looks)"""
+    import re
+    tag = "saloon_x" if g == "cowboys" else g + "_x"
+    out, lab, cur = [], "", []
+    for l in (ROOT / f"assets/art/patrons/{tag}.txt").read_text().splitlines():
+        if re.fullmatch(r"[.\-+#]{16}", l):
+            cur.append(l)
+        else:
+            if cur:
+                out.append(lab.split()[0])
+                cur = []
+            if l.startswith(";"):
+                lab = l[1:].strip()
+    if cur:
+        out.append(lab.split()[0])
+    return out
+
+
+def rgb555(h):
+    return (int(h[1:3], 16) >> 3) | (int(h[3:5], 16) >> 3) << 5 | (int(h[5:7], 16) >> 3) << 10
+
+
+def venue_looks():
+    """per venue the 8 looks in card order: name, the plan's three colours (RGB555, colours 1-3, as the tiles are loaded), and the base art variant (3 looks) or None"""
+    names, slots = plan_names(), json.load(open(ROOT / "tools/artifacts/palette_plan/plan_slots.json"))["venues"]
+    out = []
+    for gi, g in enumerate(GROUPS):
+        base = [n.split(",")[0].strip() for n in names[g]][:3]
+        xs = x_labels(g)
+        assert len(xs) == 5, (g, xs)
+        order = [(base[SLOT[gi][k]], SLOT[gi][k]) for k in range(3)] + [(n, None) for n in xs]
+        lk = []
+        for name, var in order:
+            if g == "cowboys":
+                slot = SAL_OBJ[SAL_PRIMARY[name]]
+            else:
+                hit = [int(k) for k, e in slots[g]["obj"].items() if any(p.split(",")[0].strip() == name for p in e["patrons"])]
+                assert len(hit) == 1, (g, name, hit)
+                slot = hit[0]
+            cols = [rgb555(h) for h in slots[g]["obj"][str(slot)]["cols"][1:]]
+            if (g, name) in SWAPPED:
+                cols[0], cols[1] = cols[1], cols[0]
+            lk.append(dict(name=name, cols=cols, var=var))
+        assert len(lk) == 8 and all(len(l["name"]) <= 6 for l in lk), (g, [l["name"] for l in lk])
+        out.append(lk)
+    return out
+
+
+LOOKS = venue_looks()
+PATRONS = [[l["name"] for l in lk] for lk in LOOKS]      # the 8 names of each venue, in card order (the DMG card shows the first three)
 
 # the roll: one string a tilemap ROW, centred; "" is a blank row. A sentence's lines are on consecutive rows, a list's items have two blank rows
 # between them, a section gap is four or five. (Owner's lines 2026-10-17: "Game Design, Media, and Story by Tony and his tireless team of robot
@@ -171,25 +229,39 @@ def main():
         add(f"HDR{v}", centred(VENUES[v]))
     for v in range(10):
         add(f"OWNER{v}", centred(OWNERS[v]))
-    # the three labels of a venue are laid out from their ACTUAL ink widths on one row: the widest gap (at most 24 px, never under a tile) that
-    # keeps the whole row inside the screen's edge margins, the row centred; each patron sprite then stands centred over its own label
-    pat_cx = []
-    for v in range(10):
-        labels = PATRONS[v]
-        assert all(len(s) <= 6 for s in labels)
-        w = [ink_width(t) for t in labels]
-        gap = min(24, (160 - 2 * 8 - sum(w)) // 2)
-        assert gap >= 8, f"{labels}: the three labels do not fit one row ({sum(w)} px of ink)"
-        total = sum(w) + 2 * gap
-        x = (160 - total) // 2
-        items, cxs = [], []
-        for t, wi in zip(labels, w):
-            cx = x + wi // 2                    # (the ink's centre; the sprite's 16 px are centred on it)
-            items.append((t, cx))
-            cxs.append(cx)
-            x += wi + gap
-        pat_cx.append(cxs)
-        add(f"PATA{v}", items)
+    # the labels of each card row are laid out from their ACTUAL ink widths: the widest gap (at most PAT_GAP, at least PAT_MIN_GAP) that keeps the whole
+    # row inside the screen's edge margins, the row centred; each patron sprite then stands centred over its own label. Row 0 is the DMG card's (its three
+    # looks), rows 1 and 2 are Color's.
+    pat_cx = [[] for _ in range(10)]
+    for r, (a, b) in enumerate(PAT_ROWS):
+        for v in range(10):
+            labels = PATRONS[v][a:b]
+            w = [ink_width(t) for t in labels]
+            gap = min(PAT_GAP[r], (160 - 2 * 8 - sum(w)) // (len(labels) - 1))
+            assert gap >= PAT_MIN_GAP, f"{labels}: the labels leave a gap of {gap} px"
+            total = sum(w) + (len(labels) - 1) * gap
+            x = (160 - total) // 2
+            items, cxs = [], []
+            for t, wi in zip(labels, w):
+                cx = x + wi // 2                    # (the ink's centre; the sprite's 16 px are centred on it)
+                items.append((t, cx))
+                cxs.append(cx)
+                x += wi + gap
+            pat_cx[v] += cxs
+            add(f"PAT{'ABC'[r]}{v}", items)
+    # the cards' OBJ palettes (Color): each venue's distinct colour triples, at most 7 (OBJ 1-7: OBJ 0 is the Spigoteer's, which the roll still needs)
+    for v in range(10):      # credits.c writes a card's text cells to BG ids 178-255 (78), one a cell
+        n = sum(1 for r in "ABC" for c in INFO[f"PAT{r}{v}"]["cells"] if c != 0xFFFF)
+        assert n <= 78, (v, n, "the patron card's text outgrows BG ids 178-255")
+    PAL_COLS, LOOK_PAL = [], []
+    for lk in LOOKS:
+        pcs = []
+        for l in lk:
+            if l["cols"] not in pcs:
+                pcs.append(l["cols"])
+        assert len(pcs) <= 7, ([l["name"] for l in lk], len(pcs))
+        PAL_COLS.append(pcs)
+        LOOK_PAL.append([pcs.index(l["cols"]) for l in lk])
     for v in range(10):
         add(f"BOSS{v}", centred(BOSSES[v]))
     roll_ids = []
@@ -239,19 +311,20 @@ def main():
          f"#define CT_POOL_TILES {len(POOL)}   // unique tiles ({len(POOL) * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
     for key in ("TITLE", "SAL", "DREGS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // two rows")
-    for key in ("HDR", "OWNER", "PATA", "BOSS"):
+    for key in ("HDR", "OWNER", "PATA", "PATB", "PATC", "BOSS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // ten rows (a venue each)")
     h += [f"#define CT_SAL_X {pair_x['SAL']}      // the Spigoteer's sprite's left edge (px): sprite, a tile of air and his two lines, centred as a group",
           f"#define CT_DREGS_X {pair_x['DREGS']}",
-          "static const uint8_t ct_cx[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in c) + " }" for c in pat_cx) + " };   // each patron's centre x (px): over his label",
+          "static const uint8_t ct_cx[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in c) + " }" for c in pat_cx) + " };   // each patron's centre x (px): over his label",
           f"#define CT_ROLL_N {len(ROLL)}   // the roll's rows", f"#define CT_RING {ROLL_POOL}   // BG tiles for the roll's text at once (peak {peak})", "",
           "static const uint8_t ct_roll[CT_ROLL_N] = { " + ", ".join(str(r) for r in roll_ids) + " };   // each roll row's text row, 255: blank",
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
-          "static const uint8_t ct_pal[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in PAL) + " };   // the palette instance in each slot (Color)",
+          "static const uint8_t ct_lp[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in lp) + " }" for lp in LOOK_PAL) + " };   // each look's OBJ palette (Color): 1 + the index here (OBJ 0 is the Spigoteer's, kept for the roll)",
+          "static const uint16_t ct_pcol[10][7][3] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in (pc + [0, 0, 0])[:3]) + " }" for pc in pcs + [[]] * (7 - len(pcs))) + " }" for pcs in PAL_COLS) + " };   // the palettes' colours 1-3 (RGB555, before BRIGHTEN)",
           "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "#endif", ""]
     (out / "credits_text.h").write_text("\n".join(h))
     js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
-          "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "pool": len(POOL), "ring_peak": peak, "title": TITLE}
+          "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "look_pal": LOOK_PAL, "pal_cols": PAL_COLS, "pool": len(POOL), "ring_peak": peak, "title": TITLE}
     (out / "credits_text.json").write_text(json.dumps(js, indent=1))
     print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, one row each")
 

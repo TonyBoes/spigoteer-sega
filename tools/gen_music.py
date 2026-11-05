@@ -345,7 +345,7 @@ ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in rang
 SOURCE = {"title": "entertainer", "show": "galop"}
 SOURCE.update({f"venue{i}": n for i, n in enumerate(songs.VENUES)})
 BLOB_BANKS = (10,)      # a bank of their own (the autobanker only places `#pragma bank 255` files)
-# STREAMED tunes: the title (the whole Entertainer, 20 orders, 173 s, looping) and the credits tune (146 s, 10 orders, plays once, TUNE_CREDITS,
+# STREAMED tunes: the title (the whole Entertainer, 20 orders, 173 s, looping) and the credits tune (162 s, 11 orders, plays once, TUNE_CREDITS,
 # after the listed tunes: no jukebox item, no unlock) have more orders than the 8-pattern WRAM buffer A holds (4 orders of a melody and a bass
 # pattern; their drums are the groove, their harmony channel 1).  Each has a bank of its own (STREAMED: tune -> bank) that holds its blob, one
 # pattern pair per order in order (a repeated pattern is stored again), and its harmony.  Orders 0-3 are copied to buffer A before the
@@ -361,7 +361,7 @@ TITLE_BANK = 23
 STREAMED = {"title": TITLE_BANK, CREDITS: CREDITS_BANK}
 STREAM_BUF = 3                # tune_t.buf of a streamed tune (buffer A, always copied afresh, order tables wrap at 8 patterns)
 STREAM_PRELOAD = 8            # patterns in the first copy (the buffer's size)
-CREDITS_ORDERS = 10
+CREDITS_ORDERS = 11
 JINGLE_BANK = 24              # the jingles' patterns (batch 1 moved them out of bank 2): copied to buffer A like any tune's (a jingle starts 1-4 frames later)
 PAT_BANKS = BLOB_BANKS + tuple(STREAMED.values()) + (JINGLE_BANK,)     # one build/music_pat<bank>.c each (the Makefile's GEN lists the same; tools/music_rig.py copies these only)
 TUNES = ORDER + [CREDITS]

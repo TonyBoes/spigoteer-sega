@@ -108,7 +108,7 @@ def main():
     ap.add_argument("--model", default="dmg", choices=("dmg", "cgb"))
     ap.add_argument("--tail", type=float, default=0.5, help="seconds recorded after the tune ends")
     ap.add_argument("--compare")
-    ap.add_argument("--seconds", type=float, default=145.3, help="length compared (the tune is 8732 frames = 145.5 s of PyBoy audio; what follows it is the title tune)")
+    ap.add_argument("--seconds", type=float, default=161.3, help="length compared (the tune is 9692 frames = 161.5 s of PyBoy audio; what follows it is the title tune)")
     args = ap.parse_args()
     s, rate, frames = record(args.model, args.tail)
     s = save(args.out, s, rate)

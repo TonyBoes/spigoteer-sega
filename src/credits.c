@@ -6,15 +6,16 @@
 //
 // The music is the credits tune (TUNE_CREDITS), started by credits_enter while the screen is built (BONUS' own tune stops there). The whole
 // roll is tied to the tune's POSITION (the frames its engine has ticked: cr_pos, the same count as the tune's length, so a tempo change inside it
-// does not matter) and its LENGTH (music_tune_frames), not to constants: every boundary below is a share of the tune (units of 1/352), so a
+// does not matter) and its LENGTH (music_tune_frames), not to constants: every boundary below is a share of the tune (units of 1/392), so a
 // longer arrangement slows everything in proportion. With the sound off the position is the frames on the screen (the same pace).
 //
 //   units  0-6     "CAST OF CHARACTERS"
-//          7-230   32 cards of 7 units: Sal Tapley AKA the Spigoteer, Dregs (each his story portrait, his sprite, his name), then for each
-//                  venue the owner (portrait, name, venue), the patrons (three, a label each) and the boss (animated: his fight walk and gulp)
-//          231-321 the credits roll (text rows streamed in as before; its first 40 frames build it behind the fade)
-//          322-351 "THANKS FOR PLAYING!" alone, the tune's last bars and its ring; the roll ends when the tune has
-//          (D3c, 146 s: a unit is 24.8 frames, a card 2.9 s; the 88 s C3: 15 frames, 1.75 s; a 180 s tune 5.1 s)
+//          7-270   32 cards: Sal Tapley AKA the Spigoteer, Dregs (each his story portrait, his sprite, his name), then for each venue the owner
+//                  (portrait, name, venue; 7 units), the patrons (11 units, owner Q80: DMG the three base looks in a row, Color all eight in rows of
+//                  3, 3 and 2, a name under each) and the boss (7; animated: his fight walk and gulp)
+//          271-361 the credits roll (text rows streamed in as before; its first 40 frames build it behind the fade)
+//          362-391 "THANKS FOR PLAYING!" alone, the tune's last bars and its ring; the roll ends when the tune has
+//          (the 162 s tune (11 orders: the A strain played a third time, tools/songs.py): a unit is 24.7 frames, a card 2.9 s, a patron card 4.5 s)
 //
 // A card changes behind a fade to WHITE (trans.c trans_cast, palette RAM written in the VBlank only, ~9 frames each way, the tune's ticks kept
 // frame for frame): the old card fades out, the new one is built unit by unit WITH THE LCD ON (the library's tile writes wait for the picture's
@@ -67,7 +68,9 @@ extern uint8_t overlay_on, joy, story_phase;
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
 #define CR_CARDS      33      // the title, the Spigoteer, Dregs, then three cards for each of the ten venues
-#define CR_SHARE      352     // the tune's units: 1/352 of it (a row of the 88 s draft)
+#define CR_SHARE      392     // the tune's units: 1/392 of it (24.7 frames of the 162 s tune)
+#define CR_UNIT_PAT    11     // a patron card's units (owner Q80: held longer, to read all eight names); the other cards 7
+#define CR_UNIT_END   362     // the roll ends at this unit, "THANKS FOR PLAYING!" fills the rest
 
 // state in story_scratch
 struct cr_state {
@@ -93,6 +96,7 @@ struct cr_state {
     uint8_t lr;               // ... which row (255: none)
     uint8_t ky;               // the card's key row (its content block is centred vertically from it)
     uint8_t skipq;            // B / START came down during a build
+    uint16_t pl;              // a patron card's length (frames)
 };
 #define CR ((struct cr_state *)story_scratch)
 // (story_scratch + 68 / + 69: the DMG header's BGP and the card's, main.c cast_isr)
@@ -357,9 +361,14 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
         }
         return 0;
     } else if (kd == CK_PATRONS) {
-        if (i > 18) return 1;
+        n = is_cgb ? 38 : 18;                      // the three base looks' 18 tiles (bank 0), on Color the five Color-only looks' 20 (bank 1), then the palettes
+        if (i > n) return 1;
         if (i < 18) load_patron_pose0(v, CR_T_P + 6 * (i / 6), ct_slot[v][i / 6], i % 6);      // (a tile at a time: with the LCD on a byte takes two scanlines; the variant in slot k)
-        else if (is_cgb) for (k = 0; k < 3; k++) { patron_pal_get(v, ct_pal[v][k], p); p[0] = 0; cr_pal(1, OBJPAL_ROBOT + k, p); }
+        else if (i < n) load_patron_x0(v, (i - 18) >> 2, (i - 18) & 3);
+        else if (is_cgb) for (k = 0; k < 7; k++) {   // OBJ 1-7: the venue's distinct looks' colours from the plan (OBJ 0 stays the Spigoteer's, for the roll)
+            p[0] = 0; p[1] = ct_pcol[v][k][0]; p[2] = ct_pcol[v][k][1]; p[3] = ct_pcol[v][k][2];
+            cr_pal(1, 1 + k, p);
+        }
         return 0;
     }
     return 1;
@@ -461,8 +470,8 @@ static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows
             VBK_REG = VBK_BANK_1; cr_put(CR->ky + i - 3); VBK_REG = VBK_BANK_0;
             cr_amark(CR->ky + i - 3);
         }
-    } else {                                       // the patrons (the venue is in the header): the three labels on one row
-        if (i == 0) cr_trow(CT_PATA + v, CR->ky, &id);
+    } else {                                       // the patrons (the venue is in the header): DMG the three labels on one row, Color three rows (3, 3, 2) at tile rows 6, 11, 16
+        if (i == 0 || (is_cgb && i < 3)) cr_trow(CT_PATA + 10 * i + v, is_cgb ? 6 + 5 * i : CR->ky, &id);
         else return 1;
     }
     CR->tn = id;
@@ -470,7 +479,7 @@ static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows
 }
 
 static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
-    uint8_t t = (uint8_t)CR->t, k, bob, v = 0, kd = cr_kind(c, &v), pose, y;
+    uint8_t t = (uint8_t)CR->t, k, bob, v = 0, kd = cr_kind(c, &v), pose, y, n;
     if (kd == CK_SPIGOTEER || kd == CK_DREGS) {    // his walk cycle (walk, idle, the other foot, idle: 16 frames each), at the text's left, level with it
         pose = cr_walk[(t >> 4) & 3];
         y = 8 * (CR->ky + CR_PT->h + 2) + 12;      // (OAM y: the sprite's top 4 px above the first text row's, so that it stands level with the two lines)
@@ -481,10 +490,15 @@ static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
         if (pose != CR->pose) cr_pose_rows(v, pose, 1);
         cr_oam(0, 8 * CR->ky + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (pose == 1 ? 2 : 0), is_cgb ? OBJPAL_CAST : S_PALETTE);
     } else if (kd == CK_PATRONS) {
-        for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn, each centred over his own label (ct_cx)
+        for (k = 0; k < (is_cgb ? 8 : 3); k++) {  // the patrons (DMG the three base looks, Color all eight), bobbing in turn, each centred over his own label (ct_cx)
             bob = (((t >> 4) + k) & 3) ? 0 : 2;
-            cr_oam(2 * k, 8 * CR->ky - 8 - bob, ct_cx[v][k], CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
-            cr_oam(2 * k + 1, 8 * CR->ky - 8 - bob, ct_cx[v][k] + 8, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
+            if (is_cgb) {                         // (the label rows are tile rows 6, 11, 16; the sprite's top is 20 px above its row; looks 3-7: bank 1, OBJ tiles PATRON_X_S0 + 4 (k - 3))
+                y = 8 * (k < 3 ? 6 : k < 6 ? 11 : 16) - 4 - bob;
+                pose = k < 3 ? CR_T_P + 6 * k : PATRON_X_S0 + 4 * (k - 3);
+                n = (1 + ct_lp[v][k]) | (k < 3 ? 0 : 8);
+            } else { y = 8 * CR->ky - 8 - bob; pose = CR_T_P + 6 * k; n = 0; }
+            cr_oam(2 * k, y, ct_cx[v][k], pose, n);
+            cr_oam(2 * k + 1, y, ct_cx[v][k] + 8, pose + 2, n);
         }
     }
 }
@@ -548,8 +562,9 @@ void credits_enter(uint8_t from_story) BANKED {
     music_pump();
     CR->T = music_tune_frames(TUNE_CREDITS);          // the timeline: shares of the tune (1/352: 7 a card, the title included; the roll to 322)
     CR->e_title = CR->card_len = cr_share(7);
-    CR->roll = CR->e_title + (CR_CARDS - 1) * CR->card_len;
-    CR->f1 = cr_share(322);
+    CR->pl = cr_share(CR_UNIT_PAT);
+    CR->roll = CR->e_title + 22 * CR->card_len + 10 * CR->pl;   // (the 32 cards after the title: 22 of 7 units, the ten patron cards longer)
+    CR->f1 = cr_share(CR_UNIT_END);
     CR->k = (uint8_t)((CR_LAST_T * 32 + (CR->f1 - CR_F0) / 2) / (CR->f1 - CR_F0));
     CR->scroll = 0; CR->card = 255; CR->next = CR_AHEAD + 1; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story; CR->f = 0; CR->tmask = 0; CR->amask = 0;
     SCX_REG = 0; SCY_REG = 0;
@@ -589,8 +604,20 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     CR->f = f;
     if (sound_on ? (cur_tune != TUNE_CREDITS && CR->t > 30) : f >= CR->T) { cr_leave(); return 1; }   // (the tune ends: cur_tune goes to TUNE_NONE)
     if (f < CR->roll) {                                                    // the cast
-        c = f < CR->e_title ? 0 : 1 + (uint8_t)((f - CR->e_title) / CR->card_len);
+        if (f < CR->e_title) c = 0;
+        else {
+            p = f - CR->e_title;                                               // the Spigoteer's and Dregs's cards, then per venue the owner, the patrons (longer), the boss
+            if (p < 2 * CR->card_len) c = 1 + (uint8_t)(p / CR->card_len);
+            else {
+                p -= 2 * CR->card_len;
+                f = 2 * CR->card_len + CR->pl;                                 // (a venue's three cards)
+                c = (uint8_t)(p / f);
+                p -= c * f;
+                c = 3 + 3 * c + (p < CR->card_len ? 0 : p < CR->card_len + CR->pl ? 1 : 2);
+            }
+        }
         if (c >= CR_CARDS) c = CR_CARDS - 1;
+        f = CR->f;
         if (CR->card != c) {
             hd = cr_hdr(CR->card, c);
             if (CR->card < CR_CARDS && cr_fade(0, hd)) { cr_leave(); return 1; }   // the old card fades out (to white; the header too when the venue changes)

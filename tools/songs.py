@@ -826,9 +826,9 @@ SAI_BASS_CHECK = H.bass_check(SAI_BASS, SAI_CHORDS, 8)
 # ---------------------------------------------------------------------------------------------
 # The credits tune (src/credits.c; owner picked draft "D3c", 2026-10-17): The Entertainer's intro, the A and B strains, the strains the
 # title tune does not use (the C strain in F, the bridge, the D strain) and Joplin's own last two bars, then a ringing final chord, in a
-# slow warm style (15 frames a row, no drums, held root / fifth bass, the title's thirds on the 50% pulse).  A pass is 579 rows =
-# 8732 frames (146 s: gen_music sums the real frames, the ritard's tempo changes included): not a venue tune (it is no VENUES entry,
-# no jukebox item): gen_music plays it once as a jingle and streams its patterns (20 of them in 10 orders: the buffer holds 8, see
+# slow warm style (15 frames a row, no drums, held root / fifth bass, the title's thirds on the 50% pulse).  A pass is 643 rows (579 before the A strain's third play, below) =
+# 9692 frames (162 s: gen_music sums the real frames, the ritard's tempo changes included): not a venue tune (it is no VENUES entry,
+# no jukebox item): gen_music plays it once as a jingle and streams its patterns (22 of them in 11 orders: the buffer holds 8, see
 # gen_music.CREDITS and src/music.c).  The notes were read from the Mutopia Project score entertainer.ly (Public Domain, 1902
 # edition) by the draft generator (tools/music_drafts.py on the drafts branch); they are data here so that no score file is needed to
 # build.  The bass chords and the harmony (tools/harmony.py follow) are ours.  The ending: a modest ritard on the last bar (tempo_map:
@@ -883,13 +883,39 @@ CR_HARM = (
 )
 CR_TEMPO_MAP = {568: 17, 570: 19, 572: 20}
 CR_FX_MAP = {574: [(3, 0xC05)], 576: [(3, 0xC02)]}   # the last bass chord: 50 %, then 25 % (the driver reads the LOW nibble of Cxy for the wave channel)
+# The longer patron cards (owner Q80, 2026-11-05: "make sure the pause on this screen is a little longer to read them all"; src/credits.c): the A strain
+# (rows 32-95: eight bars, from the first bar after the pickup D4 D#4, to the next pickup) is played a third time, as Joplin's repeat of it allows: one more
+# order (64 rows = 960 frames = 16 s) that the ten patron cards share (4 units of the timeline each, credits.c).  Every row after it is 64 rows later,
+# the ritard and the fade included.  All three tracks have a note boundary on rows 32 and 96, and the bass chord there is the same.
+CR_REP_A, CR_REP_B, CR_REP_ROWS = 32, 96, 64
+
+
+def _repeat_rows(s, a, b, at):
+    """the notation s with the rows [a, b) played again at row `at` (a note boundary of s at a, b and at)"""
+    out, pos, seg = [], 0, []
+    for t in s.split():
+        n = int(t.split(":")[1].split("/")[0])
+        if a <= pos < b:
+            assert pos + n <= b, (t, pos, "a note crosses the repeat's end")
+            seg.append(t)
+        if pos == at:
+            out += seg
+        out.append(t)
+        pos += n
+    assert pos == 579 and seg and sum(int(t.split(":")[1].split("/")[0]) for t in seg) == b - a, (pos, "the repeat's ends are note boundaries")
+    return " ".join(out)
+
+
+CR_MEL_L, CR_BASS_L, CR_HARM_L = (_repeat_rows(x, CR_REP_A, CR_REP_B, CR_REP_B) for x in (CR_MEL, CR_BASS, CR_HARM))   # (the title tune slices CR_MEL itself: it keeps the 579-row notes)
+CR_TEMPO_MAP_L = {r + CR_REP_B - CR_REP_A: v for r, v in CR_TEMPO_MAP.items()}
+CR_FX_MAP_L = {r + CR_REP_B - CR_REP_A: v for r, v in CR_FX_MAP.items()}
 # Music batch 4 (specs/credits.md): the bass is the full held one (BASS_HELD: no pluck table, it sustains to the end of each note) all the way, not
 # only in the last chord; the lead is the brass one (the notes, the ending and the fade are untouched).  CREDITS_LEAD = LEAD_PRO is the owner's
 # brass lead; DUTY_SONG_LEAD (1) is the old song lead: if the brass version's streaming call ever goes over 18 lines, one line changes it.
 CREDITS_LEAD = LEAD_PRO
-CR_BASS_HELD = with_inst(CR_BASS, BASS_HELD)
-song("credits", 15, "A", CR_MEL, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
-SONGS["credits"].update(ch1=CR_HARM, ch1_inst=("harm50", "ring50"))
+CR_BASS_HELD = with_inst(CR_BASS_L, BASS_HELD)
+song("credits", 15, "A", CR_MEL_L, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=CR_TEMPO_MAP_L, fx_map=CR_FX_MAP_L)
+SONGS["credits"].update(ch1=CR_HARM_L, ch1_inst=("harm50", "ring50"))
 
 # ---------------------------------------------------------------------------------------------
 # The title tune (owner-approved 2026-10-17: music batch 1's title, then "the whole Entertainer, looping", the second B strain an
