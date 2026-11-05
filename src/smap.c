@@ -537,9 +537,9 @@ static void leave(void) {                          // before any other screen: t
 static uint8_t press_a(void) {                     // A with no panel up. 1: the screen was left
     uint8_t s = smap_stop;
     if (s == TOWN) { panel_open(P_TOWN, 0); return 0; }
-    if ((smap_flags & SMAP_RESUME) && s == story_chapter && s == story_progress) { panel_open(P_RESUME, 0); return 0; }   // (a shift of this venue was quit)
-    if (s < story_progress) { panel_open(P_VENUE, 0); return 0; }
-    if (s > story_progress) return 0;              // (a locked stop: Sal never stands on one)
+    if ((smap_flags & SMAP_RESUME) && s == story_chapter && s == map_progress()) { panel_open(P_RESUME, 0); return 0; }   // (a shift of this venue was quit)
+    if (s < map_progress()) { panel_open(P_VENUE, 0); return 0; }
+    if (s > map_progress()) return 0;              // (a locked stop: Sal never stands on one)
     leave();                                       // the next uncleared venue
     story_map_venue(s);
     return 1;
@@ -569,6 +569,7 @@ static uint8_t panel_a(void) {                     // A in a panel. 1: the scree
         story_phase = 0; story_on = 0; story_arc = 0;
         smap_flags &= ~F_PALS;
         hud_pal_reset();
+        if (save_lock == SAVE_LOCK_DEBUG) story_chapter |= DEBUG_RESUME;   // a debug-select run saved nothing: CONTINUE resumes it (story_begin)
         title_enter();
         return 1;
     }
@@ -685,8 +686,8 @@ void smap_enter(uint8_t quick) BANKED {
         fill(SC(A_TBL), 0xFF, 220);                // (every slot free: tile 0x3FF)
         OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
     }
-    if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = story_progress < NSTOPS - 1 ? story_progress : TOWN;
-    V(V_STATE) = story_progress < 9 ? story_progress + 1 : 10;
+    if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = map_progress() < NSTOPS - 1 ? map_progress() : TOWN;
+    V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : 10;
     s16(V_FX, smapw_stop[smap_stop][0]); s16(V_FY, smapw_stop[smap_stop][1]);
     smap_cam_target(&tx, &ty);
     s16(V_CAMX, tx); s16(V_CAMY, ty);
@@ -706,7 +707,7 @@ void smap_enter(uint8_t quick) BANKED {
 // A mini-game that the map started is over (mg.c, LCD off) or was quit (pause.c): the map again, the story's score as the map left it (a replay's points are
 // not the story's: the medal's upgrade is, in save.c)
 void smap_back(void) BANKED {
-    score = venue_score_get(story_progress);
+    score = save_lock ? 0 : venue_score_get(story_progress);   // (a debug-select run saves none: it was entered with 0)
     split6(score_digits, score);
     smap_enter(1);
 }

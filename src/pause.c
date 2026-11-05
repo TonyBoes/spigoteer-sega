@@ -114,7 +114,7 @@ static const uint8_t *const names[] = { w_resume, w_how, w_quit, w_yes, w_no };
 
 // QUIT goes to the story map: a story run's shift, boss fight or mini-game (not a play from the map, BONUS > MINI GAMES, ARCADE, CLASSIC, BOSS RUSH, a debug-select run)
 static uint8_t quit_to_map(uint8_t s) {
-    return story_on && play_mode == MODE_STORY && !(story_arc & 1) && !save_lock && !((s & PAUSE_MINI) && mg_mode != MG_STORY);
+    return story_on && play_mode == MODE_STORY && !(story_arc & 1) && !((s & PAUSE_MINI) && mg_mode != MG_STORY);
 }
 
 // where the items are in menu state s: the first item's window row, and the item the cursor is on
@@ -320,7 +320,7 @@ static void quit(void) {
     }
     boss_set(BOSS_NONE);
     story_phase = 0;                             // (SP_OFF)
-    if (story_on && !(story_arc & 1) && !save_lock && play_mode == MODE_STORY) {   // STORY: the map, Sal at this venue; A there offers RESUME (the shift again from its start)
+    if (story_on && !(story_arc & 1) && play_mode == MODE_STORY) {   // STORY: the map, Sal at this venue; A there offers RESUME (the shift again from its start)
         smap_stop = mg_id == MG_POUROFF && (state_timer & PAUSE_MINI) ? 10 : story_chapter;   // (the Pour-Off: the town, nothing to resume)
         if (smap_stop != 10) smap_flags |= SMAP_RESUME; else smap_flags &= ~SMAP_RESUME;
         smap_back();                             // (the venue's start score back, as after a map play; the run, its difficulty and its HUD tint go on)
