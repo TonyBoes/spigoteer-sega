@@ -465,7 +465,7 @@ def main(build, preview):
     if nvar > 15:
         fail.append(f"Color: a slot is shared by {nvar} tiles (a variant is a nibble)")
     nslots = k_c
-    cg.slotvar = [int(col_c[t]) | (var_idx[t] << 8) for t in range(cg.nt)]
+    cg.slotvar = [int(col_c[t]) | (var_idx[t] << 9) for t in range(cg.nt)]
     cg.pal_words = []
     for name in PAL_NAMES:
         cols = PAL.get(name)
@@ -488,7 +488,7 @@ def main(build, preview):
          f"#define SMAPW_C_SLOTS {nslots}", f"#define SMAPW_POOL {POOL}", f"#define SMAPW_NPAL {len(PAL_NAMES)}", f"#define SMAPW_PAL_TOWN {PAL_NAMES.index('town1')}",
          f"#define SMAPW_UFO_X {ufo[0]}", f"#define SMAPW_UFO_Y {ufo[1]}",
          f"#define SMAPW_BANG_X {stops[10][0] - 4}", f"#define SMAPW_BANG_Y {stops[10][1] - 36}",
-         "typedef struct { uint16_t w, aux; } smap_fc;   // one fetched cell: the word to show, the allocator's word (Color: slot | variant << 8; DMG: the hint slot)",
+         "typedef struct { uint16_t w, aux; } smap_fc;   // one fetched cell: the word to show, the allocator's word (Color: slot | variant << 9; DMG: the hint slot)",
          "void smap_c_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED;",
          "void smap_c_palette(uint8_t i, uint8_t *dst) BANKED;",
          "void smap_c_tile(uint16_t t, uint8_t *dst) BANKED;",
@@ -528,6 +528,7 @@ def main(build, preview):
         "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "hint_d": dm.hint,
         "fog_c": [cg.fog_off, cg.fog_cell, cg.fog_word], "fog_d": [dm.fog_off, dm.fog_cell, dm.fog_word], "inner_c": cg.inner, "fogint_c": cg.fogint, "fogint_d": dm.fogint,
         "zone": cg.zone, "cell_c": cg.cell, "cell_d": dm.cell,
+        "disp_c": [[cg.disp(c, p) for c in range(CW * CH)] for p in range(1, 11)], "disp_d": [[dm.disp(c, p) for c in range(CW * CH)] for p in range(1, 11)],   # the world shown in unlock state p (the tests expected pictures)
     }
     (build / "smap_world.json").write_text(json.dumps(info, default=int))
     # ---- previews ------------------------------------------------------------------------------------------------------------------------------
