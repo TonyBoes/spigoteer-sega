@@ -10,6 +10,7 @@
 #   - the cost: the walk's worst frames on a DMG, and on a Color at double speed (owner Q92).
 import contextlib
 import json
+import re
 import sys
 
 import numpy as np
@@ -226,3 +227,50 @@ def test_the_walks_cost_stays_within_the_measured_bounds(model):
     assert allv[-1] <= b["worst"], allv[-5:]
     assert allv[len(allv) * 9 // 10] <= b["p90"], allv[len(allv) * 9 // 10]
     assert holds <= b["holds"] * frames, (holds, frames)
+
+
+# ---- the pace and the smoothness ----------------------------------------------------------------------------------------------------------------------------
+# Sal's walk per GAME frame (a hook on walk_step: PyBoy's frame boundary is not the game's): a hold is a frame on which he waited for the camera (V_LAG), a late frame
+# one whose logic ended at line 154 or later. The bounds are the measured walks of tools/dev/smap_gear.py (which fits the pace of every stretch to the stream) and
+# never to be raised. The camera moves with Sal: its step never differs from his by more than 2 px.
+V_LAG = 65
+SMOOTH = {"dmg": dict(holds=0.019, late=0.015), "cgb": dict(holds=0.006, late=0.0)}
+
+
+def walk_frames(model, s, d):
+    noi = (ROOT / "build" / "game.noi").read_text()
+    v = int(re.search(r"DEF _walk_step (0x[0-9A-F]+)", noi).group(1), 16)
+    with double_speed() if model == "cgb" else contextlib.nullcontext():
+        gb = sm.to_map(model, 10, stop=s)
+    log = []
+
+    def f(ctx):
+        sc = gb.read("story_scratch", 520)
+        log.append((sc[SV + V_LAG], gb.mem16("perf_end_last"), var(sc, V_FX), var(sc, V_FY), var(sc, V_CAMX), var(sc, V_CAMY)))
+
+    gb.pb.hook_register(v >> 16, v & 0xFFFF, f, None)
+    gb.press(DIRS[d], 6)
+    log.clear()
+    for fr in range(1500):
+        gb.run(1, True)
+        if fr > 4 and not gb.read("story_scratch", 520)[SV + V_WALK]:
+            break
+    return log[1:]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_sal_walks_without_waiting_and_the_camera_moves_with_him(model):
+    frames = holds = late = 0
+    for s, d in LEG_WALKS:
+        log = walk_frames(model, s, d)
+        frames += len(log)
+        holds += sum(1 for r in log if r[0])
+        late += sum(1 for r in log if r[1] >= 154)
+        for a, b in zip(log, log[1:]):
+            sx, sy = b[2] - a[2], b[3] - a[3]
+            assert abs(sx) + abs(sy) <= 2, (s, d, "Sal's step", sx, sy)
+            assert abs((b[4] - a[4]) - sx) <= 2 and abs((b[5] - a[5]) - sy) <= 2, (s, d, "camera step against Sal's", a, b)
+    b = SMOOTH[model]
+    assert frames > 3000, frames                                   # (every leg both ways was walked)
+    assert holds <= b["holds"] * frames, (holds, frames)
+    assert late <= b["late"] * frames, (late, frames)

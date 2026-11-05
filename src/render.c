@@ -440,6 +440,7 @@ __asm
     ld   b, a
     ld   a, (hl+)           ; bank
     ldh  (0x4F), a
+    bit  1, a               ; (bit 1 of the bank: one 16-byte tile from an aligned source by general-purpose DMA, Color only; the other loads keep the flags)
     ld   a, (hl+)           ; src
     ld   e, a
     ld   a, (hl+)
@@ -448,6 +449,7 @@ __asm
     push hl
     ld   h, (hl)
     ld   l, a
+    jr   nz, 5$
     srl  b                  ; two bytes per pass, the odd one first
     jr   nc, 3$
     ld   a, (de)
@@ -465,6 +467,34 @@ __asm
     ld   (hl+), a
     dec  b
     jr   nz, 3$
+    jr   4$
+5$:                         ; bank bit 1: into the map (0x98..): n bytes down a column (32 apart), else a tile: one 16-byte block by general-purpose DMA
+    ld   a, h
+    cp   a, #0x98
+    jr   nc, 6$
+    ld   a, d
+    ldh  (0x51), a
+    ld   a, e
+    ldh  (0x52), a
+    ld   a, h
+    ldh  (0x53), a
+    ld   a, l
+    ldh  (0x54), a
+    xor  a, a
+    ldh  (0x55), a          ; one block, now (the CPU waits for it)
+    jr   4$
+6$:
+    ld   a, (de)
+    inc  de
+    ld   (hl), a
+    ld   a, l
+    add  a, #32
+    ld   l, a
+    jr   nc, 7$
+    inc  h
+7$:
+    dec  b
+    jr   nz, 6$
 4$:
     pop  hl
     inc  hl                 ; next entry (past dst high and the 2 pad bytes)
