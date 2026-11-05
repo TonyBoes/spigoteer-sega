@@ -442,3 +442,10 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-04 Map rounds 4-5 merged (48216015): hand-drawn DMG trim (worst DMG window 175/176), dynamic DMG allocator spec, Color static bank-1 plan. DMG-only removals: fence, hitching post, tumbleweeds, bistro table + shrub, stones, one pine (owner told; may object). Engine build started: gb-worker (Sonnet), spec round5/NOTES.md.
 - 2026-11-04 OWNER Q79: "Color should have 8 patrons per venue. I want all patrons in the credits." (checked: 3 base + 5 Color-only = 8 per venue already) -> credits remake: Color shows all 8 looks per venue, each in its own plan palette with its plan name; DMG keeps its 3. Mockups first (gb-artist): layout options. Q79 card removed.
 - 2026-11-04 Credits mockups merged (docs/dev/concepts/credits_2026-11-04/): A 3-3-2 one card (rec.), B 2x4 roster, C two cards of 4. All 8 OBJ palettes free on the patron card (max 7 distinct per venue); extras from bank 1. Stale credits names in tools/gen_credits.py fixed to the plan (DMG cards change: e.g. Saloon ROSIE/HANK -> EMMA/GUS). Q80 asked: which layout.
+
+## 2026-11-05 Scrolling story map merged
+- Merged worktree-agent-a5453c7a494f976a1 (2c50aac8): 64x48 world, full-size Sal facing the camera, Color streaming + DMG tile allocator, engine in its own bank (src/smap_eng.c). 14 new story_map_scroll_* goldens.
+- Replaced 8 goldens (a5a4e89e): story_map_start/mid/venue_panel/festival_panel, dmg+cgb, full-screen (new map).
+- ROM grew 512 KB -> 1 MB (world tiles/maps). ROM0 443 B, WRAM unchanged.
+- OPEN (agent a5453c7a494f976a1, same branch): DMG walk stutter (~21% hold frames, p90 ~151-159 lines). Target <5% holds, p90 <143. Maybe shorten the 38-frame DMG map entry. Color is smooth at double speed.
+- Open Questions v429: "smap" view card replaces "map3". Pocket Player v60.
