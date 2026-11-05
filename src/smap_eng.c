@@ -183,16 +183,9 @@ static void pal_count(uint8_t pal, int8_t d) {          // the region's cells in
 
 static uint8_t slot_of_id(uint8_t id) { return id < 36 ? id : (uint8_t)(id - 57); }      // (pool_id's inverse)
 
-// a column's run of the line goes out as one entry (the VBlank drain's column mode: bit 7 of the bank byte, the bytes 32 apart); a stride byte costs two plain ones
-static void qcol(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
-    vq_entry_t *e;
-    if (vq_count >= VQ_USE + 2) return;       // (cannot happen: every caller checks its room first)
-    e = &vq[vq_count++];
-    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += (n << 1) + 3 + (bank << 1);
-    e->n = n; e->bank = 0x80 | bank; e->src = src; e->dst = (uint8_t *)dst;
-}
-
-#define CELL_COST(vert) ((vert) ? (is_cgb ? 4 : 2) : (is_cgb ? 2 : 1))     // the drain's cost of one cell of a line (a column's bytes are stride bytes)
+// a cell of a column: its map entry (a row's go out as runs when its line is flushed)
+#define CELL_COST(vert) ((vert) ? (is_cgb ? 10 : 4) : (is_cgb ? 2 : 1))     // the drain's cost of one cell of a line
+#define CELL_ENT(vert)  ((vert) ? (is_cgb ? 2 : 1) : 0)                     // and the list entries it takes
 
 // One cell into the region: its tile (and palette) made resident, its id and attribute in the line buffers at k (the line's map entries are queued by the caller when it
 // has added what it will this frame). R_OK, or why not (nothing changed then).
@@ -210,7 +203,7 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
         need_t = slot == NIL;
     }
     if (!direct) {
-        cost = CELL_COST(vert); ents = 0;
+        cost = CELL_COST(vert); ents = CELL_ENT(vert);
         if (need_t) { if (V(V_NSTG) >= 2) return R_ROOM; cost += 19 + (bank << 1); ents++; }
         if (need_p) { if (V(V_PALQ)) return R_ROOM; cost += 36; ents += 9; }
         if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
@@ -256,7 +249,7 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
 static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
     uint8_t direct = V(V_DIRECT), id = SC(S_T + T_IDS)[k - 1], att = 0;
     if (!direct) {
-        if (room() < (uint8_t)(CELL_COST(vert) + V(V_RES)) || (uint8_t)(vq_count + V(V_RESE)) > VQ_USE) return R_ROOM;
+        if (room() < (uint8_t)(CELL_COST(vert) + V(V_RES)) || (uint8_t)(vq_count + CELL_ENT(vert) + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
     if (is_cgb) { att = SC(A_IDA)[k - 1]; SC(A_IDA)[k] = att; pal_count((uint8_t)(f->w >> 10), 1); }
     else SC(A_CNT)[slot_of_id(id)]++;
@@ -282,21 +275,30 @@ static void fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, smap_fc *out)
     if (is_cgb) smap_c_fetch(cx, cy, n, vert, V(V_STATE), out); else smap_d_fetch(cx, cy, n, vert, V(V_STATE), out);
 }
 
-// the cells [a, b) of the line (their ids at T_IDS + a ..) into the copy list: a row's go out as runs (the map wraps at column 31), a column's as stride runs (it wraps at row 31),
-// each with its attributes on a Color. Cell i of the line lies at (idx, first + i) for a column, (first + i, idx) for a row.
+// the cells [a, b) of the line (their ids at T_IDS + a ..) into the copy list: a row's go out as runs (the map wraps at column 31), a column's one entry a cell (the drain has
+// no stride mode: the ROM0 bytes are not there), each with its attributes on a Color. Cell i of the line lies at (idx, first + i) for a column, (first + i, idx) for a row.
 static void flush_line(uint8_t vert, uint8_t idx, uint8_t first, uint8_t a, uint8_t b) {
     uint8_t n, x;
+    vq_entry_t *e;
+    if (vert) {
+        for (; a < b; a++) {
+            e = &vq[vq_count++];
+            e->n = 1; e->bank = 0; e->src = SC(S_T + T_IDS + a); e->dst = (uint8_t *)map_addr(idx, first + a);
+            if (is_cgb) {
+                e++;
+                e->n = 1; e->bank = 1; e->src = SC(A_IDA + a); e->dst = (uint8_t *)map_addr(idx, first + a);
+                vq_count++;
+            }
+            if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += is_cgb ? 10 : 4;
+        }
+        return;
+    }
     while (a < b) {
         x = (first + a) & 31;
         n = b - a;
         if (x + n > 32) n = 32 - x;
-        if (vert) {
-            qcol(0, SC(S_T + T_IDS + a), map_addr(idx, first + a), n);
-            if (is_cgb) qcol(1, SC(A_IDA + a), map_addr(idx, first + a), n);
-        } else {
-            qraw(0, SC(S_T + T_IDS + a), map_addr(first + a, idx), n);
-            if (is_cgb) qraw(1, SC(A_IDA + a), map_addr(first + a, idx), n);
-        }
+        qraw(0, SC(S_T + T_IDS + a), map_addr(first + a, idx), n);
+        if (is_cgb) qraw(1, SC(A_IDA + a), map_addr(first + a, idx), n);
         a += n;
     }
 }
@@ -484,7 +486,7 @@ static uint8_t job_run(uint8_t cap) {
     smap_fc fc[8];
     uint16_t pw = 0;
     V(V_RES) = 0; V(V_RESE) = 0;
-    if (!V(V_DIRECT)) { V(V_RES) = is_cgb ? 16 : 6; V(V_RESE) = is_cgb ? 4 : 2; }   // (the line's entries come at the end: their overhead is kept back, and each cell's share as it is taken)
+    if (!V(V_DIRECT) && !vert) { V(V_RES) = is_cgb ? 16 : 6; V(V_RESE) = is_cgb ? 4 : 2; }   // (a row's runs come at the end: their overhead is kept back; a column's cells carry theirs)
     while (pos < n && r == R_OK && cap) {
         m = n - pos; if (m > 8) m = 8;
         if (m > cap) m = cap;
@@ -494,14 +496,15 @@ static uint8_t job_run(uint8_t cap) {
         while (k < m && cap) {
 #if ASM_SMAP
             if (!is_cgb && !V(V_DIRECT)) {               // (the cells that need only a counter, in asm; see smap_burst)
-                j = room() > V(V_RES) ? (uint8_t)(room() - V(V_RES)) : 0; if (vert) j >>= 1;      // (how many the drain budget still takes: a column's cells cost 2 each, a row's 1)
+                j = room() > V(V_RES) ? (uint8_t)(room() - V(V_RES)) : 0; if (vert) j >>= 2;      // (how many the drain budget still takes: a column's cells cost 4 each, a row's 1)
                 if (j > m - k) j = m - k;
+                if (j && vert && (uint8_t)(vq_count + V(V_RESE) + j) > VQ_USE) j = VQ_USE > vq_count + V(V_RESE) ? (uint8_t)(VQ_USE - vq_count - V(V_RESE)) : 0;
                 if (j && (uint8_t)(vq_count + V(V_RESE)) <= VQ_USE) {
                     V(V_JP) = pos; V(V_BF) = pos > first; V(V_PWL) = (uint8_t)pw; V(V_PWH) = (uint8_t)(pw >> 8); V(V_BM) = j; V(V_BMODE) = 0;
                     if (pos > first) V(V_ID) = SC(S_T + T_IDS)[pos - 1];
                     smap_burst(fc + k);
                     j -= V(V_BM);                       // (the cells it took)
-                    k += j; pos += j; cap -= j; V(V_RES) += j * cpc; pw = V(V_PWL) | ((uint16_t)V(V_PWH) << 8);
+                    k += j; pos += j; cap -= j; V(V_RES) += j * cpc; V(V_RESE) += vert ? j : 0; pw = V(V_PWL) | ((uint16_t)V(V_PWH) << 8);
                     if (k >= m || !cap) break;
                 }
             }
@@ -513,7 +516,7 @@ static uint8_t job_run(uint8_t cap) {
                 r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             }
             if (r) break;
-            V(V_RES) += cpc;
+            V(V_RES) += cpc; V(V_RESE) += CELL_ENT(vert);
             pw = fc[k].w; pos++; cap--; k++;
         }
     }

@@ -38,7 +38,14 @@ def to_map(model, progress=3, step=0, ram=None, stop=None, flags=None, cards=Tru
     """A rom on the story map: CONTINUE from a save with `progress` chapters cleared (a venue's step reached when step > 0). stop / flags are poked after."""
     if progress in (0, 10) and not step and ram is None:
         step = 1                                          # (a save CONTINUE offers: a step reached in chapter 1; all ten cleared and the finale not done)
-    rom = booted(model, ram if ram is not None else v7_image([], story=progress, step=step), cards=cards)
+    if ram is None:
+        ram = v7_image([], story=progress, step=step)
+        if stop is not None and (stop <= progress or stop == TOWN) and (flags or 0) & 0x88 == 0:   # (Sal stands where the save says: the map is built around him; a poke after the build would leave the picture behind)
+            ram = bytearray(ram)
+            ram[SM_AT:SM_AT + 6] = block(stop, flags or 0)
+            ram = bytes(ram)
+            stop = flags = None
+    rom = booted(model, ram, cards=cards)
     title_pick(rom, ts.K_PLAY, K_CONTINUE, press=False)
     rom.press("a", 8)                                    # (a long press: a 2-frame tap can fall inside a long pass of the title and not be read)
     rom.run(1)
