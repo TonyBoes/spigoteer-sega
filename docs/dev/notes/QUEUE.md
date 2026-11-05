@@ -507,3 +507,9 @@ Owner: "From inside the game quitting a level should quit to map. With an option
   Q86 withdrawn (superseded by the next round).
 - 2026-11-05 map speed round 2 (a5453c7a494f976a1) PARTIAL, uncommitted: Color GDMA tile copies + stride column writes (DMG late 54 -> 1 at the old gear), Color at 2 px everywhere 14-18 holds / 4-10 late of ~2140; DMG cannot hold 2 px everywhere (512 holds). ROM0 443 -> 402 B (vq_exec +41: over the rule, must be recovered). Gear fit unfinished; DMG options (a)/(b) not delivered. Asked it to commit WIP + write docs/dev/handoffs/smap_speed_2026-11-05.md; a fresh agent continues.
   WIP saved on worktree-agent-a5453c7a494f976a1 (e4ce975d agent, 6ee0f49b supervisor + docs/dev/handoffs/smap_speed_2026-11-05.md). Old agent stopped (out of room). Fresh gb-worker a0e606da21fecc4e6 continues from the handoff.
+
+### 2026-11-05 map walk round 2 reported (agent a0e606da21fecc4e6, NOT merged)
+- Branch worktree-agent-a0e606da21fecc4e6 (tip 0e1fe0dd). Adaptive pace. Speed (22 legs, checked with out/mv/legs.py): Color 0.99 -> 1.78 px/frame (stops 6 and 7 going up are slower, at 1.35 and 1.55; 5 holds, 1 late frame); DMG 0.98 -> 1.10 (0 holds, 5 late frames).
+- Blockers: the walk perf guard is breached (DMG 154 against 139, Color 143 against 84). Asked the owner as Q87; the guard is not raised. ROM0 is 400 free against a floor of 421. The +4 cycles in vq_exec break 5 timing-fragile tests (qd sprays, rush boss, story_difficulty, rng stadium, logroll fall); these need a zero-cycle dispatch.
+- Q88: DMG art trim (about 124 tiles across 10 zones, from out/mv/optb.py). Asked the owner.
+- Test ROM: Pocket Player "Map fast walk 2 (test)" (v70); the ROM was sent in chat.
