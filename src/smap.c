@@ -150,7 +150,7 @@ static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, ui
     o->prop = (is_cgb ? pal : 0) | flip;
 }
 
-static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 px walked: the same pace at any walk speed)
+static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a step every WALK_STEP_FRAMES frames, as in the levels: V_WPH = timer << 2 | phase)
 
 // A sprite entry written inline (a call with seven arguments costs more than the entry's four stores): px, py the top-left of the 8-px column's art on screen
 // (it may lie off an edge: then the entry is hidden), vh its visible height; entries the window layer (wh lines from wy) covers are hidden too.
@@ -319,7 +319,7 @@ static void draw(void) {
     sx = (int16_t)g16(V_FX) - 8 - cx;               // Sal's top-left on the screen
     sy = (int16_t)g16(V_FY) - 24 - cy;
     nudge = (tk >> 4) & 1;                          // (the arrows bob 1 px every 16 frames, the UFO every 32)
-    if (V(V_WALK)) { pic = ((uint8_t)(V(V_FX) + V(V_FY)) >> 2) & 3; sy -= pic & 1; pic = pic_seq[pic]; }   // (on the passing pose Sal is drawn 1 px higher, as in the levels)
+    if (V(V_WALK)) { pic = V(V_WPH) & 3; sy -= pic & 1; pic = pic_seq[pic]; }   // (on the passing pose Sal is drawn 1 px higher, as in the levels)
     if (!panel && !V(V_WALK))                       // the arrows: where each button leads (none while a panel is up or Sal walks)
         for (d = 0; d < 4; d++) {
             s = smapw_exit[smap_stop][d];
@@ -348,7 +348,7 @@ static void draw(void) {
 
 // A walking frame on which the camera did not move and no window is up: only Sal's four entries change (the rest of the sprites keep their place in the shadow OAM)
 static void draw_walk(void) {
-    uint8_t t = ((uint8_t)(V(V_FX) + V(V_FY)) >> 2) & 3, cgbp = is_cgb, wh = 0;
+    uint8_t t = V(V_WPH) & 3, cgbp = is_cgb, wh = 0;
     int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY) - (t & 1), ay, wy = 0, wend = 0;
     t = pic_seq[t] * BARTENDER_TILES_PER_FRAME;
     SPR(OAM_SAL, sx, sy, t, OBJPAL_BARTENDER, 0, 16);
@@ -518,7 +518,7 @@ static void start_walk(uint8_t d) {
     if (t == NIL || !open_stop(t)) return;
     V(V_LEG) = leg; V(V_REV) = rev; V(V_DEST) = t;
     V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
-    V(V_WALK) = 1; V(V_LAG) = 0; V(V_RATE) = is_cgb ? 16 : 2; V(V_DOTS) = V(V_FULL) = 1;
+    V(V_WALK) = 1; V(V_WPH) = 0; V(V_LAG) = 0; V(V_RATE) = is_cgb ? 16 : 2; V(V_DOTS) = V(V_FULL) = 1;
     stretch_init();
     if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
     SFX(SFX_DON);
@@ -742,6 +742,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     }
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
+    if (V(V_WALK)) { d = V(V_WPH); V(V_WPH) = d >= ((WALK_STEP_FRAMES - 1) << 2) ? (d + 1) & 3 : d + 4; }   // (the walk cycle's clock, after the frame drawn)
     return V(V_BEAM) && beam_tick(pressed);
 }
 
