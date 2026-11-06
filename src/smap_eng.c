@@ -143,7 +143,7 @@ static uint8_t tbl_find(uint16_t t, uint8_t hint) {     // the slot holding tile
 
 // stage a tile load (the staging area holds two a frame; the caller has checked V_NSTG and the room) and queue it, or, with the LCD off, put it in VRAM
 static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
-    uint8_t *d = SC(S_T + T_TILES + (V(V_NSTG) << 4));
+    uint8_t *d = is_cgb ? (uint8_t *)(((uint16_t)SC(A_XSTG) + 15) & 0xFFF0) + (V(V_NSTG) << 4) : SC(S_T + T_TILES + (V(V_NSTG) << 4));     // (the Color's: on a 16-byte boundary for the DMA)
     if (is_cgb) smap_c_tile(tile, d); else smap_d_tile(tile, d);
     if (V(V_DIRECT)) {
         if (bank) VBK_REG = VBK_BANK_1;
@@ -151,7 +151,8 @@ static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
         VBK_REG = VBK_BANK_0;
         return;
     }
-    qraw(bank, d, tile_addr(id), 16);
+    if (is_cgb) qsp(bank, d, tile_addr(id), 2);     // (Color: general-purpose DMA, one block in VBlank, bank bit 1; it costs 9-11 of the drain, not 19-21)
+    else qraw(bank, d, tile_addr(id), 16);
     V(V_NSTG)++;
 }
 
@@ -184,8 +185,8 @@ static void pal_count(uint8_t pal, int8_t d) {          // the region's cells in
 static uint8_t slot_of_id(uint8_t id) { return id < 36 ? id : (uint8_t)(id - 57); }      // (pool_id's inverse)
 
 // a cell of a column: its map entry (a row's go out as runs when its line is flushed)
-#define CELL_COST(vert) ((vert) ? (is_cgb ? 10 : 4) : (is_cgb ? 2 : 1))     // the drain's cost of one cell of a line
-#define CELL_ENT(vert)  ((vert) ? (is_cgb ? 2 : 1) : 0)                     // and the list entries it takes
+#define CELL_COST(vert) (is_cgb ? 2 : 1)                                    // the drain's cost of one cell of a line (a column goes out as a stride run: a byte a cell, and an id and an attribute)
+#define CELL_ENT(vert)  0                                                   // and the list entries it takes (a line's runs are reserved up front: V_RESE)
 
 // One cell into the region: its tile (and palette) made resident, its id and attribute in the line buffers at k (the line's map entries are queued by the caller when it
 // has added what it will this frame). R_OK, or why not (nothing changed then).
@@ -204,7 +205,7 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     }
     if (!direct) {
         cost = CELL_COST(vert); ents = CELL_ENT(vert);
-        if (need_t) { if (V(V_NSTG) >= 2) return R_ROOM; cost += 19 + (bank << 1); ents++; }
+        if (need_t) { if (V(V_NSTG) >= NSTG_MAX) return R_ROOM; cost += (is_cgb ? 9 : 19) + (bank << 1); ents++; }
         if (need_p) { if (V(V_PALQ)) return R_ROOM; cost += 36; ents += 9; }
         if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
@@ -275,21 +276,18 @@ static void fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, smap_fc *out)
     if (is_cgb) smap_c_fetch(cx, cy, n, vert, V(V_STATE), out); else smap_d_fetch(cx, cy, n, vert, V(V_STATE), out);
 }
 
-// the cells [a, b) of the line (their ids at T_IDS + a ..) into the copy list: a row's go out as runs (the map wraps at column 31), a column's one entry a cell (the drain has
-// no stride mode: the ROM0 bytes are not there), each with its attributes on a Color. Cell i of the line lies at (idx, first + i) for a column, (first + i, idx) for a row.
+// the cells [a, b) of the line (their ids at T_IDS + a ..) into the copy list as runs: a row's along the map (it wraps at column 31), a column's down it (the drain's stride mode,
+// bank bit 1), each with its attributes on a Color. Cell i of the line lies at (idx, first + i) for a column, (first + i, idx) for a row.
 static void flush_line(uint8_t vert, uint8_t idx, uint8_t first, uint8_t a, uint8_t b) {
     uint8_t n, x;
-    vq_entry_t *e;
     if (vert) {
-        for (; a < b; a++) {
-            e = &vq[vq_count++];
-            e->n = 1; e->bank = 0; e->src = SC(S_T + T_IDS + a); e->dst = (uint8_t *)map_addr(idx, first + a);
-            if (is_cgb) {
-                e++;
-                e->n = 1; e->bank = 1; e->src = SC(A_IDA + a); e->dst = (uint8_t *)map_addr(idx, first + a);
-                vq_count++;
-            }
-            if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += is_cgb ? 10 : 4;
+        while (a < b) {                                 // a column: its ids (and attributes) as runs down the map (the drain's stride mode: bank bit 1), cut at the map's wrap
+            x = (first + a) & 31;
+            n = b - a;
+            if (x + n > 32) n = 32 - x;
+            qsp(0, SC(S_T + T_IDS + a), map_addr(idx, first + a), n);
+            if (is_cgb) qsp(1, SC(A_IDA + a), map_addr(idx, first + a), n);
+            a += n;
         }
         return;
     }
@@ -486,7 +484,7 @@ static uint8_t job_run(uint8_t cap) {
     smap_fc fc[8];
     uint16_t pw = 0;
     V(V_RES) = 0; V(V_RESE) = 0;
-    if (!V(V_DIRECT) && !vert) { V(V_RES) = is_cgb ? 16 : 6; V(V_RESE) = is_cgb ? 4 : 2; }   // (a row's runs come at the end: their overhead is kept back; a column's cells carry theirs)
+    if (!V(V_DIRECT)) { V(V_RES) = is_cgb ? 16 : 7; V(V_RESE) = is_cgb ? 4 : 2; if ((a & 31) + n > 32) V(V_RES) <<= 1; }   // (a line's runs come at the end: their overhead is kept back, twice when it wraps at the map's edge)
     while (pos < n && r == R_OK && cap) {
         m = n - pos; if (m > 8) m = 8;
         if (m > cap) m = cap;
@@ -496,22 +494,21 @@ static uint8_t job_run(uint8_t cap) {
         while (k < m && cap) {
 #if ASM_SMAP
             if (!is_cgb && !V(V_DIRECT)) {               // (the cells that need only a counter, in asm; see smap_burst)
-                j = room() > V(V_RES) ? (uint8_t)(room() - V(V_RES)) : 0; if (vert) j >>= 2;      // (how many the drain budget still takes: a column's cells cost 4 each, a row's 1)
+                j = room() > V(V_RES) ? (uint8_t)(room() - V(V_RES)) : 0;      // (how many the drain budget still takes: a cell costs 1)
                 if (j > m - k) j = m - k;
-                if (j && vert && (uint8_t)(vq_count + V(V_RESE) + j) > VQ_USE) j = VQ_USE > vq_count + V(V_RESE) ? (uint8_t)(VQ_USE - vq_count - V(V_RESE)) : 0;
                 if (j && (uint8_t)(vq_count + V(V_RESE)) <= VQ_USE) {
                     V(V_JP) = pos; V(V_BF) = pos > first; V(V_PWL) = (uint8_t)pw; V(V_PWH) = (uint8_t)(pw >> 8); V(V_BM) = j; V(V_BMODE) = 0;
                     if (pos > first) V(V_ID) = SC(S_T + T_IDS)[pos - 1];
                     smap_burst(fc + k);
                     j -= V(V_BM);                       // (the cells it took)
-                    k += j; pos += j; cap -= j; V(V_RES) += j * cpc; V(V_RESE) += vert ? j : 0; pw = V(V_PWL) | ((uint16_t)V(V_PWH) << 8);
+                    k += j; pos += j; cap -= j; V(V_RES) += j * cpc; pw = V(V_PWL) | ((uint16_t)V(V_PWH) << 8);
                     if (k >= m || !cap) break;
                 }
             }
 #endif
+            if (!ly_ok(!(pos > first && fc[k].w == pw))) { r = R_ROOM; break; }                        // (the cells that need no load count too: a Color cell takes a line or two)
             if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             else {
-                if (!ly_ok()) { r = R_ROOM; break; }
                 V(V_SLOW) = 1;
                 r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             }
@@ -523,6 +520,7 @@ static uint8_t job_run(uint8_t cap) {
     if (!V(V_DIRECT) && pos > first) { V(V_RES) = 0; V(V_RESE) = 0; flush_line(vert, idx, a, first, pos); }
     V(V_RES) = 0; V(V_RESE) = 0;
     V(V_JP) = pos;
+    if (V(V_WALK)) V(V_RATE) = (uint8_t)((V(V_RATE) + (pos - first) + 1) >> 1);     // (the pace of a walk follows it: smap.c walk_step)
     if (r == R_RES) { if (V(V_STALL) < 255) V(V_STALL)++; } else V(V_STALL) = 0;
     return pos >= n;
 }
@@ -563,7 +561,7 @@ static void drop_run(uint8_t cap) {
                 V(V_BM) = m - k; V(V_BMODE) = 1;
                 smap_burst(fc + k);
                 k = m - V(V_BM);
-                if (k >= m || !ly_ok()) break;
+                if (k >= m || !ly_ok(1)) break;
                 V(V_SLOW) = 1;
                 drop_cells(fc + k, 1);
                 k++;
@@ -572,7 +570,7 @@ static void drop_run(uint8_t cap) {
 #endif
         for (k = 0; k < m; k = j) {
             for (j = k + 1; j < m && fc[j].w == fc[k].w; j++) ;
-            if (!ly_ok()) break;
+            if (!ly_ok(1)) break;
             V(V_SLOW) = 1;
             drop_cells(fc + k, j - k);
         }
@@ -591,12 +589,25 @@ void smap_cam_target(int16_t *tx, int16_t *ty) BANKED {
 static uint8_t cov_x(int16_t x) { return (uint8_t)(x >> 3) >= V(V_C0) && (uint8_t)((x + 159) >> 3) <= V(V_C1); }
 static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_t)((y + 143) >> 3) <= V(V_R1); }
 
+// How many px Sal may walk on, along x (horiz) or y, toward larger (up) or smaller coordinates, before the camera that follows him would show a cell the region does not hold
+// (255: as far as you like). fx or fy: his feet's coordinate on that axis. The camera follows him step for step (80 and 84: the feet's place on the screen), clamped to the world.
+uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED {
+    uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1);
+    int16_t lim;
+    if (up ? hi >= (horiz ? 63 : 47) : !lo) return 255;
+    if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 60) - (int16_t)f;
+    else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 84);
+    return lim < 0 ? 0 : lim > 255 ? 255 : (uint8_t)lim;
+}
+
 // the camera moves toward Sal, but only where the region already covers what it will show. 1: it moved
 uint8_t smap_camera_step(void) BANKED {
     int16_t cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), tx, ty, nx, ny, d;
     smap_cam_target(&tx, &ty);
-    if (tx != cx) V(V_DIRX) = tx > cx ? 2 : 1;
-    if (ty != cy) V(V_DIRY) = ty > cy ? 2 : 1;
+    if (!V(V_WALK)) {                                                 // (a walk sets them itself, by its stretches: smap.c walk_step)
+        if (tx != cx) V(V_DIRX) = tx > cx ? 2 : 1;
+        if (ty != cy) V(V_DIRY) = ty > cy ? 2 : 1;
+    }
     d = tx - cx; if (d > CAM_SPD) d = CAM_SPD; else if (d < -CAM_SPD) d = -CAM_SPD;
     nx = cx + d;
     while (nx != cx && !cov_x(nx)) nx += nx > cx ? -1 : 1;
@@ -606,7 +617,7 @@ uint8_t smap_camera_step(void) BANKED {
     if (!V(V_WALK) && nx == tx && ny == ty) { V(V_DIRX) = 0; V(V_DIRY) = 0; }
     d = tx - nx; if (d < 0) d = -d;                                   // how far the camera is behind Sal's spot (px, both axes together): the walk waits while it is too far
     d += ty > ny ? ty - ny : ny - ty;
-    V(V_LAG) = d > 255 ? 255 : (uint8_t)d;
+    if (!V(V_WALK)) V(V_LAG) = d > 255 ? 255 : (uint8_t)d;           // (a walk's: smap.c walk_step sets it, 1 on a hold)
     if (nx == cx && ny == cy) return 0;
     s16(V_CAMX, nx); s16(V_CAMY, ny);
     return 1;
@@ -617,12 +628,12 @@ uint8_t smap_camera_step(void) BANKED {
 void smap_region_work(void) BANKED {
     uint16_t cx = g16(V_CAMX), cy = g16(V_CAMY);
     uint8_t nc0 = (uint8_t)(cx >> 3), nc1 = (uint8_t)((cx + 159) >> 3), nr0 = (uint8_t)(cy >> 3), nr1 = (uint8_t)((cy + 143) >> 3);
-    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX), dy = V(V_DIRY), kind = V(V_JK), i, dk, di = 0, *eg = 0;
+    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX) & 3, dy = V(V_DIRY) & 3, rows1st = V(V_DIRY) & 4, kind = V(V_JK), i, dk, di = 0, *eg = 0;
     int8_t egd = 0;
-    if (dx == 1 && wc0) wc0--;
-    if (dx == 2 && wc1 < 63) wc1++;
-    if (dy == 1 && wr0) wr0--;
-    if (dy == 2 && wr1 < 47) wr1++;
+    if (dx == 1) wc0 = wc0 > LEAD ? wc0 - LEAD : 0;
+    if (dx == 2) wc1 = wc1 + LEAD > 63 ? 63 : wc1 + LEAD;
+    if (dy == 1) wr0 = wr0 > LEAD ? wr0 - LEAD : 0;
+    if (dy == 2) wr1 = wr1 + LEAD > 47 ? 47 : wr1 + LEAD;
     i = V(V_JI);
     if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) { if (!job_abort()) return; }       // (still taking its cells out: nothing else this frame)
     if (V(V_PANEL) || vq_held) return;
@@ -636,16 +647,19 @@ void smap_region_work(void) BANKED {
             else if (V(V_R1) > wr1 && V(V_R1) > V(V_R0)) { eg = &V(V_R1); egd = -1; di = (*eg)--; }
             else dk = J_NONE;
         }
+        if (dk != J_NONE && V(V_JK) != J_NONE && V(V_JK) != dk && !V(V_STALL)) { *eg -= egd; dk = J_NONE; }   // (an add job across it would add cells of the line that leaves: the line stays until the job is done, unless the job waits for a slot)
         if (dk != J_NONE) {
-            if (V(V_JK) != J_NONE && V(V_JK) != dk && !job_abort()) { *eg -= egd; return; }     // (an add job across it would add cells of the line that leaves: it goes first; the line stays)
+            if (V(V_JK) != J_NONE && V(V_JK) != dk && !job_abort()) { *eg -= egd; return; }     // (the job waits for a slot: it goes first; the line stays)
             V(V_DK) = dk; V(V_DI) = di; V(V_DP) = 0;
             if (dk == J_COL) { V(V_DA) = V(V_R0); V(V_DN) = V(V_R1) - V(V_R0) + 1; }
             else { V(V_DA) = V(V_C0); V(V_DN) = V(V_C1) - V(V_C0) + 1; }
         }
     }
-    if (V(V_DK) != J_NONE) drop_run(DROP_CAP);
+    if (V(V_DK) != J_NONE) drop_run(is_cgb ? 22 : DROP_CAP);
     if (V(V_JK) == J_NONE) {
-        if (V(V_C0) > wc0) { V(V_JK) = J_COL; V(V_JI) = V(V_C0) - 1; }
+        if (rows1st && V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }     // (walking down or up: the rows first, a column's lead can wait)
+        else if (rows1st && V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
+        else if (V(V_C0) > wc0) { V(V_JK) = J_COL; V(V_JI) = V(V_C0) - 1; }
         else if (V(V_C1) < wc1) { V(V_JK) = J_COL; V(V_JI) = V(V_C1) + 1; }
         else if (V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }
         else if (V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
@@ -654,7 +668,7 @@ void smap_region_work(void) BANKED {
         else { V(V_JA) = V(V_C0); V(V_JN) = V(V_C1) - V(V_C0) + 1; }
         V(V_JP) = 0;
     }
-    if (job_run(ADD_CAP)) {                          // complete: the line is part of the region
+    if (job_run(is_cgb ? 22 : ADD_CAP)) {                          // complete: the line is part of the region
         if (V(V_JK) == J_COL) { if (V(V_JI) < V(V_C0)) V(V_C0) = V(V_JI); else V(V_C1) = V(V_JI); }
         else { if (V(V_JI) < V(V_R0)) V(V_R0) = V(V_JI); else V(V_R1) = V(V_JI); }
         V(V_JK) = J_NONE;
@@ -677,4 +691,152 @@ void smap_pin_town(void) BANKED {
     V(V_DIRECT) = 1;
     if (is_cgb) { pal_take(SMAPW_PAL_TOWN); pal_count(SMAPW_PAL_TOWN, 1); }
     V(V_DIRECT) = 0;
+}
+
+// ---- the special runs of the copy list ---------------------------------------------------------------------------------------------------------------------------
+// The map registers render.c's smap_vbl after vq_vbl (smap_enter / leave): the list went out, its special entries (bank 2/3) are done here. Every other screen's drain is untouched.
+extern volatile uint8_t vq_ready;
+
+#if ASM_SMAP
+static void sp_run(void) {
+__asm
+    ldh  a, (0x4F)
+    push af                 ; the interrupted code's VRAM bank
+    push bc
+    ld   hl, #_vq
+1$:
+    ld   a, l
+    cp   a, #<(_vq + 192)
+    jr   nz, 2$
+    ld   a, h
+    cp   a, #>(_vq + 192)
+    jr   z, 9$
+2$:
+    ld   a, (hl)            ; n: 0 is the mark that ends the list
+    or   a, a
+    jr   z, 9$
+    push hl
+    inc  hl
+    ld   a, (hl+)           ; bank
+    bit  1, a
+    jr   z, 8$
+    ldh  (0x4F), a
+    ld   e, (hl)            ; src
+    inc  hl
+    ld   d, (hl)
+    inc  hl
+    inc  hl
+    inc  hl                 ; -> pad[0]
+    ld   a, (hl+)
+    ld   c, a
+    ld   a, (hl)            ; pad[1]
+    bit  7, a
+    jr   z, 5$
+    ld   b, a               ; stride: n - 1 in bits 10-14, the map offset in bits 0-9
+    srl  b
+    srl  b
+    res  5, b
+    inc  b
+    and  a, #3
+    add  a, #0x98
+    ld   h, a
+    ld   l, c
+6$:
+    ld   a, (de)
+    inc  de
+    ld   (hl), a
+    ld   a, l
+    add  a, #32
+    ld   l, a
+    jr   nc, 7$
+    inc  h
+7$:
+    dec  b
+    jr   nz, 6$
+    jr   8$
+5$:                         ; a tile: dst = 0x8000 + 16 * (a:c), one general-purpose DMA block (the CPU waits for it)
+    ld   b, a
+    ld   a, c
+    swap a
+    ld   h, a
+    and  a, #0xF0
+    ld   l, a
+    ld   a, h
+    and  a, #0x0F
+    ld   h, a
+    ld   a, b
+    swap a
+    and  a, #0xF0
+    add  a, h
+    add  a, #0x80
+    ld   h, a
+    ld   a, d
+    ldh  (0x51), a
+    ld   a, e
+    ldh  (0x52), a
+    ld   a, h
+    ldh  (0x53), a
+    ld   a, l
+    ldh  (0x54), a
+    xor  a, a
+    ldh  (0x55), a
+8$:
+    pop  hl
+    inc  hl
+    res  1, (hl)            ; (done: a later scan passes it)
+    dec  hl
+    ld   de, #8
+    add  hl, de
+    jr   1$
+9$:
+    pop  bc
+    pop  af
+    and  a, #1
+    ldh  (0x4F), a
+__endasm;
+}
+#else
+static void sp_run(void) {                          // the C twin of the asm above
+    uint8_t vbk = VBK_REG, i, k, n;
+    uint16_t w, d;
+    uint8_t *p;
+    const uint8_t *s;
+    for (i = 0; i != SMAP_VQ_MAX && vq[i].n; i++) {
+        if (!(vq[i].bank & 2)) continue;
+        vq[i].bank &= 1;   // (done; its bank bit is read first below)
+        VBK_REG = vq[i].bank & 1;
+        s = vq[i].src;
+        w = vq[i].pad[0] | ((uint16_t)vq[i].pad[1] << 8);
+        if (w & 0x8000) {
+            n = ((w >> 10) & 31) + 1;
+            p = (uint8_t *)(0x9800 + (w & 0x3FF));
+            for (k = 0; k != n; k++) { *p = *s++; p += 32; }
+        } else {
+            d = 0x8000 + (w << 4);
+            *(volatile uint8_t *)0xFF51 = (uint8_t)((uint16_t)s >> 8);
+            *(volatile uint8_t *)0xFF52 = (uint8_t)(uint16_t)s;
+            *(volatile uint8_t *)0xFF53 = (uint8_t)(d >> 8);
+            *(volatile uint8_t *)0xFF54 = (uint8_t)d;
+            *(volatile uint8_t *)0xFF55 = 0;
+        }
+    }
+    VBK_REG = vbk & 1;
+}
+#endif
+
+// After vq_vbl: if it just took a list (nothing ready, nothing queued, the list's first entry still there), its special entries go out now and the list's head is cleared.
+// (A list the main thread is still building has vq_count > 0 or vq_ready, and is left alone.)
+void smap_vbl(void);                                  // src/render.c
+extern uint8_t game_state, story_phase;
+void smap_isr(void) BANKED {
+    if (game_state != GS_STORY || story_phase != STORY_PHASE_MAP) { remove_VBL(smap_vbl); return; }   // (the map was left: the next screen's drain is the plain one; this was the last handler)
+    if (vq_ready || vq_count || !vq[0].n) return;
+    sp_run();
+    vq[0].n = 0;
+}
+
+// smap_enter: no entry of an earlier list may look like a special run still to do
+void smap_isr_arm(void) BANKED {
+    uint8_t i;
+    for (i = 0; i != SMAP_VQ_MAX; i++) { vq[i].n = 0; vq[i].bank = 0; }
 }

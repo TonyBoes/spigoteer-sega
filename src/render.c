@@ -501,6 +501,10 @@ void vq_vbl(void) {
     vq_ready = 0;
 }
 
+void smap_isr(void) BANKED;               // src/smap_eng.c
+// The story map's second VBlank handler, registered after vq_vbl while the map is up (src/smap.c): the special runs of its copy list
+void smap_vbl(void) { smap_isr(); }
+
 uint8_t qv_cost;                          // the list's cost so far (bytes + 3 an entry; every writer adds, 255 when entries are left over)
 uint8_t qv_w, qv_bar;                     // queue_vram's scratch (below); also what a split list leaves for vq_restore
 

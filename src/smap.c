@@ -359,6 +359,13 @@ static void draw_walk(void) {
     if (V(V_DOTS)) draw_still(0, 0, 0);
 }
 
+// the UFO's bob (draw_still: its y is one px lower in the odd 32-frame spans of the tick): its live entries move 1 px, nothing is drawn again
+static void ufo_bob(void) {
+    uint8_t k, up = (V(V_TICK) >> 5) & 1;
+    OAM_item_t *o = shadow_OAM + OAM_UFO;
+    for (k = 0; k < 3; k++, o++) if (o->y) o->y = up ? o->y + 1 : o->y - 1;
+}
+
 // ---- the window layer ---------------------------------------------------------------------------------------------------------------------------------------
 static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over lines y .. y + h - 1; lyc: where the LCD interrupt cuts it (LYC_NONE: at the screen's end)
     WX_REG = 7; WY_REG = y; LYC_REG = lyc;
@@ -505,29 +512,110 @@ static void panel_pump(void) {
 
 // ---- the camera, the region, the walk ------------------------------------------------------------------------------------------------------------------------------------
 
+static void stretch_init(void);
 static void start_walk(uint8_t d) {
     uint8_t t = smapw_exit[smap_stop][d], e = smapw_exit_leg[smap_stop][d], leg = e & 0x7F, rev = e >> 7;
     if (t == NIL || !open_stop(t)) return;
     V(V_LEG) = leg; V(V_REV) = rev; V(V_DEST) = t;
     V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
-    V(V_WALK) = 1; V(V_DOTS) = V(V_FULL) = 1;
+    V(V_WALK) = 1; V(V_LAG) = 0; V(V_RATE) = is_cgb ? 16 : 2; V(V_DOTS) = V(V_FULL) = 1;
+    stretch_init();
     if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
     SFX(SFX_DON);
 }
 
-static void walk_step(void) {
-    uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV);
-    uint16_t fx = g16(V_FX), fy = g16(V_FY), tx = smapw_leg_pt[leg][k][0], ty = smapw_leg_pt[leg][k][1];
-    if (V(V_LAG) > CAM_LAG) return;                  // the camera is behind (the last camera step measured it): Sal waits for it
-    if (fx != tx) fx = fx < tx ? (tx - fx < WALK_SPD ? tx : fx + WALK_SPD) : (fx - tx < WALK_SPD ? tx : fx - WALK_SPD);
-    else if (fy != ty) fy = fy < ty ? (ty - fy < WALK_SPD ? ty : fy + WALK_SPD) : (fy - ty < WALK_SPD ? ty : fy - WALK_SPD);
-    s16(V_FX, fx); s16(V_FY, fy);
-    if (fx != tx || fy != ty) return;
-    if (rev ? !k : k + 1 == smapw_leg_n[leg]) {      // the last waypoint: Sal is there
+// ---- the walk ------------------------------------------------------------------------------------------------------------------------------------------------------------
+// The state of the stretch Sal is on lives in a few bytes (nothing is looked up again each frame): V_WT the px walked on it, V_LEN its length, and the flags in V_LAG:
+//   bit 0 a hold (Sal waited this frame: ly_ok lifts its line), 1 the camera may cross a cell line this frame, 2 the stretch runs along x, 3 toward larger coordinates,
+//   4 it is the leg's first, 5 its last, 6 / 7 the next stretch runs along x / toward larger coordinates.
+#define F_HOLD  1
+#define F_CROSS 2
+#define F_HZ    4
+#define F_UP    8
+#define F_FIRST 16
+#define F_LAST  32
+#define F_NHZ   64
+#define F_NUP   128
+
+// the stretch that ends at waypoint V_WK (Sal stands at the one before it)
+static void stretch_init(void) {
+    uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV), ln = smapw_leg_n[leg], f = V(V_LAG) & F_HOLD, hz;
+    const uint16_t *p = smapw_leg_pt[leg][k], *s = smapw_leg_pt[leg][rev ? k + 1 : k - 1], *q;
+    uint16_t a, b;
+    hz = p[0] != s[0];
+    a = hz ? s[0] : s[1]; b = hz ? p[0] : p[1];
+    if (hz) f |= F_HZ;
+    if (b > a) { f |= F_UP; V(V_LEN) = (uint8_t)(b - a); } else V(V_LEN) = (uint8_t)(a - b);
+    if (rev ? k == ln - 2 : k == 1) f |= F_FIRST;
+    if (rev ? !k : k + 1 == ln) f |= F_LAST;
+    else {
+        q = smapw_leg_pt[leg][rev ? k - 1 : k + 1];
+        if (q[1] == p[1]) { f |= F_NHZ; if (q[0] > p[0]) f |= F_NUP; }
+        else if (q[1] > p[1]) f |= F_NUP;
+    }
+    V(V_LAG) = f;
+    V(V_WT) = 0;
+}
+
+// the region loads ahead in the direction of the stretch (the camera may still stand: the world's edge, the first frames); the other axis keeps its lead, and bit 2 of the
+// vertical direction asks for the rows first
+static void walk_dirs(void) {
+    uint8_t f = V(V_LAG);
+    if (f & F_HZ) { V(V_DIRX) = f & F_UP ? 2 : 1; V(V_DIRY) &= 3; }
+    else V(V_DIRY) = (f & F_UP ? 2 : 1) | 4;
+    if (V(V_LEN) - V(V_WT) <= WALK_AHEAD && !(f & F_LAST)) {   // the stretch after this one: its direction too, so that its first line is loaded when Sal turns
+        if (f & F_NHZ) V(V_DIRX) = f & F_NUP ? 2 : 1;      // (the lines of this stretch come first: a vertical one keeps its rows-first bit)
+        else V(V_DIRY) = (V(V_DIRY) & 4) | (f & F_NUP ? 2 : 1);
+    }
+    V(V_LAG) = (f & ~F_CROSS) | (((f & F_HZ ? V(V_CAMX) : V(V_CAMY)) & 6) == 6 ? F_CROSS : 0);   // (a camera 6 or 7 px into a cell may cross its line: the still sprites are all drawn again: ly_ok)
+}
+
+// One step of the walk, after this frame's region work (smap_update): as fast as the stream allows. 2 px, or 1 or 1 in 2 or 1 in 4 frames where the line the camera will want
+// is not loaded yet and the cells it still needs, at the rate the job has been going, would not be done in time; none when not even the next px is covered (a hold, which ly_ok
+// reads: the work then ignores its line). The first and the last WALK_EASE px of a leg go at 1.
+void walk_step(void) {
+    uint8_t f = V(V_LAG), n = WALK_SPD, r, hz = f & F_HZ, d = V(V_LEN) - V(V_WT), rem, kr, wt = V(V_WT);
+    uint16_t pos = g16(hz ? V_FX : V_FY), w, sl;
+    if (((f & F_FIRST) && wt < WALK_EASE) || ((f & F_LAST) && d <= WALK_EASE)) n = 1;
+    if (n > d) n = d;
+    r = smap_room(hz, f & F_UP, pos);
+    if (d <= WALK_AHEAD && !(f & F_LAST)) {          // a corner ahead: the room is what Sal can walk before either line he needs is missing (the stretch after: from the corner)
+        w = smap_room((f & F_NHZ) != 0, f & F_NUP, g16(hz ? V_FY : V_FX));
+        if (w + d < r) r = (uint8_t)(w + d);
+    }
+    f = f & ~F_HOLD;
+    if (!r) f |= F_HOLD;
+    V(V_LAG) = f;
+    if (!r) return;                                  // (a hold)
+    if (n > r) n = r;
+    // the cells the line being loaded still needs (rem) at the rate the job has been going (kr cells a frame, V_RATE), against the px of room (r) at the pace, WALK_S frames to spare
+    rem = V(V_JK) ? V(V_JN) - V(V_JP) : 0;           // (the job's cells left: a line of the other axis, loaded for the next stretch, goes first and then the line this stretch wants:)
+    if (V(V_JK) != (hz ? J_COL : J_ROW) ? r < 8 : 0) rem += WALK_LINE;
+    else if (!V(V_JK) && r < 8) rem = WALK_LINE;
+    if (rem) {
+        kr = V(V_RATE) ? V(V_RATE) : 1;
+        w = (uint16_t)r * kr;
+        sl = (uint16_t)kr * (is_cgb ? WALK_SC : WALK_S);
+        if (n > 1 && w < ((uint16_t)rem << 1) + (sl << 1)) n = 1;
+        if (n == 1 && w < rem + sl && (V(V_TICK) & 1)) return;
+        if (n == 1 && w + w < rem + sl && (V(V_TICK) & 2)) return;
+        if (n == 1 && (w << 2) < rem + sl && (V(V_TICK) & 4)) return;
+    }
+    s16(hz ? V_FX : V_FY, f & F_UP ? pos + n : pos - n);
+    V(V_WT) = wt + n;
+    if (n != d) return;
+    if (f & F_LAST) {                                // the last waypoint: Sal is there
         smap_stop = V(V_DEST);
         V(V_WALK) = 0; V(V_DOTS) = V(V_FULL) = 1;
         tag_show();
-    } else V(V_WK) = rev ? k - 1 : k + 1;
+    } else { V(V_WK) = V(V_REV) ? V(V_WK) - 1 : V(V_WK) + 1; stretch_init(); }
+}
+
+// The copy list's special runs (stride columns, general-purpose DMA tiles; smap_priv.h qraw) go out in smap_vbl, a VBlank handler after vq_vbl that takes itself out once the map is left (smap_isr)
+void smap_vbl(void);                               // src/render.c
+static void isr_on(void) {
+    smap_isr_arm();
+    CRITICAL { remove_VBL(smap_vbl); add_VBL(smap_vbl); }
 }
 
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -633,14 +721,16 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     }
     if (V(V_PREV)) { V(V_PREV) = 0; tag_show(); }
     tag_tick();
-    if (V(V_WALK)) walk_step();
-    else if (!V(V_BEAM)) {
+    if (!V(V_WALK) && !V(V_BEAM)) {
         d = (pressed & J_UP) ? 0 : (pressed & J_DOWN) ? 1 : (pressed & J_LEFT) ? 2 : (pressed & J_RIGHT) ? 3 : 4;
         if (d < 4) start_walk(d);
         else if ((pressed & J_A) && press_a()) return 1;
         else if (pressed & J_START) panel_open(P_MENU, 0);
     }
     if (!V(V_PANEL) && !vq_held) {
+        if (V(V_WALK)) walk_dirs();
+        smap_region_work();                                  // (first: a line that is done this frame lets the camera step into it this frame, Sal never waits on a camera that was blocked a frame ago)
+        if (V(V_WALK)) walk_step();
         ocx = g16(V_CAMX); ocy = g16(V_CAMY);
         if (smap_camera_step()) {
             SC(S_T + T_CAM)[0] = (uint8_t)g16(V_CAMY); SC(S_T + T_CAM)[1] = (uint8_t)g16(V_CAMX);
@@ -648,8 +738,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
             if ((ocx >> 3) != (g16(V_CAMX) >> 3) || (ocy >> 3) != (g16(V_CAMY) >> 3) || V(V_WH)) V(V_DOTS) = 1;      // (another cell: all the still sprites are looked at again)
             else oam_shift((int8_t)(ocx - g16(V_CAMX)), (int8_t)(ocy - g16(V_CAMY)));
         }
-        if (!(V(V_TICK) & 31) && V(V_STATE) >= 10) V(V_DOTS) = 1;       // (the UFO bobs 1 px every 32 frames)
-        smap_region_work();
+        if (!(V(V_TICK) & 31) && V(V_STATE) >= 10) ufo_bob();            // (the UFO bobs 1 px every 32 frames)
     }
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
@@ -713,6 +802,7 @@ void smap_enter(uint8_t quick) BANKED {
     V(V_R0) = ty >> 3; V(V_R1) = (ty + 143) >> 3;
     smap_pin_town();                               // (Color: the town palette is held for good: it is the window layer's)
     smap_fill_view((uint8_t)(tx >> 3), (uint8_t)((tx + 159) >> 3));
+    isr_on();
     SCX_REG = (uint8_t)tx; SCY_REG = (uint8_t)ty;
     V(V_DOTS) = V(V_FULL) = 1;
     V(V_PREV) = 1;                                 // (the arrival tag is queued by the first frame: the transition's reveal has put the window rows back by then)

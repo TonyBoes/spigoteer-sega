@@ -352,6 +352,20 @@ void enter_level_clear(void) BANKED {
 #define LOOP_FRAMES         120                  // the "LOOP n" banner, before the level's intro
 #define GAMEOVER_FRAMES     240                  // the GAME OVER banner goes on to the initials / table by itself after 4 s
 
+uint8_t glass_step(uint8_t i);                   // (mugs.c)
+
+// glass pieces keep falling while the rest of the picture is frozen
+static void update_glass(void) {
+    uint8_t i, st, live = 0;
+    for (i = 0; i != MAX_MUGS; i++) {
+        st = mug_state[i];
+        if (st == MUG_FREE) continue;
+        if (st == MUG_BREAKING) live += glass_step(i);
+        else live++;
+    }
+    mugs_live = live;
+}
+
 // The states main.c's update() does not run itself (ROM0 relief; it keeps the title, play, pause and the mini-games). 0: the frame goes on
 // to the shared tail, 1: update() returns, 2: it counts the frame and returns.
 uint8_t update_cold(uint8_t pressed) BANKED {

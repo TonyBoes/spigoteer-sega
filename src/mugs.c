@@ -94,7 +94,7 @@ static uint8_t empty_step(uint8_t i) {
     return 1;
 }
 
-static uint8_t glass_step(uint8_t i) {
+uint8_t glass_step(uint8_t i) {   // (main_cold.c's update_glass calls it)
     if (++mug_timer[i] < GLASS_FRAMES * GLASS_FRAME_TIME) return 1;
     mug_state[i] = MUG_FREE;
     return 0;
@@ -213,18 +213,6 @@ void update_mugs(void) {
 }
 
 #endif
-
-// glass pieces keep falling while the rest of the picture is frozen
-void update_glass(void) {
-    uint8_t i, st, live = 0;
-    for (i = 0; i != MAX_MUGS; i++) {
-        st = mug_state[i];
-        if (st == MUG_FREE) continue;
-        if (st == MUG_BREAKING) live += glass_step(i);
-        else live++;
-    }
-    mugs_live = live;
-}
 
 // OAM 4: the glass the bartender holds under the spout while filling (hidden otherwise).
 // It sits where the launched mug will start (under the bar's spout, BAR_SPOUT, the counter-top row).
