@@ -21,3 +21,5 @@ These are the owner's decisions for the story-mode overworld map (2026-10-18). I
 
 **Why:** the owner iterated through four mock-up rounds to reach this.
 **How to apply:** brief map agents from these rulings, and check the v4 map's open questions (Q61) before building. Related: [[art-in-house]], [[three-modes-decisions]].
+
+UPDATE 2026-11-06 (owner): "Fog is not an important feature. If it ends up making a difference, it can be cut." The map fog is optional: if it costs the route plan (ROM, speed or complexity), cut it rather than design around it.
