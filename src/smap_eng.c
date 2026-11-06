@@ -506,7 +506,7 @@ static uint8_t job_run(uint8_t cap) {
                 }
             }
 #endif
-            if (!ly_ok()) { r = R_ROOM; break; }                        // (the cells that need no load count too: a Color cell takes a line or two)
+            if (!ly_ok(!(pos > first && fc[k].w == pw))) { r = R_ROOM; break; }                        // (the cells that need no load count too: a Color cell takes a line or two)
             if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             else {
                 V(V_SLOW) = 1;
@@ -561,7 +561,7 @@ static void drop_run(uint8_t cap) {
                 V(V_BM) = m - k; V(V_BMODE) = 1;
                 smap_burst(fc + k);
                 k = m - V(V_BM);
-                if (k >= m || !ly_ok()) break;
+                if (k >= m || !ly_ok(1)) break;
                 V(V_SLOW) = 1;
                 drop_cells(fc + k, 1);
                 k++;
@@ -570,7 +570,7 @@ static void drop_run(uint8_t cap) {
 #endif
         for (k = 0; k < m; k = j) {
             for (j = k + 1; j < m && fc[j].w == fc[k].w; j++) ;
-            if (!ly_ok()) break;
+            if (!ly_ok(1)) break;
             V(V_SLOW) = 1;
             drop_cells(fc + k, j - k);
         }
