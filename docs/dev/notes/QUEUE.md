@@ -523,3 +523,8 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - 11-06 SML2 study (private page https://claude.ai/artifact/BGoAK1KSfpYACmuMhscUGD; the source is not in the repo because it holds Nintendo art). SML2 world: 64x64 cells, 240 distinct tiles, 142 used once, one 384-tile set loaded once, 8800 addressing. Ours (DMG preview): 3072 cells, 658 distinct, 499 used once. The difference is that our buildings are each one big unique picture.
 - Merged the flask fix (f94db279); the 6 classic_* goldens are being replaced after make test.
 - Owner 11-06: "I don't want the buildings to all look the same with a different sign. That is not what the Mario game does. If we need to design smaller buildings or be strategic about making building parts that can be combined in ways that retain the unique character of every venue that's fine." This is a standing rule (memory map-buildings-unique-character.md) and it shapes Q88 c.
+- 11-06 reference survey (a read-only agent): the best DMG ideas are for map streaming.
+  1. A pop-based drain in vq_exec: about 25% more bytes per VBlank, small job.
+  2. An HBlank bulk copy (libbet popslide, a reuse repo under zlib, so it needs attribution): 8 B per line, so 40 lines gives about 20 more tiles a frame; costs CPU against the map guard; check music ticks.
+  3. Fill-run packets.
+  The rest is already done (spread BG refresh, cold code out of ROM0) or of little use. Plan: try 1, then 2, on the map speed branch before any Q88 art work, and measure. The owner's Q87 and Q88 are still open.
