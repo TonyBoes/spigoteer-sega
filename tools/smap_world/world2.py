@@ -59,53 +59,21 @@ BIOME_PAL = {"grass": "grass", "forest": "grass", "paved": "stadium", "plaza": "
              "desert": "saloon", "jungle": "zoo", "moss": "tea", "plaza_town": "town1"}
 BIOME_TILES = {"grass": "grass", "forest": "forest", "paved": "paved", "plaza": "plaza", "snow": "snow", "yard": "yard", "farm": "farm",
                "desert": "desert", "jungle": "jungle", "moss": "moss"}
-# the forest floor: the grass tufts, denser (needles)
-GROUND["forest"] = [
-    ["00000000", "00000000", "00001000", "00101010", "00011100", "00000000", "00000000", "00000000"],
-    ["00000000", "01000100", "10101010", "01000100", "00000000", "00010001", "00101010", "00010001"],
-    ["10000000", "01000100", "00000000", "00100010", "01010101", "00000000", "10001000", "01010100"],
-    ["00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000"],
-]
-
-# ---- scenery placed by hand: (piece, x px, y px) ----------------------------------------------------------------------------------------------------
+# ---- scenery placed by hand: (piece, x px, y px); one list for both models (the land kit, owner 11-06) ---------------------------------------------------------
+# Every piece stands on flat ground (put_decor wipes the tuft under it) and on the 8 px phase of the same piece inside its venue (the lodge's pines on the grid,
+# the zoo's tree one pixel off it, the igloo's spruces on the grid and its drifts at y = 7 mod 8), so a tree on the land is the very tiles of the venue's tree.
 SCENERY = [
-    # forest round the lodge (the lodge's own two pine columns are in its picture)
-    (decor.PINE, 140, 6), (decor.PINE, 152, 34), (decor.PINE, 144, 58), (decor.PINE, 262, 10), (decor.PINE, 264, 38), (decor.PINE, 262, 62),
-    (decor.PINE, 160, 70), (decor.PINE, 140, 76), (decor.PINE, 168, 8),
-    # south of the trunk: bushes on the grass, jungle trees by the zoo, hay on the farm
-    (decor.BUSH, 240, 258), (decor.BUSH, 264, 258), (decor.BUSH, 284, 262), (decor.JUNGLE_TREE, 148, 258), (decor.JUNGLE_BUSH, 186, 262),
-    (decor.JUNGLE_BUSH, 206, 262),
-    (decor.HAY, 440, 262),
-    # desert
-    (decor.ROCK, 6, 120), (decor.ROCK_S, 66, 126), (decor.TUMBLE, 40, 144), (decor.ROCK, 82, 152), (decor.ROCK_S, 6, 170), (decor.TUMBLE, 90, 170),
-    (decor.TUMBLE, 4, 214), (decor.ROCK_S, 96, 204), (decor.ROCK, 20, 140), (decor.ROCK_S, 60, 170), (decor.ROCK, 92, 130),
-    (decor.ROCK, 6, 262), (decor.TUMBLE, 50, 256), (decor.ROCK_S, 100, 262), (decor.ROCK, 22, 368), (decor.TUMBLE, 70, 364), (decor.ROCK_S, 104, 372),
-    (decor.ROCK, 104, 366), (decor.ROCK_S, 8, 362),
-    # snow
-    (decor.SPRUCE, 428, 10), (decor.SPRUCE, 452, 4), (decor.SPRUCE, 478, 12), (decor.SPRUCE, 494, 6), (decor.MOUND, 470, 28), (decor.MOUND, 424, 30),
-    (decor.SPRUCE, 424, 120), (decor.SPRUCE, 452, 132), (decor.SPRUCE, 480, 120), (decor.SPRUCE, 496, 144), (decor.SPRUCE, 436, 150), (decor.SPRUCE, 472, 150),
-    (decor.MOUND, 456, 160), (decor.MOUND, 432, 158), (decor.MOUND, 484, 164),
-    # farm: a barn, hay bales
-    (decor.BARN, 448, 192), (decor.HAY, 432, 232), (decor.HAY, 470, 240), (decor.HAY, 500, 226), (decor.HAY, 432, 296), (decor.HAY, 480, 330), (decor.HAY, 446, 360),
-    # jungle and the teahouse garden
-    (decor.JUNGLE_BUSH, 150, 368), (decor.JUNGLE_BUSH, 204, 372),
-]
-# ---- the same scenery for the DMG data set (round 5): every piece on the 8 px grid, typed by hand, so the copies of a piece are the same tiles ------------
-SCENERY_DMG = [
     (decor.PINE, 144, 8), (decor.PINE, 152, 32), (decor.PINE, 144, 56), (decor.PINE, 264, 8), (decor.PINE, 264, 40),
-    (decor.PINE, 160, 72), (decor.PINE, 136, 72), (decor.PINE, 168, 8),
-    (decor.BUSH, 240, 256), (decor.BUSH, 264, 256), (decor.BUSH, 288, 256), (decor.JUNGLE_TREE, 144, 256), (decor.JUNGLE_BUSH, 184, 264),
+    (decor.PINE, 160, 72), (decor.PINE, 168, 8),
+    (decor.BUSH, 240, 256), (decor.BUSH, 264, 256), (decor.BUSH, 288, 256), (decor.JUNGLE_TREE, 148, 259), (decor.JUNGLE_BUSH, 184, 264),
     (decor.JUNGLE_BUSH, 208, 264),
     (decor.HAY, 440, 264),
-    (decor.ROCK, 8, 120), (decor.ROCK, 80, 152), 
-    (decor.ROCK, 24, 136), (decor.ROCK, 88, 128),
-    (decor.ROCK, 8, 264), (decor.ROCK, 24, 368), 
-    (decor.ROCK, 104, 368), 
-    (decor.SPRUCE, 432, 8), (decor.SPRUCE, 456, 0), (decor.SPRUCE, 480, 8), (decor.SPRUCE, 496, 0), (decor.MOUND, 472, 24), (decor.MOUND, 424, 32),
+    (decor.ROCK, 8, 120), (decor.ROCK, 80, 152), (decor.ROCK, 24, 136), (decor.ROCK, 88, 128),
+    (decor.ROCK, 8, 264), (decor.ROCK, 24, 368), (decor.ROCK, 104, 368),
+    (decor.SPRUCE, 432, 8), (decor.SPRUCE, 456, 0), (decor.SPRUCE, 480, 8), (decor.SPRUCE, 496, 0),
     (decor.SPRUCE, 424, 120), (decor.SPRUCE, 456, 128), (decor.SPRUCE, 480, 120), (decor.SPRUCE, 496, 144), (decor.SPRUCE, 440, 144), (decor.SPRUCE, 472, 152),
-    (decor.MOUND, 456, 160), (decor.MOUND, 432, 152), (decor.MOUND, 488, 168),
+    (decor.MOUND, 472, 31), (decor.MOUND, 424, 31), (decor.MOUND, 448, 159), (decor.MOUND, 424, 159), (decor.MOUND, 488, 167),
     (decor.BARN, 448, 192), (decor.HAY, 432, 232), (decor.HAY, 472, 240), (decor.HAY, 496, 224), (decor.HAY, 432, 296), (decor.HAY, 480, 328), (decor.HAY, 448, 360),
-    (decor.JUNGLE_BUSH, 152, 368), (decor.JUNGLE_BUSH, 200, 368),
 ]
 # crop fields on the farm east of the spine: (x0, y0, x1, y1) cells
 FIELDS = [(53, 27, 62, 31), (53, 34, 62, 38)]
@@ -210,15 +178,11 @@ class World:
                     self.set_tile(cx, cy, t, "town1", "ground")
                     self.ground_pal[cy][cx] = "town1"
                     continue
-                vs = GROUND[BIOME_TILES[b]]
+                vs = GROUND[BIOME_TILES[b]]                         # the flat tile and one tuft per biome (forest: one needle tile), the same for both models
                 h = (cx * 7 + cy * 13 + cx * cy) % 13
-                v = vs[0] if h not in (3, 8, 11) or len(vs) == 1 else vs[1 + (h // 3) % (len(vs) - 1)]
+                v = vs[0] if h not in (3, 8, 11) or len(vs) == 1 else vs[1]
                 if b == "forest":
-                    v = vs[h % 3] if h % 4 else vs[3]
-                if self.dmg:                                        # DMG: the flat tile and one tuft per biome (forest: one needle tile)
-                    v = vs[0] if h not in (3, 8, 11) or len(vs) == 1 else vs[1]
-                    if b == "forest":
-                        v = vs[1] if h % 4 else vs[3]
+                    v = vs[1] if h % 4 else vs[3]
                 self.set_tile(cx, cy, v, BIOME_PAL[b], "ground")
                 self.ground_pal[cy][cx] = BIOME_PAL[b]
         # crop fields on the farm
@@ -248,7 +212,7 @@ class World:
                     self.set_tile(cx0 + i, cy0 + j, cell, pal, name)
         # scenery
         self.bad = []
-        for (pc, x, y) in (SCENERY_DMG if self.dmg else SCENERY):
+        for (pc, x, y) in SCENERY:
             self.put_decor(pc, x, y)
         # roads
         for (cx, cy) in sorted(self.roads):
@@ -274,19 +238,20 @@ class World:
             return ROAD["EW"]
         if not e:
             return ROAD["EE"]
-        if not nw:
-            return ROAD["INW"]
-        if not ne:
-            return ROAD["INE"]
-        if not sw:
-            return ROAD["ISW"]
-        if not se:
-            return ROAD["ISE"]
         return f
 
     def put_decor(self, pc, x, y):
         pal, rows = pc
         h, w = len(rows), len(rows[0])
+        # a piece stands on flat ground: the tuft under it is not drawn (the same piece is then the same tiles wherever it stands)
+        cells = [(cx, cy) for cy in range(y // 8, (y + h - 1) // 8 + 1) for cx in range(x // 8, (x + w - 1) // 8 + 1)]
+        if all(0 <= cx < CW and 0 <= cy < CH and (cx, cy) not in self.roads and self.kind[cy][cx] in ("ground", "decor") and self.pal[cy][cx] == pal
+               for cx, cy in cells):
+            for cx, cy in cells:
+                if self.kind[cy][cx] == "ground":
+                    for j in range(8):
+                        for i in range(8):
+                            self.px[cy * 8 + j][cx * 8 + i] = 0
         for j in range(h):
             for i in range(w):
                 ch = rows[j][i]
