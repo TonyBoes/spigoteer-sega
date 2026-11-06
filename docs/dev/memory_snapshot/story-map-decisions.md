@@ -23,3 +23,5 @@ These are the owner's decisions for the story-mode overworld map (2026-10-18). I
 **How to apply:** brief map agents from these rulings, and check the v4 map's open questions (Q61) before building. Related: [[art-in-house]], [[three-modes-decisions]].
 
 UPDATE 2026-11-06 (owner): "Fog is not an important feature. If it ends up making a difference, it can be cut." The map fog is optional: if it costs the route plan (ROM, speed or complexity), cut it rather than design around it.
+
+UPDATE 2026-11-06 (owner): "When we reconfigure the map, I want the route design to be a little better. The locations still need to be in the same order as the player loops around, but they don't have to be in the exact positions they are currently in." Venue positions and roads may move in a map reconfiguration; the loop order of the venues is fixed.
