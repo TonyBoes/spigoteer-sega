@@ -120,6 +120,369 @@ __asm
     ret
 __endasm;
 }
+// DMG, asm: the first free slot (use count 0) from slot rr on, wrapping once; 255: none. The C twin is the loop in add_cell. Four slots a step, 24 cycles a slot (the C loop: about 70).
+typedef char smap_free_offsets[(A_CNT == 220 && SMAPW_POOL == 176 && S_V == 396) ? 1 : -1];
+static uint8_t smap_freeslot(uint8_t rr) __naked {
+    (void)rr;
+__asm
+    ld   e, a
+    ld   c, a
+    ld   b, #0
+    ld   hl, #_story_scratch + 220
+    add  hl, bc                             ; hl = the count of slot rr
+    ld   a, #176
+    sub  a, e
+    jr   z, 4$
+    ld   b, a                               ; the slots rr .. 175
+    call 1$
+    jr   c, 8$
+4$:
+    ld   a, e
+    or   a, a
+    jr   z, 9$
+    ld   b, a                               ; the slots 0 .. rr - 1
+    ld   hl, #_story_scratch + 220
+    call 1$
+    jr   c, 8$
+9$:
+    ld   a, #0xFF
+    ret
+8$:
+    ld   a, l
+    sub  a, #<(_story_scratch + 221)
+    ret
+1$:                                         ; b slots (b > 0) from hl: carry set: hl - 1 is the free one
+    ld   a, b
+    and  a, #3
+    jr   z, 3$
+    ld   c, a
+2$:
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 7$
+    dec  c
+    jr   nz, 2$
+3$:
+    ld   a, b
+    srl  a
+    srl  a
+    jr   z, 6$
+    ld   b, a
+5$:
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 7$
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 7$
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 7$
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 7$
+    dec  b
+    jr   nz, 5$
+6$:
+    xor  a, a                               ; none (carry clear)
+    ret
+7$:
+    scf
+    ret
+__endasm;
+}
+#endif
+#if ASM_SMAP
+// DMG, asm: the whole of add_cell for a tile that is not resident (the C twin is the code of add_cell below it, which also takes every other case): the slot (the hint, its second
+// home, else the first free one after the pointer), the old tile's far count, the table, the tile staged and queued, the slot's count. In: de = the cell (word, aux). Out: bc,
+// c = R_OK, R_RES, R_ROOM, or 3: not for it (the tile may be resident, NDISP is not 0): the C code takes the cell; b = the id when R_OK.
+// (story_scratch + : 438 V_NSTG, 439 V_RES, 440 V_RESE, 442 V_RR, 450 V_PWL, 451 V_PWH tile, 452 V_LIMC the hint, 453 V_LIMQ the slot, 457 V_NDISP, 220 the counts, 176 the highs)
+typedef char smap_dadd_offsets[(V_NSTG == 42 && V_RES == 43 && V_RESE == 44 && V_RR == 46 && V_PWL == 54 && V_PWH == 55 && V_LIMC == 56 && V_LIMQ == 57 && V_NDISP == 61
+                                && S_V == 396 && S_T + T_TILES == 464 && A_CNT == 220 && A_TBL == 0 && SMAPW_POOL == 176 && VQ_USE == 22 && VQ_DRAIN_BUDGET == 86 && sizeof(vq_entry_t) == 8) ? 1 : -1];
+static uint16_t smap_dadd(const smap_fc *f) __naked {
+    (void)f;
+__asm
+    ld   a, (_story_scratch + 457)          ; V_NDISP: a far tile may hold it
+    or   a, a
+    jp   nz, 80$
+    ld   a, (de)
+    ld   (_story_scratch + 450), a          ; the tiles low byte
+    inc  de
+    ld   a, (de)
+    and  a, #3
+    ld   (_story_scratch + 451), a          ; its high bits
+    inc  de
+    ld   a, (de)
+    ld   (_story_scratch + 452), a          ; the hint
+    ld   e, a
+    call 60$                                ; the hint slot holds it?
+    jp   z, 80$
+    ld   a, (_story_scratch + 452)
+    call 70$                                ; a = home2
+    ld   e, a
+    call 60$
+    jp   z, 80$
+    ld   a, (_story_scratch + 438)          ; V_NSTG
+    cp   a, #2
+    jp   nc, 82$
+    ld   a, (_qv_cost)                      ; room(): 81 - qv_cost, 0 from 81 on
+    cp   a, #81
+    jp   nc, 82$
+    ld   b, a
+    ld   a, #81
+    sub  a, b
+    ld   b, a
+    ld   a, (_story_scratch + 439)          ; V_RES
+    add  a, #20                             ; (the cell 1 + a tile 19)
+    ld   c, a
+    ld   a, b
+    cp   a, c
+    jp   c, 82$
+    ld   a, (_vq_count)
+    ld   b, a
+    ld   a, (_story_scratch + 440)          ; V_RESE
+    add  a, b
+    inc  a                                  ; (the tiles entry)
+    cp   a, #23
+    jp   nc, 82$
+    ld   a, (_story_scratch + 452)          ; the slot: the hint if no cell shows what it holds, else its second home, else the next free after the pointer
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_story_scratch + 220
+    add  hl, de
+    ld   a, (hl)
+    or   a, a
+    jr   z, 5$
+    ld   a, e
+    call 70$
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_story_scratch + 220
+    add  hl, de
+    ld   a, (hl)
+    or   a, a
+    jr   z, 5$
+    ld   a, (_story_scratch + 442)          ; V_RR
+    call _smap_freeslot
+    cp   a, #0xFF
+    jp   z, 81$
+    ld   e, a
+    inc  a
+    cp   a, #176
+    jr   c, 4$
+    xor  a, a
+4$:
+    ld   (_story_scratch + 442), a
+5$:
+    ld   a, e
+    ld   (_story_scratch + 453), a          ; the slot
+    call 50$                                ; (the old tile: b = its high bits, c = its low byte)
+    ld   a, c
+    inc  a
+    jr   nz, 6$
+    ld   a, b
+    cp   a, #3
+    jr   z, 8$                              ; the slot was free
+6$:
+    ld   e, #___bank_smap_d_a
+    ld   hl, #_smap_d_hintx
+    call ___sdcc_bcall_ehl                  ; a = the old tiles hint slot
+    ld   hl, #_story_scratch + 453
+    ld   e, (hl)
+    call 71$                                ; (a = n: is the slot far from it?)
+    jr   nc, 8$
+    ld   hl, #_story_scratch + 457
+    dec  (hl)
+8$:
+    ld   a, (_story_scratch + 453)
+    ld   e, a
+    ld   a, (_story_scratch + 452)
+    call 71$
+    jr   nc, 9$
+    ld   hl, #_story_scratch + 457
+    inc  (hl)
+9$:
+    ld   a, (_story_scratch + 453)          ; tbl_set
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_story_scratch
+    add  hl, de
+    ld   a, (_story_scratch + 450)
+    ld   (hl), a
+    ld   a, e
+    srl  a
+    srl  a
+    ld   l, a
+    ld   h, #0
+    ld   bc, #_story_scratch + 176
+    add  hl, bc
+    ld   a, e
+    and  a, #3
+    add  a, a
+    ld   c, a
+    ld   a, (_story_scratch + 451)
+    ld   d, a
+    ld   a, #3
+    inc  c
+10$:
+    dec  c
+    jr   z, 11$
+    sla  a
+    sla  d
+    jr   10$
+11$:
+    cpl
+    and  a, (hl)
+    or   a, d
+    ld   (hl), a
+    ld   e, #___bank_smap_d_t
+    ld   hl, #_smap_d_tcopy
+    call ___sdcc_bcall_ehl                  ; the tile into the staging slot
+    ld   a, (_story_scratch + 453)
+    cp   a, #36                             ; pool_id
+    jr   c, 12$
+    add  a, #57
+12$:
+    ld   (_story_scratch + 449), a          ; V_BCAP: the id
+    ld   c, a
+    ld   l, a
+    ld   h, #0
+    add  hl, hl
+    add  hl, hl
+    add  hl, hl
+    add  hl, hl
+    bit  7, c
+    ld   a, #0x90
+    jr   z, 13$
+    ld   a, #0x80
+13$:
+    add  a, h
+    ld   h, a                               ; hl = tile_addr(id)
+    push hl
+    ld   a, (_vq_count)                     ; qraw(0, staging, hl, 16)
+    cp   a, #24
+    jr   nc, 15$
+    ld   b, a
+    inc  a
+    ld   (_vq_count), a
+    ld   l, b
+    ld   h, #0
+    add  hl, hl
+    add  hl, hl
+    add  hl, hl
+    ld   de, #_vq
+    add  hl, de
+    ld   a, (_qv_cost)
+    cp   a, #87
+    jr   nc, 14$
+    add  a, #19
+    ld   (_qv_cost), a
+14$:
+    ld   a, #16
+    ld   (hl+), a
+    xor  a, a
+    ld   (hl+), a
+    ld   a, (_story_scratch + 438)
+    swap a
+    and  a, #0xF0
+    add  a, #<(_story_scratch + 464)
+    ld   (hl+), a
+    ld   a, #>(_story_scratch + 464)
+    adc  a, #0
+    ld   (hl+), a
+    pop  de
+    ld   a, e
+    ld   (hl+), a
+    ld   (hl), d
+    jr   16$
+15$:
+    pop  hl
+16$:
+    ld   hl, #_story_scratch + 438
+    inc  (hl)                               ; V_NSTG
+    ld   a, (_story_scratch + 453)
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_story_scratch + 220
+    add  hl, de
+    inc  (hl)                               ; the slots count
+    ld   a, (_story_scratch + 449)
+    ld   b, a                               ; (the id)
+    ld   c, #0
+    ret
+80$:
+    ld   c, #3
+    ret
+81$:
+    ld   c, #1
+    ret
+82$:
+    ld   c, #2
+    ret
+50$:                                        ; e = a slot: b = its high bits, c = its low byte
+    call 51$
+    ld   b, a
+    ld   d, #0
+    ld   hl, #_story_scratch
+    add  hl, de
+    ld   c, (hl)
+    ret
+51$:                                        ; e = a slot: a = its high bits (bc, hl)
+    ld   a, e
+    srl  a
+    srl  a
+    ld   l, a
+    ld   h, #0
+    ld   bc, #_story_scratch + 176
+    add  hl, bc
+    ld   b, (hl)
+    ld   a, e
+    and  a, #3
+    add  a, a
+    ld   c, a
+    ld   a, b
+    inc  c
+52$:
+    dec  c
+    jr   z, 53$
+    srl  a
+    jr   52$
+53$:
+    and  a, #3
+    ret
+60$:                                        ; e = a slot: z when it holds the tile
+    ld   d, #0
+    ld   hl, #_story_scratch
+    add  hl, de
+    ld   a, (hl)
+    ld   hl, #_story_scratch + 450
+    cp   a, (hl)
+    ret  nz
+    call 51$
+    ld   hl, #_story_scratch + 451
+    cp   a, (hl)
+    ret
+70$:                                        ; a = a hint: a = its second home
+    cp   a, #88
+    jr   c, 72$
+    sub  a, #88
+    ret
+72$:
+    add  a, #88
+    ret
+71$:                                        ; a = a tiles hint n, e = a slot: carry when the slot is neither n nor its second home
+    cp   a, e
+    jr   z, 73$
+    call 70$
+    cp   a, e
+    jr   z, 73$
+    scf
+    ret
+73$:
+    or   a, a
+    ret
+__endasm;
+}
 #endif
 static uint8_t home2(uint8_t h) { return h < 88 ? h + 88 : h - 88; }   // a tile's second home slot (when its hint is busy)
 static uint8_t tbl_find(uint16_t t, uint8_t hint) {     // the slot holding tile t, or NIL
@@ -200,6 +563,12 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
         need_t = nib_get(slot9) != var;
         bank = slot9 >= SMAPW_POOL;
     } else {
+#if ASM_SMAP
+        if (!direct) {                               // (a tile to load, all in asm; 3: the C code below takes the cell)
+            uint16_t x = smap_dadd(f);
+            if ((uint8_t)x != 3) { if ((uint8_t)x) return (uint8_t)x; SC(S_T + T_IDS)[k] = (uint8_t)(x >> 8); return R_OK; }
+        }
+#endif
         slot = tbl_find(t, (uint8_t)f->aux);
         need_t = slot == NIL;
     }
@@ -222,10 +591,16 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
             if (SC(A_CNT)[h] == 0) s = h;
             else if (SC(A_CNT)[home2(h)] == 0) s = home2(h);
             else {
+#if ASM_SMAP
+                s = smap_freeslot(V(V_RR));
+                if (s == NIL) return R_RES;
+                V(V_RR) = s + 1 >= SMAPW_POOL ? 0 : s + 1;
+#else
                 rr = V(V_RR);
                 for (n = 0; n < SMAPW_POOL; n++) { s = rr; rr = rr + 1 >= SMAPW_POOL ? 0 : rr + 1; if (SC(A_CNT)[s] == 0) break; }
                 if (n == SMAPW_POOL) return R_RES;
                 V(V_RR) = rr;
+#endif
             }
             slot = s;
             slot9 = tbl_get(s);                      // the tile it held leaves (a far one is one fewer); the new one is far when both its homes were busy
