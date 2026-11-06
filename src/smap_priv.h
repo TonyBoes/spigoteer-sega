@@ -70,7 +70,7 @@ extern vq_entry_t vq[];
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
 #define LY_WORK 50                                    // (Color: double speed, the same work takes half the lines)
 #define LY_FIRST 50
-#define LY_WORK_C 100
+#define LY_WORK_C 99
 #define LY_FIRST_C 100
 #define LY_DOTS  (is_cgb ? 12 : 24)
 #define LY_SLOWC 0
