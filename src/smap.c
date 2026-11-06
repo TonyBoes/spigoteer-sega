@@ -148,7 +148,7 @@ static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, ui
     o->prop = (is_cgb ? pal : 0) | flip;
 }
 
-static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 frames)
+static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 px walked: the same pace at any walk speed)
 
 // A sprite entry written inline (a call with seven arguments costs more than the entry's four stores): px, py the top-left of the 8-px column's art on screen
 // (it may lie off an edge: then the entry is hidden), vh its visible height; entries the window layer (wh lines from wy) covers are hidden too.
@@ -317,7 +317,7 @@ static void draw(void) {
     sx = (int16_t)g16(V_FX) - 8 - cx;               // Sal's top-left on the screen
     sy = (int16_t)g16(V_FY) - 24 - cy;
     nudge = (tk >> 4) & 1;                          // (the arrows bob 1 px every 16 frames, the UFO every 32)
-    if (V(V_WALK)) pic = pic_seq[(tk >> 2) & 3];
+    if (V(V_WALK)) { pic = ((uint8_t)(V(V_FX) + V(V_FY)) >> 2) & 3; sy -= pic & 1; pic = pic_seq[pic]; }   // (on the passing pose Sal is drawn 1 px higher, as in the levels)
     if (!panel && !V(V_WALK))                       // the arrows: where each button leads (none while a panel is up or Sal walks)
         for (d = 0; d < 4; d++) {
             s = smapw_exit[smap_stop][d];
@@ -346,8 +346,9 @@ static void draw(void) {
 
 // A walking frame on which the camera did not move and no window is up: only Sal's four entries change (the rest of the sprites keep their place in the shadow OAM)
 static void draw_walk(void) {
-    uint8_t t = pic_seq[(V(V_TICK) >> 2) & 3] * BARTENDER_TILES_PER_FRAME, cgbp = is_cgb, wh = 0;
-    int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY), ay, wy = 0, wend = 0;
+    uint8_t t = ((uint8_t)(V(V_FX) + V(V_FY)) >> 2) & 3, cgbp = is_cgb, wh = 0;
+    int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY) - (t & 1), ay, wy = 0, wend = 0;
+    t = pic_seq[t] * BARTENDER_TILES_PER_FRAME;
     SPR(OAM_SAL, sx, sy, t, OBJPAL_BARTENDER, 0, 16);
     SPR(OAM_SAL + 1, sx + 8, sy, t + 2, OBJPAL_BARTENDER, 0, 16);
     ay = sy + 16;
