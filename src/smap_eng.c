@@ -707,19 +707,19 @@ __asm
 1$:
     ld   a, l
     cp   a, #<(_vq + 192)
-    jp   nz, 2$
+    jr   nz, 2$
     ld   a, h
     cp   a, #>(_vq + 192)
-    jp   z, 9$
+    jr   z, 9$
 2$:
     ld   a, (hl)            ; n: 0 is the mark that ends the list
     or   a, a
-    jp   z, 9$
+    jr   z, 9$
     push hl
     inc  hl
     ld   a, (hl+)           ; bank
     bit  1, a
-    jp   z, 8$
+    jr   z, 8$
     ldh  (0x4F), a
     ld   e, (hl)            ; src
     inc  hl
@@ -731,7 +731,7 @@ __asm
     ld   c, a
     ld   a, (hl)            ; pad[1]
     bit  7, a
-    jp   z, 5$
+    jr   z, 5$
     ld   b, a               ; stride: n - 1 in bits 10-14, the map offset in bits 0-9
     srl  b
     srl  b
@@ -741,150 +741,19 @@ __asm
     add  a, #0x98
     ld   h, a
     ld   l, c
-    ld   a, #32             ; the last n of 32 unrolled cells (4 bytes each): 8 cycles a cell, not 17
-    sub  a, b
-    add  a, a
-    add  a, a
-    call 10$                ; (the return address is the first cell's)
+6$:
     ld   a, (de)
     inc  de
     ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    add  hl, bc
-    jp   8$
-10$:
-    pop  bc
-    add  a, c
-    ld   c, a
-    jr   nc, 11$
-    inc  b
-11$:
-    push bc
-    ld   bc, #32
-    ret
+    ld   a, l
+    add  a, #32
+    ld   l, a
+    jr   nc, 7$
+    inc  h
+7$:
+    dec  b
+    jr   nz, 6$
+    jr   8$
 5$:                         ; a tile: dst = 0x8000 + 16 * (a:c), one general-purpose DMA block (the CPU waits for it)
     ld   b, a
     ld   a, c
@@ -918,7 +787,7 @@ __asm
     dec  hl
     ld   de, #8
     add  hl, de
-    jp   1$
+    jr   1$
 9$:
     pop  bc
     pop  af
