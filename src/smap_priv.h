@@ -125,6 +125,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define WALK_SC  1
 #define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_TOP are free, panel_open sets them again) the walk's stretch length
 #define V_WT     V_TOP                                // the px walked on the stretch (a panel's byte, free while Sal walks)
+#define V_WPH    V_ROWS                               // the walk's pose clock: timer << 2 | phase (a panel's byte, free while Sal walks)
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
 #define LEAD     1                                    // lines the region loads ahead of the view, in the direction of travel
