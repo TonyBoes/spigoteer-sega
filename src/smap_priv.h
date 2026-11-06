@@ -129,7 +129,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
 #define LEAD     1                                    // lines the region loads ahead of the view, in the direction of travel
-#define ADD_CAP  6
+#define ADD_CAP  8
 #define DROP_CAP 6
 
 // the engine (src/smap_eng.c)

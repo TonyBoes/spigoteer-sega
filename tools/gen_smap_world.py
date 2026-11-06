@@ -593,6 +593,20 @@ void {tag}_palette(uint8_t i, uint8_t *dst) BANKED {{
         L.append(f"""
 // tile t's hint slot (the allocator asks it of the tile a slot holds)
 uint8_t {tag}_hintof(uint16_t t) BANKED {{ return {tag}_hint[t]; }}
+
+#if ASM_SMAP
+// asm, for smap_dadd (src/smap_eng.c, through the bank trampoline): the hint slot of tile b << 8 | c, in a
+void {tag}_hintx(void) BANKED __naked {{
+__asm
+    ld   h, b
+    ld   l, c
+    ld   de, #_{tag}_hint
+    add  hl, de
+    ld   a, (hl)
+    ret
+__endasm;
+}}
+#endif
 """)
     return "\n".join(L)
 
@@ -641,6 +655,18 @@ def emit_tiles(m, tag):
          "    for (k = 0; k < 16; k++) dst[k] = s[k];",
          "}",
          "#endif", ""]
+    if not m.cgb:        # DMG only: smap_dadd's tile copy (it reaches this bank through the trampoline, with no arguments on the stack)
+        tc = [f"#if ASM_SMAP",
+              f"// asm, for smap_dadd (through the bank trampoline): tile t (story_scratch + 450, 451: V_PWL, V_PWH) into the staging slot V_NSTG (story_scratch + 438), 16 bytes unrolled",
+              f"void {tag}_tcopy(void) BANKED __naked {{",
+              "__asm",
+              "    ld   a, (_story_scratch + 450)", "    ld   l, a", "    ld   a, (_story_scratch + 451)", "    ld   h, a",
+              "    add  hl, hl", "    add  hl, hl", "    add  hl, hl", "    add  hl, hl",
+              f"    ld   de, #_{tag}_tiles", "    add  hl, de",
+              "    ld   a, (_story_scratch + 438)", "    swap a", "    and  a, #0xF0", "    add  a, #<(_story_scratch + 464)", "    ld   e, a",
+              "    ld   a, #>(_story_scratch + 464)", "    adc  a, #0", "    ld   d, a"] + ["    ld   a, (hl+)\n    ld   (de), a\n    inc  de"] * 15 + [
+              "    ld   a, (hl)", "    ld   (de), a", "    ret", "__endasm;", "}", "#endif", ""]
+        L += tc
     return "\n".join(L), data
 
 
