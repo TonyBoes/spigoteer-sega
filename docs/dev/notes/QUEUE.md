@@ -544,3 +544,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
   - Goldens story_map_scroll_walking dmg and cgb replaced. Make test and make check are green.
   - Pocket Player v72: mapfast removed (folded into main). Handoff: docs/dev/handoffs/smap_speed_2026-11-06.md.
   - Next (pending Q89): an asm pass on the DMG cell path (tile decode, slot search, fetch), with C twins.
+- Owner 11-06: "Q89 yes." The DMG map art redraw is HELD until the map engine's DMG cell work is sped up and measured. The tile kit proposal (branch worktree-agent-ad5a8d9a84b76065c) stays unmerged. Next: an asm pass (behind ASM_SMAP, C twins kept and tested, make cfall) on smap_d_tile (tile decode), the free-slot search and smap_d_fetch, measured on DMG px/frame, late frames and the map guard (DMG 160, not raised). Open Questions: Q89 card removed (0 open). A gb-worker was started on it 11-06.
