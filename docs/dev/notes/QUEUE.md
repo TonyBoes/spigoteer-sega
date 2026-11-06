@@ -513,3 +513,8 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Blockers: the walk perf guard is breached (DMG 154 against 139, Color 143 against 84). Asked the owner as Q87; the guard is not raised. ROM0 is 400 free against a floor of 421. The +4 cycles in vq_exec break 5 timing-fragile tests (qd sprays, rush boss, story_difficulty, rng stadium, logroll fall); these need a zero-cycle dispatch.
 - Q88: DMG art trim (about 124 tiles across 10 zones, from out/mv/optb.py). Asked the owner.
 - Test ROM: Pocket Player "Map fast walk 2 (test)" (v70); the ROM was sent in chat.
+
+### 2026-11-06 owner asks (UFO level)
+- Owner: "The empty flasks in the ufo level needs to have transparency. It looks like it has gray liquid."
+- Owner: "The ufo that beams you up needs to do so on the map, not when you're already in the ufo level."
+- Plan: two gb-workers. (1) The empty flask shows the wall through it, with no grey fill; fix only the flask. (2) Move the UFO beam-up (cameo.c CU_UP/CU_DOWN in SC_PRE_SPACE) to the story map: the UFO beams Sal up at the space stop, and the in-venue scene drops the beam. Report on DMG and Color. Q87/Q88 are still open.
