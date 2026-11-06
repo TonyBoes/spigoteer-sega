@@ -470,11 +470,12 @@ def test_losing_the_fight_restarts_the_venue_and_puts_everything_back(model):
         to_goal(gb)
         gb.run(2)
         got = snapshot(gb)
-        # DMG tile 232 is the map's last pool slot: the level neither loads nor shows it here, so what it holds is whatever the story map left (the map
-        # screen the TRY AGAIN banner stands on), not something the fight borrowed. Ignore that one tile.
+        # DMG tiles 230 to 232 are the map's last pool slots: the level neither loads nor shows them here, so what they hold is whatever the story map left
+        # (the map screen the TRY AGAIN banner stands on), not something the fight borrowed. Ignore those three tiles (the town venue import left 3 of them,
+        # the land kit 1: the count follows how many tiles the map's allocator ends up using).
         got, want = dict(got), dict(want)
         for s in (got, want):
-            s["bg"] = s["bg"][:154 * 16] + s["bg"][155 * 16:]
+            s["bg"] = s["bg"][:152 * 16] + s["bg"][155 * 16:]
         assert got == want
         hud_now = tilemap_row(gb, 0, 0, 20)
         assert hud_now[7:] == want_hud[7:], "the HUD's goal and level, no face, no meter"
