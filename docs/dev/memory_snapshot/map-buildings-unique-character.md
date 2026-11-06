@@ -21,3 +21,5 @@ This answered my suggestion (Q88 c, for a smooth DMG map) to build the buildings
 - Proposals go to the owner first.
 
 Related: [[art-consistency-only-flagged]], [[gb-pixel-art-skill]], [[story-map-decisions]].
+
+UPDATE 2026-11-06 (owner, Q91): the town is a map venue like the others: "They were supposed to make the town like all the other venue locations from the same perspective, etc." So the town is drawn as a building group in the same view, scale and style as the other venues on the map, not as a framed scene in the old scene's place. Every map piece follows the other venues' perspective.
