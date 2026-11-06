@@ -1,5 +1,4 @@
-# Story cameos (src/cameo.c, owner-approved 2026-11-04): the Sasquatch on the lumber pages, Leo and his crown on the zoo pages, and the UFO beam-up
-# on PRE_SPACE. Sprites only (OAM 20-39); the cue's page and frame counter are win_rows[4][0..1], the entries drawn last frame win_rows[4][2].
+# Story cameos (src/cameo.c, owner-approved 2026-11-04): the Sasquatch on the lumber pages and Leo and his crown on the zoo pages. (The UFO's beam-up is on the story map now: test_story_map.py; PRE_SPACE has no cameo.) Sprites only (OAM 20-39); the cue's page and frame counter are win_rows[4][0..1], the entries drawn last frame win_rows[4][2].
 import pytest
 
 from test_flow import GS_STORY, run_until, state
@@ -7,7 +6,7 @@ from test_scores import v7_image
 from test_story import SC, SCENES, page_ready, settle, skip_scene, start_story, turn_page
 
 OAM0 = 20
-CU = {"NONE": 0, "PRE_WAVE": 1, "HANDOVER": 2, "SNEAK": 3, "WAVE": 4, "LEO_CROWN": 5, "LEO_PURR": 6, "LEO_PLACED": 7, "CROWNED": 8, "UP": 9, "DOWN": 10}
+CU = {"NONE": 0, "PRE_WAVE": 1, "HANDOVER": 2, "SNEAK": 3, "WAVE": 4, "LEO_CROWN": 5, "LEO_PURR": 6, "LEO_PLACED": 7, "CROWNED": 8}
 # (scene, 0-based page, cue, frame to look at, cameo OAM entries then)
 CUES = [
     ("PRE_LUMBER", 2, "PRE_WAVE", 40, 5),
@@ -20,9 +19,6 @@ CUES = [
     ("POST_ZOO", 0, "LEO_PURR", 40, 5),
     ("POST_ZOO", 1, "LEO_PLACED", 40, 5),
     ("POST_ZOO", 2, "CROWNED", 40, 1),
-    ("PRE_SPACE", 0, "UP", 36, 9),
-    ("PRE_SPACE", 0, "UP", 60, 12),
-    ("PRE_SPACE", 1, "DOWN", 60, 12),
 ]
 SCENE_NAMES = ["PRE_LUMBER", "POST_LUMBER", "PRE_ZOO", "POST_ZOO", "PRE_SPACE"]
 
@@ -95,32 +91,7 @@ def test_each_cameo_appears_on_its_pages_and_nowhere_else(model, sid):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_ufo_lifts_the_spigoteer_and_sets_him_down(model):
-    gb = scene_of(model, "PRE_SPACE")
-    with gb:
-        sal = [e["y"] for e in gb.oam()[:4]]
-        at_frame(gb, 0, 20)
-        assert [e["y"] for e in gb.oam()[:4]] == sal
-        at_frame(gb, 0, 60)
-        assert all(e["y"] < y for e, y in zip(gb.oam()[:4], sal)), "rising"
-        at_frame(gb, 0, 90)
-        assert [e["y"] for e in gb.oam()[:4]] == [0, 0, 0, 0], "inside the UFO"
-        page_ready(gb)
-        turn_page(gb, 1)
-        at_frame(gb, 1, 20)
-        assert [e["y"] for e in gb.oam()[:4]] == [0, 0, 0, 0], "not yet down"
-        at_frame(gb, 1, 60)
-        assert all(0 < e["y"] < y for e, y in zip(gb.oam()[:4], sal)), "descending"
-        at_frame(gb, 1, 100)
-        assert [e["y"] for e in gb.oam()[:4]] == sal, "back at his tap"
-        page_ready(gb)
-        turn_page(gb, 2)
-        gb.run(4)
-        assert [e["y"] for e in gb.oam()[:4]] == sal and not cameo_sprites(gb)
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("sid,k", [("PRE_LUMBER", 2), ("POST_ZOO", 1), ("PRE_SPACE", 0)])
+@pytest.mark.parametrize("sid,k", [("PRE_LUMBER", 2), ("POST_ZOO", 1)])
 def test_skipping_the_scene_mid_cue_leaves_no_cameo_sprite(model, sid, k):
     gb = scene_of(model, sid)
     with gb:

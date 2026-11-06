@@ -457,6 +457,9 @@ def through_the_map(gb, limit=200):
         gb.write("smap_stop", min(gb.mem("story_progress"), 9))   # (Sal on the next venue, wherever the saved map block left him)
         gb.run(2)
         gb.press("a", 2)
+        gb.run(6)
+        if gb.mem("story_phase") == SP_MAP and gb.mem("smap_stop") == 9:   # (the space lounge: the UFO's beam-up plays on the map; A skips it)
+            gb.press("a", 2)
         run_until(gb, lambda: gb.mem("story_phase") != SP_MAP, 60)
     settle(gb)
 
