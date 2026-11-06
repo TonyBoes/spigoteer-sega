@@ -42,7 +42,7 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_W
        V_JK, V_JI, V_JA, V_JN, V_JP,                                           // the add job: none / column / row, the line's index, its first cell, its length, the next cell
        V_DK, V_DI, V_DA, V_DN, V_DP,                                           // the drop job: the same
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
-       V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_WT, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
+       V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
 typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PSTG && A_PSTG + 9 <= S_V
                                 && A_ATTR_UI + 20 <= A_IDA && A_PSTG + 9 <= A_XSTG && A_XSTG + 96 <= S_V && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
@@ -122,6 +122,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define WALK_S   4
 #define WALK_SC  1
 #define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_TOP are free, panel_open sets them again) the walk's stretch length
+#define V_WT     V_TOP                                // the px walked on the stretch (a panel's byte, free while Sal walks)
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
 #define LEAD     1                                    // lines the region loads ahead of the view, in the direction of travel
