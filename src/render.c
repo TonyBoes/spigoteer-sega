@@ -440,7 +440,6 @@ __asm
     ld   b, a
     ld   a, (hl+)           ; bank
     ldh  (0x4F), a
-    bit  1, a               ; (bit 1 of the bank: one 16-byte tile from an aligned source by general-purpose DMA, Color only; the other loads keep the flags)
     ld   a, (hl+)           ; src
     ld   e, a
     ld   a, (hl+)
@@ -449,7 +448,6 @@ __asm
     push hl
     ld   h, (hl)
     ld   l, a
-    jr   nz, 5$
     srl  b                  ; two bytes per pass, the odd one first
     jr   nc, 3$
     ld   a, (de)
@@ -478,36 +476,6 @@ __asm
     ldh  (0x4F), a          ; back to bank 0
 9$:
     pop  bc
-    jr   8$
-5$:                         ; bank bit 1: into the map (0x98..): n bytes down a column (32 apart), else a tile: one 16-byte block by general-purpose DMA
-    ld   a, h
-    cp   a, #0x98
-    jr   nc, 6$
-    ld   a, d
-    ldh  (0x51), a
-    ld   a, e
-    ldh  (0x52), a
-    ld   a, h
-    ldh  (0x53), a
-    ld   a, l
-    ldh  (0x54), a
-    xor  a, a
-    ldh  (0x55), a          ; one block, now (the CPU waits for it)
-    jr   4$
-6$:
-    ld   a, (de)
-    inc  de
-    ld   (hl), a
-    ld   a, l
-    add  a, #32
-    ld   l, a
-    jr   nc, 7$
-    inc  h
-7$:
-    dec  b
-    jr   nz, 6$
-    jr   4$
-8$:
 __endasm;
 }
 
@@ -532,6 +500,10 @@ void vq_vbl(void) {
     vq_count = 0;
     vq_ready = 0;
 }
+
+void smap_isr(void) BANKED;               // src/smap_eng.c
+// The story map's second VBlank handler, registered after vq_vbl while the map is up (src/smap.c): the special runs of its copy list
+void smap_vbl(void) { smap_isr(); }
 
 uint8_t qv_cost;                          // the list's cost so far (bytes + 3 an entry; every writer adds, 255 when entries are left over)
 uint8_t qv_w, qv_bar;                     // queue_vram's scratch (below); also what a split list leaves for vq_restore

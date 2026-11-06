@@ -151,7 +151,7 @@ static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
         VBK_REG = VBK_BANK_0;
         return;
     }
-    if (is_cgb) qraw(bank | 2, d, tile_addr(id), 2);     // (Color: general-purpose DMA, one block in VBlank, bank bit 1; it costs 9-11 of the drain, not 19-21)
+    if (is_cgb) qsp(bank, d, tile_addr(id), 2);     // (Color: general-purpose DMA, one block in VBlank, bank bit 1; it costs 9-11 of the drain, not 19-21)
     else qraw(bank, d, tile_addr(id), 16);
     V(V_NSTG)++;
 }
@@ -285,8 +285,8 @@ static void flush_line(uint8_t vert, uint8_t idx, uint8_t first, uint8_t a, uint
             x = (first + a) & 31;
             n = b - a;
             if (x + n > 32) n = 32 - x;
-            qraw(2, SC(S_T + T_IDS + a), map_addr(idx, first + a), n);
-            if (is_cgb) qraw(3, SC(A_IDA + a), map_addr(idx, first + a), n);
+            qsp(0, SC(S_T + T_IDS + a), map_addr(idx, first + a), n);
+            if (is_cgb) qsp(1, SC(A_IDA + a), map_addr(idx, first + a), n);
             a += n;
         }
         return;
@@ -691,4 +691,149 @@ void smap_pin_town(void) BANKED {
     V(V_DIRECT) = 1;
     if (is_cgb) { pal_take(SMAPW_PAL_TOWN); pal_count(SMAPW_PAL_TOWN, 1); }
     V(V_DIRECT) = 0;
+}
+
+// ---- the special runs of the copy list ---------------------------------------------------------------------------------------------------------------------------
+// The map registers render.c's smap_vbl after vq_vbl (smap_enter / leave): the list went out, its special entries (bank 2/3) are done here. Every other screen's drain is untouched.
+extern volatile uint8_t vq_ready;
+
+#if ASM_SMAP
+static void sp_run(void) {
+__asm
+    ldh  a, (0x4F)
+    push af                 ; the interrupted code's VRAM bank
+    push bc
+    ld   hl, #_vq
+1$:
+    ld   a, l
+    cp   a, #<(_vq + 192)
+    jr   nz, 2$
+    ld   a, h
+    cp   a, #>(_vq + 192)
+    jr   z, 9$
+2$:
+    ld   a, (hl)            ; n: 0 is the mark that ends the list
+    or   a, a
+    jr   z, 9$
+    push hl
+    inc  hl
+    ld   a, (hl+)           ; bank
+    bit  1, a
+    jr   z, 8$
+    ldh  (0x4F), a
+    ld   e, (hl)            ; src
+    inc  hl
+    ld   d, (hl)
+    inc  hl
+    inc  hl
+    inc  hl                 ; -> pad[0]
+    ld   a, (hl+)
+    ld   c, a
+    ld   a, (hl)            ; pad[1]
+    bit  7, a
+    jr   z, 5$
+    ld   b, a               ; stride: n - 1 in bits 10-14, the map offset in bits 0-9
+    srl  b
+    srl  b
+    res  5, b
+    inc  b
+    and  a, #3
+    add  a, #0x98
+    ld   h, a
+    ld   l, c
+6$:
+    ld   a, (de)
+    inc  de
+    ld   (hl), a
+    ld   a, l
+    add  a, #32
+    ld   l, a
+    jr   nc, 7$
+    inc  h
+7$:
+    dec  b
+    jr   nz, 6$
+    jr   8$
+5$:                         ; a tile: dst = 0x8000 + 16 * (a:c), one general-purpose DMA block (the CPU waits for it)
+    ld   b, a
+    ld   a, c
+    swap a
+    ld   h, a
+    and  a, #0xF0
+    ld   l, a
+    ld   a, h
+    and  a, #0x0F
+    ld   h, a
+    ld   a, b
+    swap a
+    and  a, #0xF0
+    add  a, h
+    add  a, #0x80
+    ld   h, a
+    ld   a, d
+    ldh  (0x51), a
+    ld   a, e
+    ldh  (0x52), a
+    ld   a, h
+    ldh  (0x53), a
+    ld   a, l
+    ldh  (0x54), a
+    xor  a, a
+    ldh  (0x55), a
+8$:
+    pop  hl
+    inc  hl
+    res  1, (hl)            ; (done: a later scan passes it)
+    dec  hl
+    ld   de, #8
+    add  hl, de
+    jr   1$
+9$:
+    pop  bc
+    pop  af
+    and  a, #1
+    ldh  (0x4F), a
+__endasm;
+}
+#else
+static void sp_run(void) {                          // the C twin of the asm above
+    uint8_t vbk = VBK_REG, i, k, n;
+    uint16_t w, d;
+    uint8_t *p;
+    const uint8_t *s;
+    for (i = 0; i != SMAP_VQ_MAX && vq[i].n; i++) {
+        if (!(vq[i].bank & 2)) continue;
+        vq[i].bank &= 1;   // (done; its bank bit is read first below)
+        VBK_REG = vq[i].bank & 1;
+        s = vq[i].src;
+        w = vq[i].pad[0] | ((uint16_t)vq[i].pad[1] << 8);
+        if (w & 0x8000) {
+            n = ((w >> 10) & 31) + 1;
+            p = (uint8_t *)(0x9800 + (w & 0x3FF));
+            for (k = 0; k != n; k++) { *p = *s++; p += 32; }
+        } else {
+            d = 0x8000 + (w << 4);
+            *(volatile uint8_t *)0xFF51 = (uint8_t)((uint16_t)s >> 8);
+            *(volatile uint8_t *)0xFF52 = (uint8_t)(uint16_t)s;
+            *(volatile uint8_t *)0xFF53 = (uint8_t)(d >> 8);
+            *(volatile uint8_t *)0xFF54 = (uint8_t)d;
+            *(volatile uint8_t *)0xFF55 = 0;
+        }
+    }
+    VBK_REG = vbk & 1;
+}
+#endif
+
+// After vq_vbl: if it just took a list (nothing ready, nothing queued, the list's first entry still there), its special entries go out now and the list's head is cleared.
+// (A list the main thread is still building has vq_count > 0 or vq_ready, and is left alone.)
+void smap_isr(void) BANKED {
+    if (vq_ready || vq_count || !vq[0].n) return;
+    sp_run();
+    vq[0].n = 0;
+}
+
+// smap_enter: no entry of an earlier list may look like a special run still to do
+void smap_isr_arm(void) BANKED {
+    uint8_t i;
+    for (i = 0; i != SMAP_VQ_MAX; i++) { vq[i].n = 0; vq[i].bank = 0; }
 }

@@ -64,6 +64,7 @@ static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= map_progress(); }
 typedef struct { uint8_t n, bank; const uint8_t *src; uint8_t *dst; uint8_t pad[2]; } vq_entry_t;   // (render.c's list entry)
 extern vq_entry_t vq[];
 #define VQ_USE       22                       // entries a frame may add (the list holds 24; the panel and the tag take their own through vq_add)
+#define SMAP_VQ_MAX 24                                // (render.c VQ_MAX: the list's entries)
 
 // The frame's spare time: the first slow job (a cell that needs a lookup or a load) of a frame always runs, the next ones only before line LY_WORK (a frame that starts late, in the
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
@@ -86,6 +87,22 @@ static void qraw(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
     e = &vq[vq_count++];
     if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3 + (bank << 1);
     e->n = n; e->bank = bank; e->src = src; e->dst = (uint8_t *)dst;
+}
+
+// A special entry for the copy list (bank bit 0 = the VRAM bank): smap_isr, a second VBlank handler that only the map registers (after vq_vbl), does the work after the drain.
+// dst >= 0x9800: n bytes down the map, 32 apart (stride mode); else one 16-byte tile at dst by general-purpose DMA (Color). The drain itself (render.c, shared with every screen and
+// left alone) sees a 1-byte copy to an unused I/O address; the real destination and length ride in pad[] (16 bits): bit 15 set: 0x9800 offset in bits 0-9, n - 1 in
+// bits 10-14; clear: (dst - 0x8000) / 16. bank bit 1 marks it (smap_isr clears it once done).
+static void qsp(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
+    vq_entry_t *e;
+    uint8_t hi = (uint8_t)(dst >> 8);
+    if (vq_count >= VQ_USE + 2) return;
+    e = &vq[vq_count++];
+    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3 + ((bank | 2) << 1);
+    e->n = 1; e->bank = bank | 2; e->src = src; e->dst = (uint8_t *)0xFF7F;
+    if (hi >= 0x98) { e->pad[0] = (uint8_t)dst; e->pad[1] = 0x80 | ((n - 1) << 2) | (hi & 3); }
+    else { e->pad[0] = (uint8_t)(dst >> 4); e->pad[1] = (hi >> 4) & 1; }
+    if (vq_count < SMAP_VQ_MAX) vq[vq_count].n = 0;     // (the list's end, for smap_isr's scan)
 }
 
 static uint8_t room(void) { return qv_cost + 5 >= VQ_DRAIN_BUDGET ? 0 : (uint8_t)(VQ_DRAIN_BUDGET - 5 - qv_cost); }      // (5: the camera's scroll entry, queued after the region's work)
@@ -117,6 +134,8 @@ uint8_t smap_camera_step(void) BANKED;                 // the camera moves towar
 void smap_region_work(void) BANKED;                    // the region follows the camera: lines drop, lines load
 void smap_cam_target(int16_t *tx, int16_t *ty) BANKED; // where the camera wants to be (Sal at the centre, clamped to the world)
 void smap_fill_view(uint8_t c0, uint8_t c1) BANKED;    // LCD off: the columns c0..c1 of the view, straight into VRAM (the region starts as that)
+void smap_isr(void) BANKED;                            // the map's second VBlank handler (render.c smap_vbl calls it): the special runs of the copy list
+void smap_isr_arm(void) BANKED;                        // (smap_enter: before the handlers go in)
 void smap_pin_town(void) BANKED;                       // Color: the town palette takes its hardware slot for good (the window layer's)
 
 #endif
