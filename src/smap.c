@@ -611,17 +611,15 @@ void walk_step(void) {
     } else { V(V_WK) = V(V_REV) ? V(V_WK) - 1 : V(V_WK) + 1; stretch_init(); }
 }
 
-// The copy list's special runs (stride columns, general-purpose DMA tiles; smap_priv.h qraw) go out in smap_vbl, a VBlank handler after vq_vbl while the map is up
+// The copy list's special runs (stride columns, general-purpose DMA tiles; smap_priv.h qraw) go out in smap_vbl, a VBlank handler after vq_vbl that takes itself out once the map is left (smap_isr)
 void smap_vbl(void);                               // src/render.c
 static void isr_on(void) {
     smap_isr_arm();
     CRITICAL { remove_VBL(smap_vbl); add_VBL(smap_vbl); }
 }
-static void isr_off(void) { CRITICAL { remove_VBL(smap_vbl); } }
 
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
-    isr_off();
     win_hide();
     if (TRANS & TR_OFF) { SCX_REG = 0; SCY_REG = 0; }   // (else the scene change's cover shows the map as it stands and the scroll goes home once the LCD is off: src/trans.c)
     sm_put(smap_stop, smap_flags & F_SAVED);

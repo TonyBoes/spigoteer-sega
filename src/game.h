@@ -501,7 +501,6 @@ void pour_frame(void) BANKED;                 // story, every drawn play frame a
 uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state);
 void launch_mug(void);
 void update_mugs(void);
-void update_glass(void) BANKED;
 void draw_mugs(void);
 void draw_fill(void);
 void clear_mugs(void);

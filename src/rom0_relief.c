@@ -163,17 +163,3 @@ void write_all_bars(void) BANKED {
     write_all_spans();
     clear_dirty();
 }
-
-uint8_t glass_step(uint8_t i);                   // (mugs.c)
-
-// glass pieces keep falling while the rest of the picture is frozen
-void update_glass(void) BANKED {
-    uint8_t i, st, live = 0;
-    for (i = 0; i != MAX_MUGS; i++) {
-        st = mug_state[i];
-        if (st == MUG_FREE) continue;
-        if (st == MUG_BREAKING) live += glass_step(i);
-        else live++;
-    }
-    mugs_live = live;
-}

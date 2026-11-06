@@ -826,7 +826,10 @@ static void sp_run(void) {                          // the C twin of the asm abo
 
 // After vq_vbl: if it just took a list (nothing ready, nothing queued, the list's first entry still there), its special entries go out now and the list's head is cleared.
 // (A list the main thread is still building has vq_count > 0 or vq_ready, and is left alone.)
+void smap_vbl(void);                                  // src/render.c
+extern uint8_t game_state, story_phase;
 void smap_isr(void) BANKED {
+    if (game_state != GS_STORY || story_phase != STORY_PHASE_MAP) { remove_VBL(smap_vbl); return; }   // (the map was left: the next screen's drain is the plain one; this was the last handler)
     if (vq_ready || vq_count || !vq[0].n) return;
     sp_run();
     vq[0].n = 0;

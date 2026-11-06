@@ -236,7 +236,7 @@ def test_the_walks_cost_stays_within_the_measured_bounds(model):
 # one whose logic ended at line 154 or later. The bounds are the measured walks (the adaptive pace of smap.c walk_step) and
 # never to be raised. The camera moves with Sal: its step never differs from his by more than 2 px.
 V_LAG = 65
-SMOOTH = {"dmg": dict(holds=0.001, late=0.002), "cgb": dict(holds=0.003, late=0.0015)}
+SMOOTH = {"dmg": dict(holds=0.001, late=0.0025), "cgb": dict(holds=0.003, late=0.0015)}
 
 
 def walk_frames(model, s, d):

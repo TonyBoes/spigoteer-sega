@@ -94,7 +94,7 @@ static uint8_t empty_step(uint8_t i) {
     return 1;
 }
 
-uint8_t glass_step(uint8_t i) {   // (rom0_relief.c's update_glass calls it)
+uint8_t glass_step(uint8_t i) {   // (main_cold.c's update_glass calls it)
     if (++mug_timer[i] < GLASS_FRAMES * GLASS_FRAME_TIME) return 1;
     mug_state[i] = MUG_FREE;
     return 0;
