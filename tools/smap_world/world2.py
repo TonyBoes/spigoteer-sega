@@ -14,12 +14,12 @@ PW, PH = CW * 8, CH * 8
 VENUES = {
     "saloon": ("v_saloon", (3, 23)), "stadium": ("v_stadium", (3, 5)), "lodge": ("v_lodge", (22, 4)), "bistro": ("v_bistro", (38, 5)),
     "igloo": ("v_igloo", (53, 6)), "factory": ("v_factory", (39, 14)), "cow": ("v_cow", (39, 23)), "tea": ("v_tea", (29, 36)),
-    "zoo": ("v_zoo", (17, 36)), "space": ("v_space", (1, 34)), "town": ("v_town", (18, 17)),
+    "zoo": ("v_zoo", (17, 36)), "space": ("v_space", (1, 34)), "town": ("v_town", (22, 21)),
 }
 ORDER = ["saloon", "stadium", "lodge", "bistro", "igloo", "factory", "cow", "tea", "zoo", "space"]    # chapters 1 to 10
 # where Sal stands on the road in front of each: the middle of his feet, in pixels of the venue's own picture
 STOP_LOCAL_X = {"saloon": 19, "stadium": 28, "lodge": 26, "bistro": 30, "igloo": 24, "factory": 16, "cow": 18, "tea": 56, "zoo": 12, "space": 24,
-                "town": 80}
+                "town": 48}
 # the road row each venue's stop is on (cell row of the road's upper cell)
 ROAD_ROW = {"saloon": 30, "stadium": 12, "lodge": 12, "bistro": 12, "igloo": 12, "factory": 21, "cow": 30, "tea": 43, "zoo": 43, "space": 43,
             "town": 30}
@@ -42,11 +42,12 @@ BIOMES = [
     ("plaza", [(37, 0, 49, 13), (36, 5, 36, 10), (37, 14, 38, 14)]),
     ("snow", [(51, 0, 63, 21), (50, 0, 50, 6), (52, 22, 63, 24), (56, 25, 63, 26)]),
     ("yard", [(38, 13, 49, 22), (36, 15, 37, 20)]),
-    ("farm", [(38, 23, 49, 36), (50, 23, 63, 41), (36, 25, 37, 31), (40, 37, 49, 39), (52, 42, 63, 47)]),
+    ("farm", [(39, 23, 49, 36), (38, 32, 38, 36), (50, 23, 63, 41), (36, 25, 37, 31), (40, 37, 49, 39), (52, 42, 63, 47)]),
     ("desert", [(0, 14, 15, 47), (16, 18, 17, 25), (16, 33, 16, 47), (0, 44, 26, 47), (16, 40, 19, 47)]),
     ("jungle", [(17, 32, 28, 47), (15, 40, 16, 47), (29, 45, 30, 47)]),
     ("moss", [(29, 34, 49, 47), (28, 36, 28, 44)]),
-    ("plaza_town", [(16, 15, 39, 31)]),
+    ("farmcow", [(52, 23, 52, 41)]),                                # the farm's first column east of the spine takes the cow's palette (same ground colour: a path window keeps 9 palettes)
+    ("grass", [(16, 15, 37, 29)]),                                  # the land round the town (the block between the roads); the factory's yard and the farm stop at x 38
 ]
 # bites out of the straight borders, by hand: (x, y, biome) cells that cross a border one way or the other
 BITES = [(36, 1, "plaza"), (36, 2, "plaza"), (37, 3, "forest"), (37, 4, "forest"), (36, 8, "plaza"), (37, 9, "forest"), (36, 10, "forest"),
@@ -56,9 +57,9 @@ BITES = [(36, 1, "plaza"), (36, 2, "plaza"), (37, 3, "forest"), (37, 4, "forest"
          (28, 33, "moss"), (29, 33, "moss"), (28, 41, "jungle"), (29, 40, "jungle"), (28, 44, "moss"), (28, 46, "moss"), (29, 47, "jungle"),
          (15, 34, "jungle"), (15, 45, "desert"), (16, 46, "desert"), (16, 38, "jungle")]
 BIOME_PAL = {"grass": "grass", "forest": "grass", "paved": "stadium", "plaza": "bistro", "snow": "igloo", "yard": "factory", "farm": "farm",
-             "desert": "saloon", "jungle": "zoo", "moss": "tea", "plaza_town": "town1"}
+             "desert": "saloon", "jungle": "zoo", "moss": "tea", "farmcow": "cow"}
 BIOME_TILES = {"grass": "grass", "forest": "forest", "paved": "paved", "plaza": "plaza", "snow": "snow", "yard": "yard", "farm": "farm",
-               "desert": "desert", "jungle": "jungle", "moss": "moss"}
+               "desert": "desert", "jungle": "jungle", "moss": "moss", "farmcow": "farm"}
 # ---- scenery placed by hand: (piece, x px, y px); one list for both models (the land kit, owner 11-06) ---------------------------------------------------------
 # Every piece stands on flat ground (put_decor wipes the tuft under it) and on the 8 px phase of the same piece inside its venue (the lodge's pines on the grid,
 # the zoo's tree one pixel off it, the igloo's spruces on the grid and its drifts at y = 7 mod 8), so a tree on the land is the very tiles of the venue's tree.
@@ -73,9 +74,15 @@ SCENERY = [
     (decor.SPRUCE, 432, 8), (decor.SPRUCE, 456, 0), (decor.SPRUCE, 480, 8), (decor.SPRUCE, 496, 0),
     (decor.SPRUCE, 424, 120), (decor.SPRUCE, 456, 128), (decor.SPRUCE, 480, 120), (decor.SPRUCE, 496, 144), (decor.SPRUCE, 440, 144), (decor.SPRUCE, 472, 152),
     (decor.MOUND, 472, 31), (decor.MOUND, 424, 31), (decor.MOUND, 448, 159), (decor.MOUND, 424, 159), (decor.MOUND, 488, 167),
+    # the land round the town: a pine grove along the west spine, round trees and bushes north and east of the hall
+    (decor.PINE, 136, 128), (decor.PINE, 152, 152), (decor.PINE, 136, 176), (decor.PINE, 152, 200),
+    (decor.ROUND, 204, 123), (decor.ROUND, 244, 131), (decor.BUSH, 184, 152), (decor.BUSH, 232, 152),
+    (decor.PINE, 272, 128), (decor.PINE, 288, 152), (decor.ROUND, 276, 171), (decor.BUSH, 280, 208),
     (decor.BARN, 448, 192), (decor.HAY, 432, 232), (decor.HAY, 472, 240), (decor.HAY, 496, 224), (decor.HAY, 432, 296), (decor.HAY, 480, 328), (decor.HAY, 448, 360),
 ]
 # crop fields on the farm east of the spine: (x0, y0, x1, y1) cells
+# the town's paved apron along the trunk road (cell row 29): the picture's own cobbles continue two cells past the hall on each side (the same two tiles, the same parity)
+APRON = [(x, 29) for x in (20, 21, 34, 35)]
 FIELDS = [(53, 27, 62, 31), (53, 34, 62, 38)]
 
 # ---- the stops and the paths ---------------------------------------------------------------------------------------------------------------------------
@@ -173,11 +180,6 @@ class World:
         for cy in range(CH):
             for cx in range(CW):
                 b = self.biome[cy][cx]
-                if b == "plaza_town":
-                    t = COBBLE if (cx + cy) % 2 == 0 else COBBLE_B
-                    self.set_tile(cx, cy, t, "town1", "ground")
-                    self.ground_pal[cy][cx] = "town1"
-                    continue
                 vs = GROUND[BIOME_TILES[b]]                         # the flat tile and one tuft per biome (forest: one needle tile), the same for both models
                 h = (cx * 7 + cy * 13 + cx * cy) % 13
                 v = vs[0] if h not in (3, 8, 11) or len(vs) == 1 else vs[1]
@@ -190,6 +192,9 @@ class World:
             for cy in range(y0, y1 + 1):
                 for cx in range(x0, x1 + 1):
                     self.set_tile(cx, cy, FIELD_EDGE if cy == y0 else FIELD, "farm", "ground")
+        for (cx, cy) in APRON:
+            self.set_tile(cx, cy, COBBLE if (cx + cy) % 2 == 0 else COBBLE_B, "town1", "ground")
+            self.ground_pal[cy][cx] = "town1"
         # the road cells
         self.roads = set()
         for (x0, y0, x1, y1) in ROAD_BOXES:
@@ -285,7 +290,7 @@ def zone_of_cell(w, cx, cy):
     k = w.kind[cy][cx]
     if k in VENUES:
         return k
-    tx0, ty0, tx1, ty1 = w.venue_rect["town"]
+    tx0, ty0, tx1, ty1 = 18, 17, 37, 29                    # the town's zone is the block between the roads (16 to 39 x 15 to 31), whatever the picture's size
     if tx0 - 2 <= cx <= tx1 + 2 and ty0 - 2 <= cy <= ty1 + 2:
         return "town"
     gp = w.ground_pal[cy][cx]
