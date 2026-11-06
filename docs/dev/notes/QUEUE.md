@@ -528,3 +528,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
   2. An HBlank bulk copy (libbet popslide, a reuse repo under zlib, so it needs attribution): 8 B per line, so 40 lines gives about 20 more tiles a frame; costs CPU against the map guard; check music ticks.
   3. Fill-run packets.
   The rest is already done (spread BG refresh, cold code out of ROM0) or of little use. Plan: try 1, then 2, on the map speed branch before any Q88 art work, and measure. The owner's Q87 and Q88 are still open.
+- Owner 11-06: "Okay, go ahead and get an agent on recommending reusable tiles for the map." So Q88 is answered as c (the fixed tile kit direction), proposals first. A gb-artist has been briefed for DMG map recommendations: a reusable tile kit plus a per-venue design that keeps each venue's character (memory map-buildings-unique-character). No import.
