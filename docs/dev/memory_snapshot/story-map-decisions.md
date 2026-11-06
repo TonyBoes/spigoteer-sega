@@ -26,3 +26,4 @@ UPDATE 2026-11-06 (owner): "Fog is not an important feature. If it ends up makin
 
 UPDATE 2026-11-06 (owner): "When we reconfigure the map, I want the route design to be a little better. The locations still need to be in the same order as the player loops around, but they don't have to be in the exact positions they are currently in." Venue positions and roads may move in a map reconfiguration; the loop order of the venues is fixed.
 Owner 11-06, same topic: "It might be good to avoid the cross roads that exist in this version." The new layout avoids crossroads (no 4-way junctions).
+Owner 11-06, same topic: "Right. No dead ends and backtracking if possible." Layout brief: no crossroads, no dead ends, no backtracking where possible.
