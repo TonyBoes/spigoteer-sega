@@ -1,4 +1,4 @@
-// Story cameos (owner-approved 2026-11-04): Sasquatch, Leo and the UFO beam-up in the story scenes.
+// Story cameos (owner-approved 2026-11-04): Sasquatch and Leo in the story scenes; the UFO beam-up is on the story map (cam_map_beam, last in this file).
 // story.c calls cam_load (scene start, LCD off), cam_page (every page turn, before Dregs's gag) and cam_frame (every scene frame).
 // State: win_rows[4] (the goal banner's last row, unused in a scene): [0] the page's cue (0 none), [1] its frame (0-255, stops at 255),
 // [2] OAM entries written last frame, [3] the Spigoteer's top OAM y as drawn by scene_enter, [4] the next OAM entry while drawing.
@@ -21,63 +21,52 @@ extern uint8_t win_rows[5][20];
 
 static const uint16_t pal_sq[4]    = { 0, P8(0xE8, 0xB8, 0x78), P8(0x5C, 0x2C, 0x14), P8(0x14, 0x08, 0x04) };   // sasquatch.txt "pal"
 static const uint16_t pal_leo[4]   = { 0, P8(0xF8, 0xD0, 0x60), P8(0xC8, 0x60, 0x18), P8(0x30, 0x18, 0x08) };   // leo.txt "PAL"
-static const uint16_t pal_ufo[4]   = { 0, P8(0xF0, 0xF8, 0xF8), P8(0x70, 0x98, 0xD8), P8(0x18, 0x18, 0x40) };   // obj_ufo.png
 static const uint16_t pal_valve[4] = { 0, P8(0xF8, 0xF0, 0xA0), P8(0xE8, 0xA8, 0x28), P8(0x14, 0x0C, 0x24) };   // intro_pieces.txt keys
 
-enum { CU_NONE, CU_PRE_WAVE, CU_HANDOVER, CU_SNEAK, CU_WAVE, CU_LEO_CROWN, CU_LEO_PURR, CU_LEO_PLACED, CU_CROWNED, CU_UP, CU_DOWN };
+enum { CU_NONE, CU_PRE_WAVE, CU_HANDOVER, CU_SNEAK, CU_WAVE, CU_LEO_CROWN, CU_LEO_PURR, CU_LEO_PLACED, CU_CROWNED };
 // scene, page (0-based), cue
 static const uint8_t cues[] = {
     SC_PRE_LUMBER, 2, CU_PRE_WAVE,  SC_PRE_LUMBER, 3, CU_PRE_WAVE,
     SC_POST_LUMBER, 1, CU_HANDOVER, SC_POST_LUMBER, 2, CU_SNEAK, SC_POST_LUMBER, 3, CU_WAVE,
     SC_PRE_ZOO, 3, CU_LEO_CROWN,
     SC_POST_ZOO, 0, CU_LEO_PURR,    SC_POST_ZOO, 1, CU_LEO_PLACED,  SC_POST_ZOO, 2, CU_CROWNED,
-    SC_PRE_SPACE, 0, CU_UP,         SC_PRE_SPACE, 1, CU_DOWN,
     255 };
 
 #define BAR_Y(b) (40 + 24 * (b))   // a bar's first wall row (layout.h BAR_TOP_Y)
 
 #define n        (win_rows[4][4])   // the next OAM entry while drawing (no WRAM of its own)
+#define fig(f, x, y, prop) (n = figat(n, (f)[0], (f) + 1, (x), (y), (prop)))
 
-static void fig(const uint8_t *f, int16_t x, int16_t y, uint8_t prop) {
-    uint8_t k = f[0];
+static uint8_t figat(uint8_t e, uint8_t k, const uint8_t *f, int16_t x, int16_t y, uint8_t prop) {   // k entries of a figure into OAM from entry e; the next free entry
     OAM_item_t *o;
-    f++;
     while (k--) {
         int16_t ex = x + (int8_t)f[0], ey = y + (int8_t)f[1];
-        if (n < 40) {
-            o = shadow_OAM + n++;
+        if (e < 40) {
+            o = shadow_OAM + e++;
             if (ex < -7 || ex > 159 || ey < -15 || ey > 143) o->y = 0;
             else { o->y = (uint8_t)(ey + 16); o->x = (uint8_t)(ex + 8); o->tile = f[2]; o->prop = prop | (f[3] ? S_FLIPX : 0); }
         }
         f += 4;
     }
-}
-
-static void sal_y(uint8_t up, uint8_t show) {    // the Spigoteer's 4 entries, raised by up px, or hidden
-    uint8_t i, y = ST[3] - up;
-    for (i = 0; i < 4; i++) shadow_OAM[i].y = show ? (i < 2 ? y : y + 16) : 0;
+    return e;
 }
 
 void cam_load(uint8_t s) BANKED {                // LCD off, after the venue / Dregs's gag tiles
     uint8_t v = (s - 1) >> 1;
     ST[0] = 0; ST[2] = 0; ST[3] = shadow_OAM[0].y;
-    if (!is_cgb && (v == 2 || v == 8 || v == 9)) OBP1_REG = OBP1_PLAY;   // DMG: 0xE4 (a PRE scene leaves the title's 0xC4)
+    if (!is_cgb && (v == 2 || v == 8)) OBP1_REG = OBP1_PLAY;   // DMG: 0xE4 (a PRE scene leaves the title's 0xC4)
     if (v == 2) {
         set_sprite_data(CAM_LUMBER_BASE, CAM_LUMBER_N, cam_tiles_lumber);
         if (is_cgb) { set_sprite_palette(7, 1, pal_sq); set_sprite_palette(6, 1, pal_valve); }
     } else if (v == 8) {
         set_sprite_data(CAM_ZOO_BASE, CAM_ZOO_N, cam_tiles_zoo);
         if (is_cgb) set_sprite_palette(7, 1, pal_leo);
-    } else if (v == 9) {
-        set_sprite_data(CAM_SPACE_BASE, CAM_SPACE_N, cam_tiles_space);
-        if (is_cgb) set_sprite_palette(7, 1, pal_ufo);
     }
 }
 
 void cam_page(uint8_t s, uint8_t page) BANKED {
     const uint8_t *c = cues;
     uint8_t i;
-    if (ST[0] == CU_UP || ST[0] == CU_DOWN) sal_y(0, 1);   // the Spigoteer back at his tap
     for (i = 0; i < ST[2]; i++) shadow_OAM[OAM0 + i].y = 0;
     ST[0] = 0; ST[1] = 0; ST[2] = 0;
     for (; c[0] != 255; c += 3) if (c[0] == s && c[1] == page) { ST[0] = c[2]; break; }
@@ -120,35 +109,37 @@ void cam_frame(void) BANKED {
     case CU_CROWNED:
         fig(cf_leo_hat, TAP_X + 3, (int16_t)ST[3] - 16 - 8, pb);
         break;
-    case CU_UP:                                  // the UFO flies in, beams down, the Spigoteer rises into it, it flies off
-    case CU_DOWN:                                // the same backwards: he is set down at his tap
-        if (t < 30) x = ST[0] == CU_UP ? 116 + (30 - t) * 2 : 116 - (30 - t) * 2;
-        else if (t < 96) x = 116;
-        else x = ST[0] == CU_UP ? 116 - (t - 96) * 3 : 116 + (t - 96) * 3;
-        y = 39 + ((t >> 4) & 1);
-        rows = t < 30 ? 0 : t < 34 ? 1 : t < 38 ? 2 : t < 80 ? 3 : t < 84 ? 2 : t < 88 ? 1 : 0;
-        if (rows) {                              // the beam, band by band from the top (entries 0-2 band 0, 3-5 band 1, 6-8 band 2)
-            uint8_t keep = cf_beam[0];
-            {                                    // (a copy of the beam's entry list, cut to the bands shown)
-                uint8_t tmp[1 + 9 * 4];
-                tmp[0] = rows * 3 > keep ? keep : rows * 3;
-                for (i = 0; i < tmp[0] * 4; i++) tmp[1 + i] = cf_beam[1 + i];
-                fig(tmp, 116, y + 11, is_cgb ? 7 : S_PALETTE);   // (DMG: OBP1, dark-grey edges and light-grey rings on the white wall)
-            }
-        }
-        fig(cf_ufo, x, y, pu);
-        if (ST[0] == CU_UP) {
-            if (t < 44) sal_y(0, 1);
-            else if (t < 74) sal_y((t - 44) / 2, 1);
-            else sal_y(0, 0);
-        } else {
-            if (t < 44) sal_y(0, 0);
-            else if (t < 74) sal_y(15 - (t - 44) / 2, 1);
-            else sal_y(0, 1);
-        }
-        break;
     }
     for (i = n; i < OAM0 + ST[2]; i++) shadow_OAM[i].y = 0;
     ST[2] = n - OAM0;
     if (t < 255) ST[1] = t + 1;
+}
+
+// ---- the map's beam-up (src/smap.c: Sal's stop at the space lounge, before its PRE scene) -----------------------------------------------------------------------------------
+// The map's OBJ palette 2 (the UFO's) is the UFO's and the beam's; OAM 0-2 the UFO (over Sal), 3-6 Sal (the map's), 19-21 the map's own UFO, 23-31 the beam.
+#define MAP_PAL_UFO 2
+
+void cam_map_load(void) BANKED {                 // LCD off, the map entered with the space lounge open
+    set_sprite_data(CAM_SPACE_BASE, CAM_SPACE_N, cam_tiles_space);
+    if (!is_cgb) OBP1_REG = OBP1_PLAY;           // (the beam's dark-grey edges, as in the old scene)
+}
+
+// One frame t (1..) of it, after the map drew its sprites. sx, sy: Sal's top-left on the screen; ax, ay: the map UFO's. 1: the UFO is gone.
+uint8_t cam_map_beam(uint8_t t, int16_t sx, int16_t sy, int16_t ax, int16_t ay) BANKED {
+    int16_t x, y = sy - 27, tx = sx - 4;
+    uint8_t i, rows, rise;
+    OAM_item_t *o;
+    if (t < 32) { x = ax + (int16_t)(((tx - ax) * t) >> 5); y = ay + (int16_t)(((y - ay) * t) >> 5); }   // the map UFO flies over Sal
+    else { x = tx; y += (t >> 4) & 1; if (t >= 96) y -= (t - 96) * 3; }                                  // hovers, then goes up
+    rows = t < 32 ? 0 : t < 36 ? 1 : t < 40 ? 2 : t < 82 ? 3 : t < 86 ? 2 : t < 90 ? 1 : 0;
+    rise = t < 40 ? 0 : t < 70 ? (t - 40) >> 1 : 15;
+    for (i = 19; i < 22; i++) shadow_OAM[i].y = 0;                // (the map's own UFO is this one now)
+    for (i = 3; i < 7; i++) {                                    // Sal rises in the beam, then he is inside
+        o = shadow_OAM + i;
+        if (rise >= 15) o->y = 0; else if (o->y) o->y -= rise;
+    }
+    figat(0, cf_ufo[0], cf_ufo + 1, x, y, is_cgb ? MAP_PAL_UFO : 0);
+    for (i = 23; i < 32; i++) shadow_OAM[i].y = 0;
+    figat(23, rows * 3, cf_beam + 1, x, y + 11, is_cgb ? MAP_PAL_UFO : S_PALETTE);   // the beam, band by band from the top (entries 0-2 band 0, 3-5 band 1, 6-8 band 2)
+    return t >= 96 && y < -16;
 }

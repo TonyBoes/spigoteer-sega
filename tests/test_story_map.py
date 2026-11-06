@@ -277,7 +277,7 @@ def test_a_at_the_next_uncleared_venue_starts_its_pre_scene(model, progress):
     gb = to_map(model, progress)
     assert gb.mem("smap_stop") == progress
     tap(gb, "a", 2)
-    run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 120)
+    run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 260)      # (the space lounge's beam-up first: about 125 frames)
     assert gb.mem("story_scene") == ts.pre(progress) and gb.mem("story_chapter") == progress
     assert gb.mem("overlay_on") == 0, "the map's window is gone"
     assert gb.regs()["WY"] == 64, "the banner window's own place again"
@@ -847,3 +847,61 @@ def test_golden_scroll_map_festival_panel(model):
     tap(gb, "a", 20)
     gb.run(10)
     check_golden(gb, "story_map_scroll_festival_panel")
+
+
+# ---- the UFO's beam-up (src/smap.c beam_tick, src/cameo.c cam_map_beam): the space lounge's stop, before its PRE scene ------------------------------------------------
+V_BEAM = 67                                                        # (the map's variable index, src/smap_priv.h: the last before V_N)
+
+
+def beam_t(gb):
+    return gb.read("story_scratch", 520)[SV + V_BEAM]
+
+
+def per_line_oam(gb):
+    cnt = [0] * 144
+    for o in gb.oam():
+        if 0 < o["y"] < 160:
+            for y in range(max(0, o["y"] - 16), min(144, o["y"])):
+                cnt[y] += 1
+    return max(cnt)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_at_the_space_lounge_beams_sal_up_on_the_map_and_then_the_pre_scene_starts(model):
+    gb = to_map(model, 9)
+    assert gb.mem("smap_stop") == 9 and not beam_t(gb)
+    sal = [oam(gb, OAM_SAL + i)["y"] for i in range(4)]
+    tap(gb, "a", 2)
+    assert beam_t(gb) and gb.mem("story_phase") == SP_MAP
+    run_until(gb, lambda: beam_t(gb) >= 20, 100)
+    assert shown(gb, 0) and not shown(gb, 19), "the map's UFO is on its way over Sal"
+    assert not any(shown(gb, i) for i in range(23, 32)), "no beam yet"
+    run_until(gb, lambda: beam_t(gb) >= 60, 100)
+    assert sum(shown(gb, i) for i in range(23, 32)) == 9, "the beam, all three bands"
+    assert all(0 < oam(gb, OAM_SAL + i)["y"] < sal[i] for i in range(4)), "Sal rising"
+    assert per_line_oam(gb) <= 10
+    run_until(gb, lambda: beam_t(gb) >= 80, 100)
+    assert not any(shown(gb, OAM_SAL + i) for i in range(4)), "Sal is inside"
+    run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 200)
+    assert gb.mem("story_scene") == ts.pre(9) and gb.mem("story_chapter") == 9
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_skips_the_beam_up_and_a_reached_step_has_none(model):
+    gb = to_map(model, 9)
+    tap(gb, "a", 2)
+    gb.run(10)
+    tap(gb, "a", 2)
+    run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 60)
+    gb = to_map(model, 9, step=ts.SHIFT_STEP[1])
+    tap(gb, "a", 2)
+    assert not beam_t(gb)
+    run_until(gb, lambda: state(gb) == ts.GS_GOAL, 120)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_other_venue_has_a_beam(model):
+    gb = to_map(model, 3)
+    tap(gb, "a", 2)
+    assert not beam_t(gb)
+    run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 120)

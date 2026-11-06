@@ -60,6 +60,8 @@ extern uint32_t score;
 extern uint8_t win_rows[5][20];
 void story_map_venue(uint8_t c) BANKED;       // src/story.c
 void story_map_pouroff(void) BANKED;
+void cam_map_load(void) BANKED;                // src/cameo.c: the UFO and its beam (OBJ tiles at CAM_SPACE_BASE)
+uint8_t cam_map_beam(uint8_t t, int16_t sx, int16_t sy, int16_t ax, int16_t ay) BANKED;
 
 uint8_t smap_stop;                            // 0..10: the stop Sal stands at (venue = chapter, 10 the town)
 uint8_t smap_flags;                           // bits 0-2: festival game k was played since it unlocked (its "!" is gone); bits 4-6: it won GOLD in this story run;
@@ -148,7 +150,7 @@ static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, ui
     o->prop = (is_cgb ? pal : 0) | flip;
 }
 
-static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 frames)
+static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand, step 2, stand (a picture per 4 px walked: the same pace at any walk speed)
 
 // A sprite entry written inline (a call with seven arguments costs more than the entry's four stores): px, py the top-left of the 8-px column's art on screen
 // (it may lie off an edge: then the entry is hidden), vh its visible height; entries the window layer (wh lines from wy) covers are hidden too.
@@ -317,7 +319,7 @@ static void draw(void) {
     sx = (int16_t)g16(V_FX) - 8 - cx;               // Sal's top-left on the screen
     sy = (int16_t)g16(V_FY) - 24 - cy;
     nudge = (tk >> 4) & 1;                          // (the arrows bob 1 px every 16 frames, the UFO every 32)
-    if (V(V_WALK)) pic = pic_seq[(tk >> 2) & 3];
+    if (V(V_WALK)) { pic = ((uint8_t)(V(V_FX) + V(V_FY)) >> 2) & 3; sy -= pic & 1; pic = pic_seq[pic]; }   // (on the passing pose Sal is drawn 1 px higher, as in the levels)
     if (!panel && !V(V_WALK))                       // the arrows: where each button leads (none while a panel is up or Sal walks)
         for (d = 0; d < 4; d++) {
             s = smapw_exit[smap_stop][d];
@@ -346,8 +348,9 @@ static void draw(void) {
 
 // A walking frame on which the camera did not move and no window is up: only Sal's four entries change (the rest of the sprites keep their place in the shadow OAM)
 static void draw_walk(void) {
-    uint8_t t = pic_seq[(V(V_TICK) >> 2) & 3] * BARTENDER_TILES_PER_FRAME, cgbp = is_cgb, wh = 0;
-    int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY), ay, wy = 0, wend = 0;
+    uint8_t t = ((uint8_t)(V(V_FX) + V(V_FY)) >> 2) & 3, cgbp = is_cgb, wh = 0;
+    int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY) - (t & 1), ay, wy = 0, wend = 0;
+    t = pic_seq[t] * BARTENDER_TILES_PER_FRAME;
     SPR(OAM_SAL, sx, sy, t, OBJPAL_BARTENDER, 0, 16);
     SPR(OAM_SAL + 1, sx + 8, sy, t + 2, OBJPAL_BARTENDER, 0, 16);
     ay = sy + 16;
@@ -540,9 +543,23 @@ static uint8_t press_a(void) {                     // A with no panel up. 1: the
     if ((smap_flags & SMAP_RESUME) && s == story_chapter && s == map_progress()) { panel_open(P_RESUME, 0); return 0; }   // (a shift of this venue was quit)
     if (s < map_progress()) { panel_open(P_VENUE, 0); return 0; }
     if (s > map_progress()) return 0;              // (a locked stop: Sal never stands on one)
+    if (s == 9 && !(story_progress == s && story_reached)) { win_hide(); V(V_BEAM) = 1; return 0; }   // the space lounge's PRE scene: the UFO beams Sal up first (beam_tick)
     leave();                                       // the next uncleared venue
     story_map_venue(s);
     return 1;
+}
+
+// A frame of the beam-up (V_BEAM = its frame, from 1), after the frame's sprites. A or START skips it. 1: the screen was left
+static uint8_t beam_tick(uint8_t pressed) {
+    uint8_t t = V(V_BEAM);
+    int16_t cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY);
+    if (cam_map_beam(t, (int16_t)g16(V_FX) - 8 - cx, (int16_t)g16(V_FY) - 24 - cy, SMAPW_UFO_X - cx, SMAPW_UFO_Y - cy) || (t > 1 && (pressed & (J_A | J_START)))) {
+        leave();
+        story_map_venue(9);
+        return 1;
+    }
+    V(V_BEAM) = t + 1;
+    return 0;
 }
 
 static uint8_t panel_a(void) {                     // A in a panel. 1: the screen was left
@@ -617,7 +634,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     if (V(V_PREV)) { V(V_PREV) = 0; tag_show(); }
     tag_tick();
     if (V(V_WALK)) walk_step();
-    else {
+    else if (!V(V_BEAM)) {
         d = (pressed & J_UP) ? 0 : (pressed & J_DOWN) ? 1 : (pressed & J_LEFT) ? 2 : (pressed & J_RIGHT) ? 3 : 4;
         if (d < 4) start_walk(d);
         else if ((pressed & J_A) && press_a()) return 1;
@@ -636,7 +653,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     }
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
-    return 0;
+    return V(V_BEAM) && beam_tick(pressed);
 }
 
 // the greyed letters: copies of the glyphs with the text colour (index 0) turned into colour 1 (lo plane all ones), LCD off
@@ -672,6 +689,7 @@ void smap_enter(uint8_t quick) BANKED {
     dim_load();
     spr_data_far(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles, BANK(art_tiles));     // Sal's pictures (a Pour-Off or a mini-game may have used the ids)
     set_sprite_data(OB, SMAP_OBJ_TILES, smap_obj_tiles);
+    if (map_progress() >= 9) cam_map_load();       // (the UFO's beam: Sal's stop at the space lounge)
     for (i = 0; i < STORY_SCRATCH; i++) story_scratch[i] = 0;
     if (is_cgb) {
         fill(SC(A_NIB), 0xFF, 176);
