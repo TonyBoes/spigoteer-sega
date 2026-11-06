@@ -535,3 +535,12 @@ Owner: "From inside the game quitting a level should quit to map. With an option
   - Numbers: 6 venues redrawn take 658 tiles to 500, the step mean from 4.9 to 4.3, the worst window from 175 to 158. The whole map trimmed comes to about 236.
   - My judgement: the igloo and lodge hold up (but the lodge chimney stands off the roof). Saloon, stadium and bistro lose richness and share the same striped band, which is the owner's "look the same" concern. The zoo is plain.
   - Asked Q89: hold the redraw until the pop and HBlank copy are measured (recommended).
+- 11-06 merged c7104811, the map speed work (agent a0e606).
+  - Color 0.99 -> 1.76 px/frame (stops 6 and 7 up are 1.35 and 1.48).
+  - DMG 0.98 -> 0.98, smooth (holds 52 -> 0, late 0 -> 8).
+  - Map-only PERF guard: DMG 160, Color 145 (owner Q87).
+  - ROM0 477 free. The fragile tests pass.
+  - The SP or unrolled copy trial gained nothing: the DMG walk is bound by C per-cell work (smap_d_tile about 30 lines, the slot search about 13, smap_d_fetch about 20 a chunk), NOT by copying. My earlier claim that faster copying would fix DMG was wrong. Q89 is reworded: hold the art redraw until the cell work is sped up in asm.
+  - Goldens story_map_scroll_walking dmg and cgb replaced. Make test and make check are green.
+  - Pocket Player v72: mapfast removed (folded into main). Handoff: docs/dev/handoffs/smap_speed_2026-11-06.md.
+  - Next (pending Q89): an asm pass on the DMG cell path (tile decode, slot search, fetch), with C twins.
