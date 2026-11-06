@@ -202,9 +202,6 @@ typedef char smap_dadd_offsets[(V_NSTG == 42 && V_RES == 43 && V_RESE == 44 && V
 static uint16_t smap_dadd(const smap_fc *f) __naked {
     (void)f;
 __asm
-    ld   a, (_story_scratch + 457)          ; V_NDISP: a far tile may hold it
-    or   a, a
-    jp   nz, 80$
     ld   a, (de)
     ld   (_story_scratch + 450), a          ; the tiles low byte
     inc  de
@@ -222,6 +219,16 @@ __asm
     ld   e, a
     call 60$
     jp   z, 80$
+    ld   a, (_story_scratch + 457)          ; V_NDISP: a far tile may hold it: the scan (the C code takes the cell if it finds it)
+    or   a, a
+    jr   z, 3$
+    ld   a, (_story_scratch + 451)
+    ld   (_story_scratch + 456), a          ; V_ID: the tile high bits for smap_scan
+    ld   a, (_story_scratch + 450)
+    call _smap_scan
+    cp   a, #0xFF
+    jp   nz, 80$
+3$:
     ld   a, (_story_scratch + 438)          ; V_NSTG
     cp   a, #2
     jp   nc, 82$
@@ -563,12 +570,6 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
         need_t = nib_get(slot9) != var;
         bank = slot9 >= SMAPW_POOL;
     } else {
-#if ASM_SMAP
-        if (!direct) {                               // (a tile to load, all in asm; 3: the C code below takes the cell)
-            uint16_t x = smap_dadd(f);
-            if ((uint8_t)x != 3) { if ((uint8_t)x) return (uint8_t)x; SC(S_T + T_IDS)[k] = (uint8_t)(x >> 8); return R_OK; }
-        }
-#endif
         slot = tbl_find(t, (uint8_t)f->aux);
         need_t = slot == NIL;
     }
@@ -620,6 +621,18 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     }
     return R_OK;
 }
+
+#if ASM_SMAP
+// DMG: add_cell, with the tile-load cases in asm first (the Color calls add_cell itself: its code and cost are the same as without the asm)
+static uint8_t add_cell_d(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
+    uint16_t x;
+    if (!V(V_DIRECT)) {
+        x = smap_dadd(f);                            // (3: the C code takes the cell)
+        if ((uint8_t)x != 3) { if ((uint8_t)x) return (uint8_t)x; SC(S_T + T_IDS)[k] = (uint8_t)(x >> 8); return R_OK; }
+    }
+    return add_cell(f, k, cx, cy, vert);
+}
+#endif
 
 // the next cell shows what the one before it does (the same tile and palette, already resident): no lookup, no load
 static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
@@ -885,6 +898,10 @@ static uint8_t job_run(uint8_t cap) {
             if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             else {
                 V(V_SLOW) = 1;
+#if ASM_SMAP
+                if (!is_cgb) r = add_cell_d(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+                else
+#endif
                 r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             }
             if (r) break;
