@@ -789,3 +789,4 @@ The grass dithering patchiness looks better now."
   Artist: 4 concepts side by side (wide noren w/ mark; 3-panel darker cloth, longer; one flap tied back to the side showing the interior; short noren spanning the whole front under the eave), ids reported each.
 - 2026-11-07 teahouse round 7 (a83b5a5, 61a6f729): curtain concepts C1 wide noren + disc mark, C2 dark 3-panel (weak on DMG), C3 tied-back flap (rough), C4 eave valance (slits read as fence ticks; saves 6 ids); C1-C3 0 ids. Stale scratch caused the dark DMG water in earlier ctx sheets (regenerated). Q119 re-asked: 1/2/3/4, I recommend 1.
 - 2026-11-07 owner Q119: "Can I see curtain one without the slit on the bottom?" -> C1 variant, solid cloth, no bottom slit.
+- 2026-11-07 teahouse C1S (a83b5a5, d73ad77f): curtain 1 without slit, straight hem, 0 ids; on the Q119 card.
