@@ -82,9 +82,15 @@ def peak_rows(name):
     return ["".join(r) for r in g]
 
 
+import os as _os
+SKIP = set(filter(None, _os.environ.get("SMAP_SKIP_DESERT", "").split(",")))      # scratch: peak names (twin cone spire slope mesa) or cactus names (S S2 Q B) left out, to cost each piece
+
+
 def apply_grid(lay):
     G = lay.GRID
-    for grp in SPILL_GROUPS.values():
+    for k, grp in SPILL_GROUPS.items():
+        if "spill" + k in SKIP:
+            continue
         for y, (x0, x1) in grp.items():
             for x in range(x0, x1 + 1):
                 G[y][x] = "d"
@@ -140,12 +146,16 @@ def apply_world(W, WORLDS, pieces=("peaks", "cacti"), cactus_pal="cactus"):
     ROCKS_CLEARED[0] = 0
     if "peaks" in pieces:
         for name, x, y in PEAK_AT:
+            if name in SKIP:
+                continue
             rows = peak_rows(name)
             ROCKS_CLEARED[0] += clear_rocks(W, WORLDS, x - 3, y - 3, x + len(rows[0]) + 3, y + len(rows) + 3)
             _put(W, WORLDS, x, y, rows, "saloon")
             cells.append((name, x, y, len(rows[0]), len(rows)))
     if "cacti" in pieces:
         for name, cx, cy in CACTUS_AT:
+            if name in SKIP:
+                continue
             rows = CACTI[name]
             assert all(len(r) == 8 for r in rows), name
             ROCKS_CLEARED[0] += clear_rocks(W, WORLDS, cx * 8 - 2, cy * 8 - 2, cx * 8 + 10, cy * 8 + len(rows) + 2)
