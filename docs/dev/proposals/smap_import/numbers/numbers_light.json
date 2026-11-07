@@ -1,7 +1,7 @@
 {
  "water": "light",
  "fountain": "working",
- "dmg_tiles": 797,
+ "dmg_tiles": 794,
  "dmg_worst_21x19": 143,
  "dmg_worst_21x19_at": [
   1,
@@ -15,7 +15,7 @@
   7
  ],
  "dmg_max_uses_22x20": 238,
- "color_tiles": 854,
+ "color_tiles": 850,
  "palettes_worst_21x19": 8,
  "palettes_worst_at": [
   0,
@@ -26,9 +26,9 @@
  "palette_histogram": {
   "3": 92,
   "4": 280,
-  "5": 456,
-  "6": 603,
-  "7": 546,
+  "5": 447,
+  "6": 607,
+  "7": 551,
   "8": 311
  },
  "table_entries_used": 20,

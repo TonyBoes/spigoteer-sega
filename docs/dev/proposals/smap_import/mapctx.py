@@ -123,6 +123,10 @@ _ed = _load(PROP / "smap_stadium/src/edits.py", "stadium_edits")
 _ed.edit(W)
 _ed.edit_grass_cells(W)
 _step("stadium_edits")
+if not BEFORE_1C:
+    import snowfield
+    SNOW_CHANGES = snowfield.apply(W)                       # one continuous snowfield under ranges B and C
+    _step("snowfield")
 if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
     import roads_round
     ROAD_CHANGES = roads_round.apply(W, PAL)               # rounded outer and inner corners of the road loops (hand-typed pieces in roads_round.py)

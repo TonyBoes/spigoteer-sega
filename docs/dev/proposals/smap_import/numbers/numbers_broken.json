@@ -1,7 +1,7 @@
 {
  "water": "dark",
  "fountain": "broken",
- "dmg_tiles": 791,
+ "dmg_tiles": 788,
  "dmg_worst_21x19": 143,
  "dmg_worst_21x19_at": [
   1,
@@ -15,7 +15,7 @@
   7
  ],
  "dmg_max_uses_22x20": 238,
- "color_tiles": 849,
+ "color_tiles": 845,
  "palettes_worst_21x19": 8,
  "palettes_worst_at": [
   0,
@@ -26,9 +26,9 @@
  "palette_histogram": {
   "3": 93,
   "4": 335,
-  "5": 490,
-  "6": 647,
-  "7": 609,
+  "5": 481,
+  "6": 651,
+  "7": 614,
   "8": 114
  },
  "table_entries_used": 19,

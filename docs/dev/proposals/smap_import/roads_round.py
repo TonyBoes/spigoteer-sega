@@ -75,7 +75,8 @@ def classify(roads):
 import os
 # corners left square: the windows round the south middle junction already hold 8 palettes (base, grass, saloon, tea, tea@g, town1, water, zoo), a rounded corner needs TOWN1@g as a ninth
 PALETTE_LIMITED = {(35, 44), (37, 46), (50, 46)}          # inner ground cell (35,44), outer corners (37,46) and (50,46)
-EXCL = PALETTE_LIMITED | {tuple(int(v) for v in t.split(",")) for t in os.environ.get("SMAP_ROUND_EXCL", "").split(";") if t}
+COLOR_CLASH = {(2, 27), (2, 61), (61, 13), (37, 28), (63, 11)}   # owner review: on sand (saloon, zoo), snow (igloo) and town cobble the road palette's cream ground showed as a pale patch; these stay square
+EXCL = PALETTE_LIMITED | COLOR_CLASH | {tuple(int(v) for v in t.split(",")) for t in os.environ.get("SMAP_ROUND_EXCL", "").split(";") if t}
 
 
 def apply(W, PAL):
