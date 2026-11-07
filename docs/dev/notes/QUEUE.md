@@ -656,3 +656,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - 2026-11-06 milk bar 4k briefed: classic sign arrow, option A coffee-style vertical MILK panel bending into an arrow, option B diner-style thick arc band with bulbs.
 - 2026-11-06 owner: "can we borrow a silver palette from somewhere else on the map? so the cows and milk sign can stay white?"
   Plan: added to milk bar 4k. Cow palette back to white; the building's body cells (not the neon panel) borrow an existing palette with a silver (factory 8898a8 or base 98a0b0), no new table entry, milk bar window must stay <= 8. Color only.
+- 2026-11-06 animations fixed (worktree-agent-a3023453466f37744, before_after_fix.png): falls on the seam-fix tiles, lodge cap unchanged (white puff now starts ~7 px above the chimney; tan-on-cap is a one-line switch in items.py). 11 GIFs on the Q110 card for a last look.
