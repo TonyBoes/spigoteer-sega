@@ -187,3 +187,22 @@ The round clusters cost 25 ids, the 10 ids of room after the pines do not cover 
 | four round clumps and the S2 cactus | one cactus more | 955 | 1019 | 1020 |
 The rework itself frees nothing: the river cells it covers had no tiles of their own. mapctx.py now defaults to B, so the default map fails the generator by 15 until the owner picks one of these.
 - Sheets: s1e_window_B.png (40 x 20 cells, x4, Color above DMG), s1e_falls_strip.png and s1e_falls_anim.gif.
+
+### Stage 1k: the approved foam is back, DMG light-water falls typed (owner: "What happened to the foam and such I approved earlier?")
+- **What was wrong.** The integrated map never carried the approved falls art (it lives in smap_anim as new static tiles), and stage 1j's strip drew the lower falls without the approved foot rows, the foam lip and the pool glints. falls_cave.static_art now pastes the approved frame 0 into the map: row 6 (streaks and the foot rows 12..15), the foam lip cells (46,7) and (47,7), and the glint tiles at (46,8) and (47,8) (the splash arcs go). The art is read from smap_anim/items.py itself (fall_rows, foot_tile, WS), so it is the approved art exactly, same frames and timing (falls step 9 video frames, lip 6 frames after it, glints on their 30-frame pace). The column starts at the cave mouth: the approved rows 4..15 are visible (rows 0..3 are inside the cave).
+- **DMG light water, typed now.** Foam and land 0 (248), water 1 (168). The approved streaks read as grey on a light column; the one addition is the bank rim of the falls column (cell column 3 left, 4 right, rows 5 and 6), which reads 1 on DMG so the column keeps an edge against the white land (`falls_cave.to_dmg`). The lip is foam 0 against the pool's 1: its ragged lower edge and the drifting specks show, its sides melt into the land as the pool does. The pool glints are 0 dashes on 1.
+- **Animation images: unchanged.** The same approved cells animate (FL_A, FL_B, FR_A, FR_B with the two row-5 cells now carrying the mountain, the foot lip cells, two glint tiles), no extra images or cells; DMG VBlank peak stays 6 tiles (96 B) in the igloo view. The DMG frames are the same tile count as the Color ones (typed through to_dmg), so nothing is added.
+- **Other water animations on DMG light water** (anim_light.py, unchanged): pond and lake glints are 0 on 1 (step 80 in DMG shade units, visible); the floating logs keep their white waterline against 1 and the dark body (max change from rest 224). Nothing went flat, nothing changed.
+- **Numbers**, B + cave + approved falls static art on A' (DMG / Color / worst DMG view / over 8): 975 / 1040 / 171 / 0 (the pasted approved tiles add 2 over the 1j count; 1040 is 17 over the 1023 maximum once the teahouse +1 is added). Ways under, measured now with the teahouse +1 on top (must be at most 1023):
+
+| way | what visibly goes | DMG | Color | with teahouse +1 |
+|---|---|---|---|---|
+| four round clumps back to single trees, and one cactus (S) | the 4 clumps and one cactus | 957 | 1021 | 1022 fits |
+| four round clumps back to single trees, and the slope peak | the 4 clumps and one desert peak | 950 | 1014 | 1015 fits |
+| twin, slope and S out | two big peaks and one cactus | 956 | 1021 | 1022 fits |
+| four long bends at r24 instead of r32 | the four sweeps 8 px tighter | 948 | 1013 | 1014 fits |
+| four round clumps alone | the 4 clumps | 959 | 1023 | 1024 does not fit |
+| twin and slope out | two peaks | 958 | 1023 | 1024 does not fit |
+| slope and cone out | two peaks | 959 | 1024 | does not fit |
+
+- Sheets: s1e_falls_strip.png (falls steps 0..3: cave Color, cave DMG, approved 02_falls Color, approved DMG, x6), s1e_falls_anim.gif (50 ms a picture, the 180-frame loop, cave left and approved right, Color above DMG), s1e_window_B.png.

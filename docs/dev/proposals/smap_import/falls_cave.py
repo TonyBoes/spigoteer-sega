@@ -48,17 +48,48 @@ def ledge_rows():
     return ["".join(r) for r in g]
 
 
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "smap_anim"))
+import items as _items                                   # the approved art itself (typed there, unchanged): falls rows, foot lip frames, glint tiles
+
+LIGHT = {0: 0, 1: 0, 2: 1}                               # approved typed index -> DMG light water index: land and foam 0 (lightest), water 1
+
+
+def to_dmg(v, cx, cy, i):
+    """DMG light-water value of an approved typed pixel v at column i of cell (cx, cy): foam and land read 0, water 1, and the BANK RIM of the falls column (cell column 3 left, 4 right, rows 5 and 6)
+    reads 1, so the column keeps an edge against the land it would otherwise melt into (the pool, rows 7 and 8, keeps the plain map)"""
+    if v == 1 and cy in (5, 6) and i == (3 if cx == 46 else 4):
+        return 1
+    return LIGHT[v]
+
+
 def fall_rows(side, k):
-    """rows of one approved falls cell pair on frame k, 16 rows of 8 chars ('.' land, '-' foam, '+' water); only the water columns matter here"""
-    cols = range(0, 4) if side == "L" else range(4, 8)
-    out = []
-    for r in range(16):
-        row = list("...-++++" if side == "L" else "++++-...")
-        for i, f in enumerate(cols):
-            if r < 12 and FALL_COLS[f][(r - FALL_STEP * k) % 12] == "-":
-                row[4 + i if side == "L" else i] = "-"
-        out.append("".join(row))
-    return out
+    """16 rows of one approved falls cell pair on frame k, the foot rows 12..15 included ('.' land, '-' foam, '+' water)"""
+    return _items.fall_rows(side, k)
+
+
+def _tile(rows):
+    return [[{".": 0, "-": 1, "+": 2}.get(c, None) if not c.isdigit() else int(c) for c in r] for r in rows]
+
+
+def static_art(WORLDS):
+    """the approved falls art on frame 0, missing from the integrated map until now: row 6 (the lower falls, with the foot rows of the streaks), the foam lip cells of row 7 and the two
+    glint tiles of row 8 (the splash arcs go).  Color gets the typed indices, DMG reads them through LIGHT (foam against water: 248 on 168)."""
+    cells = {}
+    for side, cx in (("L", 46), ("R", 47)):
+        cells[(cx, 6)] = _tile(fall_rows(side, 0)[8:])
+        cells[(cx, 7)] = _tile(_items.foot_tile(side, 0, 0))
+    cells[(46, 8)] = _tile(_items.WS["vsubtle"]["A"][0])
+    cells[(47, 8)] = _tile(_items.WS["vsubtle"]["B"][0])
+    for (cx, cy), t in cells.items():
+        for w in WORLDS:
+            dmg = w is WORLDS[1]
+            for j in range(8):
+                for i in range(8):
+                    v = t[j][i]
+                    w.px[cy * 8 + j][cx * 8 + i] = to_dmg(v, cx, cy, i) if dmg else v
+    return set(cells)
 
 
 def flow(k):
@@ -88,6 +119,7 @@ def cell_pixels(k=0):
 
 def apply(WORLDS):
     px = cell_pixels(0)
+    static_art(WORLDS)
     for x in range(X0 + 1, 386):                         # the mountain's own foot line at y 39 opens where the ledge hangs from it (the face above is lit there)
         px[(x, 39)] = 1
     for y, (xs, s) in ARCH.items():                      # the top of the mouth, cut into the mountain's face above the ledge
@@ -102,4 +134,4 @@ def apply(WORLDS):
             w.px[y][x] = v
         for (cx, cy) in CELLS:
             w.pal[cy][cx] = "igloo"
-    return set(CELLS)
+    return set(CELLS) | {(46, 6), (47, 6), (46, 7), (47, 7), (46, 8), (47, 8)}
