@@ -791,3 +791,5 @@ The grass dithering patchiness looks better now."
 - 2026-11-07 owner Q119: "Can I see curtain one without the slit on the bottom?" -> C1 variant, solid cloth, no bottom slit.
 - 2026-11-07 teahouse C1S (a83b5a5, d73ad77f): curtain 1 without slit, straight hem, 0 ids; on the Q119 card.
 - 2026-11-07 falls v2 (agent a40b871, branch worktree-agent-a40b8714d677be776, f9d94afa, docs/dev/proposals/smap_falls_v2/, SMAP_FALLS=A|B in big_mountain.py): cave gone; A cleft halfway up with a cascade down the face into the approved falls; B notch under the snow with a jogging gully. Both 972 DMG / 1037 Color, worst view 169, +3 animated cells (12 images), DMG VBlank peak unchanged (argued). Lint not run. My view: A clean, B gully dark/stiff; the mountain foot is still a flat line on grass (rock below y39 would need a palette). Asked Q120 (A recommended).
+- 2026-11-07 owner Q120: "Falls A will do for now, but I will probably change it later."
+  Falls A (f9d94afa, SMAP_FALLS=A) goes into the import; keep it swappable (owner may revisit). Import agent told.
