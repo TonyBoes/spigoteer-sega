@@ -214,3 +214,10 @@ def render(cgb, box=None, scale=1):
                     v = w.px[cy * 8 + y][cx * 8 + x]
                     im.putpixel(((cx - x0) * 8 + x, (cy - y0) * 8 + y), tuple(cols[v]) if cols else (PAL.DMG_SHADE[v],) * 3)
     return im.resize((im.width * scale, im.height * scale), Image.NEAREST) if scale != 1 else im
+
+
+# stage 1l: the approved animation art the map did not carry (new static tiles of smap_anim/items.py: water glints, the six low logs, lodge smoke cells, cow tails), pasted exactly as approved
+if os.environ.get("SMAP_NO_ANIM_STATIC") != "1" and not os.environ.get("SMAP_NOPASTE"):
+    import anim_static
+    ANIM_STATIC_CELLS = anim_static.apply(W, WORLDS, sys.modules[__name__])
+    _step("anim_static")

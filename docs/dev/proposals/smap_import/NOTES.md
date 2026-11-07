@@ -206,3 +206,36 @@ The rework itself frees nothing: the river cells it covers had no tiles of their
 | slope and cone out | two peaks | 959 | 1024 | does not fit |
 
 - Sheets: s1e_falls_strip.png (falls steps 0..3: cave Color, cave DMG, approved 02_falls Color, approved DMG, x6), s1e_falls_anim.gif (50 ms a picture, the 180-frame loop, cave left and approved right, Color above DMG), s1e_window_B.png.
+
+### Stage 1l: audit of every approved animation item against the integrated map (coordinator, after the falls)
+Method (audit_anim.py, audit_verify.py): the items of smap_anim/items.py are built on a scene read from the integrated map. Building an item applies its NEW STATIC tiles to that scene and some items carry `edits`; the pixels that differ between the map and the scene afterwards are exactly the approved frame 0 art the map lacked. anim_static.py pastes them (Color: the typed index; DMG light water: glint and water cells 1 to 0, 2 to 1; log cells keep the map's own DMG rows for every row the sunk pose shares with the old tile and type the new waterline foam 1 to 0, 2 to 1; lodge and cows are the same indices on DMG). mapctx runs it last (SMAP_NO_ANIM_STATIC=1 turns it off, anim_light.py needs that). audit_verify.py then checks, for every tile animation, that the cells the engine table rewrites hold exactly the approved frame 0 tile.
+
+| item | in the map before | animated cells (after the paste) | pasted |
+|---|---|---|---|
+| 01 water shimmer, pond glints (WA, WB) | no (old glint art) | 40: (40,53) (40,61) (40,66) (40,69) (41,53) (41,54) (41,66) (41,67) (42,51) (42,53) (42,59) (42,66) (43,51) (43,56) (43,60) (43,69) (44,55) (44,56) (44,59) (44,69) (45,42) (45,48) (45,49) (45,52) (45,55) (45,61) (45,65) (46,15) (46,16) (46,28) (46,35) (46,38) (46,51) (46,67) (46,68) (47,33) (56,34) (57,33); pool (46,8) (47,8) by falls_cave | the 40 cells, new glint tiles |
+| 02 falls, lip, pool glints | no | row 5 two cells, (46,6) (47,6), lip (46,7) (47,7), (46,8) (47,8) | stage 1k |
+| 03 fountain streams and basin | yes | (36,24) (37,24) (36,25) (37,25) | none |
+| 04a bunting | yes | (33..39,20) | none |
+| 04b stadium flag | yes | (7,1) (8,1) | none |
+| 05 airbase dish and lamp | yes | (9,36) dish, (8,36) lamp (airbase at (4,34)) | none |
+| 06a lodge smoke | no (old tan puff) | (58,19) (59,19), palette water; tan puff in (58,20) (59,20) erased | 4 cells |
+| 06b factory smoke | yes | (60,37) (60,38) (61,38) (52,37) (52,38) (53,38); (60,37) and (52,37) start from blank sky | none |
+| 06c igloo smoke | yes | (56,5) | none |
+| 07 cow tails | no (cows had no tail) | (55,49) (59,52) | the two tail cells |
+| 09 six logs half-submerged | no (old floating pose, 12 log cells) | across (42,52) (43,52) (43,57) (44,57) (44,68) (45,68), upright (45,43) (45,44) (46,20) (46,21) (46,29) (46,30); the 6 removed logs are plain water: (48,33) (49,33) (54,33) (55,33) (57,32) (58,32) (42,65) (43,65) (45,46) (45,47) (46,36) (46,37) | 28 log cells |
+
+The approved pieces (stadium BLEND, fountain working and broken, airbase 4i, igloo option 1, milk bar) are in the map through their scenes: no differences. The fountain was audited in its working state (the default); the broken state was not audited. Sheet: s1e_anim_static.png (sunk logs, a removed log, lodge smoke, cow tail, glints; Color above DMG). On DMG light water the sunk logs keep a white waterline and the dark body, the glints are light on mid grey.
+Animation images: no change (this only puts frame 0 in the map). DMG VBlank peak per view: unchanged, 6 tiles (96 B), the igloo view.
+Own tile ids: the two factory cells (60,37) and (52,37) start from the shared blank sky tile, so the engine table needs an id of their own each: +2 ids on top of the measured count (the approved report lists lodge, factory and cows for this; only the factory's two are blank now).
+
+**True total** B + cave + approved falls + the pasted art, A' (measured 974 DMG, 1039 Color, worst DMG view 170, windows over 8: 0, worst palettes 8): 976 DMG and 1041 Color with the two factory ids; with the teahouse +1, 1042 Color, 19 over the 1023 maximum. Ways under (measured; true = measured + 3 for the factory ids and the teahouse; must be at most 1023, so measured at most 1020). None applied, the owner picks:
+
+| way | what visibly goes | DMG | Color | true Color |
+|---|---|---|---|---|
+| four round clumps back to single trees, plus the cactus S | the 4 clumps, one cactus | 956 | 1020 | 1023 fits |
+| four round clumps, plus the slope peak | 4 clumps, one desert peak | 949 | 1013 | 1016 fits |
+| four round clumps, plus the cone peak | 4 clumps, one desert peak | 951 | 1015 | 1018 fits |
+| desert twin, slope and S out | two big peaks, one cactus | 955 | 1020 | 1023 fits |
+| four long bends at r24 instead of r32 | the four sweeps 8 px tighter | 947 | 1012 | 1015 fits |
+| four round clumps alone | the 4 clumps | 958 | 1022 | 1025 does not fit |
+| desert twin and slope out | two peaks | 957 | 1022 | 1025 does not fit |
