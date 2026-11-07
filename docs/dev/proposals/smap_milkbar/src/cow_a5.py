@@ -43,6 +43,23 @@ def sign(c, cx, ytop, base_y, foot=10):
         c.px[base_y + 1][cx - foot // 2 + i] = ch
 
 
+ARROW = {77: [20], 76: [21], 75: [22], 74: [23], 73: [24, 25, 52, 53], 72: [26, 27, 50, 51], 71: [28, 29, 30, 47, 48, 49], 70: list(range(31, 47)),
+         74.5: [], 75.5: []}
+ARROW.update({74: [23, 54], 75: [22, 55], 76: [21, 56], 77: [20, 56], 78: [56], 79: [56], 80: [56], 81: [54, 55, 56, 57, 58], 82: [55, 56, 57], 83: [56]})
+del ARROW[74.5], ARROW[75.5]
+
+
+def arrow(c):
+    """a curved neon arrow from the bottle's shoulder over the roof, pointing down at the diner's sign: chrome core, pink halo on the blank cells next to it"""
+    core = {(x, y) for y, xs in ARROW.items() for x in xs}
+    for (x, y) in core:
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if (x + dx, y + dy) not in core and c.px[y + dy][x + dx] == "0":
+                c.px[y + dy][x + dx] = "2"
+    for (x, y) in core:
+        c.px[y][x] = "1"
+
+
 def pen(c):
     for i in range(12):
         t = POST if i % 2 == 0 else RAIL
@@ -55,7 +72,7 @@ def pen(c):
     put(c, 88, 56, POST)
 
 
-def build(arr, style=None, roof=None):
+def build(arr, style=None, roof=None, new=0, borrow=None):
     """arr 1 and 2: as round 4f's first set; arr 3 (owner, after Q106): the building with its lot and bikes one cell (8 px) west, a cell of grass between it and
     the north-south road; the cow where the sign was in arrangement 1, the sign beside the building where the cow was; the pen of arrangement 1"""
     c = Canvas("cowA5_%d" % arr, "cow", W, H)
@@ -65,7 +82,7 @@ def build(arr, style=None, roof=None):
         cow_bldg.restyle(base, style)
     if roof:
         import cow_roof
-        cow_roof.restyle_roof(base, roof)
+        cow_roof.restyle_roof(base, roof, narrow=bool(borrow))
     for y in range(2, 56):                                   # the old sign and cow places are cleared
         for x in range(8, 24):
             base.px[y][x] = "0"
@@ -88,6 +105,18 @@ def build(arr, style=None, roof=None):
     if arr == 1:
         put(c, 28, 18, v_cow.COW)                            # the cow in the pen
         sign(c, 8, 2 + OFF, 54 + OFF, 8)                     # at the lane's west end, where the road comes in from the bridge (foot 8 wide, clear of Sal's stop)
+    elif arr == 3 and new:
+        put(c, 28, 18, v_cow.COW)
+        put(c, 6, 144, v_cow.COW)                            # the milk bar's cow across the lane: on the south verge, left of the building's span
+        if new in (3, 4, 5):
+            import cow_sign
+            {3: cow_sign.sign_a, 4: cow_sign.sign_b, 5: cow_sign.sign_b2}[new](c)
+        elif new == 6:
+            pass                                             # no sign here: build_final draws it on a wider canvas
+        else:
+            sign(c, 12, 2 + OFF, 46 + OFF, 8)                # the sign a few px further left
+            if new == 2:
+                arrow(c)
     elif arr == 3:
         put(c, 28, 18, v_cow.COW)
         put(c, 1, 98, v_cow.COW)                             # the lawn cow, where the sign stood in arrangement 1
@@ -95,6 +124,29 @@ def build(arr, style=None, roof=None):
     else:
         put(c, 4, 34 + OFF, v_cow.COW)                       # the cow on the lawn west of the building, above the lane
         sign(c, 44, 142, 174)                                # the south verge: bottle y 142..164, a short pole, the foot at y 174
+    if borrow:                                               # the building's body cells on an existing palette that has a silver (Color only): the wall cells y 96..119, cols 3 and 10 at y 96..103
+        c.palrect(24, 96, 32, 104, borrow)
+        c.palrect(80, 96, 88, 104, borrow)
+        c.palrect(24, 104, 88, 120, borrow)
+        for (x0, y0, x1, y1) in ((24, 96, 32, 104), (80, 96, 88, 104), (24, 104, 88, 120)):
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    assert c.px[y][x] != "0", ("ground would show", x, y)
+    return c
+
+
+def build_final(shift=4, raise_=4):
+    """the owner's last pick (sign B on base silver) with the band raised on the pole and the whole sign moved left: the picture is 8 px wider on the left (104 x 184, top left at
+    world cell (49, 47); cell x 49 is farm ground, the COW palette's index 0 is the same colour), the rest is build(3, 'A', 2, 6, borrow='base') shifted 8 px right"""
+    import cow_sign
+    c96 = build(3, 'A', 2, 6, borrow='base')
+    c = Canvas("cowFinal", "cow", W + 8, H)
+    for y in range(H):
+        for x in range(W):
+            c.px[y][x + 8] = c96.px[y][x]
+    for (x0, y0, x1, y1, p) in c96.rects:
+        c.palrect(x0 + 8, y0, x1 + 8, y1, p)
+    cow_sign.sign_b3(c, 8 - shift, raise_=raise_)
     return c
 
 

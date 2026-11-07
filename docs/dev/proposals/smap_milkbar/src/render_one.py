@@ -20,6 +20,8 @@ TMP = C.ROOT + '/out/mb'
 mode = sys.argv[1]
 X0, Y0, X1, Y1 = 40, 44, 64, 70                 # the crop, in cells
 STOP = (418, 508)
+import os
+BORROW = os.environ.get('MB_BORROW', 'factory')
 
 
 def piece():
@@ -29,6 +31,18 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode == 'eB':
+        return A.build_final(), (49, 47)
+    if mode in ('cB', 'dB'):
+        return A.build(3, 'A', 2, 4 if mode == 'cB' else 5, borrow='base'), (50, 47)
+    if mode in ('cA',):
+        return A.build(3, 'A', 2, 3, borrow='base'), (50, 47)
+    if mode in ('b1', 'bA', 'bB'):
+        return A.build(3, 'A', 2, {'b1': 1, 'bA': 3, 'bB': 4}[mode], borrow=BORROW), (50, 47)
+    if mode in ('sA', 'sB'):
+        return A.build(3, 'A', 2, 3 if mode == 'sA' else 4), (50, 47)
+    if mode in ('n1', 'n2'):
+        return A.build(3, 'A', 2, int(mode[1])), (50, 47)
     if mode.startswith('roof'):
         return A.build(3, 'A', int(mode[4])), (50, 47)
     if mode.startswith('bld'):
@@ -104,7 +118,11 @@ def counts(wd, wc):
     for y0 in range(CH - 18):
         for x0 in range(CW - 20):
             pbest = max(pbest, len(np.unique(pg[y0:y0 + 19, x0:x0 + 21])))
-    return {"unique_tiles": len(ids), "worst_21x19": best, "worst_at": at, "worst_near_milkbar": near, "near_at": nat, "palettes_21x19": pbest}
+    nb = 0
+    for y0 in range(47 - 18, 70 - 18):
+        for x0 in range(50 - 20, 62):
+            nb = max(nb, len(np.unique(pg[y0:y0 + 19, x0:x0 + 21])))
+    return {"palettes_near_milkbar": nb, "unique_tiles": len(ids), "worst_21x19": best, "worst_at": at, "worst_near_milkbar": near, "near_at": nat, "palettes_21x19": pbest}
 
 
 def main():
@@ -113,14 +131,23 @@ def main():
     if c is not None:
         paste_world(wd, c, at)
         paste_world(wc, c, at)
+    if os.environ.get('MB_TEAFIX') == '1':                  # option 1: the tea house's cell (34, 59) joins tea@g (Color only); crops of the cells x 33..35, rows 58..60 before and after
+        for tag in ('before', 'after'):
+            if tag == 'after':
+                wc.pal[59][34] = 'tea@g'
+            im = Image.new('RGB', (24, 24))
+            for j in range(3):
+                for i in range(3):
+                    im.paste(tile_rgb(wc, 33 + i, 58 + j, True), (i * 8, j * 8))
+            im.save(f'{TMP}/r12_tea_{tag}.png')
     res = counts(wd, wc)
     if c is not None:
         res["piece_tiles"] = C.tile_count(c)
     json.dump(res, open(f'{TMP}/r6_{mode}.json', 'w'), default=str)
     cc = C.render(c, 'farm', at, False, margin=0) if c is not None else None
     if c is not None:
-        C.render(c, 'farm', at, False, margin=0).crop((16, 80, 96, 144)).save(f'{TMP}/r6_{mode}_closeDMG.png')
-        C.render(c, 'farm', at, True, margin=0).crop((16, 80, 96, 144)).save(f'{TMP}/r6_{mode}_closeColor.png')
+        C.render(c, 'farm', at, False, margin=0).crop((0, 60, c.w, 160)).save(f'{TMP}/r6_{mode}_closeDMG.png')
+        C.render(c, 'farm', at, True, margin=0).crop((0, 60, c.w, 160)).save(f'{TMP}/r6_{mode}_closeColor.png')
     shot(wd, False).save(f'{TMP}/r6_{mode}_DMG.png')
     shot(wc, True).save(f'{TMP}/r6_{mode}_Color.png')
     print(mode, res)

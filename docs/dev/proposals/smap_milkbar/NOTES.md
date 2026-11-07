@@ -1,4 +1,121 @@
-# Milk bar round 4i (current): flat roofs and a neon sign
+# Milk bar final round 2: band raised on the pole, whole sign 4 px left
+
+Owner on sheet13: "quality pass looks good, but lets raise the bottom of the arrow a bit on the pole. Then lets move the whole sign to the left a bit." `milkbar_sheet14.png` (two columns, large labels): After pass | Raised + left; DMG and Color, close-up x4 and map x3. Code: `sign_b3` in `src/cow_sign.py`, `build_final` in `src/cow_a5.py`, mode `eB` of `src/render_one.py`, `src/sheet14.py`.
+
+- **Raised:** the arm and head moved up 4 rows (the arm is y 94..99 now, was 98..103); the band's left side is 4 rows shorter; the passed band is otherwise the same (bulbs 2 x 2 every 4 px: 5 down the left, the corner one, 3 along the arm; ink outline; stepped radius 4 bend). Bottle, pole and foot keep their rows. The head still points at the building's left wall.
+- **Left:** the whole sign is 4 px left. The old picture started at the cell edge (x 0), so the picture is now 104 px wide, 8 px more on the left, top left at world cell (49, 47). Cell x 49, rows 55..61, is farm ground, and COW's index 0 is the farm colour, so no new palette and no visible seam; the cell loses its ground tuft tile where the sign covers it. The sign's leftmost pixels are 4 px into cell 49.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| After pass | 579 | 133 | 117 | 81 | 8 |
+| Raised + left | 581 | 133 | 119 | 83 | 8 |
+
+Palettes per window are 8 at worst everywhere (including the cell added at x 49). Tea cell (34, 59) on `tea@g` and the `base` building as before.
+
+---
+
+# Milk bar final round: sign B on `base` silver, tea cell merged, quality pass on the band
+
+Owner (Q106): "Keep airbase silver. ... I prefer the last sign where the arrow is on the side." Built: sign B (diner), building body cells on `base`, the tea house cell (34, 59) on `tea@g` (Color only, DMG unchanged, as in `milkbar_sheet12.png`). `milkbar_sheet13.png` (two columns, large labels): B as picked | B after pass; DMG and Color, close-up x4 and map x3. Code: `sign_b2` in `src/cow_sign.py`, modes `cB` and `dB` of `src/render_one.py` (env `MB_TEAFIX=1 MB_PASTURE=1`), `src/sheet13.py`.
+
+**Pass on the band only** (bottle, pole, head, building, lot, cows, pasture unchanged):
+- **Bulbs:** in the picked version the bulbs were 1 px chrome dots touching the chrome tube, so they merged into it. Now the band is an ink outline round a 4 px pink fill (the chrome tube is gone from the band; the head keeps its tube), and the bulbs are 2 x 2 chrome blocks with a pink margin on every side, one every 4 px along the band (7 down the left side, 3 along the arm). They read as separate dots at map x3 on DMG (grey 168 on pink 88) and on Color (white-lilac on pink). Static.
+- **Bend:** the bottom left corner is a stepped quarter circle of radius 4 instead of a square corner, and the inside corner is chamfered. At this size it is a stair, closer to the references' curve; a rounder bend does not fit (the lane starts right below the arm).
+- The band is now 6 px of ink-pink-ink with 4 px of pink (it was ink, tube, 2 px of pink, tube, ink).
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| B as picked (base, tea merged) | 579 | 133 | 117 | 81 | 8 |
+| B after pass | 579 | 133 | 117 | 81 | 8 |
+
+Palettes per window are 8 everywhere on the map. Lint PASS (DMG) for the new picture; every pixel typed.
+
+---
+
+# Milk bar round 4k, A coffee sign on `base` (tea cell merged)
+
+`milkbar_sheet12.png`: column 1 = A on factory (sheet 11), column 2 = A on `base` (98a0b0) with the tea house cell (34, 59) put on `tea@g` (Color only, DMG unchanged); close-up x4 and map x3, DMG and Color; under them the cells x 33..35, rows 58..60 before and after, Color x6. Code: mode `cA` of `src/render_one.py` (env `MB_TEAFIX=1`), `src/sheet12.py`. Nothing in the layout or the tea picture is edited: the merge is a palette assignment of that one cell in the scratch map.
+
+Counts (A on base, tea merged): whole map 578 tiles, worst 21 x 19 view 133, worst milk bar window 113, palettes per window 8 at worst, everywhere on the map and near the milk bar (the 9 of the unmerged case are gone). Same art as A on factory, so the tile counts are the same.
+
+**Correction to the earlier estimate.** The cell has 31 index 0 pixels, not 4: on `tea` all of them are the pale d8ecb0; 27 of them are the margin round the tea house's sign (outside the outline) and show as a pale square on the grass (the "before" crop). On `tea@g` they all become the grass colour b0d080, the square disappears, and the 4 inner highlight pixels (on the round sign) go from pale to grass green too. So the visible change is a removal of an existing pale patch plus a 4 px highlight loss.
+
+---
+
+# Milk bar round 4k, investigation: can `base` (98a0b0) fit the milk bar window?
+
+With the building's body cells on `base`, 8 of the sliding 21 x 19 windows hold 9 palettes: origins x 33..34, y 41..44 (nothing else on the map, nothing with the factory palette). All 8 contain the same nine palettes:
+
+| palette | cells in these windows | where |
+| --- | --- | --- |
+| grass | about 125..170 | the lawn west of the river and bank, rows 41..61 |
+| water | about 118..131 | the river, x 37..48 |
+| farm | 36..46 | the pasture and verge, x 48..54 |
+| cow | 29..42 | pen fence, sign, cows, the sign block |
+| town1 | 26..43 | the lane (road) at the bottom and the ring road at the top |
+| tea@g | 3..8 | the tea house's cells next to grass, x 33..35, rows 57..61 |
+| factory | 2..12 | the factory's bottom cells, x 52..54, rows 41..44 (top edge only; windows from y 45 down do not see them) |
+| tea | **1** | cell (34, 59) |
+| base | 1..5 | the milk bar's left two columns, x 53..54, rows 59..61 (right edge only; windows from x 35 do not see tea, windows from x 55 do not see the left two columns) |
+
+The window origins are fixed by the tea house (left edge) and the milk bar (right edge) 20 cells apart, so the overlap is only the strip x 33..35 and x 53..54.
+
+**Options**
+1. **Merge the single `tea` cell (34, 59) into `tea@g`.** That cell is on `tea` because the generator found index 0 pixels inside the tea picture's outline (`world2.py` lines 146 to 158: a cell gets `@g` only if all its index 0 pixels are outside the outline). They are 4 pixels, (86, 36), (87, 36), (84, 37), (87, 39) of the picture, the highlight pixels of a rounded object on the tea house. On `tea@g` those 4 pixels would be grass green (b0d080) instead of the pale d8ecb0. Cost: 4 pixels of the tea house change colour on Color, DMG unchanged; the window drops to 8. It is the cheapest fix, but not "no visible change outside the milk bar": the tea house loses a 4 px highlight. Variant: redraw those 4 pixels as index 1 (cream f4ecc8) so that the colour stays near and no palette change is needed (this changes the DMG shade of the 4 pixels from the lightest to a lighter grey).
+2. **Keep the milk bar's left two columns (x 53, 54) on COW** (white, not silver): base then only appears from x 55, outside the tea windows. Cost: a 16 px wide white strip at the building's left end (a pilaster look); nothing else changes.
+3. Drop `factory`, `farm`, `town1`, `grass` or `water` from the window: not possible without recolouring terrain.
+4. Move the milk bar two cells east: not possible, the ring road is at x 62.
+
+I did not render the coffee sign on `base`: option 1 is not strictly clean (4 tea house pixels), option 2 is a visible change on the milk bar itself. Say which one to render.
+
+---
+
+# Milk bar round 4k (current): classic roadside arrow signs, building on a borrowed silver palette
+
+Owner: "not what I wanted with the arrow. Something more like what these classic signs looked like" (refs `docs/dev/proposals/refs/owner_sign_diner.jpg`, `owner_sign_coffee.jpg`), then "can we borrow a silver palette from somewhere else on the map? so the cows and milk sign can stay white?" `milkbar_sheet11.png`: 4j silver (COW idx 1) | building on the FACTORY palette, no arrow | A coffee sign | B diner sign; close-up x4, A5 map x3, DMG and Color. Code: `src/cow_sign.py` (both signs typed row by row), `build(3, 'A', 2, new, borrow)` in `src/cow_a5.py`, `src/cow_roof.py` (`narrow`), `src/sheet11.py`.
+
+**Signs** (both 24 px wide on the lawn between the bank and the building, x 0..23, y 64..119; thick 6 px band: ink outline, chrome tube, pink fill; a big solid head with a flat back and a 2 px tip pointing right at the bar; static):
+- **A coffee:** the bottle on top of a tall vertical panel (10 wide) reading MILK top to bottom in chrome on pink, whose foot bends into the arm and head. The bottle moved up 2 rows (cap at y 64, just under the fence) to fit 4 letters and the bend above the lane.
+- **B diner:** the bottle on its pole (pole and foot as before, 2 px right of 4j), the band wraps round the bottle's left side and under it into the arm and head, a row of bulbs (chrome dots, every other pixel) along the band's middle.
+The head is only 10 px tall (6 px band): there is no room for more between the bottle and the lane (the lane starts at y 120).
+
+**Silver by borrowing a palette.** COW idx 1 is back to `e8e0f0` (cows, bottle, fence, trough, sign post white). The building's body cells (wall cells y 96..119 in the picture: the two wing wall cells and the two cell rows under the sign block) are on an existing table entry:
+- `base` [f8e090, 98a0b0, 1c2468, 080818] has the better silver but puts **9 palettes** in the milk bar window (limit 8): rejected.
+- `factory` [d0c890, 88a090, 385048, 101818] gives 8. Its silver is a green-grey: it reads as dark olive-grey, not as light silver. It is the only candidate that fits the window; the 4j recolour (COW idx 1 `b0b8c8`) looks better. The trim line (pink in COW) becomes factory's idx 2, a dark green-grey.
+- Cells: no cell shows ground (asserted in the build: no index 0 pixel in those cells). To get this the raised sign block is 48 px wide (was 52, edges on cell edges, word gap 4 instead of 5) so the two wings are whole cells; the wings' top row of cells (parapet and blank rows) stays COW, so the wing parapet is white and the wing wall silver. The neon block and the roof cap stay COW. DMG unchanged (index shades are the same).
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window (milk bar) |
+| --- | --- | --- | --- | --- | --- |
+| 4j silver, no arrow | 574 | 133 | 112 | 76 | 8 |
+| FACTORY silver, no arrow | 574 | 133 | 112 | 76 | 8 |
+| A coffee | 578 | 133 | 113 | 80 | 8 |
+| B diner | 579 | 133 | 117 | 81 | 8 |
+(`base` instead of `factory`: 9 in every row.)
+
+Lint PASS DMG and Color for A and B.
+
+---
+
+# Milk bar round 4j: cow across the lane, sign left, neon arrow, silver building
+
+Owner: "v2. but move the cow to the left of the building under the building to the other side of the road, then move the milk bottle sign to the left a bit. Maybe try adding a neon arrow to the milk bottle sign that curves pointing down at the venue. And try making the color of the building silver instead of white." Base: 4i v2. `milkbar_sheet10.png`: v2 | new (no arrow) | new + arrow, close-up x4 and the A5 map x3, DMG and Color. Code: `build(3, 'A', 2, new)` in `src/cow_a5.py`, `MB_SILVER=1` in `src/a5env.py`, `src/sheet10.py`.
+
+1. **Cow:** now on the south verge below the lane (picture x 6..19, y 144..153; world cells x 50..51, rows 65..66), left of the building's span, on grass, well below Sal's stop (lane row 63) and clear of the river bank. The pen cows are as before.
+2. **Sign:** 6 px left (pole centre x 12, was 18); bottle x 4..19; foot still above Sal's box.
+3. **Arrow:** a curved neon tube from the bottle's right shoulder over the lawn, 40 px long, descending to an arrowhead pointing down at the MILK BAR block's cap (head x 54..58, tip y 83, cap y 85). Chrome core, pink halo, like the lettering; static. Shown with and without (columns 2 and 3).
+4. **Silver:** the chrome COW index 1 is `e8e0f0` (used by the building, the bottle's glass, the cows' bodies, the pen's fence and trough and the sign post). No other palette has a silver with pink at index 2, so I chose to change COW index 1 to `b0b8c8` (RGB555 grid) instead of giving the building another palette (a new slot; the table is full). Nothing else uses `cow` on the map (grep of tools/ and src/: only the generator, `pal.py`, `palsnap.py` and `v_cow.py`; `e8e0f0` also appears in `assets/approved/venues/biker_pal.json`, a different palette, untouched). What else changed colour: the cows, the bottle glass and label, the fence, the trough and the post go from white-lilac to silver; the cows read greyer. DMG unaffected (index 1 is still shade 1). Palette count unchanged.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| v2 | 571 | 133 | 115 | 74 | 8 |
+| new (no arrow) | 574 | 133 | 112 | 76 | 8 |
+| new + arrow | 584 | 133 | 122 | 86 | 8 |
+
+The arrow costs 10 tiles (its cells are mostly unique). Lint PASS DMG and Color.
+
+---
+
+# Milk bar round 4i: flat roofs and a neon sign
 
 Owner: "Could I get versions of the milk bar where the roof isnt domed and the sign on the building looks more like a neon sign? Of the examples I like A's doors better." Base: 4h option A (dark glass windows, A's doors). Only the roof and the sign band changed (x 32..95, y 20..39 of the piece); position, lot, bikes, sign post, cow and pasture are as in 4g. `milkbar_sheet9.png`: 4h A | v1 | v2 | v3, close-up x4 and the A5 map x3, DMG and Color. Code: `src/cow_roof.py` (hand-typed roofs; the letters are round 3's 5 x 5 glyphs), `build(3, 'A', v)` in `src/cow_a5.py`, `src/sheet9.py`.
 
