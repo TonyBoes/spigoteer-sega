@@ -636,3 +636,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Owner 11-06, Q108: "lets not have the backdrop be a random grey rectangle behind the jet. Sand would look better than that." So: no apron block; the jet stands on sand by the hangar, long runway kept; optional narrow taxi strip shown with/without. Sent back to the hangar artist.
 - 11-06 milk bar 4h: doors redrawn inside the wall; windows A dark glass (my pick) / B light (lime on Color); 565 tiles. Q106 reopened.
 - 11-06 hangar 4h (7f663f58): jet K1 on BASE sand at (4,57), runway 6 rows y66-71 x1..197, no shadow; 97 tiles. Q108 reopened.
+- 11-06 animation mockups in (branch worktree-agent-a3023453466f37744): 11 GIFs, 64 new tile images total, town view peak 6 tiles/frame; best value: water glints, bunting, radar, lamps. Falls streak period 12 (could go 18). Q110 reopened with GIFs.

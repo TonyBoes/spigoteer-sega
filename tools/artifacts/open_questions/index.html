@@ -62,7 +62,7 @@ audio { width: 100%; max-width: 420px; }
   <nav><ol>
     <li><a href="#q106"><span class="n">Q106</span><span>Milk bar windows: dark or light glass?</span></a></li>
     <li><a href="#q108"><span class="n">Q108</span><span>Hangar jet on the sand: OK?</span></a></li>
-    <li><a href="#q110"><span class="n">Q110</span><span>Which map items to animate?</span></a></li>
+    <li><a href="#q110"><span class="n">Q110</span><span>Map animations: which go in?</span></a></li>
   </ol></nav>
   <section class="card" id="q106">
     <div class="tag">Q106</div>
@@ -92,17 +92,44 @@ audio { width: 100%; max-width: 420px; }
   <section class="card" id="q110">
     <div class="tag">Q110</div>
     <h2>Map animations</h2>
-    <p class="ask">On hold: mockups of all of them, plus small slow lights, are being made.</p>
+    <p class="ask">Which go in? All / list the ones you want.</p>
     <ul>
-      <li>Water ripple on the river and lake (cheapest: one shared tile animates all the water). DMG and Color.</li>
-      <li>The waterfall at the river's source.</li>
-      <li>The town fountain's water, once it's repaired.</li>
-      <li>Town bunting and the stadium pennants fluttering, with the flag.</li>
-      <li>The radar dish turning on the mountain.</li>
-      <li>Chimney smoke: lodge, igloo, factory.</li>
-      <li>The cow's tail swishing in the pasture.</li>
-      <li>Small slow lights: the mountain mast lamp, runway lights. Tiny, soft, about one blink every second or two.</li>
+      <li>All 64 new tile pictures together; the busiest view (the town) redraws at most 6 tiles in one frame. The programmer still has to confirm DMG copes while Sal walks.</li>
+      <li>Lights: one shade step, about one blink a second. No flashes. The igloo has no chimney, so no smoke there.</li>
+      <li>DMG left, Color right in each picture.</li>
     </ul>
-    <p>Cost: each is a few tiles redrawn every few frames, same on DMG and Color. On DMG the map is already busy loading tiles while Sal walks, so I'd keep each slow and test the speed before adding more than two or three.</p>
+    <h2>Water glints</h2>
+    <p class="cap">+4 tiles; moves all water. Best value.</p>
+    <div class="media"><img src="media/q110/01_water.gif" alt="Water glints animation, DMG left and Color right"></div>
+    <h2>Waterfall</h2>
+    <p class="cap">+9.</p>
+    <div class="media"><img src="media/q110/02_falls.gif" alt="Waterfall animation, DMG left and Color right"></div>
+    <h2>Fountain water</h2>
+    <p class="cap">+5; placeholder on the old fountain.</p>
+    <div class="media"><img src="media/q110/03_fountain.gif" alt="Fountain water animation, DMG left and Color right"></div>
+    <h2>Town bunting</h2>
+    <p class="cap">+6.</p>
+    <div class="media"><img src="media/q110/04a_bunting.gif" alt="Town bunting animation, DMG left and Color right"></div>
+    <h2>Stadium pennants</h2>
+    <p class="cap">+4; drawn on round 3, new flags.</p>
+    <div class="media"><img src="media/q110/04b_pennants.gif" alt="Stadium pennants animation, DMG left and Color right"></div>
+    <h2>Radar dish</h2>
+    <p class="cap">+3; 4 steps, 6 would be smoother (+2).</p>
+    <div class="media"><img src="media/q110/05_radar.gif" alt="Radar dish animation, DMG left and Color right"></div>
+    <h2>Lodge smoke</h2>
+    <p class="cap">+10.</p>
+    <div class="media"><img src="media/q110/06a_smoke_lodge.gif" alt="Lodge smoke animation, DMG left and Color right"></div>
+    <h2>Factory smoke</h2>
+    <p class="cap">+15 (one stack +7).</p>
+    <div class="media"><img src="media/q110/06b_smoke_factory.gif" alt="Factory smoke animation, DMG left and Color right"></div>
+    <h2>Cow tails</h2>
+    <p class="cap">+6.</p>
+    <div class="media"><img src="media/q110/07_cow_tail.gif" alt="Cow tails animation, DMG left and Color right"></div>
+    <h2>Mast lamp</h2>
+    <p class="cap">+1.</p>
+    <div class="media"><img src="media/q110/08a_lamp_mast.gif" alt="Mast lamp animation, DMG left and Color right"></div>
+    <h2>Stadium lamps</h2>
+    <p class="cap">+2; dims white to red on Color.</p>
+    <div class="media"><img src="media/q110/08b_lamps_stadium.gif" alt="Stadium lamps animation, DMG left and Color right"></div>
   </section>
 </div>
