@@ -82,7 +82,7 @@ def finish(c):
 
 def build(bunting=True):
     c = Canvas("parkS2", "park", W, H)
-    F.field(c)
+    F.field(c, False)
     stands(c, bunting)
     finish(c)
     return c

@@ -13,7 +13,7 @@ TMP = C.ROOT + '/out/stad/tmp'
 items, top = [], []
 for cgb in (False, True):
     C.cgb_unmerge = True
-    for lab, m in (('OPTION 2 as proposed', O), ('FINAL', N)):
+    for lab, m in (('OPTION 2 as proposed', O), ('FINAL 2', N)):
         f = f'{TMP}/f_{m.__name__}_{"C" if cgb else "D"}.png'
         im = C.render(m.build(), m.BIOME, m.AT, cgb)
         im.save(f)
@@ -21,8 +21,8 @@ for cgb in (False, True):
         g = f'{TMP}/top_{m.__name__}_{"C" if cgb else "D"}.png'
         im.crop((0, 0, 112, 56)).save(g)
         top.append((f'{lab} {"Color" if cgb else "DMG"} top', g))
-subprocess.run([sys.executable, C.ROOT + '/tools/dev/contact_sheet.py', OUT + '/stadium_final_sheet.png', '--scale', '3', '--cols', '2', '--title', 'stadium option 2 | final (DMG above, Color below)'] + [f'{l}={p}' for l, p in items], check=True)
-subprocess.run([sys.executable, C.ROOT + '/tools/dev/contact_sheet.py', OUT + '/stadium_final_top_x6.png', '--scale', '6', '--cols', '2', '--title', 'close-up of the top, x6'] + [f'{l}={p}' for l, p in top], check=True)
+subprocess.run([sys.executable, C.ROOT + '/tools/dev/contact_sheet.py', OUT + '/stadium_final2_sheet.png', '--scale', '3', '--cols', '2', '--title', 'stadium option 2 | final (DMG above, Color below)'] + [f'{l}={p}' for l, p in items], check=True)
+subprocess.run([sys.executable, C.ROOT + '/tools/dev/contact_sheet.py', OUT + '/stadium_final2_top_x6.png', '--scale', '6', '--cols', '2', '--title', 'close-up of the top, x6'] + [f'{l}={p}' for l, p in top], check=True)
 print('option 2 as proposed', C.tile_count(O.build()), 'final', C.tile_count(N.build()), 'final without flag/bunting', C.tile_count(N.build(bunting=False)))
 c = N.build()
 im = Image.new('P', (c.w, c.h))

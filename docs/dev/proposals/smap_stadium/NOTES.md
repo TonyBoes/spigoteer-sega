@@ -36,6 +36,9 @@ Sheets: `stadium_final_sheet.png` (option 2 | final, DMG above, Color below, x3)
 - Clean-up: no pennants on the steepest wing columns (x 8 to 14, 81 to 87): plain navy wall there; the rest unchanged.
 - Tiles: 60 against option 2's 59 (flag +2, plain wing wall and solid apron -1).
 
+## Final 2 (supervisor fix)
+Home dirt back to round 3's solid dirt (slot 2, round-3 shape, white plate), PARK only, no new palette; flag and plain wing ends as in Final. Sheets `stadium_final2_sheet.png`, `stadium_final2_top_x6.png`. Flag stays 9 x 4: there is no top margin (arch top y 6, canvas top y 0); a 5-row flag left no visible pole and read as a box, so I reverted. 60 tiles (option 2: 59).
+
 ## Self-audit (gb-pixel-art)
 | check | result |
 |---|---|
