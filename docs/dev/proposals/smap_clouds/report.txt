@@ -1,0 +1,6 @@
+tiles: 16 used, 12 unique, 9 unique with flips merged (8 sprites: A 2, B 3, C 3)
+cloud colours (RGB555): 0x7FFF, 0x7B36, 0x664E; DMG OBP1 = 0x90
+sheet_designs.png (1300, 1184)
+sheet_context.png (980, 1710)
+gif frames 152 (454 game frames, 3 per frame, 50 ms = 60 fps), size (980, 490); cloud lane touches Sal's band (sy-9..sy+40) on 0 (frame, cloud) pairs
+gif bytes 1193953
