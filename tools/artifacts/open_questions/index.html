@@ -60,27 +60,12 @@ audio { width: 100%; max-width: 420px; }
   </header>
 
   <nav><ol>
-    <li><a href="#q104"><span class="n">Q104</span><span>Stadium flag: still or waving?</span></a></li>
     <li><a href="#q106"><span class="n">Q106</span><span>Milk bar: lot on the road, 3/4 bikes OK?</span></a></li>
     <li><a href="#q107"><span class="n">Q107</span><span>Town fountain: option 1 or 2?</span></a></li>
     <li><a href="#q108"><span class="n">Q108</span><span>Hangar jet: A or B?</span></a></li>
     <li><a href="#q109"><span class="n">Q109</span><span>Story spigot: water from the spout?</span></a></li>
+    <li><a href="#q110"><span class="n">Q110</span><span>Which map items to animate?</span></a></li>
   </ol></nav>
-
-  <section class="card" id="q104">
-    <div class="tag">Q104</div>
-    <h2>Stadium flag</h2>
-    <p class="ask">Wavy flag: yes. Animate it in the game too (small engine job) or keep it still?</p>
-    <ul>
-      <li>Still: rippled edges, a fold, the end trailing. No extra cost.</li>
-      <li>Animated: 3 frames, gentle, no flashing. Same VRAM, 4 more tiles in ROM, a small engine job. DMG and Color.</li>
-      <li>The flag is small: no room above the stands without growing the stadium.</li>
-    </ul>
-    <h2>Wave: DMG | Color</h2>
-    <div class="media grid2"><img src="media/q104_wave_dmg.gif" alt="Flag wave animation, DMG"><img src="media/q104_wave_cgb.gif" alt="Flag wave animation, Color"></div>
-    <h2>Flat flag | wavy flag</h2>
-    <div class="media"><img src="media/q104_stadium.png" alt="Stadium with the flat flag and the wavy flag, DMG above Color"></div>
-  </section>
   <section class="card" id="q106">
     <div class="tag">Q106</div>
     <h2>Milk bar lot and bikes, layout A5</h2>
@@ -126,5 +111,21 @@ audio { width: 100%; max-width: 420px; }
       <li>Yes changes the story screens with the fountain (intro, finale, credits) and their goldens; the map fountain would follow.</li>
       <li>No: the map copies the story as it is (side streams, dry tap).</li>
     </ul>
+  </section>
+  <section class="card" id="q110">
+    <div class="tag">Q110</div>
+    <h2>Map animations</h2>
+    <p class="ask">Which should I mock up? Pick any.</p>
+    <ul>
+      <li>Water ripple on the river and lake (cheapest: one shared tile animates all the water). DMG and Color.</li>
+      <li>The waterfall at the river's source.</li>
+      <li>The town fountain's water, once it's repaired.</li>
+      <li>Town bunting and the stadium pennants fluttering, with the flag.</li>
+      <li>The radar dish turning on the mountain.</li>
+      <li>Chimney smoke: lodge, igloo, factory.</li>
+      <li>The cow's tail swishing in the pasture.</li>
+      <li>Not offered: blinking lights (no flashing).</li>
+    </ul>
+    <p>Cost: each is a few tiles redrawn every few frames, same on DMG and Color. On DMG the map is already busy loading tiles while Sal walks, so I'd keep each slow and test the speed before adding more than two or three.</p>
   </section>
 </div>
