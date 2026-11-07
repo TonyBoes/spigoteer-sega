@@ -91,3 +91,7 @@ Light water: the dark river in the earlier context sheets came from a stale gene
 - C3: one cream flap drawn from the rod down to the right jamb, gathered in a column of folds, brown cord at y36, flaring to the hem at y43; the left of the doorway is open and dark.
 - C4: the doorway is plain dark and open; a short brown valance (rows y28-31 across x16..63, ink slits every 8 px, cream stripe on y30) hangs under the beam over the shoji tops. Its repeats make cells identical.
 Numbers, real `measure_pass.py` on the import default (SMAP_TILE_MAX=4096, light water): default art 974 DMG / 1039 Color; current noren 975 / 1039; C1, C2, C3 975 / 1039 (0 ids over the current noren, all inside already-unique door cells); **C4 969 / 1033 (saves 6 ids: the covered wall-top cells collapse onto shared tiles)**. Worst DMG view 170 of 176 in all, windows over 8 palettes 0, existing palettes only.
+
+## Round 8: C1S
+
+SMAP_TEA_TEX=C1S: C1 with no slit, straight hem on y43, dark doorway only below. 975 DMG / 1039 Color on the import default (SMAP_TILE_MAX=4096, light water), 0 ids over C1. Sheets: sheet_c1s_x6.png, sheet_c1s_ctx.png.

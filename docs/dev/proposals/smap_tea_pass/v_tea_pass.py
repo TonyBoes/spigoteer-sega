@@ -34,6 +34,7 @@ _C1_MARK_END = "311122221123"
 _C1_MARK_MID = "311222222123"
 _C1_SPLIT = "311113311123"
 C1 = P("3:12", "3:1 1:10 3:1", "3:1 2:10 3:1", _C1_PLAIN, _C1_MARK_END, (_C1_MARK_MID, 4), _C1_MARK_END, _C1_PLAIN, (_C1_SPLIT, 5), "322223322223", ("3:12", 5))
+C1S = P("3:12", "3:1 1:10 3:1", "3:1 2:10 3:1", _C1_PLAIN, _C1_MARK_END, (_C1_MARK_MID, 4), _C1_MARK_END, _C1_PLAIN, (_C1_PLAIN, 5), "322222222223", ("3:12", 5))  # C1S: C1 with no slit, straight hem
 # C2 darker three-panel noren: brown cloth (shade 2) with an ink fold on the right of each panel and ink slits, two cream stripes, hangs to 3/4 of the opening (y43), the middle panel one row shorter.
 _C2 = "312231231223"
 C2 = P("3:12", "3:1 1:10 3:1", (_C2, 2), "311131131113", (_C2, 6), "311131131113", (_C2, 3), "312233331223", ("3:12", 5))
@@ -89,8 +90,8 @@ def build(dmg=False):
         else:
             c.row(y, "0:12 3:1 2:2 1:8 2:1 1:8 2:2 1:12 2:2 1:8 2:1 1:8 2:2 3:1 0:28")
     lvl = os.environ.get("SMAP_TEA_TEX", "A")
-    new = lvl in ("BWD", "BWN", "C1", "C2", "C3", "C4")
-    c.paste(34, 28, {"BWN": NOREN2, "BWD": DOOR, "C1": C1, "C2": C2, "C3": C3, "C4": C4}.get(lvl, NOREN))
+    new = lvl in ("BWD", "BWN", "C1", "C1S", "C2", "C3", "C4")
+    c.paste(34, 28, {"BWN": NOREN2, "BWD": DOOR, "C1": C1, "C1S": C1S, "C2": C2, "C3": C3, "C4": C4}.get(lvl, NOREN))
     if lvl == "C4":
         valance(c)
     # ---- the veranda.  PASS: row 50 is the lit top plane (paper), row 51 the dark front face, so the deck reads as a platform ---------------
@@ -174,10 +175,10 @@ def valance(c):
 def texture(c, level, dmg):
     if level == "none":
         return
-    if level in ("B", "BW", "BWD", "BWN", "C1", "C2", "C3", "C4"):
+    if level in ("B", "BW", "BWD", "BWN", "C1", "C1S", "C2", "C3", "C4"):
         ribs(c)
         light_b = True
-        if level in ("BW", "BWD", "BWN", "C1", "C2", "C3", "C4"):
+        if level in ("BW", "BWD", "BWN", "C1", "C1S", "C2", "C3", "C4"):
             walls(c)
     else:
         light_b = False
