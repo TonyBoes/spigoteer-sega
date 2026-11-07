@@ -665,3 +665,5 @@ The baseball stadium needs some care to blend into the map.
 Make sure you merge the mast lamp and radar animations."
   Plan (Q110 follow-up): anim agent: subtler water glints (2 strengths), falls direction fixed, radar + mast lamp merged into one airbase animation. Stadium agent (ad92c4ce81f826634): blend the approved stadium into the A5 map (ground, edges, road connection only). 
 - 2026-11-06 milk bar sheet12: A on base silver fits at 8 palettes by moving tea cell (34,59) to tea@g (removes a pale square round the tea sign, sign loses 4 highlight px; Color only). Added to Q106 card.
+- 2026-11-06 owner: "106- Keep airbase silver. I can't read the labels on your images because they are so small.  But I prefer the last sign where the arrow is on the side."
+  Q106 closed: sign B (diner, band up the bottle's side, last column of sheet11) + building body on `base` silver + tea cell (34,59) on tea@g. Default quality pass on the B band only (bulbs readable, softer bend), then final. Labels: sheet labels must be readable on a phone (memory note).
