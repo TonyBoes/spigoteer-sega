@@ -27,12 +27,18 @@ B_RUNS = [(0, 8, 40), (8, 24, 32), (24, 72, 24), (72, 88, 32), (88, 96, 40)]
 ENDS = ((0, 24, 40), (8, 16, 32), (87, 16, 32), (95, 24, 40))
 
 
-FLAG = ["333333333", "311111113", "300000003", "333333333"]      # the big flag on the arch top, 9 x 4, ink pole at x 47
+# the waving flag, typed by hand: 10 columns (x 48 to 57) by 5 rows (y 0 to 4); '.' is empty.  Ink edges in an S-wave (the bump travels 2 columns per frame; spatial period 6, so 3 frames loop),
+# red and white bands, a navy fold shade (2) on the crest, the fly end narrower (3 rows, then a 2-row tip).  Frame 0 is the static flag.
+FLAG_FRAMES = [
+    ["333...333.", "1113331113", "0001110333", "3332203...", "...333...."],
+    ["33333...33", "1111133313", "000001113.", "33333223..", ".....33..."],
+    ["33..333...", "1133111333", "0011000113", "332233333.", "..33......"],
+]
 FLAGX = 47
 PLAIN_X = tuple(range(8, 15)) + tuple(range(81, 88))      # steep wing columns: plain wall, no pennants (clean-up)
 
 
-def stands(c, bunting=True):
+def stands(c, bunting=True, frame=0):
     yt, b = [None] * 96, [None] * 96
     for x0, x1, y in LEFT + RIGHT + OUTER:
         for x in range(x0, x1 + 1):
@@ -61,9 +67,10 @@ def stands(c, bunting=True):
     if bunting:
         for y in range(0, 6):
             c.px[y][FLAGX] = "3"
-        for j, row in enumerate(FLAG):
+        for j, row in enumerate(FLAG_FRAMES[frame]):
             for i, ch in enumerate(row):
-                c.px[j][FLAGX + i] = ch
+                if ch != ".":
+                    c.px[j][FLAGX + 1 + i] = ch
     for col in (0, 11):
         PP.cell(c, col, 0, PP.MAST_HEAD)
         PP.cell(c, col, 1, ["00023000"] * 8)
@@ -80,9 +87,9 @@ def finish(c):
     c.rects += keep
 
 
-def build(bunting=True):
+def build(bunting=True, frame=0):
     c = Canvas("parkS2", "park", W, H)
     F.field(c, False)
-    stands(c, bunting)
+    stands(c, bunting, frame)
     finish(c)
     return c

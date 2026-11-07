@@ -39,6 +39,12 @@ Sheets: `stadium_final_sheet.png` (option 2 | final, DMG above, Color below, x3)
 ## Final 2 (supervisor fix)
 Home dirt back to round 3's solid dirt (slot 2, round-3 shape, white plate), PARK only, no new palette; flag and plain wing ends as in Final. Sheets `stadium_final2_sheet.png`, `stadium_final2_top_x6.png`. Flag stays 9 x 4: there is no top margin (arch top y 6, canvas top y 0); a 5-row flag left no visible pole and read as a box, so I reverted. 60 tiles (option 2: 59).
 
+## Wavy flag (owner: "Flag is too flat. Needs to wave or something.")
+Hand-typed 10 x 5 flag (`FLAG_FRAMES` in `src/park_s2.py`), pole at x 47: S-wave ink edges, red and white bands, a navy fold shade on the crest, the fly end narrower (3 rows, then a 2-row tip). Frame 0 is the static flag. Files: `stadium_wavy_sheet.png` (final 2 | wavy static), `stadium_wavy_frames_x6.png`, `stadium_flag_wave_DMG.gif`, `stadium_flag_wave_Color.gif` (3 frames, 125 ms = 8 fps, gentle; only about 20 flag pixels change, no flashing). The wave has a spatial period of 6 columns and travels 2 columns a frame, so the 3 frames loop exactly.
+- Static: still 60 tiles (the flag cells are the same three cells as before).
+- Animation cost (not implemented): the flag lives in cells (5,0) pole only, (6,0) and (7,0). The pole cell is identical in all frames; the other two differ per frame. A BG tile animation therefore rewrites 2 VRAM tile slots (3 frames x 2 = 6 tile images in ROM, 1 pair of which is the static flag; 4 extra over the static piece). VRAM: no extra slot beyond the 2 the static flag already uses. DMG and Color alike, no palette change.
+- Doubt: the wavy flag is smaller on screen than the flat one (the fly end narrows, the flag has less area), and the fold shade is subtle at 1x. If it should be bolder, widen the hoist to 5 rows.
+
 ## Self-audit (gb-pixel-art)
 | check | result |
 |---|---|
