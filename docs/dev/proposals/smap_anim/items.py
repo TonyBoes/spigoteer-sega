@@ -327,13 +327,12 @@ def cows(a5):
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 9  LOGS SINK (owner: "fewer logs ... bobbling logs should actually seem to sink a bit in the water" / "the logs should lower, rather than the water just raise against them. The animation
-#    needs to be like a combination of the last revision and this one."): 6 of the 12 v1 logs stay, spread along the river (3 across, 3 upright, y cell 20 to 68); the other 6 are plain water
-#    (flat WF tile, no new art).  A kept log LOWERS 1 px, then 2 px, with its whole picture (its top edge visibly drops), while the waterline stays where it is: whatever falls below
-#    the waterline is hidden by water and the row at the waterline is a 1 px foam line.  Across logs: waterline = row 6 of the cell (the rows below it are water; the ripple dashes
-#    at the log's ends fold into the foam line); upright logs: waterline = the last row of the bottom cell (row 15), so nothing is written into the cell below.  Then it rises back.
-#    Across logs rewrite both cells, upright logs both cells.  The floating logs sit on flat water, so their cells carry no glints to combine.  Step 18 frames; rest 5 steps, down 1 px,
-#    down 2 px (held), up 1 px, rest: a 180-frame loop.  Three phase groups (one log each).
+# 9  LOGS BOB, LOW IN THE WATER (owner, last words: "the log should always be submerged partially and bobbing slightly down. The current animation looks like an invisible hand is dipping it
+#    in the water occasionally as it floats above."): 6 of the 12 v1 logs stay, spread along the river (3 across, 3 upright, y cell 20 to 68); the other 6 are plain water (flat WF tile,
+#    no new art).  The REST pose of a kept log is already low: its whole picture is 1 px down, the waterline stays where it was, what is below it is water, and the row at the waterline
+#    is a 1 px foam line (these S1 tiles are the new static map tiles of the 6 logs).  The bob is a steady cycle between that and 1 px lower (S2), never above the rest pose: 3 steps at
+#    rest, 3 steps low, 18 frames a step, 108 frames (1.8 s) a cycle.  Across logs: waterline = row 6 of the cell, upright logs: the last row of the bottom cell, so nothing is written
+#    below.  Both cells of a log change.  Each log keeps its own phase.  The floating logs sit on flat water, so their cells carry no glints to combine.
 LOG_HL = T("22222222", "22233333", "22331113", "22333333", "22333311", "22233333", "21122222", "22222222")
 LOG_HR = T("22222222", "33333332", "33331113", "33331313", "13331113", "33333332", "22222112", "22222222")
 LOG_HL_S1 = T("22222222", "22222222", "22233333", "22331113", "22333333", "22333311", "21111111", "22222222")
@@ -350,9 +349,15 @@ LOGS_H_ALL = [(48, 33), (54, 33), (57, 32), (42, 52), (43, 57), (42, 65), (44, 6
 LOGS_V_ALL = [(46, 20), (46, 29), (46, 36), (45, 43), (45, 46)]
 LOGS_H = {"A": [(42, 52)], "B": [(43, 57)], "C": [(44, 68)]}                 # kept across logs (left cell)
 LOGS_V = {"A": [(46, 20)], "B": [(46, 29)], "C": [(45, 43)]}                 # kept upright logs (top cell)
-LOG_PH_H = {"A": 171, "B": 36, "C": 51}
-LOG_PH_V = {"A": 156, "B": 57, "C": 168}
-LOG_SEQ = [0, 0, 0, 0, 0, 1, 2, 2, 1, 0]
+LOG_PH_H = {"A": 39, "B": 36, "C": 75}
+LOG_PH_V = {"A": 6, "B": 24, "C": 3}
+LOG_SEQ = [0, 0, 0, 1, 1, 1]
+
+
+def put_tile(a5, cx, cy, tile):
+    for j, r in enumerate(tile):
+        for i, c in enumerate(r):
+            a5.px[cy * 8 + j, cx * 8 + i] = int(c)
 
 
 def logs(a5):
@@ -377,13 +382,17 @@ def logs(a5):
     for g, lst in LOGS_H.items():
         (x, y), = lst
         assert a5.tile(x, y) == LOG_HL and a5.tile(x + 1, y) == LOG_HR, (x, y)
-        an.append(TileAnim(f"H{g}_L", (x, y), [LOG_HL_S1, LOG_HL_S2], LOG_SEQ, 18, LOG_PH_H[g], only_at=True))
-        an.append(TileAnim(f"H{g}_R", (x + 1, y), [LOG_HR_S1, LOG_HR_S2], LOG_SEQ, 18, LOG_PH_H[g], only_at=True))
+        put_tile(a5, x, y, LOG_HL_S1)                                               # NEW STATIC ART: the log already sits low
+        put_tile(a5, x + 1, y, LOG_HR_S1)
+        an.append(TileAnim(f"H{g}_L", (x, y), [LOG_HL_S2], LOG_SEQ, 18, LOG_PH_H[g], only_at=True))
+        an.append(TileAnim(f"H{g}_R", (x + 1, y), [LOG_HR_S2], LOG_SEQ, 18, LOG_PH_H[g], only_at=True))
     for g, lst in LOGS_V.items():
         (x, y), = lst
         assert a5.tile(x, y) == LOG_VT and a5.tile(x, y + 1) == LOG_VB, (x, y)
-        an.append(TileAnim(f"V{g}_T", (x, y), [LOG_VT_S1, LOG_VT_S2], LOG_SEQ, 18, LOG_PH_V[g], only_at=True))
-        an.append(TileAnim(f"V{g}_B", (x, y + 1), [LOG_VB_S1, LOG_VB_S2], LOG_SEQ, 18, LOG_PH_V[g], only_at=True))
+        put_tile(a5, x, y, LOG_VT_S1)
+        put_tile(a5, x, y + 1, LOG_VB_S1)
+        an.append(TileAnim(f"V{g}_T", (x, y), [LOG_VT_S2], LOG_SEQ, 18, LOG_PH_V[g], only_at=True))
+        an.append(TileAnim(f"V{g}_B", (x, y + 1), [LOG_VB_S2], LOG_SEQ, 18, LOG_PH_V[g], only_at=True))
     return Item("09_logs", "Floating logs sinking (6 logs, three phase groups)", a5, (304, 320), an, focus=(328, 340, 376, 472))
 
 
