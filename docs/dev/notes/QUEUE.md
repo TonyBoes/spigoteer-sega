@@ -760,3 +760,5 @@ The grass dithering patchiness looks better now."
 - 2026-11-07 teahouse round 3 (a83b5a5, 3a083d3e; merge 8623b693 of import tip): option B kawara ribs + round tile ends, plain posts; on the real A' default: fixes/A 1022 Color, B 1023 (fits), DMG +1. Fixes trimmed (upper eave outline x16..63) to stay inside 1024. Q116 re-asked: A (dashes) or B (ribs); I recommend B. Note: its context render shows dark DMG water (render setting), map uses light.
 - 2026-11-07 owner Q116: "116) ribs look good but walls need some texture too."
   Roof B (ribs) approved. Walls next: texture on the wall (posts/frame wood, shoji paper), Color budget 0 spare at 1023 -> texture only inside cells that are already unique.
+- 2026-11-07 owner Q117: "117) I like b more, but waterfall should be coming out of mountain."
+  Big mountain B chosen. Rework: the falls emerge from mountain B (a cleft/cave mouth in its flank, river starting there). B costs +11 Color ids over A' (+ teahouse at 1023): agent measures the total and lists what could give; owner picks what goes (Q118) before anything is dropped.
