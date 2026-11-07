@@ -743,3 +743,5 @@ The grass dithering patchiness looks better now."
   Correct: Q101 (11-06) chose DMG light water. Import branch still treats dark as the default and shows both; supervisor miss. Agent: light water is THE DMG water; drop dark from sheets and numbers; stage 2 imports light only.
 - 2026-11-07 owner: "Fewer round trees near zoo between it and teahouse. More bamboo."
   Scenery between the zoo and the teahouse: thin out round trees, add bamboo clumps (existing bamboo prop; varied). Import agent, same report.
+- 2026-11-07 owner: "Also like with mountains, we need overlapping tree tiles."
+  Read: trees (round trees, pines, bamboo) should cluster with overlapping canopies the way the range peaks overlap, not sit as separate single props on a grid. Overlap tiles (front tree over back tree). Import agent, same report; DMG tile cost watched (combo tiles).
