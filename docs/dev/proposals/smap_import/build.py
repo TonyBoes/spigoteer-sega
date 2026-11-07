@@ -20,7 +20,7 @@ def run(args, env=None):
 
 run([ROOT / "docs/dev/proposals/smap_layout_a5/mk_src.py"])
 run([ROOT / "docs/dev/proposals/smap_layout_a5/mk_a5.py"], {"SMAP_LAYOUT": "lay_A5"})
-for k in ("stadium", "igloo", "mountain", "cow"):
+for k in ("stadium", "igloo", "mountain", "cow", "range_a", "range_b", "range_c"):
     run([HERE / "dump_scenes.py", k, HERE / "scenes" / f"{k}.json"])
 for tag, env in (("dark", {}), ("light", {"SMAP_WATERDMG": "light"}), ("broken", {"SMAP_BROKEN": "1"})):
     (OUT / tag).mkdir(parents=True, exist_ok=True)

@@ -26,7 +26,9 @@ PIECES = [
     ("igloo", (47, 2, 64, 15), "smap_venue_redesign/igloo_sheet.png", "Igloo option 1: COCOA sign, chimney, penguin", False),
     ("airbase", (2, 31, 31, 46), "smap_hangar/hangar_sheet9.png", "Airbase 4i, jet nudged right (on the map at cell 4, 34)", False),
     ("milkbar", (46, 45, 64, 66), "smap_milkbar/milkbar_sheet14.png", "Milk bar: sign B raised + 4 px left, body on base, tea cell", False),
-    ("lodge", (52, 16, 64, 28), None, "Lodge chimney smoke (static art at rest)", False),
+    ("ranges_ab", (16, 0, 48, 7), "smap_venue_redesign3/range_horizontal_sheet.png", "Ranges A (desert) and B (snowy), round 3 peaks", False),
+    ("ranges_c", (47, 0, 64, 7), "smap_venue_redesign3/range_vertical_sheet.png", "Range C (snowy, two tiers) over the igloo and the river source", False),
+    ("lodge",(52, 16, 64, 28), None, "Lodge chimney smoke (static art at rest)", False),
     ("factory", (50, 34, 64, 47), None, "Factory stacks (static art at rest)", False),
 ]
 
@@ -101,7 +103,7 @@ def sheet(out):
         cols = [label(L(f"{tag}_{key}_color.png"), "COLOR", 30), label(L(f"{tag}_{key}_dmg.png"), "DMG" + (" DARK" if water else ""), 30)]
         if water:
             cols.append(label(L(f"B_{key}_dmg.png"), "DMG LIGHT", 30))
-        mine = stack_h(cols)
+        mine = stack_v(cols) if key == "ranges_ab" else stack_h(cols)
         mine = fit(mine, COLW) if mine.width > COLW else mine
         left = label(fit(Image.open(PROP / appr).convert("RGB"), COLW), "APPROVED SHEET", 30) if appr else label(Image.new("RGB", (COLW, 60), (60, 60, 60)), "no sheet: see the animation strips", 30)
         row = stack_h([left, mine], gap=20)

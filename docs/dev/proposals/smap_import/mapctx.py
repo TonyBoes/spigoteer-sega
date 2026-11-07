@@ -38,6 +38,7 @@ for k in ("cow", "stadium", "igloo", "space"):
     V[k] = ("anim_stub", V[k][1])
 V["town"] = ("v_town_fx", V["town"][1])
 lay.VENUES = V
+lay.RANGES = []                                             # the three hatched placeholder boxes along the top: the round 3 range pieces are pasted instead (scenes/range_*.json)
 
 import pal as PAL  # noqa: E402
 import world2 as W  # noqa: E402
@@ -110,7 +111,7 @@ g0 = PAL.RGB["grass"][0]
 PAL.RGB["stadium"] = [g0] + list(PAL.RGB["stadium"][1:])
 paste("stadium")
 PAL.RGB["park"] = [g0, PAL.RGB["grass"][1]] + list(PAL.RGB["park"][2:])
-for _n in ("igloo", "mountain", "cow"):
+for _n in ("igloo", "mountain", "cow", "range_a", "range_b", "range_c"):
     paste(_n)
 _ed = _load(PROP / "smap_stadium/src/edits.py", "stadium_edits")
 _ed.edit(W)
