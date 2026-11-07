@@ -658,3 +658,10 @@ Owner: "From inside the game quitting a level should quit to map. With an option
   Plan: added to milk bar 4k. Cow palette back to white; the building's body cells (not the neon panel) borrow an existing palette with a silver (factory 8898a8 or base 98a0b0), no new table entry, milk bar window must stay <= 8. Color only.
 - 2026-11-06 animations fixed (worktree-agent-a3023453466f37744, before_after_fix.png): falls on the seam-fix tiles, lodge cap unchanged (white puff now starts ~7 px above the chimney; tan-on-cap is a one-line switch in items.py). 11 GIFs on the Q110 card for a last look.
 - 2026-11-06 milk bar 4k (milkbar_sheet11.png): A coffee (MILK panel bending into arrow, +4 tiles), B diner (band round bottle with bulbs, +5). Borrowed silver: base -> 9 palettes, factory fits but reads olive grey. Q106 card asks A or B, and which silver. Agent checking whether a palette in the milk bar window can be dropped/merged so base fits.
+- 2026-11-06 owner (Q110): "Animations: Looking good overall.  But, the water glints could be more subtle. Also, the waterfall seems to flow the wrong way.
+
+The baseball stadium needs some care to blend into the map.
+
+Make sure you merge the mast lamp and radar animations."
+  Plan (Q110 follow-up): anim agent: subtler water glints (2 strengths), falls direction fixed, radar + mast lamp merged into one airbase animation. Stadium agent (ad92c4ce81f826634): blend the approved stadium into the A5 map (ground, edges, road connection only). 
+- 2026-11-06 milk bar sheet12: A on base silver fits at 8 palettes by moving tea cell (34,59) to tea@g (removes a pale square round the tea sign, sign loses 4 highlight px; Color only). Added to Q106 card.
