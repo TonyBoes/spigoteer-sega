@@ -138,7 +138,7 @@ json.dump({"max": int(cnt.max()), "writes_per_s": cnt.sum() / (T / 60), "frames_
 GROUPS = {"river top (falls + water)": ["01_water", "02_falls"], "town (bunting + fountain + river water)": ["01_water", "03_fountain", "04a_bunting"],
           "lodge (smoke + water)": ["01_water", "06a_smoke_lodge"], "factory (smoke)": ["06b_smoke_factory"], "milk bar (two tails + lake water)": ["01_water", "07_cow_tail"],
           "airbase (dish + lamp, one frame set)": ["05_airbase"], "stadium (flag)": ["04b_stadium_flag"], "igloo (smoke + falls + water)": ["01_water", "02_falls", "06c_smoke_igloo"],
-          "river scrolled down (falls + one upright log + water)": ["01_water", "02_falls", ("09_logs", {"VA_T", "VA_B"})],
+          "river scrolled down (falls + one upright log + water)": ["01_water", "02_falls", ("09_logs", {"VA_B"})],
           "logs view (6 logs, all groups)": ["01_water", "09_logs"],
           "ALL on screen at once (not possible)": [it.key for it in items]}
 gres = {}
