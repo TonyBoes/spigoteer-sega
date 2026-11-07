@@ -33,59 +33,61 @@ put("0", [(1, y) for y in list(range(16, 30)) + list(range(32, 56))])
 put("2", [(14, y) for y in range(14, 30)])
 put("3", [(15, y) for y in range(14, 30)])
 
-# ---- the typed fountain pieces -------------------------------------------------------------------------------------------------------------------------------------
-# Cell rules shape it: water only in cells without air or terracotta (the basin, y 48 to 63, and the tavern wall strip x 56 to 63 where the jet falls), so the
-# statue, bowl and column (terracotta, lilac, ink, on grass) stay in x 42 to 55 below y 31 and only the spout reaches over the tavern wall above y 32.
-# Light from the top left.  STATUE: 16 wide (x 43 to 58): domed cap (option 2), T handle, neck, body with a lever knob on the left, a spout arm that turns down
-# at its end (as the story's does), collar and two plinth steps; its last row sits on the bowl's rim.  The nozzle's mouth is the row in y 31, the jet starts
-# under it in y 32.
-STATUE2 = P("....3333........",
-            "...311223.......",
-            ".3333333333.....",
-            ".3111111223.....",
-            ".3111222223.....",
-            ".3333333333.....",
-            "....3123........",
-            "....3123........",
-            "..33333333333333",
-            "..31111111111113",
-            ".331112222222223",
-            "3131112223333333",
-            ".331112223......",
-            "..31112223......",
-            ".3333333333.....",
-            ".3111122223.....",
-            "311111122223....")
-STATUE1 = STATUE2[2:]                 # without the cap (the tighter one)
-STATUE_NOZZLE_ROW = 11                # the row of STATUE2 that is y 31
+# ---- the typed fountain (round 3: one vertical axis, x 48, the middle of the gap between the hall (outline x 40) and the tavern (outline x 56)) -----------------------------
+# Everything is symmetric about x 48 except the light (top left) and the statue's lever on the left against its spout on the right.
+# Cell rules shape it: water only in cells with no air and no terracotta.  The gap's air cells (y 16 to 39) hold the statue (terracotta, lilac, ink); the cell row
+# y 40 to 47 is closed by a low lilac garden wall across the gap (x 41 to 55, as the story's square has one behind its fountain), so its cells hold no air and may be
+# water cells: there sit the bowl's lip, the column and the two spill streams.  The basin (y 48 to 63) spans x 32 to 64 (33 wide, axis 48) and covers the hall's
+# lower right wall and the tavern's lower left corner; its cells x 32 to 63 hold no air and no terracotta.
+# STATUE: 13 wide (x 42 to 54), axis idx 6: domed cap, T handle, neck, body (7 wide) with a lever knob on the left and a short DRY spout on the right (the same
+# size as the knob, closed mouth: the story's statue spills nothing), collar, two plinth steps; its last row sits on the bowl's rim (y 39).
+STATUE = ["....33333....",
+          "...3112223...",
+          ".33333333333.",
+          ".31111122223.",
+          ".31112222223.",
+          ".33333333333.",
+          "....31123....",
+          "....31123....",
+          "...3333333333",
+          "...3111122223",
+          ".331112222313",
+          "3131112222313",
+          ".331112222333",
+          "..311122223..",
+          "..333333333..",
+          ".31111122223.",
+          "3111111122223"]
+STATUE_X, STATUE_Y = 42, 22          # rows y 22 to 38
+RIM = (42, "3" * 13)                 # y 39 (an air cell row: ink only)
+BOWL = [(42, "3000000000223"),       # y 40: the lip, a cream face (water cells from here down)
+        (44, "300000223")]           # y 41: the funnel
+COLUMN = (45, "3000223")             # y 42 to 51, 7 wide, x 45 to 51
+FOOT = (44, "300000223")             # y 51: the column's foot in the water, 9 wide
+WALL = (41, 55)                      # the garden wall behind, y 40 to 47
+STREAMS = ((42, 43), (53, 54))       # the two spill streams under the lip's ends (mirror images about x 48), y 41 to 48
+GLINT_ROWS = (44,)                   # a cream glint on the left pixel of each stream (the right one's glint is on its mirror pixel)
+BX0, BX1 = 32, 64                    # basin ends (ink)
 
-# BOWL: the rim is ink (it closes the plinth; 14 wide, x 42 to 55), then the lip, then the funnel to the column (6 wide, x 46 to 51)
-BOWL_ROWS = [(42, "3" * 14), (42, "31111111122223"), (43, "311111122223"), (44, "3111122223"), (45, "31112223")]
-COLUMN = (46, "311223")
-BLOCK = "30002223"                    # the pedestal's foot standing in the water: stone (cream, lilac), x 45 to 52, y 49 to 51
-
-# the jet: 2 px wide, left pixel per row, y 32 to 48 (it falls over the back rim into the pool); leaves the nozzle under its mouth (x 56, 57) and drifts right
-JET_LEFT = [56, 56, 57, 57, 58, 58, 58, 59, 59, 59, 60, 60, 60, 60, 61, 61, 61]
-JET_GLINT = {3, 8, 13}                # rows where the left pixel is a cream glint (never the first row: that one touches the nozzle)
-
-# BROKEN state (env SMAP_BROKEN=1; the story's square after the explosion, intro_a.txt): the statue is gone down to a jagged stub of the body on the collar and
-# plinth steps (y 30 to 33), no jet, the basin dry (its floor lilac, no water).  Same bowl, column, foot block and basin walls as the working state.
+# BROKEN state (env SMAP_BROKEN=1; the story's square after the explosion, intro_a.txt): the statue is gone down to a jagged stub of the body on the collar and the
+# plinth steps (y 32 to 38), no streams, the basin dry (its floor lilac, no water).  Same bowl, column, wall, foot and basin walls as the working state.
 BROKEN = os.environ.get("SMAP_BROKEN") == "1"
-STUB = P("..3......3......",
-         "..31.33.13......",
-         "..31112223......",
-         "..31112223......")
+STUB = ["..3.......3..",
+        "..31.33.113..",
+        "..311122223..",
+        "..311122223.."]
 
 
-def basin(c, x0, x1):
-    """y 48 to 63: back rim, three rows of water, front lip (ink, two cream rows, ink), panels with a divider every 8 px from x0, a lilac shade row, base."""
-    for x in range(x0, x1 + 1):
-        r = (x - x0) % 8
-        end = x in (x0, x1)
+def basin(c):
+    """y 48 to 63: back rim, three rows of water, front lip (ink, two cream rows, ink), panels with a divider every 8 px from x 32 (so one under the axis), a lilac shade
+    row, base.  The streams fall through a notch of the back rim (y 48) into the water; foam where they land."""
+    for x in range(BX0, BX1 + 1):
+        r = (x - BX0) % 8
+        end = x in (BX0, BX1)
         col = {48: "3", 52: "3", 55: "3", 63: "3"}
         wet = "2" if BROKEN else "w"                  # dry: the floor is lilac
         col[49] = "3" if end else wet
-        col[50] = "3" if end else ("0" if r in (2, 3) and not BROKEN else wet)
+        col[50] = "3" if end else wet
         col[51] = "3" if end else wet
         col[53] = "3" if end else "0"
         col[54] = "3" if end else "0"
@@ -94,11 +96,12 @@ def basin(c, x0, x1):
         col[62] = "3" if (end or r == 0) else "2"
         for y, ch in col.items():
             c.px[y][x] = ch
-    for k, ch in enumerate(BLOCK):                    # the foot of the column, in the water
-        for y in (49, 50, 51):
-            c.px[y][45 + k] = ch
     if not BROKEN:
-        for x in (60, 61, 62, 63):                   # the foam where the jet lands
+        for x in (36, 37, 59, 60):                    # glints on the water, mirror pairs about x 48
+            c.px[50][x] = "0"
+        for sx in (s for pair in STREAMS for s in pair):
+            c.px[48][sx] = "w"                        # the notch in the rim
+        for x in (41, 42, 43, 53, 54, 55):            # the foam where the streams land
             c.px[49][x] = "0"
 
 
@@ -110,23 +113,29 @@ def paste(c, x, y, rows):
 
 
 def fountain(c):
-    statue = STATUE2 if OPT == "2" else STATUE1
-    y0 = 31 - STATUE_NOZZLE_ROW + (len(STATUE2) - len(statue))        # the nozzle's mouth row is y 31 in both
+    for y in range(40, 48):                           # the garden wall behind the column and the streams: ink coping, a cream cap row, lilac
+        for x in range(WALL[0], WALL[1] + 1):
+            c.px[y][x] = "3" if y == 40 else "2"
+    statue, y0 = STATUE, STATUE_Y
     if BROKEN:
-        statue = STUB + STATUE2[-3:]
-        y0 = 30
-    paste(c, 43, y0, statue)
-    y = y0 + len(statue)                     # the bowl's rim row
-    for k, (x, s) in enumerate(BOWL_ROWS):
-        paste(c, x, y + k, [s])
-    y += len(BOWL_ROWS)
-    while y < 48:
+        statue = STUB + STATUE[-3:]
+        y0 = 39 - len(statue)
+    paste(c, STATUE_X, y0, statue)
+    paste(c, RIM[0], 39, [RIM[1]])
+    for k, (x, s) in enumerate(BOWL):
+        paste(c, x, 40 + k, [s])
+    for y in range(42, 52):
         paste(c, COLUMN[0], y, [COLUMN[1]])
-        y += 1
-    for k, lx in enumerate([] if BROKEN else JET_LEFT):
-        for i in (lx, lx + 1):
-            c.px[32 + k][i] = "0" if (i == lx and k in JET_GLINT) else "w"
-    basin(c, 40, 71 if OPT == "2" else 63)
+    paste(c, FOOT[0], 51, [FOOT[1]])
+    if not BROKEN:
+        for pair in STREAMS:
+            for k, x in enumerate(pair):
+                for y in range(41, 48):
+                    c.px[y][x] = "w"
+        for y in GLINT_ROWS:
+            c.px[y][STREAMS[0][0]] = "0"
+            c.px[y][STREAMS[1][1]] = "0"
+    basin(c)
 
 
 class _Pic:
@@ -175,7 +184,7 @@ def build(dmg=False):
     p = B.build(dmg)
     rows = p.rows
     air = _air(rows)
-    air |= {(x, y) for y in range(16, 48) for x in range(40, 56) if rows[y][x] == "0"}      # the gap between hall and tavern is air even where the stack seals it in
+    air |= {(x, y) for y in range(16, 40) for x in range(40, 56) if rows[y][x] == "0"}      # the gap between hall and tavern is air even where the stack seals it in
     cp = []
     for cy in range(H // 8):
         line = []

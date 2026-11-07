@@ -75,3 +75,37 @@ Sheet: `sheet_broken.png` (story broken crop | opt 1 broken | opt 1 working | op
 | palettes per window | 8 | 8 | 8 | 8 |
 Cells that differ between the broken and the working state (pixels; the palette table is the same): option 1: 11 cells, option 2: 12. In picture cells (x, y of the 12 x 9 town block, add (31, 19) for the map): option 1 (5,2) (6,2) (5,3) (6,3) (7,3) (5,4) (7,4) (7,5) (5,6) (6,6) (7,6); option 2 the same plus (8,6). That is the statue's and arm's cells, the jet's cells and the basin water band. Cells whose palette would differ between the states: none by the engine's table, but the broken top cells are all air (town1@g with only index 0) and could take the grass palette if the swap code prefers.
 Lint of the broken picture was not rerun (the same grids with fewer pixels). The swap is not implemented in the engine.
+
+## Round 3 (owner: "notice the fountain is centered in story art. But lopsided in map. Again with fixed version, the water in the story art doesn't come out of the spout--though maybe it should in a redesigned golden spiggot.")
+Option 2 only, redrawn in `src/v_town_fx.py` (option 1 and the old jet are gone from the file). Sheet: `sheet_centred.png` (story working | story broken | new broken | new working, DMG row, Color row, then the whole town in both states, x4).
+
+**One axis, x 48** (the middle of the gap: hall outline x 40, tavern outline x 56). Statue x 42 to 54, bowl lip x 42 to 54, column x 45 to 51, basin x 32 to 64 (33 wide, ink ends, dividers at x 32, 40, 48, 56, 64 so one is under the axis). The basin now covers the hall's lower right wall and only touches the tavern's corner (the old one ran 32 px over the tavern). Only the light (top left) and the lever knob against the spout are not mirrored.
+
+**Water like the story:** the spout is a short dry nozzle (3 px, closed mouth) the size of the lever knob; nothing falls from it. Two streams (2 px wide, mirror images about x 48: x 42 to 43 and x 53 to 54) leave the lip's two ends and fall y 41 to 48 through a notch in the basin's back rim into the water, with foam where they land and a glint on each.
+
+**The cell rule, and the one addition it needs:** water cannot sit in a cell with air. The streams pass the cell row y 40 to 47, which is open grass between the hall and the tavern. So a low lilac garden wall (x 41 to 55, y 40 to 47, ink coping) closes that row, as the story square has a wall behind its fountain; its cells hold no air and become water cells. The lip, column and streams stand in front of it. This is new scenery between the buildings (the buildings themselves are unchanged): the owner may veto it, but without it the streams could only be terracotta or lilac. Because those cells are water cells, the column and lip are cream and lilac stone (no terracotta); the statue and plinth above y 40 stay terracotta, lilac, ink (not gold, as before).
+
+**Broken** (`SMAP_BROKEN=1`): the same wall, lip, column, foot and basin; a jagged stub on the collar and steps (y 32 to 38), no streams, dry lilac floor.
+
+| | now (A5) | new working | new broken |
+|---|---|---|---|
+| DMG unique tiles | 546 | 545 | 540 |
+| DMG worst 21x19 window (limit 176) | 133 | 132 | 127 |
+| DMG 22x20 window | 138 | 136 | 136 |
+| Color tiles / slots | 618 / 352 | 617 / 352 | 612 / 352 |
+| palettes per window (cap 8) | 8 | 8 | 8 |
+| town block unique cells (12 x 9) | 74 | 73 | 68 |
+
+Cells that differ between broken and working: 12 (town block x, y: (5,2) (6,2) (5,3) (6,3) (5,4) (6,4) (5,5) (6,5) (4,6) (5,6) (6,6) (7,6)); (5,3) (5,4) (6,4) differ in pixels only, the other nine also change palette between town1 or grass and town4. Budgets fit; the swap is not implemented in the engine. DMG and Color both; nothing Color only. Lint not rerun (the DMG strip tool predates the wall); the squint test is on the sheet.
+
+Self-audit
+| Check | Result | Evidence |
+|---|---|---|
+| Hand-placed pixels only | PASS | typed STATUE, STUB, BOWL, COLUMN, FOOT strings and loops over typed coordinates in `v_town_fx.py` |
+| Symmetry | PASS | axis x 48 for statue, lip, column, streams (42/43 vs 54/53), foam, glints (36/37 vs 60/59), basin |
+| Only flagged changes | PASS with a flag | the wall is new scenery (above); hall and tavern pixels outside the basin are untouched |
+| Cell rules | PASS | generator: bad 0, palettes per window 8 |
+| DMG separation | PASS | streams (168) against the lilac wall (88); statue dark against the white sky |
+| Engine questions | none | picture data only |
+
+Doubts: the wall is the owner's call; the bowl is a shallow dish (3 rows) because the cell row y 40 to 47 is all the room for lip, funnel and column; the statue is still terracotta, not gold.
