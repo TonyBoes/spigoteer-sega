@@ -26,11 +26,16 @@ PIECES = [
     ("igloo", (47, 2, 64, 15), "smap_venue_redesign/igloo_sheet.png", "Igloo option 1: COCOA sign, chimney, penguin", False),
     ("airbase", (2, 31, 31, 46), "smap_hangar/hangar_sheet9.png", "Airbase 4i, jet nudged right (on the map at cell 4, 34)", False),
     ("milkbar", (46, 45, 64, 66), "smap_milkbar/milkbar_sheet14.png", "Milk bar: sign B raised + 4 px left, body on base, tea cell", False),
-    ("ranges_ab", (16, 0, 48, 7), "smap_venue_redesign3/range_horizontal_sheet.png", "Ranges A (desert) and B (snowy), round 3 peaks", False),
-    ("ranges_c", (47, 0, 64, 7), "smap_venue_redesign3/range_vertical_sheet.png", "Range C (snowy, two tiers) over the igloo and the river source", False),
+    ("ranges_ab", (16, 0, 48, 7), "smap_venue_redesign3/range_horizontal_sheet.png", "Range B (snowy) with peak variants; range A removed", False),
+    ("ranges_c", (47, 0, 64, 7), "smap_venue_redesign3/range_vertical_sheet.png", "Range C (snowy) with peak variants, over the igloo and the river source", False),
     ("lodge",(52, 16, 64, 28), None, "Lodge chimney smoke (static art at rest)", False),
     ("factory", (50, 34, 64, 47), None, "Factory stacks (static art at rest)", False),
 ]
+
+
+# stage 1c before | after close-ups: road corners (x4) and the ranges (x3); P_ files are the stage 1b state (env SMAP_BEFORE_1C=1)
+CORNER_BOXES = [(0, 10, 6, 16), (0, 27, 6, 33), (34, 26, 40, 32), (58, 9, 64, 15), (48, 26, 54, 32), (58, 44, 64, 50)]
+RANGE_BOXES = [(16, 0, 48, 7), (47, 0, 64, 7)]
 
 
 def crops(tag, out):
@@ -43,6 +48,10 @@ def crops(tag, out):
         M.render(cgb, scale=2).save(out / f"{tag}_whole_{n}.png")
         for key, box, _, _, _ in PIECES:
             M.render(cgb, box, scale=3).save(out / f"{tag}_{key}_{n}.png")
+        for i, box in enumerate(CORNER_BOXES):
+            M.render(cgb, box, scale=4).save(out / f"{tag}_corner{i}_{n}.png")
+        for i, box in enumerate(RANGE_BOXES):
+            M.render(cgb, box, scale=3).save(out / f"{tag}_range{i}_{n}.png")
 
 
 def font(n):
@@ -88,9 +97,36 @@ def stack_v(ims, gap=18, bg=(30, 30, 30)):
     return o
 
 
+def sheet_1c(out):
+    """before | after for the stage 1c changes: road corners x4 and the ranges x3 (two columns, big labels)"""
+    out = Path(out)
+    L = lambda f: Image.open(out / f).convert("RGB")
+    sheets = []
+    # corners: 3 boxes per row, Color over DMG
+    for r in range(2):
+        cols = []
+        for tag, name in (("P", "BEFORE"), ("A", "AFTER")):
+            cells = []
+            for i in range(3 * r, 3 * r + 3):
+                cells.append(stack_v([L(f"{tag}_corner{i}_color.png"), L(f"{tag}_corner{i}_dmg.png")], gap=8))
+            cols.append(label(stack_h(cells, gap=10), name + " x4", 34))
+        sheets.append(label(stack_h(cols, gap=24), "Road corners" + ("" if r == 0 else " (2)"), 40, bg=(70, 40, 90)))
+    stack_v(sheets, gap=30).save(out / "sheet_1c_corners.png")
+    # ranges: before | after, Color over DMG
+    rows = []
+    for i, name in enumerate(("Range B", "Range C")):
+        cols = []
+        for tag, nm in (("P", "BEFORE"), ("A", "AFTER")):
+            cols.append(label(stack_v([L(f"{tag}_range{i}_color.png"), L(f"{tag}_range{i}_dmg.png")], gap=8), nm + " x3", 34))
+        rows.append(label(stack_h(cols, gap=24), name if i else "Ranges: A removed, B with peak variants", 40, bg=(70, 40, 90)))
+    stack_v(rows, gap=30).save(out / "sheet_1c_ranges.png")
+
+
 def sheet(out):
     out = Path(out)
     L = lambda f: Image.open(out / f).convert("RGB")
+    if (out / "P_corner0_color.png").exists():
+        sheet_1c(out)
     # ---- whole map: three renders, x2 each, labelled ----
     ims = [label(L("A_whole_color.png"), "COLOR", 44), label(L("A_whole_dmg.png"), "DMG DARK WATER", 44), label(L("B_whole_dmg.png"), "DMG LIGHT WATER", 44)]
     stack_v([stack_h(ims[:2]), ims[2]]).save(out / "sheet_whole_map.png")

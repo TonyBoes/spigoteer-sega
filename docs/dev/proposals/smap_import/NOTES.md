@@ -22,11 +22,11 @@ Tiles: DMG 749 (was 758 with the boxes), range pieces cost less than the boxes' 
 ## Numbers (A5 generator on the integrated map)
 | | DMG dark, fountain working | DMG light | DMG dark, fountain broken |
 |---|---|---|---|
-| DMG tiles, whole map | 749 | 750 | 744 |
+| DMG tiles, whole map | 796 | 797 | 791 |
 | worst 21x19 view (limit 176) | 143 at (39,8) | 143 | 143 |
 | worst 22x20 view | 152 at (38,7) | 152 | 152 |
 | flat tile uses in a 22x20 window (limit 239) | 238 | 238 | 238 |
-| Color tiles / slots | 806 / 352 | 806 / 352 | 801 / 352 |
+| Color tiles / slots | 854 / 352 | 854 / 352 | 849 / 352 |
 | palettes per 21x19 window (max 8) | 8, 0 windows over | 8, 0 | 8, 0 |
 | palettes in a 22x20 window (not a limit) | 9 | 9 | 9 |
 | palette table entries | 20 | 20 | 19 |
@@ -40,3 +40,12 @@ Generator: BUDGET OK, 0 cells snapped (it asserts every cell's palette is in the
 - The 22x20 palette count of 9 is the loaded region, not a screen; the generator does not check it. Stage 2 should confirm the engine only needs 8 for what is shown.
 - Igloo/road overlap and the flat-tile fix above are layout judgement calls.
 - Stage 2 not started; no engine files touched.
+
+## Stage 1c (owner: "Round the corners on the road. Also need a little bit of variation in mountain tiles. Don't need mountain above bistro.")
+- Road corners: 18 of 24 rounded, outer arc radius 8 with the kerb following it, inner ground corner radius 6; hand-typed NW tiles, other three by flips (roads_round.py). Outer cells use town1@g, ground cells town1 or town1@g: no new palette, table stays 20. Color curve has no cream line (a new palette broke the 8-per-window limit).
+- Left square: (35,44) (37,46) (50,46) (palette-limited windows) and (52,44) (61,27) (61,47) (cells holding art).
+- Range A removed; the ground is grass with five pines (same density). Bush (16,104) moved to (24,104).
+- Ranges B and C: four peak variants (approved peak, typed single summit, shorter, taller), mixed so no two neighbours match (range_peaks.py).
+- Numbers dark/light/broken: DMG tiles 796/797/791, Color 854/854/849 in 352 slots; worst 21x19 view 143, 22x20 view 152; palettes per window 8, 0 over; 22x20 region 9; table 20 (19 broken); flat uses 238. Cost: roads +17 tiles, ranges +30.
+- Doubts: 6 corners stay square; pale cream patches where the ground is sand/snow/zoo green; ranges B and C sit on snow-coloured ground.
+- Sheets: sheet_1c_corners.png, sheet_1c_ranges.png, sheet_whole_map.png.
