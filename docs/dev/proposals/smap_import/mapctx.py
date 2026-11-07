@@ -28,7 +28,7 @@ os.environ.setdefault("SMAP_BRIDGE", "new")
 # all extras (desert peaks, cacti, spill, bamboo, tree clusters), big mountain A, the stadium bush at x 40, light water.  Each switch still overrides: SMAP_CURVE=none gives the r8 corners,
 # SMAP_CURVE=24 uniform r24, SMAP_BIG=none or B, SMAP_CURVE_TRIM=0, SMAP_RADII=... any set.
 if os.environ.get("SMAP_BEFORE_1C") != "1":
-    os.environ.setdefault("SMAP_BIG", "A")
+    os.environ.setdefault("SMAP_BIG", "B")
     os.environ.setdefault("SMAP_STADIUM_BUSH_X", "40")
     os.environ.setdefault("SMAP_CURVE_TRIM", "1")
     if "SMAP_CURVE" not in os.environ:
