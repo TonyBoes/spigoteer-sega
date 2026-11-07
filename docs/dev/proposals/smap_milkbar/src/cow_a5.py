@@ -108,9 +108,9 @@ def build(arr, style=None, roof=None, new=0, borrow=None):
     elif arr == 3 and new:
         put(c, 28, 18, v_cow.COW)
         put(c, 6, 144, v_cow.COW)                            # the milk bar's cow across the lane: on the south verge, left of the building's span
-        if new in (3, 4):
+        if new in (3, 4, 5):
             import cow_sign
-            (cow_sign.sign_a if new == 3 else cow_sign.sign_b)(c)
+            {3: cow_sign.sign_a, 4: cow_sign.sign_b, 5: cow_sign.sign_b2}[new](c)
         else:
             sign(c, 12, 2 + OFF, 46 + OFF, 8)                # the sign a few px further left
             if new == 2:

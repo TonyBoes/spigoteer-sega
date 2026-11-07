@@ -1,3 +1,21 @@
+# Milk bar final round: sign B on `base` silver, tea cell merged, quality pass on the band
+
+Owner (Q106): "Keep airbase silver. ... I prefer the last sign where the arrow is on the side." Built: sign B (diner), building body cells on `base`, the tea house cell (34, 59) on `tea@g` (Color only, DMG unchanged, as in `milkbar_sheet12.png`). `milkbar_sheet13.png` (two columns, large labels): B as picked | B after pass; DMG and Color, close-up x4 and map x3. Code: `sign_b2` in `src/cow_sign.py`, modes `cB` and `dB` of `src/render_one.py` (env `MB_TEAFIX=1 MB_PASTURE=1`), `src/sheet13.py`.
+
+**Pass on the band only** (bottle, pole, head, building, lot, cows, pasture unchanged):
+- **Bulbs:** in the picked version the bulbs were 1 px chrome dots touching the chrome tube, so they merged into it. Now the band is an ink outline round a 4 px pink fill (the chrome tube is gone from the band; the head keeps its tube), and the bulbs are 2 x 2 chrome blocks with a pink margin on every side, one every 4 px along the band (7 down the left side, 3 along the arm). They read as separate dots at map x3 on DMG (grey 168 on pink 88) and on Color (white-lilac on pink). Static.
+- **Bend:** the bottom left corner is a stepped quarter circle of radius 4 instead of a square corner, and the inside corner is chamfered. At this size it is a stair, closer to the references' curve; a rounder bend does not fit (the lane starts right below the arm).
+- The band is now 6 px of ink-pink-ink with 4 px of pink (it was ink, tube, 2 px of pink, tube, ink).
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| B as picked (base, tea merged) | 579 | 133 | 117 | 81 | 8 |
+| B after pass | 579 | 133 | 117 | 81 | 8 |
+
+Palettes per window are 8 everywhere on the map. Lint PASS (DMG) for the new picture; every pixel typed.
+
+---
+
 # Milk bar round 4k, A coffee sign on `base` (tea cell merged)
 
 `milkbar_sheet12.png`: column 1 = A on factory (sheet 11), column 2 = A on `base` (98a0b0) with the tea house cell (34, 59) put on `tea@g` (Color only, DMG unchanged); close-up x4 and map x3, DMG and Color; under them the cells x 33..35, rows 58..60 before and after, Color x6. Code: mode `cA` of `src/render_one.py` (env `MB_TEAFIX=1`), `src/sheet12.py`. Nothing in the layout or the tea picture is edited: the merge is a palette assignment of that one cell in the scratch map.

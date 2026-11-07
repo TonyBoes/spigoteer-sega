@@ -31,6 +31,8 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode in ('cB', 'dB'):
+        return A.build(3, 'A', 2, 4 if mode == 'cB' else 5, borrow='base'), (50, 47)
     if mode in ('cA',):
         return A.build(3, 'A', 2, 3, borrow='base'), (50, 47)
     if mode in ('b1', 'bA', 'bB'):

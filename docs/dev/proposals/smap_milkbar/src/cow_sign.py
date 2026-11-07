@@ -82,3 +82,42 @@ def sign_b(c, y0=64):
     for i, ch in enumerate("31111113"):
         c.px[y0 + 47][11 + i] = ch
     put(c, 0, y0, [rows.get(r, "." * 24) for r in range(56)])
+
+
+def sign_b2(c, y0=64):
+    """B after the quality pass (round 4k, final): the band is an ink outline with a 4 px pink fill (no chrome tube against the bulbs), the bulbs are 2 x 2 chrome blocks
+    with a pink margin on every side (every 4 px along the band), the bottom left bend is a stepped quarter circle of radius 4 and the inside corner is chamfered"""
+    rows = {}
+    rows[6] = ".3333." + "." * 18
+    rows[7] = "322223" + "." * 18
+    for r in range(8, 34):
+        band = "322223"
+        if r == 32:
+            rows[r] = band + D + HEAD[0]
+        elif r == 33:
+            rows[r] = band + D + HEAD[1]
+        else:
+            rows[r] = band + "." * 18
+    rows[34] = "3" + "22222" + "3" * 10 + HEAD[2]
+    rows[35] = "3" + "2" * 15 + HEAD[3]
+    rows[36] = "3" + "2" * 15 + HEAD[4]
+    rows[37] = ".3" + "2" * 14 + HEAD[5]
+    rows[38] = "..3" + "2" * 13 + HEAD[6]
+    rows[39] = "..." + "3" * 13 + HEAD[7]
+    rows[40] = "." * 16 + HEAD[8]
+    rows[41] = "." * 16 + HEAD[9]
+    for r, s in rows.items():
+        assert len(s) == 24, (r, len(s))
+    put(c, 7, y0 + 2, BOTTLE)
+    for y in range(y0 + 25, y0 + 46):
+        for i, ch in enumerate("3113"):
+            c.px[y][13 + i] = ch
+    for i, ch in enumerate("33333333"):
+        c.px[y0 + 46][11 + i] = ch
+    for i, ch in enumerate("31111113"):
+        c.px[y0 + 47][11 + i] = ch
+    put(c, 0, y0, [rows.get(r, "." * 24) for r in range(56)])
+    for (bx, br) in ((2, 10), (2, 14), (2, 18), (2, 22), (2, 26), (2, 30), (2, 34), (6, 36), (10, 36), (14, 36)):     # top left of each 2 x 2 bulb: (x, row)
+        for j in range(2):
+            for i in range(2):
+                c.px[y0 + br + j][bx + i] = "1"

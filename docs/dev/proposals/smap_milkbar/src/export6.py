@@ -11,5 +11,5 @@ for r in (1, 2, 3):
     E.write(f'roof{r}', A.build(3, 'A', r))
 for n in (1, 2):
     E.write(f'new{n}', A.build(3, 'A', 2, n))
-for n, nm in ((3, 'signA'), (4, 'signB')):
+for n, nm in ((3, 'signA'), (4, 'signB'), (5, 'signB2')):
     E.write(nm, A.build(3, 'A', 2, n, borrow='factory'))
