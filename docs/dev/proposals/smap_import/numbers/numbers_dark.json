@@ -1,0 +1,107 @@
+{
+ "water": "dark",
+ "fountain": "working",
+ "dmg_tiles": 758,
+ "dmg_worst_21x19": 143,
+ "dmg_worst_21x19_at": [
+  1,
+  39,
+  8
+ ],
+ "dmg_worst_22x20": 152,
+ "dmg_worst_22x20_at": [
+  1,
+  38,
+  7
+ ],
+ "dmg_max_uses_22x20": 238,
+ "color_tiles": 815,
+ "palettes_worst_21x19": 8,
+ "palettes_worst_at": [
+  0,
+  3
+ ],
+ "palettes_worst_22x20": 9,
+ "windows_over_8": 0,
+ "palette_histogram": {
+  "3": 118,
+  "4": 325,
+  "5": 476,
+  "6": 525,
+  "7": 566,
+  "8": 278
+ },
+ "table_entries_used": 20,
+ "table_A5": 18,
+ "table_added": [
+  "base",
+  "park"
+ ],
+ "table_names": [
+  "town1@g",
+  "bistro",
+  "cow",
+  "factory",
+  "farm",
+  "grass",
+  "igloo",
+  "lodge",
+  "saloon",
+  "stadium",
+  "tea",
+  "town1",
+  "town4",
+  "town5",
+  "zoo",
+  "water",
+  "bistro@g",
+  "tea@g",
+  "base",
+  "park"
+ ],
+ "table_unused": [],
+ "cell_choices": [
+  [
+   [
+    11,
+    5
+   ],
+   "stadium",
+   "stadium_edits"
+  ],
+  [
+   [
+    11,
+    6
+   ],
+   "stadium",
+   "stadium_edits"
+  ],
+  [
+   [
+    11,
+    7
+   ],
+   "stadium",
+   "stadium_edits"
+  ],
+  [
+   [
+    12,
+    6
+   ],
+   "stadium",
+   "stadium_edits"
+  ],
+  [
+   [
+    12,
+    7
+   ],
+   "stadium",
+   "stadium_edits"
+  ]
+ ],
+ "color_slots": 352,
+ "generator_ok": true
+}
