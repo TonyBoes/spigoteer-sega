@@ -58,3 +58,4 @@ def whole(name, tag, title):
 
 whole("s1e_whole_c40_A.png", "c40A", "everything on, bends r40 with fallback, big mountain A")
 whole("s1e_whole_c40_B.png", "c40B", "everything on, bends r40 with fallback, big mountain B")
+whole("s1e_whole_s32_A.png", "s32A", "everything on, four long bends at r32, mountain A (generator passes)")

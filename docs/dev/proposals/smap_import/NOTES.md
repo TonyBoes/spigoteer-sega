@@ -146,3 +146,10 @@ Ways to buy room under 1024 (r40 fallback set, A): no tree clusters 938 / 999 / 
 | same, only the lawn round clusters RR_R, RR_L, RRR dropped (jungle kept), A | 957 | 1019 | 159 | 0 | yes |
 | uniform r24, round clusters dropped, A | 918 | 978 | 155 | 0 | yes |
 The run scripts are in out/smap_import/ (run_meas11.sh), logs in out/smap_import/mm/f_*.log; table by mm_table.py. SMAP_SKIP_CLUSTERS=RR_R,RR_L,RRR,JJ,JJJ drops clusters by name.
+
+### Stage 1g: saving Color ids under the 1024 ceiling (r40 fallback, all extras, mountain A was 1029, 5 over)
+- Why single changes cost more: the Color tile set has no flip merging (a tile is its 64 pixels), so every bend orientation has its own tiles and bends of the same radius share them. One bend at r32 among r40 bends adds a whole new radius set: any one of the four long bends alone at 32 gives 1043 (+14), two give 1025. Only all four together saves.
+- **Result: the four long bends (0,11), (0,45), (37,28), (63,11) at r32 instead of r40, everything else unchanged** (the other eight stay 24 / 16, all extras on, mountain A): DMG 960, Color 1022 of 1024, worst view 156, windows over 8: 0, flat uses 218, table 22; generator passes at the real 1024 limit (7 ids saved). Whole map: s1e_whole_s32_A.png. Not invisible: those four bends are 8 px tighter than the r40 shown to the owner.
+- Tried and no help: the three r16 bends (50,46), (63,29), (63,45) left at the r8 corner (1029, same count: their tiles are shared), each of them at r16 only, trim at r24 (+1).
+- Mountain B on the same set: DMG 971 / Color 1033 / worst 156, fails (B costs 11 ids more than A). Cheapest ways to give B room: drop the round tree clusters (about 25 ids), or the desert peaks (about 37), or take the long bends to r24 (uniform r24 with B is 1014).
+- Mountain B's right foot ends in a straight vertical ink edge against the grass; to be fixed only if B is picked.
