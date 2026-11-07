@@ -43,6 +43,23 @@ def sign(c, cx, ytop, base_y, foot=10):
         c.px[base_y + 1][cx - foot // 2 + i] = ch
 
 
+ARROW = {77: [20], 76: [21], 75: [22], 74: [23], 73: [24, 25, 52, 53], 72: [26, 27, 50, 51], 71: [28, 29, 30, 47, 48, 49], 70: list(range(31, 47)),
+         74.5: [], 75.5: []}
+ARROW.update({74: [23, 54], 75: [22, 55], 76: [21, 56], 77: [20, 56], 78: [56], 79: [56], 80: [56], 81: [54, 55, 56, 57, 58], 82: [55, 56, 57], 83: [56]})
+del ARROW[74.5], ARROW[75.5]
+
+
+def arrow(c):
+    """a curved neon arrow from the bottle's shoulder over the roof, pointing down at the diner's sign: chrome core, pink halo on the blank cells next to it"""
+    core = {(x, y) for y, xs in ARROW.items() for x in xs}
+    for (x, y) in core:
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if (x + dx, y + dy) not in core and c.px[y + dy][x + dx] == "0":
+                c.px[y + dy][x + dx] = "2"
+    for (x, y) in core:
+        c.px[y][x] = "1"
+
+
 def pen(c):
     for i in range(12):
         t = POST if i % 2 == 0 else RAIL
@@ -55,7 +72,7 @@ def pen(c):
     put(c, 88, 56, POST)
 
 
-def build(arr, style=None, roof=None):
+def build(arr, style=None, roof=None, new=0):
     """arr 1 and 2: as round 4f's first set; arr 3 (owner, after Q106): the building with its lot and bikes one cell (8 px) west, a cell of grass between it and
     the north-south road; the cow where the sign was in arrangement 1, the sign beside the building where the cow was; the pen of arrangement 1"""
     c = Canvas("cowA5_%d" % arr, "cow", W, H)
@@ -88,6 +105,12 @@ def build(arr, style=None, roof=None):
     if arr == 1:
         put(c, 28, 18, v_cow.COW)                            # the cow in the pen
         sign(c, 8, 2 + OFF, 54 + OFF, 8)                     # at the lane's west end, where the road comes in from the bridge (foot 8 wide, clear of Sal's stop)
+    elif arr == 3 and new:
+        put(c, 28, 18, v_cow.COW)
+        put(c, 6, 144, v_cow.COW)                            # the milk bar's cow across the lane: on the south verge, left of the building's span
+        sign(c, 12, 2 + OFF, 46 + OFF, 8)                    # the sign a few px further left
+        if new == 2:
+            arrow(c)
     elif arr == 3:
         put(c, 28, 18, v_cow.COW)
         put(c, 1, 98, v_cow.COW)                             # the lawn cow, where the sign stood in arrangement 1

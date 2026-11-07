@@ -19,3 +19,7 @@ if os.environ.get('MB_PASTURE') == '1':
     lay.SCENERY = [s for s in lay.SCENERY if s[0] is not decor.HAY]
     lay.VENUES = dict(lay.VENUES)
     lay.VENUES['cow'] = ('cow_stub', lay.VENUES['cow'][1])
+
+if os.environ.get('MB_SILVER') == '1':                       # proposal only: COW index 1 (chrome e8e0f0) becomes a silver; nothing else in the palette table changes
+    import pal as _pal
+    _pal.PALS['cow'][1] = 'b0b8c8'

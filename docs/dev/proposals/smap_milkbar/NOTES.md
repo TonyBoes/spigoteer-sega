@@ -1,4 +1,23 @@
-# Milk bar round 4i (current): flat roofs and a neon sign
+# Milk bar round 4j (current): cow across the lane, sign left, neon arrow, silver building
+
+Owner: "v2. but move the cow to the left of the building under the building to the other side of the road, then move the milk bottle sign to the left a bit. Maybe try adding a neon arrow to the milk bottle sign that curves pointing down at the venue. And try making the color of the building silver instead of white." Base: 4i v2. `milkbar_sheet10.png`: v2 | new (no arrow) | new + arrow, close-up x4 and the A5 map x3, DMG and Color. Code: `build(3, 'A', 2, new)` in `src/cow_a5.py`, `MB_SILVER=1` in `src/a5env.py`, `src/sheet10.py`.
+
+1. **Cow:** now on the south verge below the lane (picture x 6..19, y 144..153; world cells x 50..51, rows 65..66), left of the building's span, on grass, well below Sal's stop (lane row 63) and clear of the river bank. The pen cows are as before.
+2. **Sign:** 6 px left (pole centre x 12, was 18); bottle x 4..19; foot still above Sal's box.
+3. **Arrow:** a curved neon tube from the bottle's right shoulder over the lawn, 40 px long, descending to an arrowhead pointing down at the MILK BAR block's cap (head x 54..58, tip y 83, cap y 85). Chrome core, pink halo, like the lettering; static. Shown with and without (columns 2 and 3).
+4. **Silver:** the chrome COW index 1 is `e8e0f0` (used by the building, the bottle's glass, the cows' bodies, the pen's fence and trough and the sign post). No other palette has a silver with pink at index 2, so I chose to change COW index 1 to `b0b8c8` (RGB555 grid) instead of giving the building another palette (a new slot; the table is full). Nothing else uses `cow` on the map (grep of tools/ and src/: only the generator, `pal.py`, `palsnap.py` and `v_cow.py`; `e8e0f0` also appears in `assets/approved/venues/biker_pal.json`, a different palette, untouched). What else changed colour: the cows, the bottle glass and label, the fence, the trough and the post go from white-lilac to silver; the cows read greyer. DMG unaffected (index 1 is still shade 1). Palette count unchanged.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| v2 | 571 | 133 | 115 | 74 | 8 |
+| new (no arrow) | 574 | 133 | 112 | 76 | 8 |
+| new + arrow | 584 | 133 | 122 | 86 | 8 |
+
+The arrow costs 10 tiles (its cells are mostly unique). Lint PASS DMG and Color.
+
+---
+
+# Milk bar round 4i: flat roofs and a neon sign
 
 Owner: "Could I get versions of the milk bar where the roof isnt domed and the sign on the building looks more like a neon sign? Of the examples I like A's doors better." Base: 4h option A (dark glass windows, A's doors). Only the roof and the sign band changed (x 32..95, y 20..39 of the piece); position, lot, bikes, sign post, cow and pasture are as in 4g. `milkbar_sheet9.png`: 4h A | v1 | v2 | v3, close-up x4 and the A5 map x3, DMG and Color. Code: `src/cow_roof.py` (hand-typed roofs; the letters are round 3's 5 x 5 glyphs), `build(3, 'A', v)` in `src/cow_a5.py`, `src/sheet9.py`.
 

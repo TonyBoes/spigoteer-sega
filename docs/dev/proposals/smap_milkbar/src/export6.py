@@ -9,3 +9,5 @@ for s in 'AB':
     E.write('bld' + s, A.build(3, s))
 for r in (1, 2, 3):
     E.write(f'roof{r}', A.build(3, 'A', r))
+for n in (1, 2):
+    E.write(f'new{n}', A.build(3, 'A', 2, n))
