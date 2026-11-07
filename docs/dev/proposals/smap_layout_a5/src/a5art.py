@@ -82,3 +82,18 @@ def water_tile5(mask, cx, cy, W, H, dmg=False, light=False, variants=False, spec
     if variants and name in ("BN", "BS", "BW", "BE") and (cx * 3 + cy * 5) % 7 in (2, 5):
         name += "2"
     return S[name]
+
+
+# ---- the floating logs, redrawn (logs5.py): SMAP_LOG = old (A4's) | v1 | v2 ---------------------------------------------------------------------------
+import os as _os
+import logs5 as _logs5
+
+LOGSEL = _os.environ.get("SMAP_LOG", "old")
+LOG_DX, LOG_DY = (1, 1) if LOGSEL == "old" else (0, 0)         # (A4's pieces are 16 x 6 / 6 x 16 and sat one pixel in; the new ones fill their cells)
+if LOGSEL in _logs5.VARIANTS:
+    _h, _v = _logs5.VARIANTS[LOGSEL]
+    FLOATLOG_H = ("water", _logs5.conv(_h))
+    FLOATLOG_V = ("water", _logs5.conv(_v))
+    FLOATLOG_H_L = ("water", _logs5.conv(_h, light=True))
+    FLOATLOG_V_L = ("water", _logs5.conv(_v, light=True))
+    LIGHT_PIECE = {id(FLOATLOG_H): FLOATLOG_H_L, id(FLOATLOG_V): FLOATLOG_V_L}

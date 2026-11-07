@@ -153,7 +153,9 @@ if _o.environ.get("SMAP_LAYOUT") == "lay_A5":
     PALS["town1@g"] = [PALS["grass"][0]] + PALS["town1"][1:]            # the town's edge cells: the grass is index 0 (cream, terracotta, lilac, ink with the cream replaced)
     PALS["town5@g"] = [PALS["grass"][0]] + PALS["town5"][1:]
     PALS["factory"] = ["d0c890", "88a090", "385048", "101818"]          # re-tint: 0 packed earth (was pale grey e8e8e0), 1 steel (was blue grey), 2 dark steel, 3 ink
-    for _k in ("town1@g", "town5@g", "factory"):
+    if _o.environ.get("SMAP_LOG", "old") != "old":                          # the redrawn logs: the water palette's 'deep' (3) is wood brown 905830, the lodge wood (the falls' rock edge takes it too)
+        PALS["water"] = PALS["water"][:3] + ["905830"]
+    for _k in ("town1@g", "town5@g", "factory", "water"):
         RGB[_k] = [h(c) for c in PALS[_k]]
 """
 q.write_text(base)
