@@ -762,3 +762,4 @@ The grass dithering patchiness looks better now."
   Roof B (ribs) approved. Walls next: texture on the wall (posts/frame wood, shoji paper), Color budget 0 spare at 1023 -> texture only inside cells that are already unique.
 - 2026-11-07 owner Q117: "117) I like b more, but waterfall should be coming out of mountain."
   Big mountain B chosen. Rework: the falls emerge from mountain B (a cleft/cave mouth in its flank, river starting there). B costs +11 Color ids over A' (+ teahouse at 1023): agent measures the total and lists what could give; owner picks what goes (Q118) before anything is dropped.
+- 2026-11-07 teahouse round 4 (a83b5a5, 81494bd8, SMAP_TEA_TEX=BW): shoji bottom-row dotted shade, lit grain line + knot on posts; 0 extra ids (958/1023). Plank base not possible without ids. My view: modest, calm at x3; panel dots tick-like at x6. Q116 re-asked: walls OK?
