@@ -125,30 +125,27 @@ def blit(im, grid, x, y, cols, flip=False, w=None):
                 im.putpixel((px, py), (c, c, c) if isinstance(c, int) else c)
 
 
-# the lanes (screen y of the sprite's top; the entry is 16 tall) and speeds: a step of 1 px when (tick & mask) == phase.  Lanes are 16 px or more apart, so a line never holds two clouds.
-LANES = {"C": 12, "B": 100, "A": 118}
-STEP = {"C": (7, 3), "B": (3, 0), "A": (7, 5)}      # (mask, phase): C 1 px / 8 frames, B 1 px / 4, A 1 px / 8
+# World coordinates (owner, Q114: "clouds need to stay where they are in relation to map not sal").  Four lanes 128 px apart (56, 184, 312, 440: any 144-line view holds a whole lane), one cloud per lane except lane 184 (two, same speed, 210 px apart: never on one screen),
+# one cloud per lane, world x = (base + clock >> shift) & 1023 with clock = the 16-bit frame count (V_TICK and one scratch byte).  The world is 512 wide, so a cloud is on the map half of
+# the time.  Hidden (OAM y 0) when off the screen.  (design, world y, base x, shift: 1 px per 2^shift frames, X flip)
+CLOUDS = [("A", 56, 20, 3, 0), ("C", 184, 300, 3, 0), ("B", 184, 90, 3, 1), ("B", 312, 380, 2, 0), ("A", 440, 200, 3, 1)]
 
 
-class Clouds:
-    def __init__(self, xs, flips=(0, 0, 0)):
-        self.x = dict(zip(ORDER, xs))
-        self.f = dict(zip(ORDER, flips))
-        self.t = 0
+def cloud_pos(i, clk, cx, cy):
+    """the screen position (sx, sy) of cloud i, or None when it is off the screen (its entries get y = 0: they cost no scanline)"""
+    d, wy, base, sh, fl = CLOUDS[i]
+    wx = (base + (clk >> sh)) & 1023
+    sx, sy = wx - cx, wy - cy
+    if sx < -24 or sx >= 160 or sy <= -16 or sy >= 144:
+        return None
+    return sx, sy
 
-    def tick(self):
-        for k in ORDER:
-            m, p = STEP[k]
-            if (self.t & m) == p:
-                self.x[k] += 1
-                if self.x[k] >= 160:                 # b0 == 168: every entry is off the right edge; the engine jumps the group to -24 (a byte of 232)
-                    self.x[k] = -24
-                    self.f[k] ^= 1
-        self.t += 1
 
-    def draw(self, im, cols):
-        for k in ORDER:
-            blit(im, GRIDS[k], self.x[k], LANES[k], cols, bool(self.f[k]))
+def draw_clouds(im, clk, cx, cy, cols):
+    for i, (d, wy, base, sh, fl) in enumerate(CLOUDS):
+        p = cloud_pos(i, clk, cx, cy)
+        if p:
+            blit(im, GRIDS[d], p[0], p[1], cols, bool(fl))
 
 
 def view(world, cx, cy):
@@ -226,10 +223,10 @@ def pair_panel(cgb, ground):
     return stack_h(ims, gap=16)
 
 
-def compose_view(cgb, world, cx, cy, fx, fy, cl, pic=0, upx=0):
+def compose_view(cgb, world, cx, cy, fx, fy, clk, pic=0, upx=0):
     im = view(world, cx, cy).copy()
     draw_sal(im, fx, fy, cx, cy, pic, upx, SAL_CGB if cgb else SAL_DMG)
-    cl.draw(im, CLOUD_CGB if cgb else CLOUD_DMG)
+    draw_clouds(im, clk, cx, cy, CLOUD_CGB if cgb else CLOUD_DMG)
     return im
 
 
@@ -276,39 +273,37 @@ def main(outdir):
     sheet.save(out / "sheet_designs.png")
     rep.append(f"sheet_designs.png {sheet.size}")
 
-    # ---- sheet 2: in context x3 ----
-    views = [("TOWN: SAL AT THE TOWN STOP", 296, 236, (96, 14, 120), ""),
-             ("IGLOO: SNOW, THE DMG WORST CASE", 424, 100, (30, 70, 100), ""),
-             ("FACTORY: SAL AT THE FACTORY, RIVER", 432, 372, (100, 20, 50), "")]
+    # ---- sheet 2: in context x3 (world clouds at the clock value shown) ----
+    views = [("TOWN: SAL AT THE TOWN STOP", 296, 236, 0),
+             ("IGLOO: SNOW, THE DMG WORST CASE", 424, 100, 3040),
+             ("FACTORY: SAL AT THE FACTORY, RIVER", 432, 372, 0)]
     vrows = []
-    for title, fx, fy, xs, _ in views:
+    for title, fx, fy, clk in views:
         cx, cy = camera(fx, fy, WW, WH)
         pair = []
         for cgb, w_ in ((False, wd), (True, wc)):
-            im = compose_view(cgb, w_, cx, cy, fx, fy, Clouds(xs))
+            im = compose_view(cgb, w_, cx, cy, fx, fy, clk)
             pair.append(label(up(im, 3), "DMG" if not cgb else "COLOR", 36))
         vrows.append(label(stack_h(pair), title, 38, bg=(70, 40, 90)))
     sheet2 = stack_v(vrows, gap=30)
     sheet2.save(out / "sheet_context.png")
     rep.append(f"sheet_context.png {sheet2.size}")
 
-    # ---- the GIF: DMG left, Color right; Sal stands at the igloo, walks the east road to the lodge, stands ----
-    path = [(424, 100), (504, 100), (504, 236), (442, 236)]
+    # ---- the GIF: DMG left, Color right; Sal stands at the town, walks west to the saloon, north on the west road to the stadium, stands.  The camera scrolls 296 -> 0 and 164 -> 28. ----
+    path = [(296, 236), (43, 236), (8, 236), (8, 100), (80, 100)]
     frames = []
-    cl = Clouds((140, 116, 130))                     # A, B, C
     seq = [1, 0, 2, 0]
     pos = list(map(float, path[0]))
-    leg, walk, phase, ph_t = 0, 0, 0, 0
-    total = 180 + 144 + 130
-    maxlines = []
+    leg, phase, ph_t = 0, 0, 0
+    total = 100 + 250 + 100
+    over_sal, max_cloud_line, cam_span = 0, 0, [999, -1, 999, -1]
     for t in range(total):
-        walking = 180 <= t and leg < len(path) - 1
+        walking = 100 <= t and leg < len(path) - 1
         pic, upx = 0, 0
         if walking:
             tx, ty = path[leg + 1]
             dx, dy = tx - pos[0], ty - pos[1]
-            d = max(abs(dx), abs(dy))
-            step = min(2, d)
+            step = min(2, max(abs(dx), abs(dy)))
             pos[0] += step * (dx > 0) - step * (dx < 0)
             pos[1] += step * (dy > 0) - step * (dy < 0)
             if abs(tx - pos[0]) < 1 and abs(ty - pos[1]) < 1:
@@ -322,19 +317,28 @@ def main(outdir):
             phase = ph_t = 0
         fx, fy = int(pos[0]), int(pos[1])
         cx, cy = camera(fx, fy, WW, WH)
-        sy = fy - 24 - cy
-        # a cloud lane against Sal's lines (his entries plus the arrows: sy - 9 .. sy + 40)
-        for k in ORDER:
-            if LANES[k] < sy + 41 and LANES[k] + 16 > sy - 9:
-                maxlines.append((t, k))
+        cam_span = [min(cam_span[0], cx), max(cam_span[1], cx), min(cam_span[2], cy), max(cam_span[3], cy)]
+        ssx, ssy = fx - 8 - cx, fy - 24 - cy                     # Sal's art box 16 x 24 (his entries 32 lines tall)
+        lines = {}
+        hit = False
+        for i in range(len(CLOUDS)):
+            p = cloud_pos(i, t, cx, cy)
+            if p:
+                n = len(GRIDS[CLOUDS[i][0]][0]) // 8
+                for y in range(max(0, p[1]), min(144, p[1] + 16)):
+                    lines[y] = lines.get(y, 0) + n
+                if p[0] < ssx + 16 and p[0] + 8 * n > ssx and p[1] < ssy + 32 and p[1] + 16 > ssy:
+                    hit = True
+        over_sal += hit
+        max_cloud_line = max([max_cloud_line] + list(lines.values()))
         if t % 3 == 0:
             pair = []
             for cgb, w_ in ((False, wd), (True, wc)):
-                pair.append(up(compose_view(cgb, w_, cx, cy, fx, fy, cl, pic, upx), 3))
+                pair.append(up(compose_view(cgb, w_, cx, cy, fx, fy, t, pic, upx), 3))
             lab = [label(pair[0], "DMG", 36), label(pair[1], "COLOR", 36)]
             frames.append(stack_h(lab))
-        cl.tick()
-    rep.append(f"gif frames {len(frames)} ({total} game frames, 3 per frame, 50 ms = 60 fps), size {frames[0].size}; cloud lane touches Sal's band (sy-9..sy+40) on {len(maxlines)} (frame, cloud) pairs")
+    rep.append(f"gif frames {len(frames)} ({total} game frames, 3 per frame, 50 ms = 60 fps), size {frames[0].size}; camera x {cam_span[0]}..{cam_span[1]}, y {cam_span[2]}..{cam_span[3]}; "
+               f"most cloud entries on one line {max_cloud_line}; frames with a cloud over Sal's sprite {over_sal}")
     q = [f.quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE) for f in frames]
     q[0].save(out / "smap_clouds_dmg_color.gif", save_all=True, append_images=q[1:], duration=50, loop=0, optimize=True)
     rep.append("gif bytes %d" % (out / "smap_clouds_dmg_color.gif").stat().st_size)
