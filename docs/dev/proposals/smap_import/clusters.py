@@ -12,27 +12,28 @@ D = "."
 
 
 def combo(piece, offsets):
+    """offsets: (dx, dy) of a whole tree or (dx, dy, "c") of a tree seen only by its canopy (the trunk is hidden behind the tree in front: rows 0..9 of the piece, no trunk drawn); the last is in front"""
     rows = piece[1]
     h, w = len(rows), len(rows[0])
-    W = max(dx for dx, dy in offsets) + w
-    H = max(dy for dx, dy in offsets) + h
+    W = max(o[0] for o in offsets) + w
+    H = max(o[1] + (10 if len(o) == 3 else h) for o in offsets)
     g = [[D] * W for _ in range(H)]
-    for dx, dy in offsets:
-        for j, r in enumerate(rows):
+    for o in offsets:
+        dx, dy = o[0], o[1]
+        for j, r in enumerate(rows[:10] if len(o) == 3 else rows):
             for i, c in enumerate(r):
                 if c != D:
                     g[dy + j][dx + i] = c
     return (piece[0], ["".join(r) for r in g])
 
 
-RR_R = combo(decor.ROUND, [(0, 0), (5, 6)])
-RR_L = combo(decor.ROUND, [(6, 0), (0, 6)])
-RRR = combo(decor.ROUND, [(5, 0), (0, 6), (9, 6)])
+RR_R = combo(decor.ROUND, [(0, 0, "c"), (6, 5)])                    # one whole tree in front, a second canopy peeking out above and to the left of it
+RR_L = combo(decor.ROUND, [(6, 0, "c"), (0, 5)])                    # same, the second canopy above and to the right
+RRR = combo(decor.ROUND, [(0, 1, "c"), (10, 0, "c"), (5, 6)])       # two canopies behind (left lower, right higher), one whole tree in front: a fat clump with one trunk
 PP = combo(decor.PINE, [(0, 0), (5, 6)])
 PPP = combo(decor.PINE, [(4, 0), (0, 6), (8, 6)])
-JJ = combo(decor.JUNGLE_TREE, [(0, 0), (5, 6)])
-JJJ = combo(decor.JUNGLE_TREE, [(5, 0), (0, 6), (9, 6)])
-
+JJ = combo(decor.JUNGLE_TREE, [(0, 0, "c"), (6, 5)])
+JJJ = combo(decor.JUNGLE_TREE, [(0, 1, "c"), (10, 0, "c"), (5, 6)])
 
 def stalks(w, h, specs, leaves):
     """specs: (x0, top, node rows); leaves: typed (x, y, v)"""
@@ -110,7 +111,11 @@ def apply(lay, trees=True, bamboo=True):
         for name, x, y, pal in BAMBOO_AT:
             S.append((piece(name, pal), x, y))
     if trees:
+        import os
+        skip = set(filter(None, os.environ.get("SMAP_SKIP_CLUSTERS", "").split(",")))     # e.g. RR_R,RR_L,RRR,JJ,JJJ: the round clusters dropped (the singles stay), the pine ones kept
         for name, x, y, gone in CLUSTERS:
+            if name in skip:
+                continue
             for kind, sx, sy in gone:
                 if not drop(kind, sx, sy):
                     miss.append((kind, sx, sy))

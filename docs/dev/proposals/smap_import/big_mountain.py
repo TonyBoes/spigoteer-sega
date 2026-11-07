@@ -105,6 +105,7 @@ def rows():
     return ["".join(r) for r in g]
 
 
+EXTRA_SNOW = {"B": [(33, 3)]}     # west edge of B's snow cells by row: 36 35 34 33 34 (was 36 35 34 34 34, three cells straight)
 PLACES = {"A": (444, -4, "the top right corner: cropped by the top edge (4 rows) and the east edge (16 columns), foot on the line under range C, behind the igloo's chimney"),
           "B": (280, -4, "the head of the river: cropped by the top edge (4 rows), the falls leave its foot to the east")}
 
@@ -112,6 +113,14 @@ PLACES = {"A": (444, -4, "the top right corner: cropped by the top edge (4 rows)
 def _pieces(px, x0, y0):
     """big connected pieces of non-snow pixels (8-connected, 30 px or more) inside this mountain's box: the range peaks, trees, the igloo.  Returns a list of pixel lists"""
     X0, X1, Y0, Y1 = max(x0, 0), min(x0 + W, 512), max(y0, 0), min(y0 + H, 512)
+
+    def empty_col(x):
+        return all(px[y][x] == 0 for y in range(Y0, Y1))
+
+    while X0 > 0 and not empty_col(X0):                     # widen the box to the nearest columns with nothing in them, so no peak is cut by the box edge
+        X0 -= 1
+    while X1 < 512 and not empty_col(X1 - 1):
+        X1 += 1
     seen, big = set(), []
     for Y in range(Y0, Y1):
         for X in range(X0, X1):
@@ -180,6 +189,11 @@ def apply(W_, WORLDS, key):
         for w in WORLDS:
             if w.pal[cy][cx] != "igloo":
                 w.pal[cy][cx] = "igloo"
+    for (cx, cy) in EXTRA_SNOW.get(key, []):                # typed: one cell tab on the snowfield's west edge, so the snow / grass line does not run straight down beside the foot
+        assert (cx, cy) not in WORLDS[0].roads
+        for w in WORLDS:
+            w.pal[cy][cx] = "igloo"
+        touched.add((cx, cy))
     return touched
 
 

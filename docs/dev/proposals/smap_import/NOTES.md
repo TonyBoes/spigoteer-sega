@@ -126,3 +126,23 @@ Ways to buy room under 1024 (r40 fallback set, A): no tree clusters 938 / 999 / 
 - **Which bend breaks the fit map.** The largest-fit map (no extras) has 3 windows with 9 palettes at (33..35,41). Bisected: (37,28) at r120 is the cause. Same map with (37,28) at r96 (950 / 1003 tiles, 0 over) or r24 (910 / 967, 0 over) passes; dropping (0,45) r96 or (37,46) r24 changes nothing (still 3 over). Its patch reaches row 43, into the windows of the (37,46) bend. With everything on, (37,28) beyond r40 gives 10 windows over (r96) or 33 (r120).
 - **Whole map** Color | DMG, light water, everything on, r40 with fallback (note: 15 Color tile ids over 1024), mountain A and B: s1e_whole_c40_A.png, s1e_whole_c40_B.png.
 - **For stage 3: the DMG falls frames on light water.** The approved falls frames are typed for dark water (foam 1, water 2). On light water foam maps to 0, the land shade, and the falls column washes out. Stage 3 needs typed DMG foam frames (foam against water at the light shades) for the falls tiles; nothing to do now.
+
+### Stage 1f (coordinator review of 1e) -- shown, none applied. These numbers replace the 1e tables, whose mountain and trees were older.
+- **Big mountain cuts fixed.** A: the sliver was a back peak cut by the paste box edge; the box now widens to the nearest empty columns, so a peak is removed whole or left whole (the three peaks left of A's foot are gone, the others stay). B: the snow / grass edge ran 3 cells straight; one typed extra snow cell at (33,3) makes the west edge 36 35 34 33 34 by row. The cell takes the `igloo` palette (already present in the windows), no new tile pixels.
+- **Round clusters redrawn** (clusters.py combo): each clump now has exactly one whole tree in front (one trunk); the others show only their canopy (rows 0..9 of the same tree, no trunk) above and to one side, and the front canopy's ink wins where they meet. RR_R, RR_L: canopy peeking up-left or up-right; RRR and JJJ: two canopies behind (left lower, right higher) and one whole tree in front. Pines unchanged. Sheets s1e_trees.png, s1e_zoo.png (before | after, Color and DMG).
+- **Measures** (SMAP_TILE_MAX=4096, bush at x 40; DMG / Color ids of 1024 / worst DMG view / windows over 8; generator ok = the full generator passed, Color above 1023 fails it):
+| run | DMG | Color of 1024 | worst | over 8 | ok |
+|---|---|---|---|---|---|
+| everything on, r8 corners, mountain A | 915 | 977 | 156 | 0 | yes |
+| same, mountain B | 926 | 988 | 156 | 0 | yes |
+| uniform r24, A | 942 | 1003 | 156 | 0 | yes |
+| uniform r24, B | 953 | 1014 | 156 | 0 | yes |
+| r40 fallback, all extras, A | 967 | 1029 | 159 | 0 | no, 5 over |
+| r40 fallback, all extras, B | 978 | 1040 | 159 | 0 | no |
+| Option C: (0,45) r96 + r40 fallback + bamboo + cacti + spill, no peaks, no tree clusters, A | 943 | 1000 | 154 | 0 | yes |
+| Option C, B | 954 | 1011 | 153 | 0 | yes |
+| Option A (read as r40 fallback, all extras): round clusters dropped (RR_R, RR_L, RRR, JJ, JJJ), pine clusters kept, A | 943 | 1004 | 159 | 0 | yes |
+| same, B | 954 | 1015 | 159 | 0 | yes |
+| same, only the lawn round clusters RR_R, RR_L, RRR dropped (jungle kept), A | 957 | 1019 | 159 | 0 | yes |
+| uniform r24, round clusters dropped, A | 918 | 978 | 155 | 0 | yes |
+The run scripts are in out/smap_import/ (run_meas11.sh), logs in out/smap_import/mm/f_*.log; table by mm_table.py. SMAP_SKIP_CLUSTERS=RR_R,RR_L,RRR,JJ,JJJ drops clusters by name.
