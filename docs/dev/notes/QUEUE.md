@@ -717,3 +717,7 @@ q110) waterfall looks better, but bubbles in the pond under it are unneeded. rep
 - 2026-11-07 import 1d (578aa925): cream corner patches gone by squaring those 5 (13/24 round, 11 square: palette/art limits); ranges B/C on one snowfield joined to the igloo snow. DMG 793 tiles, worst view 143, table 20. Q113 re-asked with the whole map + corners sheet.
 - 2026-11-07 owner: "Can I get the before and after sprites on the dancing girls and cheerleaders back" -> re-sent docs/dev/concepts/shows_2026-11-02/ba_saloon.gif and ba_cheer.gif.
 - 2026-11-07 owner: "Put those before after in questions" -> reference card (no Qn) on Open Questions with ba_saloon.gif and ba_cheer.gif.
+- 2026-11-07 owner: "113) make all rounded and show me. 
+
+114) clouds need to stay where they are in relation to map not sal."
+  Plan: import agent rounds all 24 corners; for the 11 hard ones try a local-ground road palette (new table entries if story_scratch fits; report bytes) or cell rearrangement; any corner still compromised is shown and listed honestly. Cloud agent: clouds live in world (map) coordinates and scroll with the map as Sal walks, plus their slow drift; positions derived from a frame counter + base (no WRAM); mock-up GIF with Sal walking so the camera scrolls.
