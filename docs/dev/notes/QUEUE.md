@@ -673,3 +673,5 @@ Make sure you merge the mast lamp and radar animations."
   Plan: keep the passed band; raise the arm/head (bottom of the band) a few px up the pole; then shift the whole sign (bottle, pole, band, head) a few px left. Nothing else changes.
 - 2026-11-06 owner: "can we make the logs bob in the water?  New glints are better."
   Plan: new glints approved; taking "subtle" (very subtle may vanish on DMG) unless he says otherwise. Anim agent adds a slow 1 px log bob (river logs, v1 single logs), report tile cost and DMG peak. Falls direction still awaiting his look.
+- 2026-11-06 owner: "the waterfall at this point reads more like river than a falls. bottom probably heeds foam."
+  Plan: anim agent (owns the falls frames, has the seam-fix tiles merged) redraws the falls to read as a drop: mostly white/foam falling water, a churning foam band at the foot where it hits the pool (animated), keeping the seam-fix edges. Static falls tiles change too; the import takes them from the anim branch.
