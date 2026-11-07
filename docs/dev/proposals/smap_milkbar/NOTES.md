@@ -1,3 +1,31 @@
+# Milk bar round 4k, investigation: can `base` (98a0b0) fit the milk bar window?
+
+With the building's body cells on `base`, 8 of the sliding 21 x 19 windows hold 9 palettes: origins x 33..34, y 41..44 (nothing else on the map, nothing with the factory palette). All 8 contain the same nine palettes:
+
+| palette | cells in these windows | where |
+| --- | --- | --- |
+| grass | about 125..170 | the lawn west of the river and bank, rows 41..61 |
+| water | about 118..131 | the river, x 37..48 |
+| farm | 36..46 | the pasture and verge, x 48..54 |
+| cow | 29..42 | pen fence, sign, cows, the sign block |
+| town1 | 26..43 | the lane (road) at the bottom and the ring road at the top |
+| tea@g | 3..8 | the tea house's cells next to grass, x 33..35, rows 57..61 |
+| factory | 2..12 | the factory's bottom cells, x 52..54, rows 41..44 (top edge only; windows from y 45 down do not see them) |
+| tea | **1** | cell (34, 59) |
+| base | 1..5 | the milk bar's left two columns, x 53..54, rows 59..61 (right edge only; windows from x 35 do not see tea, windows from x 55 do not see the left two columns) |
+
+The window origins are fixed by the tea house (left edge) and the milk bar (right edge) 20 cells apart, so the overlap is only the strip x 33..35 and x 53..54.
+
+**Options**
+1. **Merge the single `tea` cell (34, 59) into `tea@g`.** That cell is on `tea` because the generator found index 0 pixels inside the tea picture's outline (`world2.py` lines 146 to 158: a cell gets `@g` only if all its index 0 pixels are outside the outline). They are 4 pixels, (86, 36), (87, 36), (84, 37), (87, 39) of the picture, the highlight pixels of a rounded object on the tea house. On `tea@g` those 4 pixels would be grass green (b0d080) instead of the pale d8ecb0. Cost: 4 pixels of the tea house change colour on Color, DMG unchanged; the window drops to 8. It is the cheapest fix, but not "no visible change outside the milk bar": the tea house loses a 4 px highlight. Variant: redraw those 4 pixels as index 1 (cream f4ecc8) so that the colour stays near and no palette change is needed (this changes the DMG shade of the 4 pixels from the lightest to a lighter grey).
+2. **Keep the milk bar's left two columns (x 53, 54) on COW** (white, not silver): base then only appears from x 55, outside the tea windows. Cost: a 16 px wide white strip at the building's left end (a pilaster look); nothing else changes.
+3. Drop `factory`, `farm`, `town1`, `grass` or `water` from the window: not possible without recolouring terrain.
+4. Move the milk bar two cells east: not possible, the ring road is at x 62.
+
+I did not render the coffee sign on `base`: option 1 is not strictly clean (4 tea house pixels), option 2 is a visible change on the milk bar itself. Say which one to render.
+
+---
+
 # Milk bar round 4k (current): classic roadside arrow signs, building on a borrowed silver palette
 
 Owner: "not what I wanted with the arrow. Something more like what these classic signs looked like" (refs `docs/dev/proposals/refs/owner_sign_diner.jpg`, `owner_sign_coffee.jpg`), then "can we borrow a silver palette from somewhere else on the map? so the cows and milk sign can stay white?" `milkbar_sheet11.png`: 4j silver (COW idx 1) | building on the FACTORY palette, no arrow | A coffee sign | B diner sign; close-up x4, A5 map x3, DMG and Color. Code: `src/cow_sign.py` (both signs typed row by row), `build(3, 'A', 2, new, borrow)` in `src/cow_a5.py`, `src/cow_roof.py` (`narrow`), `src/sheet11.py`.
