@@ -24,6 +24,16 @@ os.environ["SMAP_LAYOUT"] = "lay_A5"
 os.environ["SMAP_FOG"] = "none"
 os.environ["SMAP_LOG"] = "v1"
 os.environ.setdefault("SMAP_BRIDGE", "new")
+# THE DEFAULT MAP is the owner's pick A' (Q115 a, Q117 a): the four long bends (0,11) (0,45) (37,28) (63,11) at r32, every other bend at r24 with the art trims (factory 0 px, lodge 11, cow 1),
+# all extras (desert peaks, cacti, spill, bamboo, tree clusters), big mountain A, the stadium bush at x 40, light water.  Each switch still overrides: SMAP_CURVE=none gives the r8 corners,
+# SMAP_CURVE=24 uniform r24, SMAP_BIG=none or B, SMAP_CURVE_TRIM=0, SMAP_RADII=... any set.
+if os.environ.get("SMAP_BEFORE_1C") != "1":
+    os.environ.setdefault("SMAP_BIG", "A")
+    os.environ.setdefault("SMAP_STADIUM_BUSH_X", "40")
+    os.environ.setdefault("SMAP_CURVE_TRIM", "1")
+    if "SMAP_CURVE" not in os.environ:
+        os.environ["SMAP_CURVE"] = "radii"
+        os.environ.setdefault("SMAP_RADII", "0,29:24!;0,63:24!;37,46:24!;50,28:24!;50,46:24!;63,29:24!;63,45:24!;63,63:24!;0,11:32!;0,45:32!;37,28:32!;63,11:32!")
 sys.path.insert(0, str(PROP / "smap_layout_a5/src"))
 sys.path.append(str(ROOT / "tools/smap_world"))
 sys.path.append(str(HERE))

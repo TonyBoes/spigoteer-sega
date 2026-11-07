@@ -12,14 +12,14 @@ A real mountain, drawn row by row from typed numbers (the numbers are the drawin
 W x H = 84 x 44.  Placed with the top 4 rows above the map edge (A and B keep the coordinator's places).  The base is pasted BEHIND the small range peaks: pixels that belong to a peak
 (a big connected piece of rock, with the snow inside its outline) are never overwritten."""
 
-W, H = 84, 44
+W, H = 90, 44
 
 # per row y: main summit outline (L, R) for rows 0..17; shoulder summit (Ls, Rs) for rows 12..18; merged outline (L, R) from row 18
 MAIN = {0: (31, 33), 1: (30, 34), 2: (29, 35), 3: (29, 36), 4: (28, 38), 5: (27, 39), 6: (27, 40), 7: (26, 42), 8: (25, 43), 9: (25, 44), 10: (24, 46), 11: (23, 47),
         12: (22, 48), 13: (21, 49), 14: (21, 51), 15: (20, 52), 16: (19, 53), 17: (19, 55)}
 SHOULDER = {12: (62, 63), 13: (61, 64), 14: (60, 65), 15: (60, 67), 16: (59, 68), 17: (58, 69)}
 MERGED_L = [18, 17, 17, 16, 15, 15, 14, 14, 13, 13, 12, 10, 10, 9, 8, 8, 7, 6, 6, 5, 4, 4, 3, 3, 2, 2]               # rows 18..43
-MERGED_R = [70, 71, 72, 72, 74, 75, 75, 77, 78, 78, 79, 80, 80, 81, 81, 82, 82, 82, 83, 83, 83, 83, 83, 83, 83, 83]
+MERGED_R = [70, 71, 72, 72, 74, 75, 75, 77, 78, 78, 79, 80, 80, 81, 81, 82, 82, 82, 83, 84, 85, 85, 86, 87, 87, 88]
 RIDGE_M = [32, 32, 33, 32, 33, 33, 34, 33, 34, 35, 34, 35, 36, 35, 36, 37, 36, 37, 38, 37, 38, 39, 38, 40, 39, 40, 41, 40, 41, 42, 41, 42, 43, 42, 43, 44, 43, 44, 45, 44, 45, 46, 45, 46]
 RIDGE_S = {12: 62, 13: 62, 14: 63, 15: 63, 16: 64, 17: 63, 18: 64, 19: 65, 20: 66, 21: 65, 22: 66, 23: 67, 24: 68, 25: 67, 26: 69, 27: 70, 28: 69, 29: 70, 30: 71, 31: 72, 32: 71, 33: 72,
            34: 73, 35: 74, 36: 73, 37: 74, 38: 75, 39: 76, 40: 75, 41: 76, 42: 77, 43: 78}

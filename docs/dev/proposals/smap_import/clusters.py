@@ -108,7 +108,11 @@ def apply(lay, trees=True, bamboo=True):
         for kind, x, y in REMOVE_ZOO:
             if not drop(kind, x, y):
                 miss.append((kind, x, y))
+        import os
+        skipb = set(filter(None, os.environ.get("SMAP_SKIP_BAMBOO", "").split(",")))       # scratch: TALL, MID or SMALL left out, to cost each clump
         for name, x, y, pal in BAMBOO_AT:
+            if name in skipb:
+                continue
             S.append((piece(name, pal), x, y))
     if trees:
         import os
