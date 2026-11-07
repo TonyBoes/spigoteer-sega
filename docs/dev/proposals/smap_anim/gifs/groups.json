@@ -12,10 +12,10 @@
   "tiles_per_s": 36.7
  },
  "lodge (smoke + water)": {
-  "max_tiles": 5,
-  "max_bytes": 80,
-  "avg_bytes_per_frame": 5.87,
-  "tiles_per_s": 22.0
+  "max_tiles": 3,
+  "max_bytes": 48,
+  "avg_bytes_per_frame": 4.27,
+  "tiles_per_s": 16.0
  },
  "factory (smoke)": {
   "max_tiles": 3,
@@ -48,9 +48,9 @@
   "tiles_per_s": 42.0
  },
  "ALL on screen at once (not possible)": {
-  "max_tiles": 21,
-  "max_bytes": 336,
-  "avg_bytes_per_frame": 34.93,
-  "tiles_per_s": 131.0
+  "max_tiles": 20,
+  "max_bytes": 320,
+  "avg_bytes_per_frame": 33.33,
+  "tiles_per_s": 125.0
  }
 }

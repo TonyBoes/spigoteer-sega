@@ -4,7 +4,7 @@
 
 "all animations look good, but bring back old flag and stadium that I approved. and the new igloo I approved. And maybe use a different, not tan palette for the lodge smoke. Don't like the stadium lamp effect." and "the fountain water doesn't match the revised fountain. Several things like that in the art pass."
 
-So every animation now sits on the approved pieces, on the real A5 map render (no piece needed its own ground). Merged `--no-ff` into this branch, no conflicts in any: fountain round 3 (`worktree-agent-a9bde35169ec4c32e`), approved stadium (`...ad92c4ce81f826634`), approved igloo option 1 (`...a326fa4ec4c6f3e7f`), airbase round 4i (`...a958d884767ee8afe`), milk bar round 4i (`...a742552fa3a9454c1`), and A5 with `SMAP_LOG=v1` (brown logs). Dropped: the stadium lamps (8b) and the pole pennants (4b of the first delivery). Added: wavy stadium flag (4b), igloo chimney smoke (6c).
+So every animation now sits on the approved pieces, on the real A5 map render (no piece needed its own ground). Merged `--no-ff` into this branch, no conflicts in any: fountain round 3 (`worktree-agent-a9bde35169ec4c32e`), approved stadium (`...ad92c4ce81f826634`), approved igloo option 1 (`...a326fa4ec4c6f3e7f`), airbase round 4i (`...a958d884767ee8afe`), milk bar round 4i (`...a742552fa3a9454c1`), and A5 with `SMAP_LOG=v1` (brown logs), and then the falls seam fix (`worktree-agent-a9eca06ceee777aa2`, 3rd commit: the four falls tiles retyped, 8 px wide like the stream, side edges are the bank's own rim, no index 3). Dropped: the stadium lamps (8b) and the pole pennants (4b of the first delivery). Added: wavy stadium flag (4b), igloo chimney smoke (6c).
 
 Files: `gifs/NN_name.gif` one per item, DMG left and Color right, x3, a 160 x 144 view cut from the map, loops exactly, 50 ms per step (3 video frames); `contact_sheet_frames.png` (every distinct state of every item, DMG over Color, labels first); `gifs/strip_*.png` the single strips; `gifs/report.json`, `groups.json`, `combined.json` the numbers. Sources: `items.py` (every animated tile typed by hand), `anim_lib.py` and `build.py` (compose, preview, measure), `mapctx.py` (loads A5 with the approved pieces), `r4dump.py` + `scenes/*.json` (the approved pieces as cell lists; stadium has its 3 flag frames), `anim_stub.py`. `r3dump.py` is obsolete. Rebuild: `mk_src.py` + `mk_a5.py` of `smap_layout_a5` (scratch `src/`, not committed), `python3 -I build.py OUTDIR`.
 
@@ -17,12 +17,12 @@ Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in 
 | # | Item | Frames | Tiles / step | ROM tiles | Cadence | Shared or unique | VRAM per step |
 |---|---|---|---|---|---|---|---|
 | 1 | Water glints: tiles WA and WB (19 and 22 cells; WF stays flat) | 3 each | 1 (WA, WB offset 6 frames) | +4 | 15 per tile | shared, cheap | 16 B |
-| 2 | Waterfall 2 x 2 cells + splash pair (brown rock edge from SMAP_LOG=v1) | 3 | 4 falls; 2 splash | +9 | 12 | unique, 6 cells | 64 B / 32 B |
+| 2 | Waterfall 2 x 2 cells + splash pair (seam-fix tiles: bank rim at the sides, no brown) | 3 | 4 falls; 2 splash | +9 | 12 | unique, 6 cells | 64 B / 32 B |
 | 3 | Town fountain: two side streams (2 cells) + basin glints (2 cells), round 3 art | 3 streams, 2 basin | up to 2 | +6 | 12 | unique | 32 B |
 | 4a | Town bunting, 7 flags | 3 | 1 or 2 | +6 | 15, P and Q 6 apart | P, Q shared (3 cells each); end flag unique | 16-32 B |
 | 4b | Approved stadium: wavy flag, 2 cells | 3 | 1 or 2 | +4 | 9 | unique | 16-32 B |
 | 5 | Radar dish (airbase 4i), one tile | 4 | 1 | +3 | 15 | unique | 16 B |
-| 6a | Lodge chimney smoke, WHITE (see palette) | 4 | up to 4 | +10 | 15 | unique; 2 cells over blank grass need own tile id | 64 B max |
+| 6a | Lodge chimney smoke, WHITE (see palette) | 4 | up to 2 | +10 (8 puff images, 2 cap cells with the tan puff erased) | 15 | unique; 2 cells over blank grass need own tile id | 32 B max |
 | 6b | Factory, two stacks | 4 | up to 3 | +15 | 15 | unique; 2 new tile ids | 48 B max |
 | 6c | Igloo (option 1) chimney smoke, 1 cell | 4 | 1 | +3 | 15 | unique | 16 B |
 | 7 | Cow tails, pasture cow and one more (milk bar 4i) | 3 | 1 | +6 (2 are the tail at rest) | 12, rests 36 of 72 | unique; 2 new tile ids | 16 B |
@@ -31,7 +31,7 @@ Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in 
 
 Dropped from the first table: 8b stadium lamps, pole pennants. Cheap and shared: 1, 4a (P, Q).
 
-Lodge smoke palette: the existing `water` palette (idx 0 = the grass colour b0d080, idx 1 = e8f0d8 foam white), already present in every window around the lodge, so no new palette and no window goes over 8 because of it. The 2 puff cells over grass switch to it (attribute-only change); the puff reads white/grey-white instead of tan. Caveat: the chimney cap row of the lodge turns brown in Color (water idx 3 = lodge brown with SMAP_LOG=v1), which matches the logs.
+Lodge smoke palette: the existing `water` palette (idx 0 = the grass colour b0d080, idx 1 = e8f0d8 foam white), already in every window round the lodge, so no window gains a palette. It is used only on the two cells ABOVE the chimney, (58,19) and (59,19) (y 152-159; attribute-only change). The chimney cap row (y 167) shares its two cells with the old tan puff (y 163-165), and no palette already in those windows has grass as index 0, a near-white index 1 and the lodge's ink as index 3, so the smoke leaves those cells: the cap cells keep the `lodge` palette and the cap is exactly as approved (same pixels, same colour). The old tan puff is erased from the cap cells (those two tile images change, counted in ROM) and the rest puff now floats at y 157-159, 7 px above the cap. If the owner prefers the puff to touch the chimney, the only palette-neutral way is to keep the tan puff on the cap cells; that is a one-line switch in `items.py`.
 Igloo smoke uses the igloo's own ice-blue shades (the piece's palette), as its art does.
 
 Not animated: the lawn cow (its sign pole sits 1 px from the tail space); the stadium pennant string (see below).
@@ -44,15 +44,15 @@ Peak tiles written in one video frame, average bytes per frame, per view (phases
 
 | view | peak tiles in one frame | peak bytes | average bytes per frame |
 |---|---|---|---|
-| river top: falls + water | 5 | 80 | 10 |
+| river top: falls + water | 5 | 80 | 10.1 |
 | town: bunting + fountain + water | 5 | 80 | 9.8 |
-| lodge: smoke + water | 5 | 80 | 5.9 |
+| lodge: smoke + water | 3 | 48 | 4.3 |
 | factory: both stacks | 3 | 48 | 5.6 |
 | milk bar: tails + water | 2 | 32 | 3.9 |
 | airbase: dish + lamp | 2 | 32 | 1.4 |
 | stadium: flag | 2 | 32 | 3.6 |
 | igloo: smoke + water | 6 | 96 | 11.2 |
-| everything at once (cannot happen) | 21 | 336 | 34.9 |
+| everything at once (cannot happen) | 20 | 320 | 33.3 |
 
 Assumed for the programmer to confirm: about 10 tiles (160 B) fit one VBlank. The worst real view (igloo, 6 tiles, 96 B) is about 60% of that; averages are about a tenth. Steps are never aligned on purpose, and any step can slip a frame or two if scroll streaming needs the VBlank. Color writes the same tile bytes to bank 0; attributes do not change except the 2 lodge puff cells.
 
@@ -100,5 +100,5 @@ Deviation from the skill, in its words: environments.md 11 says "bake both into 
 - Fountain animates only streams and basin glints; the jet art is the owner's round 3 and was not changed.
 - Radar jumps from back view to face-on in 4 frames; 6 frames would smooth it for +2 tiles.
 - Factory smoke is the dearest item (+15 images); one stack costs 7.
-- Lodge cap row turns brown in Color (shared palette); alternative is a second lodge palette, which the window cap does not allow.
+- Lodge smoke floats 7 px above the cap (the cap keeps its colour); the puff no longer touches the chimney at rest.
 - I checked frame pairs numerically and looked at distinct states and zoomed frames, not the GIFs in a browser.

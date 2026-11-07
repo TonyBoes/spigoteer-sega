@@ -134,12 +134,12 @@
   "slots": 6,
   "check": {
    "dmg": [
-    0.2,
+    0.13,
     80,
     5.0
    ],
    "cgb": [
-    0.2,
+    0.13,
     90,
     5.0
    ]
@@ -408,19 +408,9 @@
    {
     "name": "lodge(58,19)",
     "frames": 4,
-    "distinct_new": 1,
+    "distinct_new": 4,
     "cells": 1,
     "needs_id": true,
-    "steps_per_loop": 2,
-    "loop": 60,
-    "period": 15
-   },
-   {
-    "name": "lodge(58,20)",
-    "frames": 4,
-    "distinct_new": 3,
-    "cells": 1,
-    "needs_id": false,
     "steps_per_loop": 4,
     "loop": 60,
     "period": 15
@@ -428,48 +418,36 @@
    {
     "name": "lodge(59,19)",
     "frames": 4,
-    "distinct_new": 3,
+    "distinct_new": 4,
     "cells": 1,
     "needs_id": true,
     "steps_per_loop": 4,
     "loop": 60,
     "period": 15
-   },
-   {
-    "name": "lodge(59,20)",
-    "frames": 4,
-    "distinct_new": 3,
-    "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 4,
-    "loop": 60,
-    "period": 15
    }
   ],
-  "max_tiles_per_event": 4,
+  "max_tiles_per_event": 2,
   "events_per_loop": 4,
-  "tile_writes_per_loop": 14,
-  "rom_new": 10,
-  "rom_new_at_rest": 0,
+  "tile_writes_per_loop": 8,
+  "rom_new": 8,
+  "rom_new_at_rest": 2,
   "ids_new": 2,
-  "slots": 4,
+  "slots": 2,
   "check": {
    "dmg": [
-    0.13,
+    0.11,
     80,
     2.0
    ],
    "cgb": [
-    0.13,
+    0.11,
     46,
     2.0
    ]
   },
   "cells": {
    "lodge(58,19)": 1,
-   "lodge(58,20)": 1,
-   "lodge(59,19)": 1,
-   "lodge(59,20)": 1
+   "lodge(59,19)": 1
   }
  },
  {

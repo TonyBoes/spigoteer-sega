@@ -23,14 +23,16 @@ def water(a5):
 # -------------------------------------------------------------------------------------------------------------------------------------------------
 # 2  WATERFALL: the four falls tiles (2 x 2 cells at 46..47, 5..6) and the splash pair (46..47, 8).  Streaks fall 5 rows per step over the 15 flowing rows (the 16th row is the
 #    pool edge and stays); three frames close the loop exactly (3 x 5 = 15).  Splash: a small centred ring (new tile C) and the two arcs A and B, in turn.
-FL_A1 = T("#++-++++", "#+++++-+", "#+++++-+", "#+-+++-+", "#+-+++++", "#+++++-+", "#+-+++-+", "#+-+++++")
-FL_B1 = T("#+-+++++", "#++++-++", "#++++-++", "#++++-++", "#+++++++", "#+++++++", "#++-++++", "...-++++")
-FL_A2 = T("#++++-++", "#++++-++", "#+++++++", "#+++++++", "#++-++++", "#++-++++", "#+++++-+", "#+++++-+")
-FL_B2 = T("#+-+++-+", "#+-+++++", "#+++++-+", "#+-+++-+", "#+-+++++", "#+-+++++", "#++++-++", "...-++++")
-FR_A1 = T("++-++++#", "+++++-+#", "+++++-+#", "+++-+++#", "+++-+++#", "+-+++++#", "+-+++++#", "+++++-+#")
-FR_B1 = T("+++-+-+#", "+++-+++#", "+++-+++#", "+++++++#", "+++++++#", "+++++++#", "++-++++#", "++++-...")
-FR_A2 = T("+++-+++#", "+++++++#", "+++++++#", "+++++++#", "++-++++#", "++-++++#", "+++++-+#", "+++++-+#")
-FR_B2 = T("+++-+++#", "+++-+++#", "+-+++++#", "+-+++++#", "+++++-+#", "+++-+-+#", "+++-+++#", "++++-...")
+# seam-fix art (a5art.py, 3rd commit of the falls fix): the falls are 8 px wide like the stream; the side edges are the bank's own (land 0, rim 1), no index 3.  Left tiles: bank
+# cols 0-3, water cols 4-7; right tiles: water cols 0-3, bank cols 4-7.  Foam runs sit on one column (left 5 or 6, right 1 or 2) and fall 5 rows a step (row 15 never changes).
+FL_A1 = T("...-++-+", "...-++++", "...-+-++", "...-+-++", "...-++++", "...-++-+", "...-++-+", "...-++++")
+FL_B1 = T("...-+-++", "...-+-++", "...-+-++", "...-++-+", "...-++++", "...-++++", "...-++-+", "...-++++")
+FL_A2 = T("...-+-++", "...-++-+", "...-++++", "...-++++", "...-++-+", "...-++-+", "...-++++", "...-+-++")
+FL_B2 = T("...-+-++", "...-++++", "...-++-+", "...-++-+", "...-++++", "...-+-++", "...-+-++", "...-++++")
+FR_A1 = T("+-++-...", "++++-...", "++-+-...", "++-+-...", "++++-...", "++-+-...", "++-+-...", "+-++-...")
+FR_B1 = T("+-++-...", "+-++-...", "++++-...", "++-+-...", "++++-...", "++++-...", "+-++-...", "++++-...")
+FR_A2 = T("++++-...", "++-+-...", "++++-...", "++++-...", "+-++-...", "+-++-...", "++++-...", "++-+-...")
+FR_B2 = T("++-+-...", "++++-...", "++-+-...", "++-+-...", "+-++-...", "+-++-...", "+-++-...", "++++-...")
 SPL_A = T("++++++++", "++---+++", "+-+++-++", "++++++++", "++++++++", "++++--++", "+++-++-+", "++++++++")
 SPL_B = T("++++++++", "++++---+", "++-+++-+", "++++++++", "+++--+++", "++-++-++", "++++++++", "++++++++")
 SPL_C = T("++++++++", "++++++++", "+++--+++", "++-++-++", "++-++-++", "+++--+++", "++++++++", "++++++++")
@@ -117,22 +119,27 @@ def radar(a5):
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 6a LODGE CHIMNEY: the existing puff (y 163-165) is frame 0; it rises and thins, drifting right, and a new one swells at the cap.  Colour: the four cells of the smoke take the
-#    palette WATER (index 0 = the same grass colour b0d080, index 1 = the foam colour e8f0d8, near white), which every 21 x 19 window round the lodge already holds (the river is in
-#    it), so no window gains a palette.  Side effect: the chimney's cap row (y 167, 8 px of index 3) in those cells turns from ink 2a1608 to the water palette's brown 905830.
+# 6a LODGE CHIMNEY (second fix): the chimney cap row (y 167, 8 px of ink) must keep its colour, and it shares the cells (58,20), (59,20) with the old tan puff (y 163-165).  No palette
+#    already in the lodge windows has grass as index 0, a near-white index 1 AND the lodge's ink as index 3, so the smoke leaves those two cells: the tan puff is erased (the cells keep
+#    the lodge palette and the cap exactly as approved) and the white smoke lives in the two cells above, (58,19) and (59,19), y 152-159, on the palette WATER (index 0 = the grass colour
+#    b0d080, index 1 = e8f0d8), which every 21 x 19 window round the lodge already holds.  Cost: the rest puff floats 7 px above the cap (y 157-159) instead of sitting on it.
 def smoke_lodge(a5):
     for cx in (58, 59):
-        for cy in (19, 20):
-            a5.pal[cy][cx] = "water"
-    P0 = {(x, y): 0 for (y, x0, x1) in ((163, 470, 473), (164, 469, 474), (165, 470, 473)) for x in range(x0, x1 + 1)}
+        a5.pal[19][cx] = "water"
+    for (y, x0, x1) in ((163, 469, 474), (164, 469, 474), (165, 469, 474)):         # the old tan puff goes (index 0 = grass)
+        for x in range(x0, x1 + 1):
+            a5.px[y, x] = 0
+    for (y, x0, x1) in ((157, 470, 473), (158, 469, 474), (159, 470, 473)):         # the rest puff, index 1 = white smoke
+        for x in range(x0, x1 + 1):
+            a5.px[y, x] = 1
 
     def fr(*runs):
-        d = dict(P0)
+        d = {(x, y): 0 for (y, x0, x1) in ((157, 470, 473), (158, 469, 474), (159, 470, 473)) for x in range(x0, x1 + 1)}
         d.update(E(*[(y, x0, x1, 1) for (y, x0, x1) in runs]))
         return d
-    f1 = fr((158, 471, 474), (159, 470, 475), (160, 471, 474), (165, 471, 472))
-    f2 = fr((153, 474, 476), (154, 473, 477), (155, 474, 476), (164, 470, 473), (165, 471, 472))
-    f3 = fr((152, 477, 478), (163, 471, 472), (164, 470, 473), (165, 471, 472))
+    f1 = fr((153, 471, 474), (154, 470, 475), (155, 471, 474), (159, 471, 472))
+    f2 = fr((152, 474, 475), (153, 473, 476), (158, 471, 472), (159, 470, 473))
+    f3 = fr((157, 471, 472), (158, 470, 473), (159, 470, 473))
     return Item("06a_smoke_lodge", "Lodge chimney smoke (white, not tan)", a5, (352, 120), region_anims(a5, {}, [f1, f2, f3], [0, 1, 2, 3], 15, 0, "lodge"), focus=(456, 148, 488, 172))
 
 
