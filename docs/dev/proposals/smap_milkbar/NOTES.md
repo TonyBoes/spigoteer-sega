@@ -1,4 +1,34 @@
-# Milk bar round 4e (current): the same lot and 3/4 bikes, checked in the A5 layout
+# Milk bar round 4f (current): sign and cow repositioned (two arrangements), the hay field replaced by a cow pasture
+
+Owner (Q106): "That milk bar option looks good, but lets reposition the sign and the cow.  Let's also get rid of the hay field--it's supposed to be a cow pasture." `milkbar_sheet6.png`: 4e as shown | arrangement 1 | arrangement 2, in the A5 map around the milk bar, DMG row then Color row, x3, red tick = Sal's stop (world px 418, 508). Building, lot, bikes: round 4e, pixel-identical (`cow_lot4.build()` is embedded unchanged). Nothing imported, no golden touched.
+
+**What draws the hay field in A5** (generator, `tools/smap_world` and its A5 scratch copy `docs/dev/proposals/smap_layout_a5/src`): the striped field is `FIELDS = FIELDS_A4 = [(51, 48, 60, 53)]` (`scen_A5.py` line 50, copied into `lay_A5.py` line 184), drawn by `world2.py` (about lines 118 to 121, `FIELD_EDGE` and `FIELD` tiles, palette farm). The four bales are `HAYS = [(48, 56), (48, 59), (51, 54), (58, 53)]` (`scen_A5.py`), placed through `decor.HAY` in `lay_A5.SCENERY`. `BARNS = []`. In A5 nothing else reads `FIELDS` or `decor.HAY`; the older layouts (`lay_A3`, `lay_A4`) and the live `tools/smap_world/world2.py` use the same two names, so the real change is one edit to the A5 layout (`FIELDS = []`, bales out of `SCENERY`) once the owner picks. In this proposal `src/a5env.py` does it only in memory (env `MB_PASTURE=1`), the repo's layout files are unchanged.
+
+**The pasture.** The picture grows to 96 x 184 (cells x 50..61, rows 47..69, `src/cow_a5.py`): the grass is the farm biome's own ground (blank cells keep it), a typed fence (post tile, rail tile, side tile, white with ink, COW palette, no new palette slot) round cell rows 47..54 and x 50..61, a trough (typed, 16 x 5), and cows from round 2's cow (copied). The lane west of the lot (x 50..53, rows 62 and 63) is now typed road (the road's F1 and ES tiles, TOWN1) because round 2's cow venue used to cover it. This also fixes 4e's open issue 2: no cow stands on a road cell any more.
+
+**Arrangement 1.** The sign stands at the west end of the lane (pole x 8, foot 8 wide) where the road comes in from the bridge, on the grass above the kerb; the pen holds two cows and the trough. The old cow place is road again.
+**Arrangement 2.** The sign is a roadside sign on the south verge across the lane (cell x 55, rows 64..68, a shortened pole), facing the diner; one cow grazes on the lawn west of the building above the lane (feet row 61, off the road), the pen holds the trough and the small cow.
+
+**Sal's stop** (x 418 = cell 52, row 63) is on plain lane road in both: nothing stands on it. Sal's body is about 16 px wide and 16 tall above the stop: arrangement 1's sign foot (x 4..11 of the piece, y 118, 119) is 2 px from the left edge of that box (x 10): may touch a transparent column; arrangement 2 is clear.
+
+**Tile counts** (unique DMG tiles, the generator's own counter: distinct 8 x 8 cells of `WORLD_DMG`, whole map; worst 21 x 19 window over the whole map and among windows touching the piece area x 50..61, rows 47..69). Colour windows: palettes per 21 x 19 window, cap 8.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| A5 as it is (hay field, round 2 milk bar) | 547 | 133 (at 28,19) | 101 | 44 | 8 |
+| 4e (hay field, 4e piece) | 546 | 133 | 98 | 45 | 8 |
+| arrangement 1 + pasture | 557 | 133 | 111 | 61 | 8 |
+| arrangement 2 + pasture | 560 | 133 | 106 | 62 | 8 |
+
+The map's worst window (limit 176) is far from the milk bar and is unchanged. The pasture costs 15 to 17 tiles over the 4e piece (fence, trough, cows, the lane tiles; the whole-map count rises by 11 to 14 over 4e even though the hay field tiles leave the map: I did not split the two effects). DMG and Color both fit: all new cells use COW and TOWN1, which the windows already hold.
+
+**Still open.** The venue-over-road assert (`world2.build`) still fires for the lot and lane cells (as in 4e); the generator must be given the 96 x 184 piece as a venue with road cells exempt, and the lot cells stay walkable. Nothing here was run in the engine: renders come from the scratch generator and the pasted piece (this is the real A5 map data, not an old screenshot).
+
+**Self-audit.** Lint (`gb_art_lint.py`, DMG and Color, bg): PASS for both arrangements; warnings: orphan pixels (fence ends, trough legs, the cows' ears and the road's own speckle, as in earlier rounds), 3 L-shaped doubles in the road tile at y 126 (the road's own tiles), 2 to 3 in the sign (round 2 C's bottle, copied); palette-order warning is the existing COW palette (idx 0 is the meadow colour, idx 1 the chrome), not changed. Every pixel typed or copied from round 2 and the road tiles; scripts only paste, count, render.
+
+---
+
+# Milk bar round 4e: the same lot and 3/4 bikes, checked in the A5 layout
 
 Owner: "Milk bar maps are not helpful as they are not the current layout." `milkbar_sheet5.png`: the milk bar alone (DMG, Color x3), then in the A5 map around it (DMG, Color x3). The map shots come from the A5 scratch generator (`docs/dev/proposals/smap_layout_a5/src`, rebuilt with its `mk_src.py` and `mk_a5.py`, env `SMAP_LAYOUT=lay_A5 SMAP_FOG=none`; `src/a5env.py` here sets that up, `src/sheet5.py` renders). Art unchanged from round 4d (`src/cow_lot4.py`): building, sign and cow identical, 3/4 bikes, slanted bays.
 
