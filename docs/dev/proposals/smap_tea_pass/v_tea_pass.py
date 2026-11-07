@@ -2,6 +2,8 @@
 Same building, footprint, palettes (TEA, TEA_B), sign-free, door, roofs, lantern, stones, tree.  Every row below is typed by hand; the changes against v_tea.py are marked  # PASS.
 Palettes TEA: 0 moss, 1 paper, 2 dark wood and roof, 3 ink.  TEA_B (the tree, the right 16 columns): 0 moss, 1 blossom, 2 deep pink, 3 ink.
 Light from the top left, like the lodge, saloon and bistro beside it: lit left slopes of the roofs, bright top plane on the veranda."""
+import os
+
 from canvas import Canvas, piece
 
 W, H = 96, 56
@@ -65,8 +67,54 @@ def build(dmg=False):
     c.paste(1, 36, LANT)                                                  # PASS: two rows higher, its base no longer fuses with the veranda's left end
     # ---- the cherry tree (unchanged) ---------------------------------------------------------------------------------------------------
     c.paste(80, 34, TREE)
+    texture(c, os.environ.get("SMAP_TEA_TEX", "full"), dmg)
     return c
 
 
-if __name__ == "__main__":
-    print(len(build().out()))
+# ---- TEXTURE (owner: "better, but needs more texture").  A hand-typed 8 px course tile, repeated across the roofs on the absolute 8 px column grid, so every interior roof
+# cell of a course row is the same tile (the cost is a handful of ids, not one per cell).  Each course is a shadow joint (ink, 6 px, gap 2) with the next course's joint
+# shifted 4 px (staggered like shingles), 3 rows apart; the lit side stays the cream taper at the left slope (light from the top left).  A dash is painted only if the
+# whole dash and 2 px either side are roof body (2), so the ink outline, the taper and the eaves stay clean.
+JOINT_A, JOINT_B = "33333322", "33223333"
+CAP_A, CAP_B = "11222222", "22221122"          # a 2 px lit cap under the left end of each joint (paper shade, the course's lit top edge), same 4 px shift
+ROOF_UP = {4: JOINT_A, 5: CAP_A, 7: JOINT_B}              # upper roof rows y
+ROOF_LO = {19: JOINT_A, 20: CAP_A, 22: JOINT_B, 23: CAP_B}          # lower roof rows y
+
+
+def texture(c, level, dmg):
+    if level == "none":
+        return
+    for rows in (ROOF_UP, ROOF_LO):
+        for y, pat in rows.items():
+            if level == "light" and "1" in pat:
+                continue
+            ink = "3" if "3" in pat else "1"
+            r = c.px[y]
+            keep = list(r)
+            x = 0
+            while x < W:
+                if pat[x % 8] != ink:
+                    x += 1
+                    continue
+                x1 = x
+                while x1 < W and pat[x1 % 8] == ink:
+                    x1 += 1
+                ok = x1 - x >= 2 and x >= 2 and all(keep[xx] == "2" for xx in range(x - 2, min(W, x1 + 2)))
+                if ok and not (rows is ROOF_LO and x < 48 and x1 > 32):      # under the tower (x32..47): its shadow, left plain; those two cells already share a tile with the rest of the map
+                    for xx in range(x, x1):
+                        r[xx] = ink
+                x = x1
+    if level == "light":
+        return
+    # wall posts: grain, short dark dashes in the inner column of each post, staggered left and right (posts are x13-14 and x65-66)
+    for x, ys in ((14, (29, 30, 31, 32, 36, 37, 41, 42, 44, 45, 46, 47)), (65, (30, 31, 34, 35, 36, 40, 41, 42, 46, 47))):
+        for y in ys:
+            c.px[y][x] = "3"
+    # the veranda: board ends every 16 px, a shade-2 notch on the lit top plane and an ink notch on the front face in the same column
+    for x in (38, 54, 70):
+        c.px[50][x] = "2"
+        c.px[51][x] = "3"
+    # stepping stones: a shadow on the lower right (2), the lit left stays paper
+    for sx in (34, 50 if dmg else 48):
+        c.px[54][sx + 5] = "2"
+        c.px[54][sx + 6] = "2"

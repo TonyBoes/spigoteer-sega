@@ -19,7 +19,7 @@ def lab(im, t):
 
 def sheet(suffix, title_c, title_d, name):
     cols = []
-    for tag, t in (("before", "BEFORE"), ("after", "AFTER")):
+    for tag, t in (("before", "BEFORE (fixes)"), ("after", "AFTER (texture)")):
         c = lab(Image.open(out / f"{tag}_color{suffix}.png").convert("RGB"), f"{t}  Color")
         d = lab(Image.open(out / f"{tag}_dmg{suffix}.png").convert("RGB"), f"{t}  DMG")
         col = Image.new("RGB", (c.width, c.height + d.height + 16), BG)
@@ -34,5 +34,5 @@ def sheet(suffix, title_c, title_d, name):
     print(name, o.size)
 
 
-sheet("_x6", "TEAHOUSE quality pass, x6", "", "sheet_x6.png")
-sheet("_ctx_x3", "TEAHOUSE in the map, x3", "", "sheet_ctx.png")
+sheet("_x6", "TEAHOUSE texture, x6", "", "sheet_x6.png")
+sheet("_ctx_x3", "TEAHOUSE texture in the map (A prime), x3", "", "sheet_ctx.png")

@@ -34,3 +34,14 @@ The rail move (33 39 -> 33 38 43 48) is also what keeps the tile count: a rail a
 ## Doubts
 - The cream veranda top plane is the boldest visible change; if too bright, row 50 can go back to shade 2 (the tile count does not depend on it).
 - Lantern now stands one row above the deck's top edge; a level base would need the veranda's end moved.
+
+## Round 2: texture (owner: "better, but needs more texture"), on the approved map A' (stage 1h, merged at b7fe45af)
+`v_tea_pass.py` is now fixes + texture; the fixes alone are kept as `v_tea_pass_v1.py` (bf8d13ff). Env: `SMAP_TEA_PASS=1` (texture) or `v1` (fixes only), `SMAP_TEA_TEX=full|light|none` (default full), `SMAP_AP=1` builds the map as option A' (radii 32 x4 / 24 x8, mountain A, bush x 40). Sheets: `sheet_tex_x6.png`, `sheet_tex_ctx.png` (before = v1, after = texture).
+Texture, all typed 8 px course tiles repeated on the absolute column grid, painted only on roof body with 2 px of margin so outlines and the cream taper stay clean, lit from the top left:
+- roofs: shingle courses, a 6 px ink joint (gap 2) every 3 rows, the next course shifted 4 px; a 2 px lit cream cap under each joint's left end (lower roof both courses, upper roof the first). The 16 px under the tower stays plain (the tower's shadow, and those two cells already share a tile with the map).
+- wall posts: short dark grain dashes in the inner column, staggered left and right.
+- veranda: board ends every 16 px (notch on the lit top plane and on the front face, same column).
+- stepping stones: a shade-2 shadow on the lower right.
+Levels: `light` = roof joints only; `full` = the above.
+Cost, real `measure_pass.py` on A' (fountain working, light DMG water): default art 960 DMG / 1022 Color ids; v1 fixes 961 / 1023 (+1 / +1, the 3 rails and eave outlines make shared end tiles unique); **texture light 961 / 1023, full 961 / 1023 (+0 over v1, +1 / +1 over the default map)**. Worst view 156, windows over 8 palettes 0, flat uses 218, generator OK. The texture is free because nearly every cell of the house is already its own tile; the seams, post dashes and stones sit in such cells, and the roof courses are placed so the shared cells (28,57) (29,57) and the pairs (2,6) (3,6) (7,6) keep their tiles.
+If the +1 of the fixes must go too, drop the roof end outline fixes 2 and 3 (cells (25,56) (32,56)); not tried.
