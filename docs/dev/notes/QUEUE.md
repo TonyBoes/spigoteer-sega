@@ -635,3 +635,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Owner 11-06, Q106: "Looks better. fix the doors on the bar to fit more in the building. Also--do the windows need to be pink?" So: round 4g accepted (moved, sign + cow swapped); doors redrawn to sit inside the facade; windows: two non-pink options from the COW palette (pink only on the sign/trim). Sent back to the milk bar artist.
 - Owner 11-06, Q108: "lets not have the backdrop be a random grey rectangle behind the jet. Sand would look better than that." So: no apron block; the jet stands on sand by the hangar, long runway kept; optional narrow taxi strip shown with/without. Sent back to the hangar artist.
 - 11-06 milk bar 4h: doors redrawn inside the wall; windows A dark glass (my pick) / B light (lime on Color); 565 tiles. Q106 reopened.
+- 11-06 hangar 4h (7f663f58): jet K1 on BASE sand at (4,57), runway 6 rows y66-71 x1..197, no shadow; 97 tiles. Q108 reopened.
