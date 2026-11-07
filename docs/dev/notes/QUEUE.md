@@ -690,3 +690,5 @@ q112) I prefer the blend version of the stadium.
 q110) waterfall looks better, but bubbles in the pond under it are unneeded. replace with glints."
   Q112 closed: stadium BLEND (stadium_map_sheet2, branch worktree-agent-ad92c4ce81f826634) + the 19th palette entry for PARK (story_scratch re-lay) in the import round.
   Plan (anim agent, briefed): about half the river logs (12 -> ~6, spread out, no new art); bob = sink: water covers the log's lower edge with a ripple line, then it rises back (not a whole-picture shift), upright logs too; pool under the falls: bubbles out, very-subtle glints in, foam lip stays.
+- 2026-11-06 owner: "bridges should have raised size or something, so its not like a simple rope bridge across the river and lake."
+  Read as "raised sides": every map bridge (river and lake) gets railings/parapets on both edges, a shadow on the water below the near side, maybe a slight arch, so it reads as a solid bridge. A5 agent (a9eca06ceee777aa2) draws it; anim branch re-merges after.
