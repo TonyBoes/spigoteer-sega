@@ -70,3 +70,22 @@ Generator: BUDGET OK, 0 cells snapped (it asserts every cell's palette is in the
 - Numbers (dark water; square corners 779 DMG / 836 Color, today r8 797 / 859): R16 DMG 791 (+12 over square: 3 tiles x 4 orientations) / Color 853, table 20; R24 DMG 814 (+35) / Color 876, table 21. Worst 21x19 view 143 of 176, 22x20 152, palettes per window 8 with 0 over, flat uses 238 in all three.
 - R16 fits all 12 bends. R24 fits 9; the other 3 hit art in the ground cell: bend (50,46) the factory yard (52,44), bend (63,29) the lodge wood pile (61,27), bend (63,45) the cow pen fence (61,47). R24 also rewrites the arm cells, so any later venue or decor on those arm cells collides.
 - Color light line: the cream line needs a [ground, peach, lilac, cream] palette (roadg, roadn): +2 entries, 150 windows over 8 (R16) / 156 (R24), so it does not fit. On Color the bend cells that hold ground take the body colour for the line; DMG shows the line.
+
+### Irregular ground seams (owner: "...the effect where you have kind of dithered the gas tiles so it does not look like a straight transition... applied to all the areas where two things meet")
+The saloon edge (A5 biome rows 21..27, desert end 12 13 15 14 16 15 17) is a typed staircase of WHOLE ground cells: sand and grass never share a cell. So no mixed cell, no blend palette, no new tile. Same method on every straight run (seam_edges.py, typed rows before the world is built). Seams found by out/smap_import/seams2.py (runs of 3+ cells between two plain ground cells with different index 0).
+| seam | cells | before | now |
+|---|---|---|---|
+| desert / grass, saloon NE | rows 21..27, x 12..17 | staircase (the model) | unchanged |
+| grass / desert, saloon north | row 21, x 2..4 and 10..12 | straight, 3 + 3 | row 21 starts x3 and ends x11, row 22 x2..13 |
+| desert / grass, airbase sand east | x 28|29 rows 30..33, x 31|32 rows 34..44 | straight 4 and 11 | rows 30..44 typed (ends 28 27 29 28 30 32 30 31 32 30 29 31 32 30 31), none east of x 32 (window x0 33 would gain a ninth palette) |
+| grass / desert, airbase sand west | x 1|2 rows 30..44 | straight 15 | rows 30..44 start at x 2 3 4 (typed) |
+| grass / jungle (zoo) north | y 49|50 cols 5..9, 11..16; y 50|51 cols 17..19 | straight 5, 6, 3 | rows 49..52 typed, bumps at 7-8, 11-12, 15-16 |
+| grass / jungle west strip | x 1|2 rows 64..69 | straight 6 | rows 64..69 start x 2 3 4 |
+| jungle / grass (zoo) east | x 20|21 rows 52..55, 57..59, 65..69 | straight runs, notches every 4th row | rows 53..69 end x 19 20 21 22, no rhythm |
+| grass / snow (igloo) | rows 5..19, x 49..60 | typed steps (runs of 1 or 2) | unchanged |
+| snowfield / grass under ranges B and C | rows 0..5, x 34..63 | stage 1c: stepped west edge, tongue, fringe | unchanged |
+| grass / farm | rows 47..54, x 48..50 | typed steps | unchanged (the river bank, not a ground seam, runs along x 47 below) |
+| forest / grass, desert / airbase sand, log yard / grass | | same ground colour | not a seam |
+| lots (town cobble, stadium paved, bistro, tea, cow pen, factory yard), roads, water banks | | | left alone (not seams for this pass) |
+No farm / meadow seam exists: the map has no meadow ground. On DMG sand and grass share the white ground, so a seam shows only as the tuft style changing; the stepped edge is there but quiet.
+Numbers (dark / light / broken): DMG tiles 797 / 798 / 792 (the seams cost 0 tiles: the same flat and tuft tiles, only their cells move), worst 21x19 view 143 of 176, 22x20 152, Color 859 / 859 / 854, palettes per window 8 with 0 over in all three, table 21 / 21 / 20, flat uses 238. Sheets: sheet_seams_1.png and sheet_seams_2.png (before | after, x3, Color over DMG), sheet_whole_map.png.

@@ -46,6 +46,11 @@ V["town"] = ("v_town_fx", V["town"][1])
 lay.VENUES = V
 lay.RANGES = []                                             # the three hatched placeholder boxes along the top: the round 3 range pieces are pasted instead (scenes/range_*.json)
 
+SEAMS = not BEFORE_1C and os.environ.get("SMAP_NO_SEAMS") != "1"
+if SEAMS:                                                   # irregular ground seams (seam_edges.py), typed before the world is built
+    import seam_edges
+    seam_edges.apply(lay)
+
 import pal as PAL  # noqa: E402
 import world2 as W  # noqa: E402
 
