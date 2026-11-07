@@ -739,3 +739,5 @@ The grass dithering patchiness looks better now."
   Read: the desert ground spills a little past the road that bounds it (stepped edge like the approved seams, a few cells deep), and a small cactus prop scattered in the desert. Cactus green may need a palette on Color: agent reports; DMG fine.
 - 2026-11-07 owner: "Give the teahouse a quality pass."
   Story-map teahouse building. gb-artist, own worktree from the import branch tip (1b2d8bd2): a pass, not a redesign (same shape, sign, colours, footprint); fix line/shape/light/DMG-read flaws; before|after x6 + in-map x3, DMG + Color; import agent brings the picked version in.
+- 2026-11-07 owner: "I thought the water was going to be lighter on the dmg)"
+  Correct: Q101 (11-06) chose DMG light water. Import branch still treats dark as the default and shows both; supervisor miss. Agent: light water is THE DMG water; drop dark from sheets and numbers; stage 2 imports light only.
