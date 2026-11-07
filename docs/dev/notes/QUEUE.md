@@ -741,3 +741,5 @@ The grass dithering patchiness looks better now."
   Story-map teahouse building. gb-artist, own worktree from the import branch tip (1b2d8bd2): a pass, not a redesign (same shape, sign, colours, footprint); fix line/shape/light/DMG-read flaws; before|after x6 + in-map x3, DMG + Color; import agent brings the picked version in.
 - 2026-11-07 owner: "I thought the water was going to be lighter on the dmg)"
   Correct: Q101 (11-06) chose DMG light water. Import branch still treats dark as the default and shows both; supervisor miss. Agent: light water is THE DMG water; drop dark from sheets and numbers; stage 2 imports light only.
+- 2026-11-07 owner: "Fewer round trees near zoo between it and teahouse. More bamboo."
+  Scenery between the zoo and the teahouse: thin out round trees, add bamboo clumps (existing bamboo prop; varied). Import agent, same report.
