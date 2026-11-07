@@ -66,3 +66,13 @@ A4's 18-entry table held an unused `base` slot and the unused `stadium` slot (pl
 | Redesign of liked art avoided | PARTIAL | town picture pixels touched (172); flagged above |
 | Tiled preview | PARTIAL | tiles repeat by the real map (lake, river at x3); `tiled_preview.py` not run |
 | Animation | n/a | static water |
+
+## Floating logs redrawn (owner: "logs in water read as ice blocks")
+
+`sheet_logs_river.png`: now | v1 | v2, river section with the log landing, Color, DMG dark, DMG light, x3. Select with `SMAP_LOG=v1|v2` (default `old`, A4's pieces); the typed art is `src/logs5.py` (symbols typed by hand, converted to indices by a table), wired in `src/a5art.py`.
+- v1: one log, dark bark body with two bark lines, a round end showing an end-grain disc (cream with a dark centre dot) at one end, a 2 px ripple at each end. v2: a pair of logs side by side, discs at opposite ends. Pieces are whole cells now (16 x 8 and 8 x 16; they sat 1 px in before).
+- Color palette: no new palette and no new slot. The log cells keep the `water` palette; its index 3 ("deep") changes from navy 2c4c78 to lodge wood brown 905830 (the log landing's own wood). Index 3 is used only by the logs and the falls' rock edge, so the falls edge turns brown too (rock/earth; say if that is unwanted). Palettes per window stay 8 (`probe_presnap.py`: 0 windows over, 0 snapped).
+- DMG dark: body 24, bark lines and disc 168, on water 88. DMG light: body 24, bark lines 88, disc 248, on water 168.
+- Counts, v1 and v2 alike (and unchanged from the old logs): DMG 547 tiles (light water 546), worst 21x19 window 133 of 176, 22x20 138, flat 218; Color 618 tiles in 352 slots. `check_water.py` OK.
+- Lint (DMG): PASS. Warnings kept on purpose: L-shaped doubles at the rounded log ends (one corner pixel of a 5 px log), v2's 2 x 2 end discs (the disc is the point), one orphan (the disc's centre dot).
+- Doubt: on DMG dark the logs are near black on mid-grey water (reads wood, a little heavy); a mid body is impossible there because the water is already 88. The Color brown is the lodge's mid wood; the landing's planks are mostly its lighter tan.

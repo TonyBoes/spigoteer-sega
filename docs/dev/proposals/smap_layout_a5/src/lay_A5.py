@@ -177,7 +177,7 @@ SCENERY = ([(decor.PINE, x * 8, y * 8) for x, y in PINES] + [(decor.ROUND, x * 8
            [(decor.JUNGLE_BUSH, x * 8, y * 8) for x, y in JBUSHES] + [(decor.SPRUCE, x * 8, y * 8) for x, y in SPRUCES] +
            [(decor.MOUND, x * 8, y * 8 + 7) for x, y in MOUNDS] + [(decor.ROCK, x * 8, y * 8) for x, y in ROCKS] +
            [(a4art.ROCK_SNOW, x * 8, y * 8) for x, y in ROCKS_SNOW] + [(decor.HAY, x * 8, y * 8) for x, y in HAYS] + [(decor.BARN, x * 8, y * 8) for x, y in BARNS] +
-           [(a4art.FLOATLOG_H, x * 8, y * 8 + 1) for x, y in LOGS_H] + [(a4art.FLOATLOG_V, x * 8 + 1, y * 8) for x, y in LOGS_V] +
+           [(a4art.FLOATLOG_H, x * 8, y * 8 + a4art.LOG_DY) for x, y in LOGS_H] + [(a4art.FLOATLOG_V, x * 8 + a4art.LOG_DX, y * 8) for x, y in LOGS_V] +
            [(a4art.LOGPILE, x * 8, y * 8) for x, y in PILES])
 
 APRON = [(29, 27), (30, 27), (43, 27), (44, 27)]       # the cobbles of the hall's front step, two cells past the picture on each side (no ring)
