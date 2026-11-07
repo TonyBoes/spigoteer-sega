@@ -9,6 +9,11 @@ from canvas import Canvas, piece
 W, H = 96, 56
 PAL = "tea"
 
+# Round 5 door (level BWD): a sliding shoji leaf, half open: ink outline x34, wood frame, 5 px paper panes in rows of 4 like the wall panels (rails at y33 38 43 48), the dark interior in the
+# 4 px strip on the right.  Same 12 x 21 footprint and cells as the curtain it replaces.
+DOOR_PANE = "3:1 2:1 1:5 2:1 3:4"
+DOOR_RAIL = "3:1 2:7 3:4"
+DOOR = piece("3:12", (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL)
 NOREN = piece("3:12", ("3:1 2:4 3:2 2:4 3:1", 8), ("3:12", 12))
 LANT = piece(".:3 3:2 .:3", ".:1 3:6 .:1", "3:1 2:6 3:1", "3:8", ".:1 3:1 1:4 3:1 .:1", ".:1 3:1 1:4 3:1 .:1", ".:1 3:6 .:1",
              ".:2 3:1 2:2 3:1 .:2", ".:2 3:1 2:2 3:1 .:2", ".:2 3:1 2:2 3:1 .:2", "3:8", "3:8")
@@ -56,7 +61,8 @@ def build(dmg=False):
             c.row(y, "0:12 3:1 2:2 2:17 2:2 1:12 2:2 2:17 2:2 3:1 0:28")
         else:
             c.row(y, "0:12 3:1 2:2 1:8 2:1 1:8 2:2 1:12 2:2 1:8 2:1 1:8 2:2 3:1 0:28")
-    c.paste(34, 28, NOREN)
+    new = os.environ.get("SMAP_TEA_TEX", "A") == "BWD"
+    c.paste(34, 28, DOOR if new else NOREN)
     # ---- the veranda.  PASS: row 50 is the lit top plane (paper), row 51 the dark front face, so the deck reads as a platform ---------------
     c.row(49, "0:6 3:68 0:22")
     c.row(50, "0:6 3:1 1:66 3:1 0:22")                                    # PASS
@@ -64,6 +70,8 @@ def build(dmg=False):
     c.row(52, "0:6 3:68 0:22")
     c.paste(34, 53, STONE)
     c.paste(50 if dmg else 48, 53, STONE)                     # DMG: both stepping stones on the same phase of the 8 px grid
+    if new:
+        c.paste(73, 36, LANT)                                             # round 5: the second lantern, same 8 px column phase as the first (x 1 and x 73), same row phase (36 and 44)
     c.paste(1, 36, LANT)                                                  # PASS: two rows higher, its base no longer fuses with the veranda's left end
     # ---- the cherry tree (unchanged) ---------------------------------------------------------------------------------------------------
     c.paste(80, 34, TREE)
@@ -125,10 +133,10 @@ def walls(c):
 def texture(c, level, dmg):
     if level == "none":
         return
-    if level in ("B", "BW"):
+    if level in ("B", "BW", "BWD"):
         ribs(c)
         light_b = True
-        if level == "BW":
+        if level in ("BW", "BWD"):
             walls(c)
     else:
         light_b = False

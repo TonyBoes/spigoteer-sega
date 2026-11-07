@@ -6,5 +6,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import swap  # noqa: E402,F401
+sys.path.insert(0, str(HERE.parent / "smap_import"))
+import mapctx  # noqa: E402,F401
+import overlay  # noqa: E402
+overlay.apply()
 sys.argv = [str(HERE.parent / "smap_import" / "measure.py")] + sys.argv[1:]
 runpy.run_path(sys.argv[0], run_name="__main__")

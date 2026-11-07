@@ -8,11 +8,13 @@ sys.path.insert(0, str(HERE))
 import swap  # noqa: E402,F401
 sys.path.insert(0, str(HERE.parent / "smap_import"))
 import mapctx as M  # noqa: E402
+import overlay  # noqa: E402
+overlay.apply()
 
 tag, out = sys.argv[1], Path(sys.argv[2])
 out.mkdir(parents=True, exist_ok=True)
 for cgb, n in ((True, "color"), (False, "dmg")):
-    M.render(cgb, (24, 55, 36, 62), 6).save(out / f"{tag}_{n}_x6.png")
+    M.render(cgb, (24, 55, 40, 62), 6).save(out / f"{tag}_{n}_x6.png")
     M.render(cgb, (14, 47, 50, 64), 3).save(out / f"{tag}_{n}_ctx_x3.png")
 px, _ = M.grid(True)
 dpx, _ = M.grid(False)

@@ -7,6 +7,8 @@ sys.path.insert(0, str(HERE))
 import swap  # noqa: E402,F401
 sys.path.insert(0, str(HERE.parent / "smap_import"))
 import mapctx as M  # noqa: E402
+import overlay  # noqa: E402
+overlay.apply()
 
 
 def counts(DMG=True):
