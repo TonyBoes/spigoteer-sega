@@ -38,7 +38,10 @@ def build(which, runway=False, plane=None, tone='2', raised=False):
         SH.strip2(c, tone)
     elif runway:
         H.strip(c, tone=tone)
-    if plane in ('P1', 'P2'):                   # round 4c planes: x 8, y 46 (the tail in the slot)
+    if plane in ('J1', 'J2'):                   # round 4d jets: J1 fully out on the apron (x 6, y 52), J2 tail still in the doors (x 6, y 46)
+        import jet_h
+        C.paste(c, 6, 52 if plane == 'J1' else 46, jet_h.pose())
+    elif plane in ('P1', 'P2'):                  # round 4c planes: x 8, y 46 (the tail in the slot)
         import plane2_h
         C.paste(c, 8, 46, plane2_h.pose(plane))
     elif plane:                                 # the taxiing plane, pasted over the apron and the runway (x 10, y 56)
