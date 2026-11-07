@@ -1,61 +1,6 @@
 [
  {
-  "key": "01_water_subtle",
-  "title": "Water glints, subtle (shared tiles WA, WB)",
-  "view": [
-   272,
-   392
-  ],
-  "loop": 144,
-  "gif_frames": 48,
-  "anims": [
-   {
-    "name": "WA",
-    "frames": 3,
-    "distinct_new": 3,
-    "cells": 19,
-    "needs_id": true,
-    "steps_per_loop": 4,
-    "loop": 144,
-    "period": 24
-   },
-   {
-    "name": "WB",
-    "frames": 3,
-    "distinct_new": 3,
-    "cells": 22,
-    "needs_id": true,
-    "steps_per_loop": 4,
-    "loop": 144,
-    "period": 24
-   }
-  ],
-  "max_tiles_per_event": 1,
-  "events_per_loop": 8,
-  "tile_writes_per_loop": 8,
-  "rom_new": 6,
-  "rom_new_at_rest": 2,
-  "ids_new": 2,
-  "slots": 2,
-  "check": {
-   "dmg": [
-    0.23,
-    80,
-    1.67
-   ],
-   "cgb": [
-    0.23,
-    90,
-    1.67
-   ]
-  },
-  "cells": {
-   "WA": 19,
-   "WB": 22
-  }
- },
- {
-  "key": "01_water_vsubtle",
+  "key": "01_water",
   "title": "Water glints, very subtle (shared tiles WA, WB)",
   "view": [
    272,
@@ -111,52 +56,72 @@
  },
  {
   "key": "02_falls",
-  "title": "Waterfall and splash (4 + 2 tiles)",
+  "title": "Waterfall (foam drop) and splash pool",
   "view": [
    304,
    0
   ],
-  "loop": 45,
-  "gif_frames": 15,
+  "loop": 72,
+  "gif_frames": 24,
   "anims": [
    {
     "name": "FL_A",
-    "frames": 5,
+    "frames": 4,
     "distinct_new": 4,
     "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 5,
-    "loop": 45,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
     "period": 9
    },
    {
     "name": "FL_B",
-    "frames": 5,
+    "frames": 4,
     "distinct_new": 4,
     "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 5,
-    "loop": 45,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
     "period": 9
    },
    {
     "name": "FR_A",
-    "frames": 5,
+    "frames": 4,
     "distinct_new": 4,
     "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 5,
-    "loop": 45,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
     "period": 9
    },
    {
     "name": "FR_B",
-    "frames": 5,
+    "frames": 4,
     "distinct_new": 4,
     "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 5,
-    "loop": 45,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
+    "period": 9
+   },
+   {
+    "name": "FOOT_L",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 72,
+    "period": 9
+   },
+   {
+    "name": "FOOT_R",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 72,
     "period": 9
    },
    {
@@ -166,7 +131,7 @@
     "cells": 1,
     "needs_id": false,
     "steps_per_loop": 4,
-    "loop": 45,
+    "loop": 36,
     "period": 9
    },
    {
@@ -176,27 +141,27 @@
     "cells": 1,
     "needs_id": false,
     "steps_per_loop": 4,
-    "loop": 45,
+    "loop": 36,
     "period": 9
    }
   ],
   "max_tiles_per_event": 4,
-  "events_per_loop": 13,
-  "tile_writes_per_loop": 28,
-  "rom_new": 17,
-  "rom_new_at_rest": 0,
-  "ids_new": 0,
-  "slots": 6,
+  "events_per_loop": 24,
+  "tile_writes_per_loop": 56,
+  "rom_new": 23,
+  "rom_new_at_rest": 6,
+  "ids_new": 6,
+  "slots": 8,
   "check": {
    "dmg": [
-    0.15,
+    0.26,
     80,
-    5.33
+    6.67
    ],
    "cgb": [
-    0.15,
+    0.26,
     90,
-    5.33
+    6.67
    ]
   },
   "cells": {
@@ -204,6 +169,8 @@
    "FL_B": 1,
    "FR_A": 1,
    "FR_B": 1,
+   "FOOT_L": 1,
+   "FOOT_R": 1,
    "SPL_L": 1,
    "SPL_R": 1
   }
@@ -712,6 +679,171 @@
   "cells": {
    "cow1(55,49)": 1,
    "cow2(59,52)": 1
+  }
+ },
+ {
+  "key": "09_logs",
+  "title": "Floating logs bobbing (v1 logs, three phase groups)",
+  "view": [
+   336,
+   224
+  ],
+  "loop": 180,
+  "gif_frames": 60,
+  "anims": [
+   {
+    "name": "HA_L",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 3,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "HA_R",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 3,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "HB_L",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "HB_R",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "HC_L",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "HC_R",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "VA_T",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "VA_B",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "VB_T",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "VB_B",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 2,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "VC_T",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   },
+   {
+    "name": "VC_B",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 180,
+    "period": 36
+   }
+  ],
+  "max_tiles_per_event": 2,
+  "events_per_loop": 12,
+  "tile_writes_per_loop": 24,
+  "rom_new": 4,
+  "rom_new_at_rest": 0,
+  "ids_new": 12,
+  "slots": 12,
+  "check": {
+   "dmg": [
+    0.23,
+    144,
+    0.67
+   ],
+   "cgb": [
+    0.23,
+    135,
+    0.67
+   ]
+  },
+  "cells": {
+   "HA_L": 3,
+   "HA_R": 3,
+   "HB_L": 2,
+   "HB_R": 2,
+   "HC_L": 2,
+   "HC_R": 2,
+   "VA_T": 2,
+   "VA_B": 2,
+   "VB_T": 2,
+   "VB_B": 2,
+   "VC_T": 1,
+   "VC_B": 1
   }
  }
 ]

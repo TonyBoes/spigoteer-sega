@@ -28,7 +28,7 @@ WS = dict(
                     T("++++++++", "++++++++", "++++++++", "++++++++", "++++++++", "+++++-++", "++++++++", "++++++++")], period=30))
 
 
-def water(a5, strength="subtle"):
+def water(a5, strength="vsubtle"):
     w = WS[strength]
     wa = a5.cells_with(WATER_OLD_A)
     wb = a5.cells_with(WATER_OLD_B)
@@ -41,32 +41,49 @@ def water(a5, strength="subtle"):
     p = w["period"]
     seq = [0, 0, 1, 0, 0, 2]
     seqb = [0, 0, 2, 0, 0, 1]
-    return Item("01_water_" + strength, f"Water glints, {strength.replace('vsubtle', 'very subtle')} (shared tiles WA, WB)", a5, (272, 392),
+    return Item("01_water", f"Water glints, {strength.replace('vsubtle', 'very subtle')} (shared tiles WA, WB)", a5, (272, 392),
                 [TileAnim("WA", wa[0], [w["A"][1], w["A"][2]], seq, p, 0), TileAnim("WB", wb[0], [w["B"][1], w["B"][2]], seqb, p, p // 2)],
                 edits=edits, focus=(300, 404, 364, 436))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 2  WATERFALL (owner: "the waterfall seems to flow the wrong way"): the four falls tiles (2 x 2 cells at 46..47, 5..6) and the splash pair (46..47, 8).  The data already moved the
-#    foam DOWN (+5 rows a step), but a 5-row jump of 2-3 px streaks that sit 4-8 rows apart aliases (the eye matches each streak to the one 10 rows above, i.e. reads UP).  Now the
-#    foam falls 3 rows a step over the 15 flowing rows (row 15, the pool edge, never changes): 5 frames, 9 video frames a step, so a streak moves less than the gaps between streaks.
-#    Foam sits on one column per tile (left tiles 5 and 6, right tiles 1 and 2, the map art's own); the row sets below are typed, the helper only writes them out as tile rows.
-#    Splash (the pool, below): ring and arcs in turn, 9 frames a step, offset from the falls.
-FOAM = {("L", 6): {0, 1, 6, 9, 10}, ("L", 5): {3, 4, 5, 12, 13}, ("R", 2): {0, 1, 6, 12, 13}, ("R", 1): {2, 3, 4, 9, 10}}      # frame 0, read off the map tiles (asserted)
-FALL_STEP, FALL_FRAMES = 3, 5
+# 2  WATERFALL, REDRAWN as a drop (owner: "the waterfall at this point reads more like river than a falls. bottom probably needs foam").  environments.md 11: "Waterfalls: 1-px vertical
+#    streaks of a lighter shade at varied lengths and speeds, edges that jitter by 1 px, and an impact of sparkle pixels plus ripple rings." / "Droplets and foam: compact at rest, a
+#    stretched streak mid-flight, compact on landing."  The four falls tiles (2 x 2 cells at 46..47, 5..6) are now mostly FOAM (index 1) with the water (index 2) showing as long
+#    vertical streaks between it, and the pool's first two cells (46..47, 7), rows 0-5, carry a churning foam band: solid across the pool at its top (it spills 3 px wider than the falls
+#    on each side), breaking into foam holes, bubbles and a few spray pixels below.  Kept pixel-exact: the bank rims (land 0, rim 1) at both sides of every falls row and of the pool's
+#    four widening rows; pool rows 6-7 of the foot cells (they join the splash cells below); the splash cells themselves.  NEW STATIC ART: the 4 falls tiles + 2 foot tiles change on the map.
+#    Falls: the 12 flowing rows (0-11) fall 3 rows a step, 4 frames, 9 video frames a step (the aliasing note: a step must stay smaller than the gaps between streaks); the lower four
+#    rows (12-15) are a fixed foam lead-in.  Foot band: bubbles move gently, one picture held 18 frames, 3 pictures.  Splash (pool, below): ring and arcs in turn on the same 36 frames.
+#    Falls columns f0..f7 (f0 = left tile col 4 ... f3 = col 7; f4 = right tile col 0 ... f7 = col 3), '-' foam / '+' water, rows 0-11 of frame 0 (typed):
+FALL_COLS = ["++-+++-+++-+", "-------++--+", "++---+++---+", "----++-----+", "--+++----++-", "+++---++---+", "-----+++---+", "+++-++-+++-+"]
+FALL_FOOT = ["+--+---+", "+------+", "+-----+-", "--------"]                  # rows 12-15, f0..f7
+FALL_STEP, FALL_FRAMES = 3, 4
 SPL_A = T("++++++++", "++---+++", "+-+++-++", "++++++++", "++++++++", "++++--++", "+++-++-+", "++++++++")
 SPL_B = T("++++++++", "++++---+", "++-+++-+", "++++++++", "+++--+++", "++-++-++", "++++++++", "++++++++")
 SPL_C = T("++++++++", "++++++++", "+++--+++", "++-++-++", "++-++-++", "+++--+++", "++++++++", "++++++++")
+# the foot cells (pool rows 0-5), bubbling: A is the static picture; '.' land, '-' foam or rim, '+' water; rows 6-7 are the pool's own water
+FOOT_L = [T("...-----", "..------", ".-------", "--+---+-", "+-++-+-+", "+++-+++-", "++++++++", "++++++++"),
+          T("...-----", "..------", ".------+", "-+----+-", "++-+-+-+", "++-+++-+", "++++++++", "++++++++"),
+          T("...-----", "..------", ".-----+-", "--+--+--", "+-+++-+-", "+++++-++", "++++++++", "++++++++")]
+FOOT_R = [T("-----...", "------..", "-------.", "-+---+--", "-+-++-++", "++-+++-+", "++++++++", "++++++++"),
+          T("-----...", "------..", "-----+-.", "+-----+-", "-++-+-++", "+++-++-+", "++++++++", "++++++++"),
+          T("-----...", "------..", "-+-----.", "-+--+---", "+-++-++-", "++++-+++", "++++++++", "++++++++")]
 
 
 def fall_rows(side, k):
+    """16 tile rows (8 px each) of one falls column pair on frame k: foam moves DOWN, 3 rows a step"""
+    cols = range(0, 4) if side == "L" else range(4, 8)
     out = []
     for r in range(16):
         row = list("...-++++" if side == "L" else "++++-...")
-        for (sd, col), rows in FOAM.items():
-            # a streak at row q on frame 0 is at row q + 3k on frame k: it moves DOWN
-            if sd == side and r < 15 and (r - FALL_STEP * k) % 15 in rows:
-                row[col] = "-"
+        for i, f in enumerate(cols):
+            if r < 12:
+                foam = FALL_COLS[f][(r - FALL_STEP * k) % 12] == "-"
+            else:
+                foam = FALL_FOOT[r - 12][f] == "-"
+            if foam:
+                row[4 + i if side == "L" else i] = "-"
         out.append("".join(row))
     return out
 
@@ -84,12 +101,31 @@ def fall_tiles():
 def falls(a5):
     f = fall_tiles()
     cells = (("FL_A", (46, 5)), ("FL_B", (46, 6)), ("FR_A", (47, 5)), ("FR_B", (47, 6)))
-    for n, cell in cells:
-        assert a5.tile(*cell) == f[(n, 0)], (n, a5.tile(*cell), f[(n, 0)])           # frame 0 is the map's own tile
+    old_rim = {n: a5.tile(*c) for n, c in cells}
+    for n, c in cells:                                                              # the bank rim columns must be exactly the map's (seam-fix art)
+        for j in range(8):
+            rim = (0, 1, 2, 3) if n[1] == "L" else (4, 5, 6, 7)
+            assert all(old_rim[n][j][i] == f[(n, 0)][j][i] for i in rim), (n, j)
+    foot_old = {c: a5.tile(*c) for c in ((46, 7), (47, 7))}
+    for j in (0, 1, 2, 3):                                                          # the pool's widening rim, rows 0-3, kept
+        for i in range(8):
+            if foot_old[(46, 7)][j][i] in "01" and i < 4:
+                assert FOOT_L[0][j][i] == foot_old[(46, 7)][j][i] or (j, i) in ((0, 3), (1, 2), (2, 1), (3, 0)), ("L", j, i)
+    for j in (6, 7):
+        assert FOOT_L[0][j] == foot_old[(46, 7)][j] and FOOT_R[0][j] == foot_old[(47, 7)][j]
+    for n, (cx, cy) in cells:
+        pass
+    new_static = {(46, 5): f[("FL_A", 0)], (46, 6): f[("FL_B", 0)], (47, 5): f[("FR_A", 0)], (47, 6): f[("FR_B", 0)], (46, 7): FOOT_L[0], (47, 7): FOOT_R[0]}
+    for (cx, cy), tile in new_static.items():                                       # NEW STATIC ART on the shared scene (every item that shows the falls sees it)
+        for j, r in enumerate(tile):
+            for i, c in enumerate(r):
+                a5.px[cy * 8 + j, cx * 8 + i] = int(c)
     seq = list(range(FALL_FRAMES))
     an = [TileAnim(n, c, [f[(n, k)] for k in range(1, FALL_FRAMES)], seq, 9) for n, c in cells]
-    an += [TileAnim("SPL_L", (46, 8), [SPL_B, SPL_C], [0, 1, 0, 2, 0], 9, 3), TileAnim("SPL_R", (47, 8), [SPL_A, SPL_C], [0, 2, 0, 1, 0], 9, 6)]
-    return Item("02_falls", "Waterfall and splash (4 + 2 tiles)", a5, (304, 0), an, focus=(360, 32, 392, 72))
+    bseq = [0, 0, 1, 1, 0, 0, 2, 2]
+    an += [TileAnim("FOOT_L", (46, 7), [FOOT_L[1], FOOT_L[2]], bseq, 9, 3), TileAnim("FOOT_R", (47, 7), [FOOT_R[1], FOOT_R[2]], bseq, 9, 3)]
+    an += [TileAnim("SPL_L", (46, 8), [SPL_B, SPL_C], [0, 1, 0, 2], 9, 3), TileAnim("SPL_R", (47, 8), [SPL_A, SPL_C], [0, 2, 0, 1], 9, 6)]
+    return Item("02_falls", "Waterfall (foam drop) and splash pool", a5, (304, 0), an, focus=(352, 32, 400, 80))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -258,5 +294,40 @@ def cows(a5):
 
 
 
+# -------------------------------------------------------------------------------------------------------------------------------------------------
+# 9  LOGS BOB (owner: "can we make the logs bob in the water?"): the 12 v1 single logs (7 across, 5 upright) float on flat water (WF), so their cells carry no water glints and need no
+#    shared frame set with the glints.  A across log (2 cells, 16 x 8) sinks 1 px and comes back; an upright log (2 cells, 8 x 16) rises 1 px and comes back (its bottom row is the last
+#    row of its cell, so sinking would have to write the cell below; rising only needs its own two cells).  The log moves with its ripple (across) and the water refills the row it leaves.
+#    One step every 36 frames (0.6 s), rest for 3 steps, down 1, up 1: a 180-frame loop (the same as the water glints), 2 changes in 3 s; every step lands off the falls (9) and water (15) steps.  A tile id is rewritten once for every log that shares it, so the logs are split into
+#    three phase groups A, B, C (own tile ids per group, same 2 pictures): the groups bob 30 or more frames apart and a step never rewrites more than 2 tiles.
+LOG_HL = T("22222222", "22233333", "22331113", "22333333", "22333311", "22233333", "21122222", "22222222")
+LOG_HR = T("22222222", "33333332", "33331113", "33331313", "13331113", "33333332", "22222112", "22222222")
+LOG_HL_B = T("22222222", "22222222", "22233333", "22331113", "22333333", "22333311", "22233333", "21122222")
+LOG_HR_B = T("22222222", "22222222", "33333332", "33331113", "33331313", "13331113", "33333332", "22222112")
+LOG_VT = T("21122222", "22222222", "22333222", "23333322", "23133322", "23133322", "23133322", "23333322")
+LOG_VB = T("23331322", "23331322", "23331322", "23333322", "23111322", "23131322", "23111322", "22333222")
+LOG_VT_B = T("22222222", "22333222", "23333322", "23133322", "23133322", "23133322", "23333322", "23331322")
+LOG_VB_B = T("23331322", "23331322", "23333322", "23111322", "23131322", "23111322", "22333222", "22222222")
+LOGS_H = {"A": [(48, 33), (42, 52), (44, 68)], "B": [(54, 33), (43, 57)], "C": [(57, 32), (42, 65)]}        # left cell of each across log
+LOGS_V = {"A": [(46, 20), (45, 43)], "B": [(46, 29), (45, 46)], "C": [(46, 36)]}                         # top cell of each upright log
+LOG_PH_H = {"A": 6, "B": 66, "C": 120}
+LOG_PH_V = {"A": 12, "B": 75, "C": 141}
+
+
+def logs(a5):
+    an = []
+    for g, lst in LOGS_H.items():
+        for (x, y) in lst:
+            assert a5.tile(x, y) == LOG_HL and a5.tile(x + 1, y) == LOG_HR, (x, y)
+        an.append(TileAnim(f"H{g}_L", lst[0], [LOG_HL_B], [0, 0, 0, 1, 0], 36, LOG_PH_H[g], cells_list=tuple(lst)))
+        an.append(TileAnim(f"H{g}_R", (lst[0][0] + 1, lst[0][1]), [LOG_HR_B], [0, 0, 0, 1, 0], 36, LOG_PH_H[g], cells_list=tuple((x + 1, y) for x, y in lst)))
+    for g, lst in LOGS_V.items():
+        for (x, y) in lst:
+            assert a5.tile(x, y) == LOG_VT and a5.tile(x, y + 1) == LOG_VB, (x, y)
+        an.append(TileAnim(f"V{g}_T", lst[0], [LOG_VT_B], [0, 0, 0, 1, 0], 36, LOG_PH_V[g], cells_list=tuple(lst)))
+        an.append(TileAnim(f"V{g}_B", (lst[0][0], lst[0][1] + 1), [LOG_VB_B], [0, 0, 0, 1, 0], 36, LOG_PH_V[g], cells_list=tuple((x, y + 1) for x, y in lst)))
+    return Item("09_logs", "Floating logs bobbing (v1 logs, three phase groups)", a5, (336, 224), an, focus=(376, 232, 480, 296))
+
+
 def all_items(a5):
-    return [water(a5, "subtle"), water(a5, "vsubtle"), falls(a5), fountain(a5), bunting(a5), stadium_flag(a5), airbase(a5), smoke_lodge(a5), smoke_igloo(a5), smoke_factory(a5), cows(a5)]
+    return [water(a5, "vsubtle"), falls(a5), fountain(a5), bunting(a5), stadium_flag(a5), airbase(a5), smoke_lodge(a5), smoke_igloo(a5), smoke_factory(a5), cows(a5), logs(a5)]

@@ -11,9 +11,14 @@ Files: `gifs/NN_name.gif` one per item, DMG left and Color right, x3, a 160 x 14
 Wiring notes: the space mountain / airbase is pasted at cell (6,36), 3 cells west of its dump position, so its two palettes stay out of the windows holding the tea garden and cow field. The milk bar roof variant was not chosen in the brief; I used the round-4h A base.
 
 Third pass (owner: "the water glints could be more subtle. Also, the waterfall seems to flow the wrong way. ... Make sure you merge the mast lamp and radar animations."):
-- Water: two strengths, GIFs `01_water_subtle.gif` and `01_water_vsubtle.gif`. No mid shade exists between the water blue 58a0d8 and the foam e8f0d8 in the water palette, so Color contrast cannot go lower without a new palette; on DMG a glint is one step already. The levers used are fewer and smaller glints and a slower pace.
-- Falls: the data already moved the foam DOWN (frame k = frame 0 shifted +5 rows). A 5-row jump with 2-3 px streaks 4-8 rows apart aliases: the nearest alternative match is 3-4 rows UP (4 mismatching pixels per column), which the eye takes. Now 3 rows a step, 5 frames, 9 video frames a step; the nearest wrong match is 5-6 rows up. The splash cells (ring and arcs) run on the same 45-frame loop, offset 3 and 6 frames from the falls steps. Cost: +8 ROM images; DMG peak unchanged (4 tiles, 64 B), falls average up from 5 to about 6.4 tiles a second.
-- Airbase: radar and lamp are one item, `05_airbase.gif`, 2 tiles, +4 images (same as the two separate), peak 1 tile (16 B) per frame; the old `05_radar` and `08a_lamp_mast` GIFs are gone.
+- Water: VERY SUBTLE is the owner pick (`01_water.gif`, subtle was dropped from the build; its tiles stay typed in `items.py`). No mid shade exists between the water blue 58a0d8 and the foam e8f0d8 in the water palette, so Color contrast cannot go lower without a new palette; on DMG a glint is one step already. The levers are fewer and smaller glints and a slower pace.
+- Falls direction: the data moved the foam DOWN; the 5-row step aliased (nearest wrong match 3-4 rows up). Now 3 rows a step, a step smaller than the gaps between streaks.
+- Airbase: radar and lamp are one item, `05_airbase.gif`, 2 tiles, +4 images, peak 1 tile (16 B) per frame.
+
+Fourth pass (owner: "can we make the logs bob in the water? New glints are better." / "very subtle water please." / "the waterfall at this point reads more like river than a falls. bottom probably needs foam."):
+- Logs (`09_logs.gif`): the 12 v1 logs sit on flat water (WF), so their cells carry no glints and no frame set is shared with the water. Across logs (16 x 8) sink 1 px with their ripple and come back; upright logs (8 x 16) RISE 1 px and come back (sinking would write the cell below). Three phase groups, ids per group: a step rewrites a group once whatever number of logs share it, so a step is never more than 2 tiles, and the steps land off the falls (every 9 frames) and water (every 15) steps. +4 images, +8 tile ids (margin question for the programmer). Peaks: logs alone 2 tiles; river scrolled down so that falls, one upright log and water show together stays at 5 tiles, 80 B.
+- Falls redrawn (`02_falls.gif`, `before_after_falls_foam.png`): environments.md 11 says "Waterfalls: 1-px vertical streaks of a lighter shade at varied lengths and speeds, edges that jitter by 1 px, and an impact of sparkle pixels plus ripple rings." and "Droplets and foam: compact at rest, a stretched streak mid-flight, compact on landing." The falls are now foam (index 1) with water (index 2) as long vertical streaks, clearly lighter than the river; the lower four rows are a foam lead-in; the pool top has a foam band (it fills the pool, 3 px wider than the falls each side) over bubbles and spray, bubbling in 3 pictures held 18 frames. Kept pixel-exact (asserted in `items.py`): the bank rims on every falls row and the pool's widening rim, the pool rows 6-7 of the two foot cells, the splash cells. Streaks keep one speed (3 rows a step), not "varied speeds", to close the loop in 4 frames: a cost choice. NEW STATIC ART: the 4 falls tiles and the 2 foot tiles on the map change (6 images replace 6).
+- Falls cost: 4 falls tiles x 3 new frames, 2 foot tiles x 2 new, +1 splash ring: 23 images of which 6 are the static map tiles; DMG peak unchanged at 4 tiles, 64 B (falls step); the average rises to 13.2 B a frame on the river top.
 
 
 ## The table
@@ -22,8 +27,8 @@ Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in 
 
 | # | Item | Frames | Tiles / step | ROM tiles | Cadence | Shared or unique | VRAM per step |
 |---|---|---|---|---|---|---|---|
-| 1 | Water glints, SUBTLE (default) or VERY SUBTLE: tiles WA and WB (19 and 22 cells; WF stays flat). Fewer, smaller glints: subtle 3 px + 2 px (was 6 + 4), very subtle 2 px + 1 px | 3 each | 1 (WA, WB half a period apart) | +4 (the static WA, WB tiles are redrawn with fewer glints, so the map keeps 2 tiles, net 0) | subtle 24, very subtle 30, still 2 steps of 3 | shared, cheap | 16 B |
-| 2 | Waterfall 2 x 2 cells + splash pair, foam falls 3 rows a step (seam-fix tiles) | 5 (falls), 3 (splash) | 4 falls; 2 splash | +17 (16 falls, 1 splash ring; was +9) | 9 | unique, 6 cells | 64 B / 32 B |
+| 1 | Water glints, VERY SUBTLE (owner pick): tiles WA and WB (19 and 22 cells; WF stays flat). WA one 2 px dash, WB one single pixel (was 6 + 4 px) | 3 each | 1 (WA, WB half a period apart) | +4 (WA, WB redrawn with fewer glints: the map keeps 2 tiles, net 0) | 30, still 2 steps of 3 | shared, cheap | 16 B |
+| 2 | Waterfall REDRAWN as a foam drop: 2 x 2 falls cells mostly foam with long water streaks, foam band + bubbles + spray in the pool top (2 cells), splash pair below | falls 4 (3 rows a step), foot 3 (bubbling), splash 3 | falls 4; foot 2 (every 18 frames); splash 2 | +17 net on the map (23 images, 6 of them replace the old static tiles) | falls 9; foot 9 with 18 held; splash 9 | unique, 8 cells | 64 B / 32 B / 32 B |
 | 3 | Town fountain: two side streams (2 cells) + basin glints (2 cells), round 3 art | 3 streams, 2 basin | up to 2 | +6 | 12 | unique | 32 B |
 | 4a | Town bunting, 7 flags | 3 | 1 or 2 | +6 | 15, P and Q 6 apart | P, Q shared (3 cells each); end flag unique | 16-32 B |
 | 4b | Approved stadium: wavy flag, 2 cells | 3 | 1 or 2 | +4 | 9 | unique | 16-32 B |
@@ -32,7 +37,8 @@ Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in 
 | 6b | Factory, two stacks | 4 | up to 3 | +15 | 15 | unique; 2 new tile ids | 48 B max |
 | 6c | Igloo (option 1) chimney smoke, 1 cell | 4 | 1 | +3 | 15 | unique | 16 B |
 | 7 | Cow tails, pasture cow and one more (milk bar 4i) | 3 | 1 | +6 (2 are the tail at rest) | 12, rests 36 of 72 | unique; 2 new tile ids | 16 B |
-| | Total | | | **75 images** | | 6 new tile ids (lodge 2, factory 2, cows 2) | |
+| 9 | Floating logs bob: 7 across logs sink 1 px, 5 upright logs rise 1 px, three phase groups (own tile ids per group) | 2 per tile | 2 (a group steps at once, groups never together) | +4 (2 pictures for the across pair, 2 for the upright pair), +8 tile ids | 36, rest 3 steps then down then back: a 180-frame loop | per group | 32 B |
+| | Total | | | **about 83 images** (water 4, falls and foot 23 incl. 6 replacing static map tiles, logs 4) | | 14 new tile ids (lodge 2, factory 2, cows 2, logs 8) | |
 
 Dropped from the first table: 8b stadium lamps, pole pennants. 8a mast lamp is merged into 5. Cheap and shared: 1, 4a (P, Q).
 
@@ -49,22 +55,24 @@ Peak tiles written in one video frame, average bytes per frame, per view (phases
 
 | view | peak tiles in one frame | peak bytes | average bytes per frame |
 |---|---|---|---|
-| river top: falls + water | 5 | 80 | 10.8 |
-| town: bunting + fountain + water | 5 | 80 | 8.5 |
-| lodge: smoke + water | 3 | 48 | 3.0 |
+| river top: falls + water | 5 | 80 | 13.2 |
+| town: bunting + fountain + water | 5 | 80 | 8.4 |
+| lodge: smoke + water | 3 | 48 | 2.8 |
 | factory: both stacks | 3 | 48 | 5.6 |
-| milk bar: tails + water | 2 | 32 | 2.7 |
+| milk bar: tails + water | 2 | 32 | 2.5 |
 | airbase: dish + lamp (one frame set) | 1 | 16 | 1.3 |
 | stadium: flag | 2 | 32 | 3.6 |
-| igloo: smoke + falls + water | 6 | 96 | 11.9 |
-| everything at once (cannot happen) | 19 | 304 | 34.0 |
+| igloo: smoke + falls + water | 6 | 96 | 14.2 |
+| river scrolled down: falls + one upright log + water | 5 | 80 | 13.5 |
+| logs: six logs, all three groups, + water | 2 | 32 | 2.8 |
+| everything at once (cannot happen) | 19 | 304 | 38.4 |
 
 Assumed for the programmer to confirm: about 10 tiles (160 B) fit one VBlank. The worst real view (igloo, 6 tiles, 96 B) is about 60% of that; averages are about a tenth. Steps are never aligned on purpose, and any step can slip a frame or two if scroll streaming needs the VBlank. Color writes the same tile bytes to bank 0; attributes do not change except the 2 lodge puff cells.
 
 ## Flicker check (owner rule)
 
 Every consecutive GIF frame pair (wrap included), DMG and Color, plus a look at every distinct state.
-- Largest area changing in one step: 0.23% of the view (water, subtle; 0.11% very subtle); all others 0.2% or less. No large change, no white flash.
+- Largest area changing in one step: 0.26% of the view (falls and foot); logs 0.23%; water 0.11%; all others 0.2% or less. No large change, no white flash.
 - The only light left is the mast lamp, now in the airbase set: 1 pixel, one shade step, 2 changes in 2 s (1 a second, one blink per 2 s). Stadium lamps are gone.
 - Water and falls streaks are moving water, not lights (falls: 5 changes a second per pixel, see doubts). Smoke and fountain: one-shade pixels, 2 to 3.3 changes a second per tile.
 - Stadium flag: the approved 8 fps wave, 6.67 changes a second on about 20 pixels, 0.11% of the view. A motion of a cloth, not a light, but the fastest item; period 9 can go to 12 (5 a second) if wanted.
@@ -101,7 +109,7 @@ Deviation from the skill, in its words: environments.md 11 says "bake both into 
 ## Doubts
 
 - Igloo smoke cannot rise above the piece (nothing above it in the art), so it swells in place; the owner may want a bigger chimney rise.
-- Falls streaks: one pixel changes at most 5.3 times a second (3 rows every 9 frames); moving water, not a light. Period 9 can go to 12 at 3 rows (4 a second). Water glints: at most 1.7 changes a second per pixel (subtle), 1.3 (very subtle).
+- Falls streaks: one pixel changes at most 6.7 times a second (3 rows every 9 frames); period 12 gives 5; moving water, not a light. Period 9 can go to 12 at 3 rows (4 a second). Water glints: at most 1.7 changes a second per pixel (subtle), 1.3 (very subtle).
 - Fountain animates only streams and basin glints; the jet art is the owner's round 3 and was not changed.
 - Radar jumps from back view to face-on in 4 frames; 6 frames would smooth it for +2 tiles. In the airbase set the loop is 8 dish steps (2 turns) so the lamp can blink slowly.
 - Factory smoke is the dearest item (+15 images); one stack costs 7.

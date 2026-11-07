@@ -70,7 +70,7 @@ for it in items:
         rom_new = {x for x in imgs if x not in orig_set}
         # cells needing their own tile id: only_at on an image the map shares or lacks
         n_orig_cells = len(it.scene.cells_with(it.scene.tile(*a.at)))
-        needs_id = (base not in orig_set) or (a.only_at and n_orig_cells > 1)
+        needs_id = (base not in orig_set) or (a.only_at and n_orig_cells > 1) or (a.cells_list is not None and n_orig_cells > len(a.cells_list))
         seqimgs = [base if k == 0 else a.frames[k - 1] for k in a.seq]
         n = len(a.seq)
         changes = sum(1 for i in range(n) if seqimgs[i] != seqimgs[(i + 1) % n])
@@ -135,15 +135,17 @@ print("ALL: tile writes per frame: max", cnt.max(), "frames with writes", int((c
 json.dump({"max": int(cnt.max()), "writes_per_s": cnt.sum() / (T / 60), "frames_with_writes": int((cnt > 0).sum()), "T": T, "hist": np.bincount(cnt).tolist()}, open(OUT / "combined.json", "w"))
 
 # ---- per view: only what can be on screen together (the water counts wherever the river or lake shows) ----
-GROUPS = {"river top (falls + water)": ["01_water_subtle", "02_falls"], "town (bunting + fountain + river water)": ["01_water_subtle", "03_fountain", "04a_bunting"],
-          "lodge (smoke + water)": ["01_water_subtle", "06a_smoke_lodge"], "factory (smoke)": ["06b_smoke_factory"], "milk bar (two tails + lake water)": ["01_water_subtle", "07_cow_tail"],
-          "airbase (dish + lamp, one frame set)": ["05_airbase"], "stadium (flag)": ["04b_stadium_flag"], "igloo (smoke + falls + water)": ["01_water_subtle", "02_falls", "06c_smoke_igloo"],
-          "ALL on screen at once (not possible)": [it.key for it in items if it.key != "01_water_vsubtle"]}
+GROUPS = {"river top (falls + water)": ["01_water", "02_falls"], "town (bunting + fountain + river water)": ["01_water", "03_fountain", "04a_bunting"],
+          "lodge (smoke + water)": ["01_water", "06a_smoke_lodge"], "factory (smoke)": ["06b_smoke_factory"], "milk bar (two tails + lake water)": ["01_water", "07_cow_tail"],
+          "airbase (dish + lamp, one frame set)": ["05_airbase"], "stadium (flag)": ["04b_stadium_flag"], "igloo (smoke + falls + water)": ["01_water", "02_falls", "06c_smoke_igloo"],
+          "river scrolled down (falls + one upright log + water)": ["01_water", "02_falls", ("09_logs", {"VA_T", "VA_B"})],
+          "logs view (6 logs, all groups)": ["01_water", "09_logs"],
+          "ALL on screen at once (not possible)": [it.key for it in items]}
 gres = {}
 for g, keys in GROUPS.items():
     c = np.zeros(T, int)
     for key, nme, t, L in all_events:
-        if key in keys:
+        if key in keys or any(isinstance(k, tuple) and k[0] == key and nme in k[1] for k in keys):
             for k in range(T // L + 1):
                 if t + k * L < T:
                     c[t + k * L] += 1

@@ -68,6 +68,7 @@ class TileAnim:
     phase: int = 0                # video frames added to t
     only_at: bool = False         # True: animate only the cell `at` even if the image repeats elsewhere (checked by the stats)
     note: str = ""
+    cells_list: tuple = None      # an explicit set of cells that share this tile id (a phase group of identical pictures); overrides `at` matching
 
 
 @dataclass
@@ -97,7 +98,9 @@ class Item:
         out = []
         for a in self.anims:
             base = self.tile_at(px, *a.at)
-            if a.only_at:
+            if a.cells_list:
+                cells = list(a.cells_list)
+            elif a.only_at:
                 cells = [a.at]
             else:
                 cells = [(x, y) for y in range(self.scene.ch) for x in range(self.scene.cw) if self.tile_at(px, x, y) == base]
