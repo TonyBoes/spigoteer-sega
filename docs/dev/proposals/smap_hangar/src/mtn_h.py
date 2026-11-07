@@ -31,10 +31,16 @@ def build(which, runway=False, plane=None, tone='2', raised=False):
     else:
         H.hangar2(c, 0, yf)
     B.tower(c, 38, yf)
-    if runway and raised:
+    if runway == 'c':
+        import strip3_h
+        strip3_h.strip3(c)
+    elif runway and raised:
         SH.strip2(c, tone)
     elif runway:
         H.strip(c, tone=tone)
-    if plane:                                   # the taxiing plane, pasted over the apron and the runway (x 10, y 56)
+    if plane in ('P1', 'P2'):                   # round 4c planes: x 8, y 46 (the tail in the slot)
+        import plane2_h
+        C.paste(c, 8, 46, plane2_h.pose(plane))
+    elif plane:                                 # the taxiing plane, pasted over the apron and the runway (x 10, y 56)
         C.paste(c, 10 if plane == 'A' else 8, 56, PL.pose(plane))
     return c
