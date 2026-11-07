@@ -731,3 +731,7 @@ q110) waterfall looks better, but bubbles in the pond under it are unneeded. rep
 - 2026-11-07 agent a54af93 back (080faa36 curve test, 1b2d8bd2 seams): seams stepped as whole cells like the saloon edge (airbase sand both sides, saloon north, zoo edges), no new tiles/palettes. Asked Q115: smooth bend radius 16 (fits all 12, square inside corner) or 24 (round inside, 3 bends need art trimmed: factory yard, lodge wood pile, cow fence). Color cream line fades round the bend at either radius. Q113 now = map with seams + Q115 bend.
 - 2026-11-07 owner Q115: "115) the 24 radius would be the minimum. Is there no way to make the curve smoother still? A higher radius?"
   Decision: bend radius >= 24. Agent shows r24 | r32 | r40 (and the largest that fits), per-bend fit (straight length between bends, art collisions), tiles, palettes; then the owner picks.
+- 2026-11-07 owner: "Can we put some small mountains in the desert and a big mountain near the top somewhere? It can go off the screen.
+
+The grass dithering patchiness looks better now."
+  Seams approved (1b2d8bd2). New: a few small mountains scattered in the desert (same family as the airbase desert peaks, smaller, varied); one big mountain near the top of the map, allowed to run off the map edge (cropped). Not above the bistro (owner 11-07 earlier). Proposal first: 2 placements for the big one, DMG tiles / Color palettes reported.
