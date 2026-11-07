@@ -134,6 +134,12 @@ if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
 for w in WORLDS:                                            # milk bar: the tea house cell next to the lot's lawn joins tea@g (Color palette only, DMG pixels unchanged)
     w.pal[59][34] = "tea@g"
 _step("tea_cell")
+if not BEFORE_1C:                                           # stage 1c, rounded corners: a tea cell with no index 0 pixel looks the same on tea@g: the tea house's wall and roof cells join it,
+    for _y in range(CH):                                    # which frees the `tea` palette in the south middle windows (the rounded corners there need one more)
+        for _x in range(CW):
+            if W.WORLD.pal[_y][_x] == "tea" and all(W.WORLD.px[_y * 8 + j][_x * 8 + i] != 0 for j in range(8) for i in range(8)):
+                W.WORLD.pal[_y][_x] = "tea@g"
+    _step("tea_cells_to_tea_g")
 
 
 def grid(dmg=False):

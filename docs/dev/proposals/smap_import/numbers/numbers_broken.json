@@ -1,7 +1,7 @@
 {
  "water": "dark",
  "fountain": "broken",
- "dmg_tiles": 788,
+ "dmg_tiles": 792,
  "dmg_worst_21x19": 143,
  "dmg_worst_21x19_at": [
   1,
@@ -15,27 +15,29 @@
   7
  ],
  "dmg_max_uses_22x20": 238,
- "color_tiles": 845,
+ "color_tiles": 854,
  "palettes_worst_21x19": 8,
  "palettes_worst_at": [
   0,
   3
  ],
- "palettes_worst_22x20": 9,
+ "palettes_worst_22x20": 8,
  "windows_over_8": 0,
  "palette_histogram": {
-  "3": 93,
-  "4": 335,
-  "5": 481,
-  "6": 651,
-  "7": 614,
-  "8": 114
+  "3": 77,
+  "4": 431,
+  "5": 464,
+  "6": 687,
+  "7": 549,
+  "8": 80
  },
- "table_entries_used": 19,
+ "table_entries_used": 20,
  "table_A5": 18,
  "table_added": [
   "base",
-  "park"
+  "park",
+  "town1@n",
+  "town1@z"
  ],
  "table_names": [
   "town1@g",
@@ -57,9 +59,12 @@
   "bistro@g",
   "tea@g",
   "base",
-  "park"
+  "park",
+  "town1@n",
+  "town1@z"
  ],
  "table_unused": [
+  "tea",
   "town4"
  ],
  "cell_choices": [
@@ -102,6 +107,14 @@
    ],
    "stadium",
    "stadium_edits"
+  ],
+  [
+   [
+    61,
+    47
+   ],
+   "cow",
+   "road_corners"
   ],
   [
    [

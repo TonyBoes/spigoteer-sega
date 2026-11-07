@@ -34,7 +34,23 @@ PIECES = [
 
 
 # stage 1c before | after close-ups: road corners (x4) and the ranges (x3); P_ files are the stage 1b state (env SMAP_BEFORE_1C=1)
-CORNER_BOXES = [(0, 10, 6, 16), (0, 27, 6, 33), (34, 26, 40, 32), (58, 9, 64, 15), (48, 26, 54, 32), (58, 44, 64, 50)]
+COMPROMISE = [(35, 44), (37, 46), (50, 46), (52, 44), (61, 27), (61, 47)]       # corners shown again at x6: shared or existing palettes, or art next to the kerb
+
+
+def corner_cells():
+    """all 24 corner centres: outer corners at their cell, inner corners at their ground cell (diagonal to the junction cell), in the order outer then inner"""
+    import mapctx as M
+    import roads_round as R
+    outer, inner = R.classify(M.W.WORLD.roads)
+    cs = [(cx, cy) for cx, cy, _ in outer]
+    cs += [(jx + (1 if "e" in k else -1), jy + (1 if "s" in k else -1)) for jx, jy, k in inner]
+    return cs
+
+
+def box_at(c, half, lim=64):
+    x0 = min(max(c[0] - half, 0), lim - 2 * half)
+    y0 = min(max(c[1] - half, 0), lim - 2 * half)
+    return (x0, y0, x0 + 2 * half, y0 + 2 * half)
 RANGE_BOXES = [(16, 0, 48, 7), (47, 0, 64, 7)]
 
 
@@ -48,8 +64,10 @@ def crops(tag, out):
         M.render(cgb, scale=2).save(out / f"{tag}_whole_{n}.png")
         for key, box, _, _, _ in PIECES:
             M.render(cgb, box, scale=3).save(out / f"{tag}_{key}_{n}.png")
-        for i, box in enumerate(CORNER_BOXES):
-            M.render(cgb, box, scale=4).save(out / f"{tag}_corner{i}_{n}.png")
+        for i, c in enumerate(corner_cells()):
+            M.render(cgb, box_at(c, 3), scale=4).save(out / f"{tag}_corner{i}_{n}.png")
+        for i, c in enumerate(COMPROMISE):
+            M.render(cgb, box_at(c, 2), scale=6).save(out / f"{tag}_comp{i}_{n}.png")
         for i, box in enumerate(RANGE_BOXES):
             M.render(cgb, box, scale=3).save(out / f"{tag}_range{i}_{n}.png")
 
@@ -101,17 +119,27 @@ def sheet_1c(out):
     """before | after for the stage 1c changes: road corners x4 and the ranges x3 (two columns, big labels)"""
     out = Path(out)
     L = lambda f: Image.open(out / f).convert("RGB")
-    sheets = []
-    # corners: 3 boxes per row, Color over DMG
-    for r in range(2):
-        cols = []
-        for tag, name in (("P", "BEFORE"), ("A", "AFTER")):
-            cells = []
-            for i in range(3 * r, 3 * r + 3):
-                cells.append(stack_v([L(f"{tag}_corner{i}_color.png"), L(f"{tag}_corner{i}_dmg.png")], gap=8))
-            cols.append(label(stack_h(cells, gap=10), name + " x4", 34))
-        sheets.append(label(stack_h(cols, gap=24), "Road corners" + ("" if r == 0 else " (2)"), 40, bg=(70, 40, 90)))
-    stack_v(sheets, gap=30).save(out / "sheet_1c_corners.png")
+    # corners: 3 per row, Color over DMG, before | after; 24 corners in two files (12 each)
+    ncor = 24
+    for part in range(2):
+        sheets = []
+        for r in range(4):
+            cols = []
+            for tag, name in (("P", "BEFORE"), ("A", "AFTER")):
+                cells = []
+                for i in range(part * 12 + 3 * r, part * 12 + 3 * r + 3):
+                    cells.append(stack_v([L(f"{tag}_corner{i}_color.png"), L(f"{tag}_corner{i}_dmg.png")], gap=8))
+                cols.append(label(stack_h(cells, gap=10), name + " x4", 34))
+            lab = "Corners %d to %d of 24" % (part * 12 + 3 * r + 1, part * 12 + 3 * r + 3)
+            sheets.append(label(stack_h(cols, gap=24), lab, 40, bg=(70, 40, 90)))
+        stack_v(sheets, gap=30).save(out / ("sheet_1c_corners.png" if part == 0 else "sheet_1c_corners_2.png"))
+    # the corners with a compromise (palette or art), x6: before | after, Color over DMG
+    cols = []
+    for tag, name in (("P", "BEFORE"), ("A", "AFTER")):
+        cells = [stack_v([L(f"{tag}_comp{i}_color.png"), L(f"{tag}_comp{i}_dmg.png")], gap=8) for i in range(len(COMPROMISE))]
+        rows = [stack_h(cells[:3], gap=10), stack_h(cells[3:], gap=10)]
+        cols.append(label(stack_v(rows, gap=14), name + " x6", 34))
+    label(stack_h(cols, gap=24), "Compromise corners", 40, bg=(70, 40, 90)).save(out / "sheet_1c_compromise.png")
     # ranges: before | after, Color over DMG
     rows = []
     for i, name in enumerate(("Range B", "Range C")):

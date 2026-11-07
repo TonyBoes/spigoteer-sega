@@ -22,14 +22,14 @@ Tiles: DMG 749 (was 758 with the boxes), range pieces cost less than the boxes' 
 ## Numbers (A5 generator on the integrated map)
 | | DMG dark, fountain working | DMG light | DMG dark, fountain broken |
 |---|---|---|---|
-| DMG tiles, whole map | 793 | 794 | 788 |
+| DMG tiles, whole map | 797 | 798 | 792 |
 | worst 21x19 view (limit 176) | 143 at (39,8) | 143 | 143 |
 | worst 22x20 view | 152 at (38,7) | 152 | 152 |
 | flat tile uses in a 22x20 window (limit 239) | 238 | 238 | 238 |
-| Color tiles / slots | 850 / 352 | 850 / 352 | 845 / 352 |
+| Color tiles / slots | 859 / 352 | 859 / 352 | 854 / 352 |
 | palettes per 21x19 window (max 8) | 8, 0 windows over | 8, 0 | 8, 0 |
 | palettes in a 22x20 window (not a limit) | 9 | 9 | 9 |
-| palette table entries | 20 | 20 | 19 |
+| palette table entries | 21 | 21 | 20 |
 Generator: BUDGET OK, 0 cells snapped (it asserts every cell's palette is in the table), hint conflicts 0. A5 alone was 562 DMG tiles, worst view 133. The Color-only parts: the tea cell, the 20-entry table; DMG has no palette limit, its budget is the tile pool above.
 
 ## Animation (the approved items on this map; DMG and Color the same tile bytes)
@@ -54,3 +54,12 @@ Generator: BUDGET OK, 0 cells snapped (it asserts every cell's palette is in the
 - Road corners: 13 of 24 rounded. The 5 corners whose outside-of-curve ground showed the road palette cream (sand at (2,27) and (2,61), snow at (61,13), cobble at (37,28), snow at (63,11)) are square again (roads_round.COLOR_CLASH); with the 6 earlier ones 11 stay square (3 palette-limited, 3 hold art, 5 colour clash).
 - Ranges B and C stand on one continuous snowfield (snowfield.py): gaps between peaks filled, west edge steps one cell per row, grass tongue to the falls source, a snow fringe below B between the pines. Falls source untouched.
 - Numbers: DMG 793/794/788, Color 850/850/845; views 143/152, palettes 8 per window (0 over), 22x20 region 9, table 20 (19 broken), flat uses 238.
+
+### Stage 1c, owner Q113: "make all rounded and show me" -- all 24 corners round (supersedes the 13 of 24 above)
+- New table entries: town1@n [snow, peach, lilac, ink] (igloo inner (61,13), outer (63,11)) and town1@z [zoo green, peach, lilac, ink] (inner (2,61)). Re-lay: 21 entries = 3 B each over the 18 of A5 less `tea`; story_scratch still fits (4 B spare of the 7 at 20 entries; 22 would leave 1 B). No new WRAM global.
+- `tea` is gone from the table: its two cells (28,56) (29,56) had no index 0 pixel, so they look the same on tea@g (mapctx, zero visual change).
+- Existing palettes used: base (sand ground, kerb 98a0b0 for a090b0) at inner (2,27); factory (kerb px 88a090) at (52,44); lodge (kerb px 905830) at (61,27); cow (kerb px e8e0f0) at (61,47).
+- Art kept, kerb pixels only: factory (none overlap), cow pen (1 px of the fence top rail at cell (61,47) x5 y2), lodge wood pile (7 px: the pile`s bottom-right corner cell (61,27), x5 y5, x4 y6 x5 y6, x2..5 y7, become kerb).
+- Compromises on Color (DMG clean everywhere): (35,44) grass cell, 7 kerb px in grass green; (37,46) and (50,46) keep town1, the outside-of-curve wedge is cream; the three art cells above. The south middle windows hold 8 palettes already, a ninth (town1@g) fails.
+- Numbers: DMG 797/798/792 tiles, Color 859/859/854 in 352 slots, views 143/152, palettes per window 8 (0 over), 22x20 region 9, flat uses 238, table 21 (20 with the fountain broken).
+- Sheets: sheet_1c_corners.png and sheet_1c_corners_2.png (24 corners x4 before | after, Color over DMG), sheet_1c_compromise.png (x6), sheet_whole_map.png.
