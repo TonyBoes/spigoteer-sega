@@ -696,3 +696,5 @@ q110) waterfall looks better, but bubbles in the pond under it are unneeded. rep
 - 2026-11-06 anim: pool arcs (46,8),(47,8) -> water WA/WB with glints (approved static cells changed per owner's "bubbles" ask), logs cut to 6 and sink 1-2 rows with a foam line; Q110 card updated.
 - 2026-11-06 owner: "waterfall animation--can we add some movement to the foam?"
   Plan: anim agent animates the foam lip where the falls land (churn: edge pixels shift/swell 1 px, a few foam pixels drift outward and fade into the glints), gentle, no flashing; within the falls loop.
+- 2026-11-06 owner: "logs are better, but the logs should lower, rather than the water just raise against them. The animation needs to be like a combination of the last revision and this one."
+  Plan: log picture moves DOWN 1 px (then 2) and the part below the waterline is hidden by water with the foam line; top edge visibly lowers, so it sinks rather than shrinking. Upright logs the same (down, not up; the hidden bottom means no write to the tile below).
