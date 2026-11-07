@@ -105,9 +105,9 @@ def rows():
     return ["".join(r) for r in g]
 
 
-EXTRA_SNOW = {"B": [(33, 3)]}     # west edge of B's snow cells by row: 36 35 34 33 34 (was 36 35 34 34 34, three cells straight)
+EXTRA_SNOW = {"B": []}     # west edge of B's snow cells by row: 36 35 34 33 34 (was 36 35 34 34 34, three cells straight)
 PLACES = {"A": (444, -4, "the top right corner: cropped by the top edge (4 rows) and the east edge (16 columns), foot on the line under range C, behind the igloo's chimney"),
-          "B": (280, -4, "the head of the river: cropped by the top edge (4 rows), the falls leave its foot to the east")}
+          "B": (312, -4, "the head of the river: cropped by the top edge (4 rows); its right flank stands over the head of the falls (falls_cave.py)")}
 
 
 def _pieces(px, x0, y0):
@@ -169,14 +169,62 @@ def _front(px, x0, y0, sil, back_y=12):
     return {(X, Y) for Y in range(Y0, Y1) for X in range(X0, X1) if (X, Y) not in reach}
 
 
+# The ranges' peaks as the map places them (dump_scenes.py PLAN, stage 1c): (x px, foot row px, variant).  Back tier foot on row 24, front tier foot on row 40.
+RANGE_FRONT = [(272, 40, "D"), (304, 40, "C"), (336, 40, "A"), (400, 40, "D"), (432, 40, "B"), (464, 40, "D")]
+RANGE_BACK = [(288, 24, "A"), (320, 24, "B"), (352, 24, "C"), (384, 24, "B"), (416, 24, "A"), (448, 24, "C"), (480, 24, "B")]
+# B replaces the peaks that stand mostly inside its outline (half or more of their width over the mountain's foot, x 312..401): these are taken out and their neighbours repainted whole
+REPLACED_B = {(320, 24), (352, 24), (384, 24), (304, 40), (336, 40)}
+
+
+def _peak_pixels(x, base, k):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "smap_venue_redesign3" / "src"))
+    import range_peaks as RP
+    rws = RP.VARIANTS[k]
+    return {(x + i, base - len(rws) + j): int(c) for j, r in enumerate(rws) for i, c in enumerate(r) if c != "."}
+
+
+def _replace_peaks(WORLDS):
+    """take the REPLACED_B peaks out (their pixels back to snow 0), then repaint every other peak that touched one of them, back tier first, so no neighbour is left cut"""
+    gone = {}
+    for x, base, k in RANGE_BACK + RANGE_FRONT:
+        if (x, base) in REPLACED_B:
+            gone[(x, base)] = _peak_pixels(x, base, k)
+    cut = set().union(*gone.values())
+    for w in WORLDS:
+        for (X, Y) in cut:
+            w.px[Y][X] = 0
+        for tier in (RANGE_BACK, RANGE_FRONT):
+            for x, base, k in tier:
+                if (x, base) in REPLACED_B:
+                    continue
+                pp = _peak_pixels(x, base, k)
+                if any(p in cut for p in pp):
+                    for (X, Y), v in pp.items():
+                        w.px[Y][X] = v
+
+
+def _front_peaks():
+    """Mountain B stands OVER the remaining back-tier peaks (their pixels under its outline are overwritten, the rest stay: a natural overlap) and BEHIND the remaining front-tier peaks:
+    the pixels of the front peaks (every char of their typed rows that is not '.', snow caps included) are never overwritten."""
+    out = set()
+    for x, base, k in RANGE_FRONT:
+        if (x, base) not in REPLACED_B:
+            out |= set(_peak_pixels(x, base, k))
+    return out
+
+
 def apply(W_, WORLDS, key):
     """paste the mountain with its top-left at the placement (cropped by the map edges), behind the peaks already there; the cells it touches take the palette `igloo`"""
     x0, y0, _ = PLACES[key]
     rs = rows()
     touched = set()
     sil = {(x0 + i, y0 + j) for j, r in enumerate(rs) for i, c in enumerate(r) if c != "."}
+    if key == "B":
+        _replace_peaks(WORLDS)
     for w in WORLDS:
-        front = _front(w.px, x0, y0, sil)
+        front = _front_peaks() if key == "B" else _front(w.px, x0, y0, sil)
         for j, r in enumerate(rs):
             for i, c in enumerate(r):
                 X, Y = x0 + i, y0 + j
@@ -189,6 +237,10 @@ def apply(W_, WORLDS, key):
         for w in WORLDS:
             if w.pal[cy][cx] != "igloo":
                 w.pal[cy][cx] = "igloo"
+    import os
+    if key == "B" and os.environ.get("SMAP_NO_CAVE") != "1":      # SMAP_NO_CAVE=1: B at its new place without the cave (to cost the cave)
+        import falls_cave                                  # the falls come out of a cave mouth in B's right flank (falls_cave.py)
+        touched |= falls_cave.apply(WORLDS)
     for (cx, cy) in EXTRA_SNOW.get(key, []):                # typed: one cell tab on the snowfield's west edge, so the snow / grass line does not run straight down beside the foot
         assert (cx, cy) not in WORLDS[0].roads
         for w in WORLDS:
