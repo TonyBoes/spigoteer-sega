@@ -155,68 +155,79 @@
  },
  {
   "key": "03_fountain",
-  "title": "Town fountain, repaired (placeholder)",
+  "title": "Town fountain: two streams and basin (approved round 3)",
   "view": [
-   240,
+   232,
    136
   ],
-  "loop": 48,
-  "gif_frames": 16,
+  "loop": 36,
+  "gif_frames": 12,
   "anims": [
    {
-    "name": "fountain(38,23)",
+    "name": "streams(36,24)",
     "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 36,
+    "period": 12
+   },
+   {
+    "name": "streams(37,24)",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 36,
+    "period": 12
+   },
+   {
+    "name": "basin(36,25)",
+    "frames": 2,
     "distinct_new": 1,
     "cells": 1,
     "needs_id": false,
     "steps_per_loop": 2,
-    "loop": 48,
+    "loop": 36,
     "period": 12
    },
    {
-    "name": "fountain(38,24)",
-    "frames": 3,
-    "distinct_new": 2,
+    "name": "basin(37,25)",
+    "frames": 2,
+    "distinct_new": 1,
     "cells": 1,
     "needs_id": false,
-    "steps_per_loop": 4,
-    "loop": 48,
-    "period": 12
-   },
-   {
-    "name": "fountain(38,25)",
-    "frames": 3,
-    "distinct_new": 2,
-    "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 4,
-    "loop": 48,
+    "steps_per_loop": 2,
+    "loop": 36,
     "period": 12
    }
   ],
-  "max_tiles_per_event": 3,
-  "events_per_loop": 4,
+  "max_tiles_per_event": 2,
+  "events_per_loop": 5,
   "tile_writes_per_loop": 10,
-  "rom_new": 5,
+  "rom_new": 6,
   "rom_new_at_rest": 0,
   "ids_new": 0,
-  "slots": 3,
+  "slots": 4,
   "check": {
    "dmg": [
-    0.03,
+    0.02,
     80,
-    5.0
+    3.33
    ],
    "cgb": [
-    0.03,
+    0.02,
     26,
-    5.0
+    3.33
    ]
   },
   "cells": {
-   "fountain(38,23)": 1,
-   "fountain(38,24)": 1,
-   "fountain(38,25)": 1
+   "streams(36,24)": 1,
+   "streams(37,24)": 1,
+   "basin(36,25)": 1,
+   "basin(37,25)": 1
   }
  },
  {
@@ -286,55 +297,66 @@
   }
  },
  {
-  "key": "04b_pennants",
-  "title": "Stadium pennants (new art: the piece has none)",
+  "key": "04b_stadium_flag",
+  "title": "Stadium: the wavy flag (approved stadium)",
   "view": [
-   16,
-   16
+   0,
+   0
   ],
-  "loop": 60,
-  "gif_frames": 20,
+  "loop": 27,
+  "gif_frames": 9,
   "anims": [
    {
-    "name": "pennant(10,5)",
+    "name": "flag(7,1)",
     "frames": 3,
-    "distinct_new": 3,
-    "cells": 2,
-    "needs_id": true,
-    "steps_per_loop": 4,
-    "loop": 60,
-    "period": 15
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 27,
+    "period": 9
+   },
+   {
+    "name": "flag(8,1)",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 27,
+    "period": 9
    }
   ],
-  "max_tiles_per_event": 1,
-  "events_per_loop": 4,
-  "tile_writes_per_loop": 4,
-  "rom_new": 3,
-  "rom_new_at_rest": 1,
-  "ids_new": 1,
-  "slots": 1,
+  "max_tiles_per_event": 2,
+  "events_per_loop": 3,
+  "tile_writes_per_loop": 6,
+  "rom_new": 4,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 2,
   "check": {
    "dmg": [
-    0.06,
-    80,
-    4.0
+    0.11,
+    224,
+    6.67
    ],
    "cgb": [
-    0.06,
-    105,
-    4.0
+    0.11,
+    196,
+    6.67
    ]
   },
   "cells": {
-   "pennant(10,5)": 2
+   "flag(7,1)": 1,
+   "flag(8,1)": 1
   }
  },
  {
   "key": "05_radar",
-  "title": "Radar dish turning (space mountain tower)",
+  "title": "Radar dish turning (airbase tower, round 4i)",
   "view": [
-   24,
-   24
+   16,
+   262
   ],
   "loop": 60,
   "gif_frames": 20,
@@ -375,7 +397,7 @@
  },
  {
   "key": "06a_smoke_lodge",
-  "title": "Lodge chimney smoke",
+  "title": "Lodge chimney smoke (white, not tan)",
   "view": [
    352,
    120
@@ -439,7 +461,7 @@
    ],
    "cgb": [
     0.13,
-    8,
+    46,
     2.0
    ]
   },
@@ -448,6 +470,50 @@
    "lodge(58,20)": 1,
    "lodge(59,19)": 1,
    "lodge(59,20)": 1
+  }
+ },
+ {
+  "key": "06c_smoke_igloo",
+  "title": "Igloo chimney smoke (approved igloo)",
+  "view": [
+   352,
+   0
+  ],
+  "loop": 60,
+  "gif_frames": 20,
+  "anims": [
+   {
+    "name": "IGLOO",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   }
+  ],
+  "max_tiles_per_event": 1,
+  "events_per_loop": 4,
+  "tile_writes_per_loop": 4,
+  "rom_new": 3,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 1,
+  "check": {
+   "dmg": [
+    0.07,
+    160,
+    3.0
+   ],
+   "cgb": [
+    0.07,
+    168,
+    3.0
+   ]
+  },
+  "cells": {
+   "IGLOO": 1
   }
  },
  {
@@ -551,16 +617,16 @@
  },
  {
   "key": "07_cow_tail",
-  "title": "Cow tail swish (new tail art)",
+  "title": "Cow tail swish (pasture cows, new tail art)",
   "view": [
    352,
-   416
+   352
   ],
   "loop": 72,
   "gif_frames": 24,
   "anims": [
    {
-    "name": "cow1(52,58)",
+    "name": "cow1(55,49)",
     "frames": 3,
     "distinct_new": 3,
     "cells": 1,
@@ -570,7 +636,7 @@
     "period": 12
    },
    {
-    "name": "cow2(53,59)",
+    "name": "cow2(59,52)",
     "frames": 3,
     "distinct_new": 3,
     "cells": 1,
@@ -595,21 +661,21 @@
    ],
    "cgb": [
     0.03,
-    185,
+    180,
     3.33
    ]
   },
   "cells": {
-   "cow1(52,58)": 1,
-   "cow2(53,59)": 1
+   "cow1(55,49)": 1,
+   "cow2(59,52)": 1
   }
  },
  {
   "key": "08a_lamp_mast",
-  "title": "Mast lamp, slow blink (space mountain)",
+  "title": "Mast lamp, slow blink (airbase tower)",
   "view": [
-   24,
-   24
+   16,
+   262
   ],
   "loop": 90,
   "gif_frames": 30,
@@ -646,50 +712,6 @@
   },
   "cells": {
    "LAMP": 1
-  }
- },
- {
-  "key": "08b_lamps_stadium",
-  "title": "Stadium light-tower lamps (slow twinkle)",
-  "view": [
-   16,
-   16
-  ],
-  "loop": 192,
-  "gif_frames": 64,
-  "anims": [
-   {
-    "name": "HEAD",
-    "frames": 3,
-    "distinct_new": 2,
-    "cells": 2,
-    "needs_id": false,
-    "steps_per_loop": 4,
-    "loop": 192,
-    "period": 48
-   }
-  ],
-  "max_tiles_per_event": 1,
-  "events_per_loop": 4,
-  "tile_writes_per_loop": 4,
-  "rom_new": 2,
-  "rom_new_at_rest": 0,
-  "ids_new": 0,
-  "slots": 1,
-  "check": {
-   "dmg": [
-    0.03,
-    80,
-    0.62
-   ],
-   "cgb": [
-    0.03,
-    105,
-    0.62
-   ]
-  },
-  "cells": {
-   "HEAD": 2
   }
  }
 ]

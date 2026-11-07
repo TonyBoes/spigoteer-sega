@@ -1,6 +1,6 @@
-"""The eleven mockups (every animated pixel is typed here; anim_lib only composes, previews and measures).
+"""The mockups (every animated pixel is typed here; anim_lib only composes, previews and measures).
 Index key in the typed tiles:  '.' 0 (lightest)  '-' 1  '+' 2  '#' 3 (darkest).  Timing in video frames at 60 fps; every period is a multiple of 3 (the GIFs step 3 frames = 50 ms).
-Scenes: 'a5' is the whole A5 map; 'mountain' and 'stadium' are the round-3 pieces over their biome's ground (A5's map still has boxes there)."""
+Scene: the A5 map with the approved art wired in (mapctx.py): brown logs, fountain round 3, stadium option 2 + wavy flag, igloo option 1, airbase round 4i, milk bar round 4i."""
 from anim_lib import E, Item, TileAnim, T, region_anims
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -45,22 +45,23 @@ def falls(a5):
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 3  FOUNTAIN (placeholder on today's fountain; another artist redraws it).  Water jet: the four sparkle pixels (index 0) blink in two groups, the basin glint slides.
-#    Group A = rows 188 and 195, group B = rows 192 and 199 (absolute y); a sparkle "off" is the jet's own index 1.
-def fountain(a5):
-    A_OFF = E((304, 188, 1), (307, 195, 1))
-    B_OFF = E((306, 192, 1), (308, 199, 1))
-    # basin glint (cell 38,25): base glint = (309,204) and (307,205),(308,205); one step right, one step left (typed per pixel)
-    G0 = {k: 1 for k in [(309, 204), (307, 205), (308, 205)]}
-    G_R = dict(G0); G_R.update(E((310, 204, 0), (308, 205, 0), (309, 205, 0)))
-    G_L = dict(G0); G_L.update(E((308, 204, 0), (306, 205, 0), (307, 205, 0)))
-    f1 = dict(A_OFF); f1.update(G_R)
-    f2 = dict(B_OFF); f2.update(G_L)
-    return Item("03_fountain", "Town fountain, repaired (placeholder)", a5, (240, 136),
-                region_anims(a5, {}, [f1, f2], [0, 1, 0, 2], 12, 0, "fountain"), focus=(288, 172, 320, 212))
-
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
+# 3  FOUNTAIN, the approved centred one (smap_fountain/src/v_town_fx.py, round 3, working state): two thin spill streams (x 290-291 and 301-302, y 193-200, mirror images about x 296)
+#    fall from the bowl's rim into the basin.  A glint (index 0) runs down each stream, 2 rows a step, in a 3-step loop (y 196, 198, 194); the two basin glints at y 201 slide 1 px
+#    toward the middle and back, 12 frames apart from the streams.
+def fountain(a5):
+    s0 = {(290, 196): 1, (302, 196): 1}
+    f1 = dict(s0)
+    f1.update(E((290, 198, 0), (302, 198, 0)))
+    f2 = dict(s0)
+    f2.update(E((290, 194, 0), (302, 194, 0)))
+    g0 = {(x, 201): 1 for x in (289, 290, 291, 301, 302, 303)}
+    g1 = dict(g0)
+    g1.update(E((201, 290, 292, 0), (201, 300, 302, 0)))
+    an = region_anims(a5, {}, [f1, f2], [0, 1, 2], 12, 0, "streams") + region_anims(a5, {}, [g1], [0, 0, 1], 12, 6, "basin")
+    return Item("03_fountain", "Town fountain: two streams and basin (approved round 3)", a5, (232, 136), an, focus=(280, 172, 316, 208))
+
 # 4a BUNTING (town, y 162): flags P (index 2) and Q (index 3) hang from the string; the lower two rows of each flag swing 1 px right, back, 1 px left, back.  Q swings the
 #    opposite way and 6 frames later.  P and Q are shared tiles (3 cells each); the end flag shares the swing but sits in a tile with the hall's roof, so it is its own tile.
 P_R = T("........", "........", "########", "..+++++.", "....+++.", ".....+..", "........", "........")
@@ -79,49 +80,50 @@ def bunting(a5):
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 4b STADIUM PENNANTS.  The round-3 stadium has no pennants: two flagpoles are added on the back stand (x 81 and 105, standing on the roof line y 56), a pennant of index 1 each.
-#    The pole tile and the flag tile are the same on both poles (shared); the flag's tip rises, rests, drops.
-def pennants(st):
-    ed = {}
-    for px_ in (81, 105):
-        for y in range(40, 56):
-            ed[(px_, y)] = 3
-    flag0 = [(41, 2, 3), (42, 2, 5), (43, 2, 7), (44, 2, 5), (45, 2, 3)]          # (y, x0 local, x1 local) of F0, local to the pole's x - 1
-    flag1 = [(41, 2, 4), (42, 2, 6), (43, 2, 5), (44, 2, 3), (45, 2, 2)]
-    flag2 = [(41, 2, 2), (42, 2, 3), (43, 2, 5), (44, 2, 6), (45, 2, 4)]
-    def flag(frame, poles=(81, 105)):
-        d = {}
-        for px_ in poles:
-            for (y, a, b) in frame:
-                for x in range(a, b + 1):
-                    d[(px_ - 1 + x, y)] = 1
-        return d
-    static = dict(ed)
-    static.update(flag(flag0))
-    f1 = {k: 0 for k in flag(flag0, (81,))}; f1.update(flag(flag1, (81,)))
-    f2 = {k: 0 for k in flag(flag0, (81,))}; f2.update(flag(flag2, (81,)))
-    # the flag cell of the two poles is the same image: animate by content (only_at False) on the first pole's cell
-    an = region_anims(st, static, [f1, f2], [0, 1, 0, 2], 15, 0, "pennant", only_at=False)
-    return Item("04b_pennants", "Stadium pennants (new art: the piece has none)", st, (16, 16), an, edits=static, focus=(72, 36, 120, 60))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 5  RADAR DISH on the space mountain's tower (one tile, cell 11,9): face-on, turning, edge-on, back (darker inside, pin on the other side).  Pin and post stay on the same column.
+# 4b STADIUM, the approved one (smap_stadium: option 2, curved bowl, final 2 home dirt, wavy flag): the flag's three hand-drawn frames (FLAG_FRAMES in park_s2.py) are the animation; the
+#    two flag cells differ per frame, the pole cell does not.  Wave period 6 columns, 2 columns a frame, so 3 frames close the loop.
+def stadium_flag(a5):
+    import mapctx as M
+    s = M.SCENES["stadium"]
+    ax, ay = s["at"]
+    an = []
+    for key in s["frames"][0]:
+        t0 = tuple(s["frames"][0][key][0])
+        t1, t2 = tuple(s["frames"][1][key][0]), tuple(s["frames"][2][key][0])
+        if t0 != t1 or t0 != t2:
+            i, j = map(int, key.split(","))
+            an.append(TileAnim(f"flag({ax + i},{ay + j})", (ax + i, ay + j), [t1, t2], [0, 1, 2], 9, 0, only_at=True))
+    return Item("04b_stadium_flag", "Stadium: the wavy flag (approved stadium)", a5, (0, 0), an, focus=(40, 4, 80, 28))
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------
+# 5  RADAR DISH on the airbase tower (approved round 4i; cell 14,38): face-on, turning, edge-on, back (darker inside, pin on the other side).  Pin and post stay on their column.
+DISH_0 = T("........", "........", "....#...", "..#####.", ".#.----#", ".#-----#", "..#####.", "....#...")
 DISH_1 = T("........", "........", ".....#..", "...###..", "..#.--#.", "..#---#.", "...###..", "....#...")
 DISH_2 = T("........", "........", "....#...", "...###..", "...#-#..", "...#-#..", "...###..", "....#...")
 DISH_3 = T("........", "........", "...#....", "...###..", "..#+++#.", "..#+++#.", "...###..", "....#...")
 
 
-def radar(mt):
-    return Item("05_radar", "Radar dish turning (space mountain tower)", mt, (24, 24), [TileAnim("DISH", (11, 9), [DISH_1, DISH_2, DISH_3], [0, 1, 2, 3], 15)],
-                focus=(76, 64, 104, 90))
+MTN_DX = -3                       # mapctx.AT_OVERRIDE["mountain"] is (6, 36); the piece was dumped for (9, 36)
+
+
+def radar(a5):
+    assert a5.tile(14 + MTN_DX, 38) == DISH_0, a5.tile(14 + MTN_DX, 38)
+    return Item("05_radar", "Radar dish turning (airbase tower, round 4i)", a5, (16, 262), [TileAnim("DISH", (14 + MTN_DX, 38), [DISH_1, DISH_2, DISH_3], [0, 1, 2, 3], 15)],
+                focus=(80, 302, 100, 316))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 6a LODGE CHIMNEY: today's puff (6 x 3, index 1, y 163-165) is frame 0.  The puff rises and thins, drifting right, and a new one swells at the cap.
+# 6a LODGE CHIMNEY: the existing puff (y 163-165) is frame 0; it rises and thins, drifting right, and a new one swells at the cap.  Colour: the four cells of the smoke take the
+#    palette WATER (index 0 = the same grass colour b0d080, index 1 = the foam colour e8f0d8, near white), which every 21 x 19 window round the lodge already holds (the river is in
+#    it), so no window gains a palette.  Side effect: the chimney's cap row (y 167, 8 px of index 3) in those cells turns from ink 2a1608 to the water palette's brown 905830.
 def smoke_lodge(a5):
-    for cx in (58, 59):                                   # the two cells above the puff take the lodge palette (attribute only, index 0 = the same grass colour)
-        a5.pal[19][cx] = "lodge"
+    for cx in (58, 59):
+        for cy in (19, 20):
+            a5.pal[cy][cx] = "water"
     P0 = {(x, y): 0 for (y, x0, x1) in ((163, 470, 473), (164, 469, 474), (165, 470, 473)) for x in range(x0, x1 + 1)}
 
     def fr(*runs):
@@ -131,8 +133,19 @@ def smoke_lodge(a5):
     f1 = fr((158, 471, 474), (159, 470, 475), (160, 471, 474), (165, 471, 472))
     f2 = fr((153, 474, 476), (154, 473, 477), (155, 474, 476), (164, 470, 473), (165, 471, 472))
     f3 = fr((152, 477, 478), (163, 471, 472), (164, 470, 473), (165, 471, 472))
-    return Item("06a_smoke_lodge", "Lodge chimney smoke", a5, (352, 120), region_anims(a5, {}, [f1, f2, f3], [0, 1, 2, 3], 15, 0, "lodge"), focus=(456, 148, 488, 172))
+    return Item("06a_smoke_lodge", "Lodge chimney smoke (white, not tan)", a5, (352, 120), region_anims(a5, {}, [f1, f2, f3], [0, 1, 2, 3], 15, 0, "lodge"), focus=(456, 148, 488, 172))
 
+
+# 6c IGLOO CHIMNEY (the approved igloo, option 1: stove pipe with a 6 x 4 puff in ice colours, indices 1 and 2): the puff is frame 0 in cell (56, 5).  The puff cannot rise out of the piece
+#    (the cell row above is the range box on A5's map), so it swells in place: a small puff at the cap, a medium one, the full one, then it breaks up into wisps.
+IG_1 = T("........", "........", "...--...", "..-++-..", ".######.", ".#--++#.", ".######.", "..#-+#..")
+IG_2 = T("........", "...--...", "..----..", ".-+++++.", ".######.", ".#--++#.", ".######.", "..#-+#..")
+IG_3 = T("..-..-..", "...-....", "........", "........", ".######.", ".#--++#.", ".######.", "..#-+#..")
+
+
+def smoke_igloo(a5):
+    return Item("06c_smoke_igloo", "Igloo chimney smoke (approved igloo)", a5, (352, 0), [TileAnim("IGLOO", (56, 5), [IG_1, IG_2, IG_3], [1, 2, 0, 3], 15, 0, only_at=True)],
+                focus=(432, 24, 472, 64))
 
 # 6b FACTORY STACKS (two): each existing puff is frame 0.  Right stack: free sky above.  Left stack: log piles stand right above it, so its smoke drifts LEFT of them (x <= 423).
 def smoke_factory(a5):
@@ -154,52 +167,43 @@ def smoke_factory(a5):
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 7  COW TAIL (milk bar, the cow whose body ends at x 415; the second cow likewise, 8 px right and 10 px down).  The cow has no tail today: a 4-px tail with a pink tuft is
-#    added at rest (hanging straight), then swings out right, further out, back.  Two cows, offset in time.
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------
+# 7  COW TAILS on the approved milk bar (round 4h/4i: pasture with two cows, a lawn cow).  The cows have no tail today.  A 4-px tail with a pink tuft is added at the rear (the rear edge of a
+#    cow is its 14th column, the tail starts one pixel right of it): hanging, then swinging out right and back, resting between flicks.  Pasture cow 1 (x 428..441, top y 394) and
+#    pasture cow 2 (x 462..475, top y 412; the tail starts 2 rows lower so it stays in one tile) are animated, 18 frames apart.  The lawn cow (x 401..414) stands one pixel from the
+#    bottle sign's pole, so there is no room for a swing and it stays as it is.
 def cows(a5):
     def tail(x, y, shape):
         if shape == 0:
-            return E((x, y, 3), (x, y + 1, 3), (x, y + 2, 3), (x, y + 3, 3), (x, y + 4, 2))
+            return E((x, y, 3), (x, y + 1, 3), (x, y + 2, 3), (x, y + 3, 2))
         if shape == 1:
-            return E((x, y, 3), (x, y + 1, 3), (x + 1, y + 2, 3), (x + 1, y + 3, 3), (x + 1, y + 4, 2))
-        return E((x, y, 3), (x + 1, y + 1, 3), (x + 2, y + 2, 3), (x + 2, y + 3, 3), (x + 3, y + 4, 2))
+            return E((x, y, 3), (x, y + 1, 3), (x + 1, y + 2, 3), (x + 1, y + 3, 2))
+        return E((x, y, 3), (x + 1, y + 1, 3), (x + 2, y + 2, 3), (x + 3, y + 3, 2))
 
     def build(x, y):
         f = []
         for s in (1, 2):
-            d = {(x + dx, y + dy): 0 for dx in range(4) for dy in range(5)}
+            d = {(x + dx, y + dy): 0 for dx in range(4) for dy in range(4)}
             d.update(tail(x, y, s))
             f.append(d)
         return tail(x, y, 0), f
-    s1, f1 = build(416, 464)
-    s2, f2 = build(424, 474)
+    s1, f1 = build(442, 396)
+    s2, f2 = build(476, 416)
     static = dict(s1)
     static.update(s2)
-    # f1 touches cow 1's cell only, f2 cow 2's (the clear runs reset to 0 only where the tail was; base pixels there are 0 except the bike pixels of cow 2's cell,
-    # which are not in the 4 x 5 box x 424..427, y 474..478: checked by the stats)
-    an = (region_anims(a5, static, f1, [0, 0, 0, 1, 2, 1], 12, 0, "cow1") + region_anims(a5, static, f2, [0, 0, 0, 1, 2, 1], 12, 18, "cow2"))
-    return Item("07_cow_tail", "Cow tail swish (new tail art)", a5, (352, 416), an, edits=static, focus=(396, 456, 432, 484))
+    an = region_anims(a5, static, f1, [0, 0, 0, 1, 2, 1], 12, 0, "cow1") + region_anims(a5, static, f2, [0, 0, 0, 1, 2, 1], 12, 18, "cow2")
+    return Item("07_cow_tail", "Cow tail swish (pasture cows, new tail art)", a5, (352, 352), an, edits=static, focus=(424, 390, 484, 424))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 8a MAST LAMP (space mountain): the lamp's centre pixel is index 0 (lit) and dims one step to 1; lit 60 frames, dim 30 frames (one blink per 1.5 s, 1.3 changes a second).
-LAMP_DIM = T("........", "....#-#.", "........", "........", "........", "........", "........", "........")
-
-
-def lamp(mt):
-    base = mt.tile(10, 9)
+# 8a MAST LAMP (airbase tower, cell 13,38): the lamp's centre pixel is index 0 (lit) and dims one step to 1; lit 60 frames, dim 30 frames (one blink per 1.5 s, 1.3 changes a second).
+def lamp(a5):
+    base = a5.tile(13 + MTN_DX, 38)
     dim = tuple(base[:1]) + (base[1][:5] + "1" + base[1][6:],) + tuple(base[2:])
-    return Item("08a_lamp_mast", "Mast lamp, slow blink (space mountain)", mt, (24, 24), [TileAnim("LAMP", (10, 9), [dim], [0, 0, 1], 30)], focus=(76, 64, 104, 90))
+    return Item("08a_lamp_mast", "Mast lamp, slow blink (airbase tower)", a5, (16, 262), [TileAnim("LAMP", (13 + MTN_DX, 38), [dim], [0, 0, 1], 30)], focus=(76, 300, 100, 316))
 
 
-# 8b STADIUM LIGHT TOWERS: each head has two rows of four lamps (index 0 in ink).  The top row dims one step (index 1) for 48 frames, the bottom row later: slow twinkle,
-#    1.25 changes a second.  Both towers use the same head tile.
-def mastlights(st):
-    head = st.tile(6, 6)
-    top = tuple([head[0], head[1].replace("0", "1"), head[2]] + list(head[3:]))
-    bot = tuple(list(head[:3]) + [head[3].replace("0", "1")] + list(head[4:]))
-    return Item("08b_lamps_stadium", "Stadium light-tower lamps (slow twinkle)", st, (16, 16), [TileAnim("HEAD", (6, 6), [top, bot], [0, 1, 0, 2], 48)], focus=(40, 40, 64, 60))
-
-
-def all_items(a5, mt, st):
-    return [water(a5), falls(a5), fountain(a5), bunting(a5), pennants(st), radar(mt), smoke_lodge(a5), smoke_factory(a5), cows(a5), lamp(mt), mastlights(st)]
+def all_items(a5):
+    return [water(a5), falls(a5), fountain(a5), bunting(a5), stadium_flag(a5), radar(a5), smoke_lodge(a5), smoke_igloo(a5), smoke_factory(a5), cows(a5), lamp(a5)]

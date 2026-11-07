@@ -6,10 +6,10 @@
   "tiles_per_s": 38.0
  },
  "town (bunting + fountain + river water)": {
-  "max_tiles": 6,
-  "max_bytes": 96,
-  "avg_bytes_per_frame": 8.67,
-  "tiles_per_s": 32.5
+  "max_tiles": 5,
+  "max_bytes": 80,
+  "avg_bytes_per_frame": 9.78,
+  "tiles_per_s": 36.7
  },
  "lodge (smoke + water)": {
   "max_tiles": 5,
@@ -29,22 +29,28 @@
   "avg_bytes_per_frame": 3.91,
   "tiles_per_s": 14.7
  },
- "mountain (dish + lamp)": {
+ "airbase (dish + lamp)": {
   "max_tiles": 2,
   "max_bytes": 32,
   "avg_bytes_per_frame": 1.42,
   "tiles_per_s": 5.3
  },
- "stadium (pennants + lamps)": {
+ "stadium (flag)": {
   "max_tiles": 2,
   "max_bytes": 32,
-  "avg_bytes_per_frame": 1.4,
-  "tiles_per_s": 5.2
+  "avg_bytes_per_frame": 3.56,
+  "tiles_per_s": 13.3
+ },
+ "igloo (smoke + falls + water)": {
+  "max_tiles": 6,
+  "max_bytes": 96,
+  "avg_bytes_per_frame": 11.2,
+  "tiles_per_s": 42.0
  },
  "ALL on screen at once (not possible)": {
-  "max_tiles": 20,
-  "max_bytes": 320,
-  "avg_bytes_per_frame": 30.6,
-  "tiles_per_s": 114.8
+  "max_tiles": 21,
+  "max_bytes": 336,
+  "avg_bytes_per_frame": 34.93,
+  "tiles_per_s": 131.0
  }
 }

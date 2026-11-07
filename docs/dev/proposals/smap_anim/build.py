@@ -23,12 +23,10 @@ def lum(rgb):
     return 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
 
 
-a5, mt, st = A.load_a5(), A.load_r3("mountain"), A.load_r3("stadium")
-tiles_orig = {id(a5): a5.all_tiles(), id(mt): mt.all_tiles(), id(st): st.all_tiles()}
+a5 = A.load_a5()
+tiles_orig = {id(a5): a5.all_tiles()}
 orig_use = {}
-for it in I.all_items(a5, mt, st):
-    pass
-items = I.all_items(a5, mt, st)
+items = I.all_items(a5)
 report = []
 strips = []
 all_events = []                                    # (key, anim name, t0 events) for the combined estimate
@@ -139,7 +137,7 @@ json.dump({"max": int(cnt.max()), "writes_per_s": cnt.sum() / (T / 60), "frames_
 # ---- per view: only what can be on screen together (the water counts wherever the river or lake shows) ----
 GROUPS = {"river top (falls + water)": ["01_water", "02_falls"], "town (bunting + fountain + river water)": ["01_water", "03_fountain", "04a_bunting"],
           "lodge (smoke + water)": ["01_water", "06a_smoke_lodge"], "factory (smoke)": ["06b_smoke_factory"], "milk bar (two tails + lake water)": ["01_water", "07_cow_tail"],
-          "mountain (dish + lamp)": ["05_radar", "08a_lamp_mast"], "stadium (pennants + lamps)": ["04b_pennants", "08b_lamps_stadium"],
+          "airbase (dish + lamp)": ["05_radar", "08a_lamp_mast"], "stadium (flag)": ["04b_stadium_flag"], "igloo (smoke + falls + water)": ["01_water", "02_falls", "06c_smoke_igloo"],
           "ALL on screen at once (not possible)": [it.key for it in items]}
 gres = {}
 for g, keys in GROUPS.items():
