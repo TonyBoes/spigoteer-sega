@@ -772,3 +772,5 @@ The grass dithering patchiness looks better now."
 - 2026-11-07 teahouse round 5 (a83b5a5, 2d212801, SMAP_TEA_TEX=BWD): half-open sliding shoji door + second lantern, 0 ids; zen garden overlay +8/+8 (east of the blossom tree) reads like a sign/plaque, cramped - not ready. Right lantern touches the tree. Its DMG context render shows dark water again. Asked Q118: door and lantern OK?
 - 2026-11-07 owner: "Sure. Have it check. Is the memory it needs ram or rom?"
   Answer: RAM (the on-screen tile slot table in story_scratch, WRAM); the map data itself is ROM and keeps its size (the spare bit is already in each cell word); extra tile pictures cost ROM, which has room in the map banks (to confirm). gb-worker investigation launched (read-only): can the spare bit lift Color to 2048 ids, RAM/ROM/cycle cost, DMG unchanged.
+- 2026-11-07 owner: "Zen garden doesn't fit remove."
+  Zen garden dropped (SMAP_TEA_GARDEN overlay not used; no import). Teahouse = roof ribs + walls + door + 2nd lantern (Q118 pending on door/lantern).
