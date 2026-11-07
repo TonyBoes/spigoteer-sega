@@ -129,7 +129,13 @@ if not BEFORE_1C:
     _step("snowfield")
 if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
     import roads_round
-    ROAD_CHANGES = roads_round.apply(W, PAL)               # rounded outer and inner corners of the road loops (hand-typed pieces in roads_round.py)
+    CURVE = os.environ.get("SMAP_CURVE")                   # step 1 of the smooth bends: "16" or "24" lays the smooth bends of that outer radius instead of the r8 ones (not the default)
+    if CURVE in ("16", "24"):
+        import roads_smooth
+        ROAD_CHANGES = []
+        CURVE_LAID, CURVE_SKIPPED = roads_smooth.apply(W, PAL, int(CURVE))
+    else:
+        ROAD_CHANGES = roads_round.apply(W, PAL)           # rounded outer and inner corners of the road loops (hand-typed pieces in roads_round.py)
     _step("road_corners")
 for w in WORLDS:                                            # milk bar: the tea house cell next to the lot's lawn joins tea@g (Color palette only, DMG pixels unchanged)
     w.pal[59][34] = "tea@g"
