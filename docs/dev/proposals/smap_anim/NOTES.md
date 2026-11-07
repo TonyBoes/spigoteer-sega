@@ -10,26 +10,31 @@ Files: `gifs/NN_name.gif` one per item, DMG left and Color right, x3, a 160 x 14
 
 Wiring notes: the space mountain / airbase is pasted at cell (6,36), 3 cells west of its dump position, so its two palettes stay out of the windows holding the tea garden and cow field. The milk bar roof variant was not chosen in the brief; I used the round-4h A base.
 
+Third pass (owner: "the water glints could be more subtle. Also, the waterfall seems to flow the wrong way. ... Make sure you merge the mast lamp and radar animations."):
+- Water: two strengths, GIFs `01_water_subtle.gif` and `01_water_vsubtle.gif`. No mid shade exists between the water blue 58a0d8 and the foam e8f0d8 in the water palette, so Color contrast cannot go lower without a new palette; on DMG a glint is one step already. The levers used are fewer and smaller glints and a slower pace.
+- Falls: the data already moved the foam DOWN (frame k = frame 0 shifted +5 rows). A 5-row jump with 2-3 px streaks 4-8 rows apart aliases: the nearest alternative match is 3-4 rows UP (4 mismatching pixels per column), which the eye takes. Now 3 rows a step, 5 frames, 9 video frames a step; the nearest wrong match is 5-6 rows up. The splash cells (ring and arcs) run on the same 45-frame loop, offset 3 and 6 frames from the falls steps. Cost: +8 ROM images; DMG peak unchanged (4 tiles, 64 B), falls average up from 5 to about 6.4 tiles a second.
+- Airbase: radar and lamp are one item, `05_airbase.gif`, 2 tiles, +4 images (same as the two separate), peak 1 tile (16 B) per frame; the old `05_radar` and `08a_lamp_mast` GIFs are gone.
+
+
 ## The table
 
 Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in VRAM at one step. "ROM" = new tile images stored. B/step = tiles x 16. Cadence in video frames (60 fps).
 
 | # | Item | Frames | Tiles / step | ROM tiles | Cadence | Shared or unique | VRAM per step |
 |---|---|---|---|---|---|---|---|
-| 1 | Water glints: tiles WA and WB (19 and 22 cells; WF stays flat) | 3 each | 1 (WA, WB offset 6 frames) | +4 | 15 per tile | shared, cheap | 16 B |
-| 2 | Waterfall 2 x 2 cells + splash pair (seam-fix tiles: bank rim at the sides, no brown) | 3 | 4 falls; 2 splash | +9 | 12 | unique, 6 cells | 64 B / 32 B |
+| 1 | Water glints, SUBTLE (default) or VERY SUBTLE: tiles WA and WB (19 and 22 cells; WF stays flat). Fewer, smaller glints: subtle 3 px + 2 px (was 6 + 4), very subtle 2 px + 1 px | 3 each | 1 (WA, WB half a period apart) | +4 (the static WA, WB tiles are redrawn with fewer glints, so the map keeps 2 tiles, net 0) | subtle 24, very subtle 30, still 2 steps of 3 | shared, cheap | 16 B |
+| 2 | Waterfall 2 x 2 cells + splash pair, foam falls 3 rows a step (seam-fix tiles) | 5 (falls), 3 (splash) | 4 falls; 2 splash | +17 (16 falls, 1 splash ring; was +9) | 9 | unique, 6 cells | 64 B / 32 B |
 | 3 | Town fountain: two side streams (2 cells) + basin glints (2 cells), round 3 art | 3 streams, 2 basin | up to 2 | +6 | 12 | unique | 32 B |
 | 4a | Town bunting, 7 flags | 3 | 1 or 2 | +6 | 15, P and Q 6 apart | P, Q shared (3 cells each); end flag unique | 16-32 B |
 | 4b | Approved stadium: wavy flag, 2 cells | 3 | 1 or 2 | +4 | 9 | unique | 16-32 B |
-| 5 | Radar dish (airbase 4i), one tile | 4 | 1 | +3 | 15 | unique | 16 B |
+| 5 | Airbase: radar dish (4 views) and mast lamp (blink) as ONE frame set, 2 tiles, loop 120 | dish 4, lamp 2 | 1 (the two writes are 6 frames apart) | +4 (3 dish, 1 dim lamp) | dish 15; lamp dims for 2 of the 8 dish steps (30 of 120 frames) | unique | 16 B |
 | 6a | Lodge chimney smoke, WHITE (see palette) | 4 | up to 2 | +10 (8 puff images, 2 cap cells with the tan puff erased) | 15 | unique; 2 cells over blank grass need own tile id | 32 B max |
 | 6b | Factory, two stacks | 4 | up to 3 | +15 | 15 | unique; 2 new tile ids | 48 B max |
 | 6c | Igloo (option 1) chimney smoke, 1 cell | 4 | 1 | +3 | 15 | unique | 16 B |
 | 7 | Cow tails, pasture cow and one more (milk bar 4i) | 3 | 1 | +6 (2 are the tail at rest) | 12, rests 36 of 72 | unique; 2 new tile ids | 16 B |
-| 8a | Mast lamp (airbase) | 2 | 1 | +1 | lit 60, dim 30 | unique | 16 B |
-| | Total | | | **67 images** | | 6 new tile ids (lodge 2, factory 2, cows 2) | |
+| | Total | | | **75 images** | | 6 new tile ids (lodge 2, factory 2, cows 2) | |
 
-Dropped from the first table: 8b stadium lamps, pole pennants. Cheap and shared: 1, 4a (P, Q).
+Dropped from the first table: 8b stadium lamps, pole pennants. 8a mast lamp is merged into 5. Cheap and shared: 1, 4a (P, Q).
 
 Lodge smoke palette: the existing `water` palette (idx 0 = the grass colour b0d080, idx 1 = e8f0d8 foam white), already in every window round the lodge, so no window gains a palette. It is used only on the two cells ABOVE the chimney, (58,19) and (59,19) (y 152-159; attribute-only change). The chimney cap row (y 167) shares its two cells with the old tan puff (y 163-165), and no palette already in those windows has grass as index 0, a near-white index 1 and the lodge's ink as index 3, so the smoke leaves those cells: the cap cells keep the `lodge` palette and the cap is exactly as approved (same pixels, same colour). The old tan puff is erased from the cap cells (those two tile images change, counted in ROM) and the rest puff now floats at y 157-159, 7 px above the cap. If the owner prefers the puff to touch the chimney, the only palette-neutral way is to keep the tan puff on the cap cells; that is a one-line switch in `items.py`.
 Igloo smoke uses the igloo's own ice-blue shades (the piece's palette), as its art does.
@@ -44,23 +49,23 @@ Peak tiles written in one video frame, average bytes per frame, per view (phases
 
 | view | peak tiles in one frame | peak bytes | average bytes per frame |
 |---|---|---|---|
-| river top: falls + water | 5 | 80 | 10.1 |
-| town: bunting + fountain + water | 5 | 80 | 9.8 |
-| lodge: smoke + water | 3 | 48 | 4.3 |
+| river top: falls + water | 5 | 80 | 10.8 |
+| town: bunting + fountain + water | 5 | 80 | 8.5 |
+| lodge: smoke + water | 3 | 48 | 3.0 |
 | factory: both stacks | 3 | 48 | 5.6 |
-| milk bar: tails + water | 2 | 32 | 3.9 |
-| airbase: dish + lamp | 2 | 32 | 1.4 |
+| milk bar: tails + water | 2 | 32 | 2.7 |
+| airbase: dish + lamp (one frame set) | 1 | 16 | 1.3 |
 | stadium: flag | 2 | 32 | 3.6 |
-| igloo: smoke + water | 6 | 96 | 11.2 |
-| everything at once (cannot happen) | 20 | 320 | 33.3 |
+| igloo: smoke + falls + water | 6 | 96 | 11.9 |
+| everything at once (cannot happen) | 19 | 304 | 34.0 |
 
 Assumed for the programmer to confirm: about 10 tiles (160 B) fit one VBlank. The worst real view (igloo, 6 tiles, 96 B) is about 60% of that; averages are about a tenth. Steps are never aligned on purpose, and any step can slip a frame or two if scroll streaming needs the VBlank. Color writes the same tile bytes to bank 0; attributes do not change except the 2 lodge puff cells.
 
 ## Flicker check (owner rule)
 
 Every consecutive GIF frame pair (wrap included), DMG and Color, plus a look at every distinct state.
-- Largest area changing in one step: 0.34% of the view (water); all others 0.2% or less. No large change, no white flash.
-- The only light left is the mast lamp: 1 pixel, one shade step, 1.33 changes a second (about 1 blink per 1.5 s). Stadium lamps are gone.
+- Largest area changing in one step: 0.23% of the view (water, subtle; 0.11% very subtle); all others 0.2% or less. No large change, no white flash.
+- The only light left is the mast lamp, now in the airbase set: 1 pixel, one shade step, 2 changes in 2 s (1 a second, one blink per 2 s). Stadium lamps are gone.
 - Water and falls streaks are moving water, not lights (falls: 5 changes a second per pixel, see doubts). Smoke and fountain: one-shade pixels, 2 to 3.3 changes a second per tile.
 - Stadium flag: the approved 8 fps wave, 6.67 changes a second on about 20 pixels, 0.11% of the view. A motion of a cloth, not a light, but the fastest item; period 9 can go to 12 (5 a second) if wanted.
 - Shape moves (bunting, dish, tails): 1 to 3 px moves, at most 0.09% of the screen.
@@ -96,9 +101,9 @@ Deviation from the skill, in its words: environments.md 11 says "bake both into 
 ## Doubts
 
 - Igloo smoke cannot rise above the piece (nothing above it in the art), so it swells in place; the owner may want a bigger chimney rise.
-- Falls streaks change 5 times a second per pixel; period 12 can go to 18 at no cost.
+- Falls streaks: one pixel changes at most 5.3 times a second (3 rows every 9 frames); moving water, not a light. Period 9 can go to 12 at 3 rows (4 a second). Water glints: at most 1.7 changes a second per pixel (subtle), 1.3 (very subtle).
 - Fountain animates only streams and basin glints; the jet art is the owner's round 3 and was not changed.
-- Radar jumps from back view to face-on in 4 frames; 6 frames would smooth it for +2 tiles.
+- Radar jumps from back view to face-on in 4 frames; 6 frames would smooth it for +2 tiles. In the airbase set the loop is 8 dish steps (2 turns) so the lamp can blink slowly.
 - Factory smoke is the dearest item (+15 images); one stack costs 7.
 - Lodge smoke floats 7 px above the cap (the cap keeps its colour); the puff no longer touches the chimney at rest.
 - I checked frame pairs numerically and looked at distinct states and zoomed frames, not the GIFs in a browser.

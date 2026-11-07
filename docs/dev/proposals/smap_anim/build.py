@@ -135,10 +135,10 @@ print("ALL: tile writes per frame: max", cnt.max(), "frames with writes", int((c
 json.dump({"max": int(cnt.max()), "writes_per_s": cnt.sum() / (T / 60), "frames_with_writes": int((cnt > 0).sum()), "T": T, "hist": np.bincount(cnt).tolist()}, open(OUT / "combined.json", "w"))
 
 # ---- per view: only what can be on screen together (the water counts wherever the river or lake shows) ----
-GROUPS = {"river top (falls + water)": ["01_water", "02_falls"], "town (bunting + fountain + river water)": ["01_water", "03_fountain", "04a_bunting"],
-          "lodge (smoke + water)": ["01_water", "06a_smoke_lodge"], "factory (smoke)": ["06b_smoke_factory"], "milk bar (two tails + lake water)": ["01_water", "07_cow_tail"],
-          "airbase (dish + lamp)": ["05_radar", "08a_lamp_mast"], "stadium (flag)": ["04b_stadium_flag"], "igloo (smoke + falls + water)": ["01_water", "02_falls", "06c_smoke_igloo"],
-          "ALL on screen at once (not possible)": [it.key for it in items]}
+GROUPS = {"river top (falls + water)": ["01_water_subtle", "02_falls"], "town (bunting + fountain + river water)": ["01_water_subtle", "03_fountain", "04a_bunting"],
+          "lodge (smoke + water)": ["01_water_subtle", "06a_smoke_lodge"], "factory (smoke)": ["06b_smoke_factory"], "milk bar (two tails + lake water)": ["01_water_subtle", "07_cow_tail"],
+          "airbase (dish + lamp, one frame set)": ["05_airbase"], "stadium (flag)": ["04b_stadium_flag"], "igloo (smoke + falls + water)": ["01_water_subtle", "02_falls", "06c_smoke_igloo"],
+          "ALL on screen at once (not possible)": [it.key for it in items if it.key != "01_water_vsubtle"]}
 gres = {}
 for g, keys in GROUPS.items():
     c = np.zeros(T, int)

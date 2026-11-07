@@ -5,45 +5,91 @@ from anim_lib import E, Item, TileAnim, T, region_anims
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
 # 1  WATER: the glint tiles WA and WB (every open-water cell uses WF, WA or WB; WF stays flat).  The 2-pixel glint stairs slide 1 px left and right, never leaving the tile.
-#    Ping-pong 0, -1, 0, +1; WB steps 6 frames after WA so only one 16-byte tile is rewritten at a time.
-WA_L1 = T("++++++++", "++++++++", "--++++++", "++--++++", "++++--++", "++++++++", "++++++++", "++++++++")
-WA_R1 = T("++++++++", "++++++++", "++--++++", "++++--++", "++++++--", "++++++++", "++++++++", "++++++++")
-WB_L1 = T("++++++++", "++++++++", "++++++++", "+--+++++", "+++--+++", "++++++++", "++++++++", "++++++++")
-WB_R1 = T("++++++++", "++++++++", "++++++++", "+++--+++", "+++++--+", "++++++++", "++++++++", "++++++++")
+#    Ping-pong with holds: rest, rest, -1, rest, rest, +1; WB steps half a period after WA so only one 16-byte tile is rewritten at a time.
+# SUBTLE (owner: "the water glints could be more subtle"): fewer and smaller glints, slower.  Two strengths, both typed here.  Glint = index 1 on index 2 water: one DMG step; on Color the
+# only lighter entry of the water palette is e8f0d8 (no mid shade sits between 58a0d8 and white, so contrast cannot drop on Color without a new palette: fewer pixels and a slower
+# pace are the levers).  The static tiles WA and WB themselves carry fewer glints (new art for every WA/WB cell), 3 images each as before: the ROM cost is the same.
+#   subtle      WA: a 2 px dash + 1 px (3 px, was 6), WB: one 2 px dash (2 px, was 4); steps every 24 frames, holding still 2 of every 3 steps.
+#   very subtle WA: one 2 px dash, WB: one single pixel; steps every 30 frames, same hold.
+WATER_OLD_A = T("++++++++", "++++++++", "+--+++++", "+++--+++", "+++++--+", "++++++++", "++++++++", "++++++++")
+WATER_OLD_B = T("++++++++", "++++++++", "++++++++", "++--++++", "++++--++", "++++++++", "++++++++", "++++++++")
+WS = dict(
+    subtle=dict(A=[T("++++++++", "++++++++", "+--+++++", "++++++++", "++++++++", "++++++-+", "++++++++", "++++++++"),
+                   T("++++++++", "++++++++", "--++++++", "++++++++", "++++++++", "+++++-++", "++++++++", "++++++++"),
+                   T("++++++++", "++++++++", "++--++++", "++++++++", "++++++++", "+++++++-", "++++++++", "++++++++")],
+                B=[T("++++++++", "++++++++", "++++++++", "++++++++", "+++--+++", "++++++++", "++++++++", "++++++++"),
+                   T("++++++++", "++++++++", "++++++++", "++++++++", "++--++++", "++++++++", "++++++++", "++++++++"),
+                   T("++++++++", "++++++++", "++++++++", "++++++++", "++++--++", "++++++++", "++++++++", "++++++++")], period=24),
+    vsubtle=dict(A=[T("++++++++", "++++++++", "++++++++", "++--++++", "++++++++", "++++++++", "++++++++", "++++++++"),
+                    T("++++++++", "++++++++", "++++++++", "+--+++++", "++++++++", "++++++++", "++++++++", "++++++++"),
+                    T("++++++++", "++++++++", "++++++++", "+++--+++", "++++++++", "++++++++", "++++++++", "++++++++")],
+                 B=[T("++++++++", "++++++++", "++++++++", "++++++++", "++++++++", "++++-+++", "++++++++", "++++++++"),
+                    T("++++++++", "++++++++", "++++++++", "++++++++", "++++++++", "+++-++++", "++++++++", "++++++++"),
+                    T("++++++++", "++++++++", "++++++++", "++++++++", "++++++++", "+++++-++", "++++++++", "++++++++")], period=30))
 
 
-def water(a5):
-    wa = a5.cells_with(T("++++++++", "++++++++", "+--+++++", "+++--+++", "+++++--+", "++++++++", "++++++++", "++++++++"))
-    wb = a5.cells_with(T("++++++++", "++++++++", "++++++++", "++--++++", "++++--++", "++++++++", "++++++++", "++++++++"))
-    return Item("01_water", "Water glints (shared tiles WA, WB)", a5, (272, 392),
-                [TileAnim("WA", wa[0], [WA_L1, WA_R1], [0, 1, 0, 2], 15, 0), TileAnim("WB", wb[0], [WB_L1, WB_R1], [0, 2, 0, 1], 15, 6)],
-                focus=(300, 404, 364, 436))
+def water(a5, strength="subtle"):
+    w = WS[strength]
+    wa = a5.cells_with(WATER_OLD_A)
+    wb = a5.cells_with(WATER_OLD_B)
+    edits = {}
+    for cells, tile in ((wa, w["A"][0]), (wb, w["B"][0])):
+        for cx, cy in cells:
+            for j, r in enumerate(tile):
+                for i, c in enumerate(r):
+                    edits[(cx * 8 + i, cy * 8 + j)] = int(c)
+    p = w["period"]
+    seq = [0, 0, 1, 0, 0, 2]
+    seqb = [0, 0, 2, 0, 0, 1]
+    return Item("01_water_" + strength, f"Water glints, {strength.replace('vsubtle', 'very subtle')} (shared tiles WA, WB)", a5, (272, 392),
+                [TileAnim("WA", wa[0], [w["A"][1], w["A"][2]], seq, p, 0), TileAnim("WB", wb[0], [w["B"][1], w["B"][2]], seqb, p, p // 2)],
+                edits=edits, focus=(300, 404, 364, 436))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 2  WATERFALL: the four falls tiles (2 x 2 cells at 46..47, 5..6) and the splash pair (46..47, 8).  Streaks fall 5 rows per step over the 15 flowing rows (the 16th row is the
-#    pool edge and stays); three frames close the loop exactly (3 x 5 = 15).  Splash: a small centred ring (new tile C) and the two arcs A and B, in turn.
-# seam-fix art (a5art.py, 3rd commit of the falls fix): the falls are 8 px wide like the stream; the side edges are the bank's own (land 0, rim 1), no index 3.  Left tiles: bank
-# cols 0-3, water cols 4-7; right tiles: water cols 0-3, bank cols 4-7.  Foam runs sit on one column (left 5 or 6, right 1 or 2) and fall 5 rows a step (row 15 never changes).
-FL_A1 = T("...-++-+", "...-++++", "...-+-++", "...-+-++", "...-++++", "...-++-+", "...-++-+", "...-++++")
-FL_B1 = T("...-+-++", "...-+-++", "...-+-++", "...-++-+", "...-++++", "...-++++", "...-++-+", "...-++++")
-FL_A2 = T("...-+-++", "...-++-+", "...-++++", "...-++++", "...-++-+", "...-++-+", "...-++++", "...-+-++")
-FL_B2 = T("...-+-++", "...-++++", "...-++-+", "...-++-+", "...-++++", "...-+-++", "...-+-++", "...-++++")
-FR_A1 = T("+-++-...", "++++-...", "++-+-...", "++-+-...", "++++-...", "++-+-...", "++-+-...", "+-++-...")
-FR_B1 = T("+-++-...", "+-++-...", "++++-...", "++-+-...", "++++-...", "++++-...", "+-++-...", "++++-...")
-FR_A2 = T("++++-...", "++-+-...", "++++-...", "++++-...", "+-++-...", "+-++-...", "++++-...", "++-+-...")
-FR_B2 = T("++-+-...", "++++-...", "++-+-...", "++-+-...", "+-++-...", "+-++-...", "+-++-...", "++++-...")
+# 2  WATERFALL (owner: "the waterfall seems to flow the wrong way"): the four falls tiles (2 x 2 cells at 46..47, 5..6) and the splash pair (46..47, 8).  The data already moved the
+#    foam DOWN (+5 rows a step), but a 5-row jump of 2-3 px streaks that sit 4-8 rows apart aliases (the eye matches each streak to the one 10 rows above, i.e. reads UP).  Now the
+#    foam falls 3 rows a step over the 15 flowing rows (row 15, the pool edge, never changes): 5 frames, 9 video frames a step, so a streak moves less than the gaps between streaks.
+#    Foam sits on one column per tile (left tiles 5 and 6, right tiles 1 and 2, the map art's own); the row sets below are typed, the helper only writes them out as tile rows.
+#    Splash (the pool, below): ring and arcs in turn, 9 frames a step, offset from the falls.
+FOAM = {("L", 6): {0, 1, 6, 9, 10}, ("L", 5): {3, 4, 5, 12, 13}, ("R", 2): {0, 1, 6, 12, 13}, ("R", 1): {2, 3, 4, 9, 10}}      # frame 0, read off the map tiles (asserted)
+FALL_STEP, FALL_FRAMES = 3, 5
 SPL_A = T("++++++++", "++---+++", "+-+++-++", "++++++++", "++++++++", "++++--++", "+++-++-+", "++++++++")
 SPL_B = T("++++++++", "++++---+", "++-+++-+", "++++++++", "+++--+++", "++-++-++", "++++++++", "++++++++")
 SPL_C = T("++++++++", "++++++++", "+++--+++", "++-++-++", "++-++-++", "+++--+++", "++++++++", "++++++++")
 
 
+def fall_rows(side, k):
+    out = []
+    for r in range(16):
+        row = list("...-++++" if side == "L" else "++++-...")
+        for (sd, col), rows in FOAM.items():
+            # a streak at row q on frame 0 is at row q + 3k on frame k: it moves DOWN
+            if sd == side and r < 15 and (r - FALL_STEP * k) % 15 in rows:
+                row[col] = "-"
+        out.append("".join(row))
+    return out
+
+
+def fall_tiles():
+    f = {}
+    for side, (n_a, n_b) in (("L", ("FL_A", "FL_B")), ("R", ("FR_A", "FR_B"))):
+        for k in range(FALL_FRAMES):
+            rows = fall_rows(side, k)
+            f[(n_a, k)] = T(*rows[:8])
+            f[(n_b, k)] = T(*rows[8:])
+    return f
+
+
 def falls(a5):
-    return Item("02_falls", "Waterfall and splash (4 + 2 tiles)", a5, (304, 0),
-                [TileAnim("FL_A", (46, 5), [FL_A1, FL_A2], [0, 1, 2], 12), TileAnim("FL_B", (46, 6), [FL_B1, FL_B2], [0, 1, 2], 12),
-                 TileAnim("FR_A", (47, 5), [FR_A1, FR_A2], [0, 1, 2], 12), TileAnim("FR_B", (47, 6), [FR_B1, FR_B2], [0, 1, 2], 12),
-                 TileAnim("SPL_L", (46, 8), [SPL_B, SPL_C], [0, 1, 0, 2], 12, 6), TileAnim("SPL_R", (47, 8), [SPL_A, SPL_C], [0, 1, 2, 1], 12, 6)],
-                focus=(360, 32, 392, 72))
+    f = fall_tiles()
+    cells = (("FL_A", (46, 5)), ("FL_B", (46, 6)), ("FR_A", (47, 5)), ("FR_B", (47, 6)))
+    for n, cell in cells:
+        assert a5.tile(*cell) == f[(n, 0)], (n, a5.tile(*cell), f[(n, 0)])           # frame 0 is the map's own tile
+    seq = list(range(FALL_FRAMES))
+    an = [TileAnim(n, c, [f[(n, k)] for k in range(1, FALL_FRAMES)], seq, 9) for n, c in cells]
+    an += [TileAnim("SPL_L", (46, 8), [SPL_B, SPL_C], [0, 1, 0, 2, 0], 9, 3), TileAnim("SPL_R", (47, 8), [SPL_A, SPL_C], [0, 2, 0, 1, 0], 9, 6)]
+    return Item("02_falls", "Waterfall and splash (4 + 2 tiles)", a5, (304, 0), an, focus=(360, 32, 392, 72))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -112,10 +158,16 @@ DISH_3 = T("........", "........", "...#....", "...###..", "..#+++#.", "..#+++#.
 MTN_DX = -3                       # mapctx.AT_OVERRIDE["mountain"] is (6, 36); the piece was dumped for (9, 36)
 
 
-def radar(a5):
+# AIRBASE = radar dish (cell 14,38) + mast lamp (cell 13,38) as ONE animation (owner: merge them): one loop of 120 video frames, one table entry.  The dish steps every 15 frames
+#    through its four views twice; the lamp (the centre pixel is index 0 = lit) dims one step to index 1 for the last 2 of the 8 dish steps, so it blinks once every 2 s (2 changes
+#    in 2 s = 1 a second).  The lamp's two writes sit 6 frames off the dish steps, so a frame never rewrites more than one of the two tiles.
+def airbase(a5):
     assert a5.tile(14 + MTN_DX, 38) == DISH_0, a5.tile(14 + MTN_DX, 38)
-    return Item("05_radar", "Radar dish turning (airbase tower, round 4i)", a5, (16, 262), [TileAnim("DISH", (14 + MTN_DX, 38), [DISH_1, DISH_2, DISH_3], [0, 1, 2, 3], 15)],
-                focus=(80, 302, 100, 316))
+    base = a5.tile(13 + MTN_DX, 38)
+    dim = tuple(base[:1]) + (base[1][:5] + "1" + base[1][6:],) + tuple(base[2:])
+    return Item("05_airbase", "Airbase: radar dish turning and mast lamp blinking (one frame set, round 4i art)", a5, (16, 262),
+                [TileAnim("DISH", (14 + MTN_DX, 38), [DISH_1, DISH_2, DISH_3], [0, 1, 2, 3, 0, 1, 2, 3], 15),
+                 TileAnim("LAMP", (13 + MTN_DX, 38), [dim], [0, 0, 0, 0, 0, 0, 1, 1], 15, 6)], focus=(76, 300, 100, 316))
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -204,13 +256,7 @@ def cows(a5):
     return Item("07_cow_tail", "Cow tail swish (pasture cows, new tail art)", a5, (352, 352), an, edits=static, focus=(424, 390, 484, 424))
 
 
-# -------------------------------------------------------------------------------------------------------------------------------------------------
-# 8a MAST LAMP (airbase tower, cell 13,38): the lamp's centre pixel is index 0 (lit) and dims one step to 1; lit 60 frames, dim 30 frames (one blink per 1.5 s, 1.3 changes a second).
-def lamp(a5):
-    base = a5.tile(13 + MTN_DX, 38)
-    dim = tuple(base[:1]) + (base[1][:5] + "1" + base[1][6:],) + tuple(base[2:])
-    return Item("08a_lamp_mast", "Mast lamp, slow blink (airbase tower)", a5, (16, 262), [TileAnim("LAMP", (13 + MTN_DX, 38), [dim], [0, 0, 1], 30)], focus=(76, 300, 100, 316))
 
 
 def all_items(a5):
-    return [water(a5), falls(a5), fountain(a5), bunting(a5), stadium_flag(a5), radar(a5), smoke_lodge(a5), smoke_igloo(a5), smoke_factory(a5), cows(a5), lamp(a5)]
+    return [water(a5, "subtle"), water(a5, "vsubtle"), falls(a5), fountain(a5), bunting(a5), stadium_flag(a5), airbase(a5), smoke_lodge(a5), smoke_igloo(a5), smoke_factory(a5), cows(a5)]

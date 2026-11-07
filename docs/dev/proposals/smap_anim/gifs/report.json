@@ -1,52 +1,107 @@
 [
  {
-  "key": "01_water",
-  "title": "Water glints (shared tiles WA, WB)",
+  "key": "01_water_subtle",
+  "title": "Water glints, subtle (shared tiles WA, WB)",
   "view": [
    272,
    392
   ],
-  "loop": 60,
-  "gif_frames": 20,
+  "loop": 144,
+  "gif_frames": 48,
   "anims": [
    {
     "name": "WA",
     "frames": 3,
-    "distinct_new": 2,
+    "distinct_new": 3,
     "cells": 19,
-    "needs_id": false,
+    "needs_id": true,
     "steps_per_loop": 4,
-    "loop": 60,
-    "period": 15
+    "loop": 144,
+    "period": 24
    },
    {
     "name": "WB",
     "frames": 3,
-    "distinct_new": 2,
+    "distinct_new": 3,
     "cells": 22,
-    "needs_id": false,
+    "needs_id": true,
     "steps_per_loop": 4,
-    "loop": 60,
-    "period": 15
+    "loop": 144,
+    "period": 24
    }
   ],
   "max_tiles_per_event": 1,
   "events_per_loop": 8,
   "tile_writes_per_loop": 8,
-  "rom_new": 4,
-  "rom_new_at_rest": 0,
-  "ids_new": 0,
+  "rom_new": 6,
+  "rom_new_at_rest": 2,
+  "ids_new": 2,
   "slots": 2,
   "check": {
    "dmg": [
-    0.34,
+    0.23,
     80,
-    2.0
+    1.67
    ],
    "cgb": [
-    0.34,
+    0.23,
     90,
-    2.0
+    1.67
+   ]
+  },
+  "cells": {
+   "WA": 19,
+   "WB": 22
+  }
+ },
+ {
+  "key": "01_water_vsubtle",
+  "title": "Water glints, very subtle (shared tiles WA, WB)",
+  "view": [
+   272,
+   392
+  ],
+  "loop": 180,
+  "gif_frames": 60,
+  "anims": [
+   {
+    "name": "WA",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 19,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 30
+   },
+   {
+    "name": "WB",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 22,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 30
+   }
+  ],
+  "max_tiles_per_event": 1,
+  "events_per_loop": 8,
+  "tile_writes_per_loop": 8,
+  "rom_new": 6,
+  "rom_new_at_rest": 2,
+  "ids_new": 2,
+  "slots": 2,
+  "check": {
+   "dmg": [
+    0.11,
+    80,
+    1.33
+   ],
+   "cgb": [
+    0.11,
+    90,
+    1.33
    ]
   },
   "cells": {
@@ -61,48 +116,48 @@
    304,
    0
   ],
-  "loop": 144,
-  "gif_frames": 48,
+  "loop": 45,
+  "gif_frames": 15,
   "anims": [
    {
     "name": "FL_A",
-    "frames": 3,
-    "distinct_new": 2,
+    "frames": 5,
+    "distinct_new": 4,
     "cells": 1,
     "needs_id": false,
-    "steps_per_loop": 3,
-    "loop": 36,
-    "period": 12
+    "steps_per_loop": 5,
+    "loop": 45,
+    "period": 9
    },
    {
     "name": "FL_B",
-    "frames": 3,
-    "distinct_new": 2,
+    "frames": 5,
+    "distinct_new": 4,
     "cells": 1,
     "needs_id": false,
-    "steps_per_loop": 3,
-    "loop": 36,
-    "period": 12
+    "steps_per_loop": 5,
+    "loop": 45,
+    "period": 9
    },
    {
     "name": "FR_A",
-    "frames": 3,
-    "distinct_new": 2,
+    "frames": 5,
+    "distinct_new": 4,
     "cells": 1,
     "needs_id": false,
-    "steps_per_loop": 3,
-    "loop": 36,
-    "period": 12
+    "steps_per_loop": 5,
+    "loop": 45,
+    "period": 9
    },
    {
     "name": "FR_B",
-    "frames": 3,
-    "distinct_new": 2,
+    "frames": 5,
+    "distinct_new": 4,
     "cells": 1,
     "needs_id": false,
-    "steps_per_loop": 3,
-    "loop": 36,
-    "period": 12
+    "steps_per_loop": 5,
+    "loop": 45,
+    "period": 9
    },
    {
     "name": "SPL_L",
@@ -111,8 +166,8 @@
     "cells": 1,
     "needs_id": false,
     "steps_per_loop": 4,
-    "loop": 48,
-    "period": 12
+    "loop": 45,
+    "period": 9
    },
    {
     "name": "SPL_R",
@@ -121,27 +176,27 @@
     "cells": 1,
     "needs_id": false,
     "steps_per_loop": 4,
-    "loop": 48,
-    "period": 12
+    "loop": 45,
+    "period": 9
    }
   ],
   "max_tiles_per_event": 4,
-  "events_per_loop": 24,
-  "tile_writes_per_loop": 72,
-  "rom_new": 9,
+  "events_per_loop": 13,
+  "tile_writes_per_loop": 28,
+  "rom_new": 17,
   "rom_new_at_rest": 0,
   "ids_new": 0,
   "slots": 6,
   "check": {
    "dmg": [
-    0.13,
+    0.15,
     80,
-    5.0
+    5.33
    ],
    "cgb": [
-    0.13,
+    0.15,
     90,
-    5.0
+    5.33
    ]
   },
   "cells": {
@@ -352,14 +407,14 @@
   }
  },
  {
-  "key": "05_radar",
-  "title": "Radar dish turning (airbase tower, round 4i)",
+  "key": "05_airbase",
+  "title": "Airbase: radar dish turning and mast lamp blinking (one frame set, round 4i art)",
   "view": [
    16,
    262
   ],
-  "loop": 60,
-  "gif_frames": 20,
+  "loop": 120,
+  "gif_frames": 40,
   "anims": [
    {
     "name": "DISH",
@@ -367,18 +422,28 @@
     "distinct_new": 3,
     "cells": 1,
     "needs_id": false,
-    "steps_per_loop": 4,
-    "loop": 60,
+    "steps_per_loop": 8,
+    "loop": 120,
+    "period": 15
+   },
+   {
+    "name": "LAMP",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 2,
+    "loop": 120,
     "period": 15
    }
   ],
   "max_tiles_per_event": 1,
-  "events_per_loop": 4,
-  "tile_writes_per_loop": 4,
-  "rom_new": 3,
+  "events_per_loop": 10,
+  "tile_writes_per_loop": 10,
+  "rom_new": 4,
   "rom_new_at_rest": 0,
   "ids_new": 0,
-  "slots": 1,
+  "slots": 2,
   "check": {
    "dmg": [
     0.09,
@@ -392,7 +457,8 @@
    ]
   },
   "cells": {
-   "DISH": 1
+   "DISH": 1,
+   "LAMP": 1
   }
  },
  {
@@ -646,50 +712,6 @@
   "cells": {
    "cow1(55,49)": 1,
    "cow2(59,52)": 1
-  }
- },
- {
-  "key": "08a_lamp_mast",
-  "title": "Mast lamp, slow blink (airbase tower)",
-  "view": [
-   16,
-   262
-  ],
-  "loop": 90,
-  "gif_frames": 30,
-  "anims": [
-   {
-    "name": "LAMP",
-    "frames": 2,
-    "distinct_new": 1,
-    "cells": 1,
-    "needs_id": false,
-    "steps_per_loop": 2,
-    "loop": 90,
-    "period": 30
-   }
-  ],
-  "max_tiles_per_event": 1,
-  "events_per_loop": 2,
-  "tile_writes_per_loop": 2,
-  "rom_new": 1,
-  "rom_new_at_rest": 0,
-  "ids_new": 0,
-  "slots": 1,
-  "check": {
-   "dmg": [
-    0.0,
-    80,
-    1.33
-   ],
-   "cgb": [
-    0.0,
-    63,
-    1.33
-   ]
-  },
-  "cells": {
-   "LAMP": 1
   }
  }
 ]
