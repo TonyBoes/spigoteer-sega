@@ -683,3 +683,10 @@ Make sure you merge the mast lamp and radar animations."
 - 2026-11-06 stadium blend v2 (stadium_map_sheet2.png): foul lines symmetric (outer 16 px each side became field grass, DMG too), white accents lost on Color (idx0 = grass), field duller. 19th palette entry FITS in story_scratch (re-lay A_PSLOT..A_PSTG, smap_priv.h:24-29; +8 B ROM). Supervisor: blend costs too much of the approved look; agent drawing a "plaza" option (approved colours kept, pale ground shaped as a concrete forecourt with a kerb + walkway) to show beside it as one question.
 - 2026-11-06 stadium PLAZA (stadium_map_sheet3.png): approved colours kept on a stepped kerbed forecourt; blocky on Color, thin lines on DMG; 9 palettes in windows (11,3)/(12,3) (needs a neighbour moved). Asked Q112 blend or plaza, recommended blend. 19th table entry for PARK fits either way (smap_priv.h re-lay).
 - 2026-11-06 anim round 4 (anim branch): very subtle water in; logs bob 1 px in 3 phase groups (+4 images, +8 tile ids; upright logs rise instead of sink); falls redrawn as white falling water with a foam lip at the pool (23 images, ~+17 on the map; 4 falls + 2 pool static tiles changed). DMG peaks unchanged (worst 6 tiles igloo view). Q110 card updated: falls reads as falls? logs OK?
+- 2026-11-06 owner: "Fewer logs in the river please. bobbling logs should actually seem to sink a bit in the water, not just shift position.
+
+q112) I prefer the blend version of the stadium.
+
+q110) waterfall looks better, but bubbles in the pond under it are unneeded. replace with glints."
+  Q112 closed: stadium BLEND (stadium_map_sheet2, branch worktree-agent-ad92c4ce81f826634) + the 19th palette entry for PARK (story_scratch re-lay) in the import round.
+  Plan (anim agent, briefed): about half the river logs (12 -> ~6, spread out, no new art); bob = sink: water covers the log's lower edge with a ripple line, then it rises back (not a whole-picture shift), upright logs too; pool under the falls: bubbles out, very-subtle glints in, foam lip stays.
