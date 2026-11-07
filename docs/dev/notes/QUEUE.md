@@ -735,3 +735,5 @@ q110) waterfall looks better, but bubbles in the pond under it are unneeded. rep
 
 The grass dithering patchiness looks better now."
   Seams approved (1b2d8bd2). New: a few small mountains scattered in the desert (same family as the airbase desert peaks, smaller, varied); one big mountain near the top of the map, allowed to run off the map edge (cropped). Not above the bistro (owner 11-07 earlier). Proposal first: 2 placements for the big one, DMG tiles / Color palettes reported.
+- 2026-11-07 owner: "Have the desert cross the road a bit. A cactus tile would be nice."
+  Read: the desert ground spills a little past the road that bounds it (stepped edge like the approved seams, a few cells deep), and a small cactus prop scattered in the desert. Cactus green may need a palette on Color: agent reports; DMG fine.
