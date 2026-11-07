@@ -76,3 +76,10 @@ A4's 18-entry table held an unused `base` slot and the unused `stadium` slot (pl
 - Counts, v1 and v2 alike (and unchanged from the old logs): DMG 547 tiles (light water 546), worst 21x19 window 133 of 176, 22x20 138, flat 218; Color 618 tiles in 352 slots. `check_water.py` OK.
 - Lint (DMG): PASS. Warnings kept on purpose: L-shaped doubles at the rounded log ends (one corner pixel of a 5 px log), v2's 2 x 2 end discs (the disc is the point), one orphan (the disc's centre dot).
 - Doubt: on DMG dark the logs are near black on mid-grey water (reads wood, a little heavy); a mid body is impossible there because the water is already 88. The Color brown is the lodge's mid wood; the landing's planks are mostly its lighter tan.
+
+## Falls edge matched to the river bank (owner: "where the waterfall meets the river, fix the outline so it matches color and lines up")
+
+`sheet_falls_foot.png` (x4, falls foot and pool) and `sheet_falls_all.png` (x3, whole falls), before | after, DMG light, DMG dark, Color.
+- Cause: the falls' side edge was a 1 px rock edge in index 3 on the cell's outer column (brown after the log recolour), while the stream and pool banks are land 0 plus a rim 1 on column 3 (left) and 4 (right): different colour, and 3 px out of line with the bank.
+- Fix (hand-typed in `src/a5art.py`, tiles FL_A FL_B FR_A FR_B and the light set): the falls' side edges are now the bank's own (land 0, rim 1 at the same column as BW and BE; light set: land 0 / water 1 as BW_L and BE_L), the foam streaks keep to the water columns (not touching the rim), and the last row of FL_B and FR_B equals the top row of the pool's corner tiles (INW, INE). The falls are 8 px wide like the stream. Index 3 is no longer used by the falls; it is only the log wood.
+- `check_water.py` (every join, dark and light): OK. DMG 547 tiles (light water 546), worst 21x19 window 133 of 176, 22x20 138, flat 218, Color 618 tiles in 352 slots, palettes per window 8 (`probe_presnap.py`: 0 over, 0 snapped). Unchanged from before.
