@@ -29,6 +29,8 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode.startswith('roof'):
+        return A.build(3, 'A', int(mode[4])), (50, 47)
     if mode.startswith('bld'):
         return A.build(3, mode[3]), (50, 47)
     return A.build(int(mode[3])), (50, 47)

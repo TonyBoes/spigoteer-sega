@@ -1,4 +1,24 @@
-# Milk bar round 4h (current): doors inside the wall, two non-pink window options
+# Milk bar round 4i (current): flat roofs and a neon sign
+
+Owner: "Could I get versions of the milk bar where the roof isnt domed and the sign on the building looks more like a neon sign? Of the examples I like A's doors better." Base: 4h option A (dark glass windows, A's doors). Only the roof and the sign band changed (x 32..95, y 20..39 of the piece); position, lot, bikes, sign post, cow and pasture are as in 4g. `milkbar_sheet9.png`: 4h A | v1 | v2 | v3, close-up x4 and the A5 map x3, DMG and Color. Code: `src/cow_roof.py` (hand-typed roofs; the letters are round 3's 5 x 5 glyphs), `build(3, 'A', v)` in `src/cow_a5.py`, `src/sheet9.py`.
+
+- **v1 flat roof with a parapet:** coping (2 chrome rows between ink lines), a cornice line, a dentil row.
+- **v2 raised centre:** the sign block is taller (cap and cornice above it) and sits in a raised centre, 52 px wide; the two wings have a low parapet and a plain chrome wall; a neon underline under the letters. Reads best at 1x.
+- **v3 canted roof:** the top edge climbs left to right in 5 steps, parallel ink stripes follow it, flat underside.
+- **Neon sign (all three):** dark board, a 1 px pink tube border with the four corners cut, the letters 1 px thick with a chrome core (the hot tube) and a pink halo on the dark board (3 px between letters so the halos do not merge). COW indexes only: core 1, halo and tube 2 (pink), board 3. DMG: core shade 1 (light), halo and tube shade 2, board shade 3: light on dark, as asked. Static. I tried a star at each end of the line in v1 and v3 and took it out: it touched the lettering.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| 4h A | 565 | 133 | 111 | 68 | 8 |
+| v1 | 564 | 133 | 111 | 67 | 8 |
+| v2 | 571 | 133 | 115 | 74 | 8 |
+| v3 | 569 | 133 | 113 | 72 | 8 |
+
+Lint PASS DMG and Color for all three; warnings: L-doubles and orphans (the halo pixels and letter ends are deliberate), the existing COW palette order.
+
+---
+
+# Milk bar round 4h: doors inside the wall, two non-pink window options
 
 Owner: "Looks better. fix the doors on the bar to fit more in the building. Also--do the windows need to be pink?" Round 4g kept as is (position, sign, cow, pasture). `milkbar_sheet8.png`: 4g | windows A | windows B; building close-up x4 and the A5 map x3, DMG row and Color row each. Code: `src/cow_bldg.py` (hand-typed panes and door rows), `build(3, 'A' or 'B')` in `src/cow_a5.py`, `src/sheet8.py`.
 

@@ -7,3 +7,5 @@ for a in (1, 2, 3):
     E.write(f'arr{a}', A.build(a))
 for s in 'AB':
     E.write('bld' + s, A.build(3, s))
+for r in (1, 2, 3):
+    E.write(f'roof{r}', A.build(3, 'A', r))
