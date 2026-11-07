@@ -31,6 +31,8 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode in ('cA',):
+        return A.build(3, 'A', 2, 3, borrow='base'), (50, 47)
     if mode in ('b1', 'bA', 'bB'):
         return A.build(3, 'A', 2, {'b1': 1, 'bA': 3, 'bB': 4}[mode], borrow=BORROW), (50, 47)
     if mode in ('sA', 'sB'):
@@ -125,6 +127,15 @@ def main():
     if c is not None:
         paste_world(wd, c, at)
         paste_world(wc, c, at)
+    if os.environ.get('MB_TEAFIX') == '1':                  # option 1: the tea house's cell (34, 59) joins tea@g (Color only); crops of the cells x 33..35, rows 58..60 before and after
+        for tag in ('before', 'after'):
+            if tag == 'after':
+                wc.pal[59][34] = 'tea@g'
+            im = Image.new('RGB', (24, 24))
+            for j in range(3):
+                for i in range(3):
+                    im.paste(tile_rgb(wc, 33 + i, 58 + j, True), (i * 8, j * 8))
+            im.save(f'{TMP}/r12_tea_{tag}.png')
     res = counts(wd, wc)
     if c is not None:
         res["piece_tiles"] = C.tile_count(c)

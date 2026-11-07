@@ -1,3 +1,13 @@
+# Milk bar round 4k, A coffee sign on `base` (tea cell merged)
+
+`milkbar_sheet12.png`: column 1 = A on factory (sheet 11), column 2 = A on `base` (98a0b0) with the tea house cell (34, 59) put on `tea@g` (Color only, DMG unchanged); close-up x4 and map x3, DMG and Color; under them the cells x 33..35, rows 58..60 before and after, Color x6. Code: mode `cA` of `src/render_one.py` (env `MB_TEAFIX=1`), `src/sheet12.py`. Nothing in the layout or the tea picture is edited: the merge is a palette assignment of that one cell in the scratch map.
+
+Counts (A on base, tea merged): whole map 578 tiles, worst 21 x 19 view 133, worst milk bar window 113, palettes per window 8 at worst, everywhere on the map and near the milk bar (the 9 of the unmerged case are gone). Same art as A on factory, so the tile counts are the same.
+
+**Correction to the earlier estimate.** The cell has 31 index 0 pixels, not 4: on `tea` all of them are the pale d8ecb0; 27 of them are the margin round the tea house's sign (outside the outline) and show as a pale square on the grass (the "before" crop). On `tea@g` they all become the grass colour b0d080, the square disappears, and the 4 inner highlight pixels (on the round sign) go from pale to grass green too. So the visible change is a removal of an existing pale patch plus a 4 px highlight loss.
+
+---
+
 # Milk bar round 4k, investigation: can `base` (98a0b0) fit the milk bar window?
 
 With the building's body cells on `base`, 8 of the sliding 21 x 19 windows hold 9 palettes: origins x 33..34, y 41..44 (nothing else on the map, nothing with the factory palette). All 8 contain the same nine palettes:
