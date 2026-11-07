@@ -30,6 +30,7 @@ put("3", [(0, y) for y in list(range(14, 30)) + list(range(31, 59)) + [59]])
 put("2", [(1, 14), (1, 31)])
 put("1", [(1, 15), (2, 15)] + [(1, y) for y in (56, 57, 58)] + [(2, y) for y in (56, 57, 58)])
 put("0", [(1, y) for y in list(range(16, 30)) + list(range(32, 56))])
+put("3", [(95, y) for y in range(41, 47)])        # round 4: the tavern awning's far right end gets the ink border the rest of the awning has (top y 40, bottom y 47, left x 56)
 put("2", [(14, y) for y in range(14, 30)])
 put("3", [(15, y) for y in range(14, 30)])
 
