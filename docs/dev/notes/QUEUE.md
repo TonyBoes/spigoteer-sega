@@ -787,3 +787,4 @@ The grass dithering patchiness looks better now."
 - 2026-11-07 teahouse round 6 (a83b5a5, 7ad49f4e, SMAP_TEA_TEX=BWN): split noren (rod, 2 cream panels, slit, hem), 0 ids. Asked Q119: curtain OK? (Lantern y still default y36.)
 - 2026-11-07 owner Q119: "Could I get a few different concepts on the curtain? That one isn't quite what I'm looking for."
   Artist: 4 concepts side by side (wide noren w/ mark; 3-panel darker cloth, longer; one flap tied back to the side showing the interior; short noren spanning the whole front under the eave), ids reported each.
+- 2026-11-07 teahouse round 7 (a83b5a5, 61a6f729): curtain concepts C1 wide noren + disc mark, C2 dark 3-panel (weak on DMG), C3 tied-back flap (rough), C4 eave valance (slits read as fence ticks; saves 6 ids); C1-C3 0 ids. Stale scratch caused the dark DMG water in earlier ctx sheets (regenerated). Q119 re-asked: 1/2/3/4, I recommend 1.
