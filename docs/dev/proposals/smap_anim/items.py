@@ -59,15 +59,50 @@ def water(a5, strength="vsubtle"):
 FALL_COLS = ["++-+++-+++-+", "-------++--+", "++---+++---+", "----++-----+", "--+++----++-", "+++---++---+", "-----+++---+", "+++-++-+++-+"]
 FALL_FOOT = ["+--+---+", "+------+", "+-----+-", "--------"]                  # rows 12-15, f0..f7
 FALL_STEP, FALL_FRAMES = 3, 4
-# the foot cells (the pool's first two cells, rows 0-7): the foam lip where the falls land (rows 0-2, solid) and, below it, the very subtle water glints of the water tiles (a 2 px dash
-# in the left cell, a single pixel in the right, shifting 1 px left and right, same pace as WA and WB).  No bubbles, no spray (owner).  '.' land, '-' foam or rim, '+' water.
-FOOT_L = [T("...-----", "..------", ".-------", "-+++++++", "++--++++", "++++++++", "++++++++", "++++++++"),
-          T("...-----", "..------", ".-------", "-+++++++", "+--+++++", "++++++++", "++++++++", "++++++++"),
-          T("...-----", "..------", ".-------", "-+++++++", "+++--+++", "++++++++", "++++++++", "++++++++")]
-FOOT_R = [T("-----...", "------..", "-------.", "+++++++-", "++++++++", "++++++++", "++++-+++", "++++++++"),
-          T("-----...", "------..", "-------.", "+++++++-", "++++++++", "++++++++", "+++-++++", "++++++++"),
-          T("-----...", "------..", "-------.", "+++++++-", "++++++++", "++++++++", "+++++-++", "++++++++")]
-FOOT_PH = (6, 21)                                   # phases of the left and right foot cells (off the water's own 0 and 15 and off the falls steps)
+# the foot cells (the pool's first two cells, rows 0-7).  FOAM LIP CHURN (owner: "add some movement to the foam"): rows 0-2 are the solid lip (it keeps the bank rim and land pixels), its
+# ragged lower edge (row 3) swells and relaxes 1 px over 4 frames (the falls loop, 36 frames, 9 a step), and a few foam specks drift outward and down and dissolve (rows 4-5).  Below
+# the lip, the very subtle pond glints stay exactly as they were (a 2 px dash in the left cell's row 4, one pixel in the right cell's row 6, same 30-frame pace and 0 / 15 phases as WA
+# and WB, drawn from the same typed glint states).  The lip pixels are index 1, the lightest shade the water palette has (index 0 is the grass colour on Color): on DMG it is 168 on a pool
+# of 88, so it is made 3 rows deep and ragged to show.  '.' land, '-' foam or rim, '+' water.
+# lip frames k = 0..3: rows 1, 2, 3 and the drifting specks (L: row 5; R: rows 4 and 5); rows 0 fixed "...-----" / "-----..."
+LIP_L = [dict(r1="..------", r2=".-------", r3="--+--+-+", r5="++++++++"),
+         dict(r1="..------", r2=".-------", r3="---+--+-", r5="+++-++++"),
+         dict(r1="..------", r2=".-------", r3="-----+--", r5="++-+++-+"),
+         dict(r1="..------", r2=".-----+-", r3="--+---+-", r5="+-++++++")]
+LIP_R = [dict(r1="------..", r2="-------.", r3="++-+--+-", r4="++++++++", r5="++++++++"),
+         dict(r1="------..", r2="-------.", r3="-+-+----", r4="++++-+++", r5="++++++++"),
+         dict(r1="------..", r2="-------.", r3="-+--+-+-", r4="+++++-++", r5="++++++-+"),
+         dict(r1="------..", r2="-------.", r3="++-+--+-", r4="++++++++", r5="+++++++-")]
+GL_L = ["++--++++", "+--+++++", "+++--+++"]            # pond glint, left cell row 4: rest, one px left, one px right
+GL_R = ["++++-+++", "+++-++++", "+++++-++"]            # right cell row 6
+GSEQ_L = [0, 0, 1, 0, 0, 2]
+GSEQ_R = [0, 0, 2, 0, 0, 1]
+FOOT_PH = (0, 15)                                   # glint phases: the water's own (WA 0, WB 15)
+LIP_PH = 3                                          # lip steps land 6 frames after the falls steps (t = 6 mod 9)
+
+
+def foot_tile(side, k, g):
+    if side == "L":
+        l = LIP_L[k]
+        return T("...-----", l["r1"], l["r2"], l["r3"], GL_L[g], l["r5"], "++++++++", "++++++++")
+    l = LIP_R[k]
+    return T("-----...", l["r1"], l["r2"], l["r3"], l["r4"], l["r5"], GL_R[g], "++++++++")
+
+
+def foot_anim(side, cell):
+    """one frame set per foot cell: lip frame n % 4 on a 9-frame step, glint state from the 30-frame glint sequence; images = the distinct (lip, glint) pairs"""
+    gseq = GSEQ_L if side == "L" else GSEQ_R
+    gph = FOOT_PH[0 if side == "L" else 1]
+    steps = 20                                       # 180 frames = lcm(36, 180)
+    imgs, seq = [foot_tile(side, 0, 0)], []
+    for n in range(steps):
+        t = 9 * n - LIP_PH
+        g = gseq[((t + gph) // 30) % 6]
+        im = foot_tile(side, n % 4, g)
+        if im not in imgs:
+            imgs.append(im)
+        seq.append(imgs.index(im))
+    return TileAnim("FOOT_" + side, cell, imgs[1:], seq, 9, LIP_PH)
 
 
 def fall_rows(side, k):
@@ -100,7 +135,7 @@ def fall_tiles():
 def falls(a5):
     f = fall_tiles()
     cells = (("FL_A", (46, 5)), ("FL_B", (46, 6)), ("FR_A", (47, 5)), ("FR_B", (47, 6)))
-    new_static = {(46, 5): f[("FL_A", 0)], (46, 6): f[("FL_B", 0)], (47, 5): f[("FR_A", 0)], (47, 6): f[("FR_B", 0)], (46, 7): FOOT_L[0], (47, 7): FOOT_R[0]}
+    new_static = {(46, 5): f[("FL_A", 0)], (46, 6): f[("FL_B", 0)], (47, 5): f[("FR_A", 0)], (47, 6): f[("FR_B", 0)], (46, 7): foot_tile("L", 0, 0), (47, 7): foot_tile("R", 0, 0)}
     for (cx, cy), tile in new_static.items():                                       # land (0) and rim (1) pixels of the map's cells must be exactly kept; the pool's row 7 too
         old = a5.tile(cx, cy)
         bank = range(8) if cy == 7 else (range(0, 4) if cx == 46 else range(4, 8))      # falls cells: only the bank columns are fixed (the water columns are redrawn)
@@ -118,8 +153,7 @@ def falls(a5):
                 a5.px[cy * 8 + j, cx * 8 + i] = int(c)
     seq = list(range(FALL_FRAMES))
     an = [TileAnim(n, c, [f[(n, k)] for k in range(1, FALL_FRAMES)], seq, 9) for n, c in cells]
-    gseq = [0, 0, 1, 0, 0, 2]
-    an += [TileAnim("FOOT_L", (46, 7), [FOOT_L[1], FOOT_L[2]], gseq, 30, FOOT_PH[0]), TileAnim("FOOT_R", (47, 7), [FOOT_R[1], FOOT_R[2]], [0, 0, 2, 0, 0, 1], 30, FOOT_PH[1])]
+    an += [foot_anim("L", (46, 7)), foot_anim("R", (47, 7))]
     w = WS["vsubtle"]                                                               # "~" = the shared WA / WB tiles (counted in 01_water, shown here so the GIF moves)
     an += [TileAnim("~WA", (46, 8), [w["A"][1], w["A"][2]], [0, 0, 1, 0, 0, 2], 30, 0, cells_list=((46, 8),)),
            TileAnim("~WB", (47, 8), [w["B"][1], w["B"][2]], [0, 0, 2, 0, 0, 1], 30, 15, cells_list=((47, 8),))]
@@ -293,27 +327,31 @@ def cows(a5):
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------
-# 9  LOGS SINK (owner: "fewer logs ... bobbling logs should actually seem to sink a bit in the water, not just shift position"): 6 of the 12 v1 logs stay, spread along the river (3 across,
-#    3 upright, y cell 20 to 68); the other 6 are plain water (flat WF tile, no new art).  A log does not move: the waterline rises over its lowest 1-2 rows, which turn to water with a
-#    1 px foam line where water meets wood, then it comes back.  Across logs change both of their cells (rows 4-5); an upright log only its bottom cell (rows 14-15).  The floating logs
-#    sit on flat water, so their cells carry no glints to combine.  Step 18 frames; rest 5 steps, down 1 row, down 2 rows (held), back 1 row, rest: a 180-frame loop.  Three phase groups
-#    (one log each), their steps picked so that no two logs step in the same frame and none meets a water step
+# 9  LOGS SINK (owner: "fewer logs ... bobbling logs should actually seem to sink a bit in the water" / "the logs should lower, rather than the water just raise against them. The animation
+#    needs to be like a combination of the last revision and this one."): 6 of the 12 v1 logs stay, spread along the river (3 across, 3 upright, y cell 20 to 68); the other 6 are plain water
+#    (flat WF tile, no new art).  A kept log LOWERS 1 px, then 2 px, with its whole picture (its top edge visibly drops), while the waterline stays where it is: whatever falls below
+#    the waterline is hidden by water and the row at the waterline is a 1 px foam line.  Across logs: waterline = row 6 of the cell (the rows below it are water; the ripple dashes
+#    at the log's ends fold into the foam line); upright logs: waterline = the last row of the bottom cell (row 15), so nothing is written into the cell below.  Then it rises back.
+#    Across logs rewrite both cells, upright logs both cells.  The floating logs sit on flat water, so their cells carry no glints to combine.  Step 18 frames; rest 5 steps, down 1 px,
+#    down 2 px (held), up 1 px, rest: a 180-frame loop.  Three phase groups (one log each).
 LOG_HL = T("22222222", "22233333", "22331113", "22333333", "22333311", "22233333", "21122222", "22222222")
 LOG_HR = T("22222222", "33333332", "33331113", "33331313", "13331113", "33333332", "22222112", "22222222")
-LOG_HL_S1 = T("22222222", "22233333", "22331113", "22333333", "22333311", "22211111", "21122222", "22222222")
-LOG_HR_S1 = T("22222222", "33333332", "33331113", "33331313", "13331113", "11111112", "22222112", "22222222")
-LOG_HL_S2 = T("22222222", "22233333", "22331113", "22333333", "22111111", "22222222", "21122222", "22222222")
-LOG_HR_S2 = T("22222222", "33333332", "33331113", "33331313", "11111111", "22222222", "22222112", "22222222")
+LOG_HL_S1 = T("22222222", "22222222", "22233333", "22331113", "22333333", "22333311", "21111111", "22222222")
+LOG_HR_S1 = T("22222222", "22222222", "33333332", "33331113", "33331313", "13331113", "11111112", "22222222")
+LOG_HL_S2 = T("22222222", "22222222", "22222222", "22233333", "22331113", "22333333", "21111111", "22222222")
+LOG_HR_S2 = T("22222222", "22222222", "22222222", "33333332", "33331113", "33331313", "11111111", "22222222")
 LOG_VT = T("21122222", "22222222", "22333222", "23333322", "23133322", "23133322", "23133322", "23333322")
 LOG_VB = T("23331322", "23331322", "23331322", "23333322", "23111322", "23131322", "23111322", "22333222")
-LOG_VB_S1 = T("23331322", "23331322", "23331322", "23333322", "23111322", "23131322", "23111322", "22111222")
-LOG_VB_S2 = T("23331322", "23331322", "23331322", "23333322", "23111322", "23131322", "21111122", "22222222")
+LOG_VT_S1 = T("22222222", "21122222", "22222222", "22333222", "23333322", "23133322", "23133322", "23133322")
+LOG_VB_S1 = T("23333322", "23331322", "23331322", "23331322", "23333322", "23111322", "23131322", "21111122")
+LOG_VT_S2 = T("22222222", "22222222", "21122222", "22222222", "22333222", "23333322", "23133322", "23133322")
+LOG_VB_S2 = T("23133322", "23333322", "23331322", "23331322", "23331322", "23333322", "23111322", "21111122")
 LOGS_H_ALL = [(48, 33), (54, 33), (57, 32), (42, 52), (43, 57), (42, 65), (44, 68)]
 LOGS_V_ALL = [(46, 20), (46, 29), (46, 36), (45, 43), (45, 46)]
 LOGS_H = {"A": [(42, 52)], "B": [(43, 57)], "C": [(44, 68)]}                 # kept across logs (left cell)
 LOGS_V = {"A": [(46, 20)], "B": [(46, 29)], "C": [(45, 43)]}                 # kept upright logs (top cell)
-LOG_PH_H = {"A": 111, "B": 81, "C": 6}
-LOG_PH_V = {"A": 66, "B": 162, "C": 87}
+LOG_PH_H = {"A": 171, "B": 36, "C": 51}
+LOG_PH_V = {"A": 156, "B": 57, "C": 168}
 LOG_SEQ = [0, 0, 0, 0, 0, 1, 2, 2, 1, 0]
 
 
@@ -344,6 +382,7 @@ def logs(a5):
     for g, lst in LOGS_V.items():
         (x, y), = lst
         assert a5.tile(x, y) == LOG_VT and a5.tile(x, y + 1) == LOG_VB, (x, y)
+        an.append(TileAnim(f"V{g}_T", (x, y), [LOG_VT_S1, LOG_VT_S2], LOG_SEQ, 18, LOG_PH_V[g], only_at=True))
         an.append(TileAnim(f"V{g}_B", (x, y + 1), [LOG_VB_S1, LOG_VB_S2], LOG_SEQ, 18, LOG_PH_V[g], only_at=True))
     return Item("09_logs", "Floating logs sinking (6 logs, three phase groups)", a5, (304, 320), an, focus=(328, 340, 376, 472))
 

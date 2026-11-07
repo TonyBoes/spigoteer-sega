@@ -106,29 +106,29 @@
    },
    {
     "name": "FOOT_L",
-    "frames": 3,
-    "distinct_new": 3,
+    "frames": 12,
+    "distinct_new": 12,
     "cells": 1,
     "needs_id": true,
-    "steps_per_loop": 4,
+    "steps_per_loop": 20,
     "loop": 180,
-    "period": 30
+    "period": 9
    },
    {
     "name": "FOOT_R",
-    "frames": 3,
-    "distinct_new": 3,
+    "frames": 10,
+    "distinct_new": 10,
     "cells": 1,
     "needs_id": true,
-    "steps_per_loop": 4,
+    "steps_per_loop": 20,
     "loop": 180,
-    "period": 30
+    "period": 9
    }
   ],
-  "max_tiles_per_event": 5,
-  "events_per_loop": 26,
-  "tile_writes_per_loop": 88,
-  "rom_new": 22,
+  "max_tiles_per_event": 4,
+  "events_per_loop": 40,
+  "tile_writes_per_loop": 120,
+  "rom_new": 38,
   "rom_new_at_rest": 6,
   "ids_new": 6,
   "slots": 6,
@@ -730,6 +730,16 @@
     "period": 18
    },
    {
+    "name": "VA_T",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 18
+   },
+   {
     "name": "VA_B",
     "frames": 3,
     "distinct_new": 2,
@@ -740,7 +750,27 @@
     "period": 18
    },
    {
+    "name": "VB_T",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 18
+   },
+   {
     "name": "VB_B",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 18
+   },
+   {
+    "name": "VC_T",
     "frames": 3,
     "distinct_new": 2,
     "cells": 1,
@@ -762,19 +792,19 @@
   ],
   "max_tiles_per_event": 2,
   "events_per_loop": 24,
-  "tile_writes_per_loop": 36,
-  "rom_new": 6,
+  "tile_writes_per_loop": 48,
+  "rom_new": 8,
   "rom_new_at_rest": 0,
-  "ids_new": 9,
-  "slots": 9,
+  "ids_new": 12,
+  "slots": 12,
   "check": {
    "dmg": [
-    0.09,
+    0.2,
     144,
     1.33
    ],
    "cgb": [
-    0.09,
+    0.2,
     135,
     1.33
    ]
@@ -786,8 +816,11 @@
    "HB_R": 1,
    "HC_L": 1,
    "HC_R": 1,
+   "VA_T": 1,
    "VA_B": 1,
+   "VB_T": 1,
    "VB_B": 1,
+   "VC_T": 1,
    "VC_B": 1
   }
  }

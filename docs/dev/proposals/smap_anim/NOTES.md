@@ -17,8 +17,8 @@ Third pass (owner: "the water glints could be more subtle. Also, the waterfall s
 
 Fourth and fifth pass (owner: "can we make the logs bob in the water? New glints are better." / "very subtle water please." / "the waterfall at this point reads more like river than a falls. bottom probably needs foam." / "Fewer logs in the river please. bobbling logs should actually seem to sink a bit in the water, not just shift position." / "waterfall looks better, but bubbles in the pond under it are unneeded. replace with glints."):
 - Water: VERY SUBTLE (`01_water.gif`; subtle dropped from the build, its tiles stay typed in `items.py`).
-- Logs (`09_logs.gif`): 6 of the 12 logs stay, spread along the river: upright (cell, top) (46,20), (46,29), (45,43); across (left cell) (42,52), (43,57), (44,68). Removed, now plain water (the flat water tile, no new art): across (48,33), (54,33), (57,32), (42,65); upright (46,36), (45,46). A kept log does not move: the waterline rises over its lowest 1 row, then 2 rows (those pixels become water, the row where water meets wood is a 1 px foam line), then back. Across logs rewrite both cells, upright logs only their bottom cell. The logs sit on flat water, so no glints share their tiles. Each log is its own phase group; step 18 frames, rest 5 steps; phases picked so no two logs step in the same frame and none meets a water step. Cost +6 images, +6 tile ids; logs alone peak 2 tiles, 32 B.
-- Falls (`02_falls.gif`, `before_after_falls_logs.png`): environments.md 11, "Waterfalls: 1-px vertical streaks of a lighter shade at varied lengths and speeds, edges that jitter by 1 px, and an impact of sparkle pixels plus ripple rings." and "Droplets and foam: compact at rest, a stretched streak mid-flight, compact on landing." Falls are foam (index 1) with water streaks (index 2) between, clearly lighter than the river; the pool top keeps the foam lip (3 rows), the bubbles, spray and my splash ring are gone, and the pool cells carry the very subtle glints (a dash in the left foot cell, a pixel in the right, same pace as WA and WB; the cells below are WA and WB themselves). Kept pixel-exact (asserted in `items.py`): bank rims and land on every falls row and in the pool cells, and pool row 7. One speed (3 rows a step) to close the loop in 4 frames, not "varied speeds": a cost choice. NEW STATIC ART: 4 falls tiles + 2 pool tiles.
+- Logs (`09_logs.gif`): 6 of the 12 logs stay, spread along the river: upright (cell, top) (46,20), (46,29), (45,43); across (left cell) (42,52), (43,57), (44,68). Removed, now plain water (the flat water tile, no new art): across (48,33), (54,33), (57,32), (42,65); upright (46,36), (45,46). Owner, last word: the log lowers AND the water hides it. A kept log moves down 1 px, then 2 px as a whole picture (its top edge visibly drops) while the waterline stays: the rows below the waterline are water, the waterline row is a 1 px foam line, and the ripple dashes at the log ends fold into it. Across logs: waterline = row 6 of the cell; upright logs: waterline = the last row of the bottom cell, so nothing is written below. Then it rises back. Both cells of a log change. Each log is its own phase group; step 18 frames, rest 5 steps; phases picked so no two logs step in the same frame. Cost +8 images, +8 tile ids; logs alone peak 2 tiles, 32 B.
+- Falls (`02_falls.gif`, `before_after_falls_logs.png`): environments.md 11, "Waterfalls: 1-px vertical streaks of a lighter shade at varied lengths and speeds, edges that jitter by 1 px, and an impact of sparkle pixels plus ripple rings." and "Droplets and foam: compact at rest, a stretched streak mid-flight, compact on landing." Falls are foam (index 1) with water streaks (index 2) between, clearly lighter than the river; the pool top keeps the foam lip (3 rows), the bubbles, spray and my splash ring are gone, and the pool cells carry the very subtle glints (a dash in the left foot cell, a pixel in the right, same pace as WA and WB; the cells below are WA and WB themselves). Kept pixel-exact (asserted in `items.py`): bank rims and land on every falls row and in the pool cells, and pool row 7. One speed (3 rows a step) to close the loop in 4 frames, not "varied speeds": a cost choice. NEW STATIC ART: 4 falls tiles + 2 pool tiles. FOAM CHURN (owner): the lip (rows 0-2) keeps the bank rim and land; its ragged edge (row 3) swells and relaxes by 1 px over 4 frames (the 36-frame falls loop, 9 frames a step, 6 frames after the falls step) and a few specks drift outward and down and dissolve. DMG: the lip is index 1, the lightest shade the water palette has (index 0 is the grass colour on Color, so a lighter lip would turn green); it is 168 on a pool of 88, so it is 3 rows deep and ragged to show. Cost: the lip frames multiply with the 3 glint states that occur (the glints stay exact, 30-frame pace): 10 and 12 images for the two foot cells. Cheaper option: freeze the foot-cell glints (the pond below still glints): 3 lip frames + rest per cell, about 6 images instead of 22.
 - Splash arcs: the two foam arcs below the lip (they read as bubbles or eyes) are replaced by the existing water tiles WA and WB: plain water that glints with the rest of the river, no new image, no new tile id. This changes two approved static A5 map cells, (46,8) and (47,8), by the owner's word.
 
 
@@ -29,7 +29,7 @@ Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in 
 | # | Item | Frames | Tiles / step | ROM tiles | Cadence | Shared or unique | VRAM per step |
 |---|---|---|---|---|---|---|---|
 | 1 | Water glints, VERY SUBTLE (owner pick): tiles WA and WB (19 and 22 cells; WF stays flat). WA one 2 px dash, WB one single pixel (was 6 + 4 px) | 3 each | 1 (WA, WB half a period apart) | +4 (WA, WB redrawn with fewer glints: the map keeps 2 tiles, net 0) | 30, still 2 steps of 3 | shared, cheap | 16 B |
-| 2 | Waterfall as a foam drop: 2 x 2 falls cells mostly foam with long water streaks; foam lip where it lands; the rest of the pool has the very subtle glints (no bubbles, no spray); the two splash arcs below replaced by the plain water tiles WA and WB (owner), so they glint with the water | falls 4 (3 rows a step), foot 3 (glints) | falls 4; foot 1 | +16 net on the map (22 images, 6 replace static map tiles) | falls 9; foot glints 30 | unique, 6 cells | 64 B / 16 B |
+| 2 | Waterfall as a foam drop: 2 x 2 falls cells mostly foam with long water streaks; the foam lip where it lands churns (edge swells 1 px, specks drift outward and dissolve), pond glints exact; the two splash arcs below are the plain water tiles WA and WB | falls 4 (3 rows a step), foot 10 and 12 (4 lip frames x the 3 glint states that occur) | falls 4; foot 2 every 9 frames | +32 net on the map (38 images, 6 replace static map tiles) | falls 9; lip 9, 6 frames after the falls step; glints 30 | unique, 6 cells | 64 B / 32 B |
 | 3 | Town fountain: two side streams (2 cells) + basin glints (2 cells), round 3 art | 3 streams, 2 basin | up to 2 | +6 | 12 | unique | 32 B |
 | 4a | Town bunting, 7 flags | 3 | 1 or 2 | +6 | 15, P and Q 6 apart | P, Q shared (3 cells each); end flag unique | 16-32 B |
 | 4b | Approved stadium: wavy flag, 2 cells | 3 | 1 or 2 | +4 | 9 | unique | 16-32 B |
@@ -38,8 +38,8 @@ Frames = distinct images of one tile. "Tiles / step" = tile images rewritten in 
 | 6b | Factory, two stacks | 4 | up to 3 | +15 | 15 | unique; 2 new tile ids | 48 B max |
 | 6c | Igloo (option 1) chimney smoke, 1 cell | 4 | 1 | +3 | 15 | unique | 16 B |
 | 7 | Cow tails, pasture cow and one more (milk bar 4i) | 3 | 1 | +6 (2 are the tail at rest) | 12, rests 36 of 72 | unique; 2 new tile ids | 16 B |
-| 9 | Floating logs sink: 6 logs stay (3 across, 3 upright), the waterline rises over their lowest 1-2 rows with a 1 px foam line, then they come back; 6 logs removed (plain water) | 3 (rest, 1 row, 2 rows) | across log 2, upright log 1 | +6 (2 per across log tile pair, 1 per upright bottom), 6 new tile ids | 18 per step; rest 5 steps, 1 row, 2 rows held, 1 row: 180-frame loop | per log | 32 B |
-| | Total | | | **about 80 images** (water 4, falls and foot 22 incl. 6 replacing static map tiles, logs 6) | | 12 new tile ids (lodge 2, factory 2, cows 2, logs 6) | |
+| 9 | Floating logs lower: 6 logs stay (3 across, 3 upright); the whole log picture moves down 1 px then 2 px, the waterline stays, what is below it is water with a 1 px foam line, then it rises; 6 logs removed (plain water) | 3 (rest, 1 px, 2 px) | across log 2, upright log 2 | +8 (4 per kind), 8 new tile ids | 18 per step; rest 5 steps, 1 px, 2 px held, 1 px: 180-frame loop | per log | 32 B |
+| | Total | | | **about 104 images** (water 4, falls and foot 38 incl. 6 replacing static map tiles, logs 8, the rest as before) | | 14 new tile ids (lodge 2, factory 2, cows 2, logs 8) | |
 
 Dropped from the first table: 8b stadium lamps, pole pennants. 8a mast lamp is merged into 5. Cheap and shared: 1, 4a (P, Q).
 
@@ -56,17 +56,17 @@ Peak tiles written in one video frame, average bytes per frame, per view (phases
 
 | view | peak tiles in one frame | peak bytes | average bytes per frame |
 |---|---|---|---|
-| river top: falls + water | 5 | 80 | 8.5 |
+| river top: falls + water | 5 | 80 | 11.4 |
 | town: bunting + fountain + water | 5 | 80 | 8.4 |
 | lodge: smoke + water | 3 | 48 | 2.8 |
 | factory: both stacks | 3 | 48 | 5.6 |
 | milk bar: tails + water | 2 | 32 | 2.5 |
 | airbase: dish + lamp (one frame set) | 1 | 16 | 1.3 |
 | stadium: flag | 2 | 32 | 3.6 |
-| igloo: smoke + falls + water | 6 | 96 | 9.6 |
-| river scrolled down: falls + one upright log + water | 5 | 80 | 8.9 |
-| logs: three logs, all groups, + water | 2 | 32 | 3.9 |
-| everything at once (cannot happen) | 20 | 320 | 34.8 |
+| igloo: smoke + falls + water | 6 | 96 | 12.4 |
+| river scrolled down: falls + one upright log + water | 5 | 80 | 12.1 |
+| logs: three logs, all groups, + water | 2 | 32 | 5.0 |
+| everything at once (cannot happen) | 19 | 304 | 38.8 |
 
 Assumed for the programmer to confirm: about 10 tiles (160 B) fit one VBlank. The worst real view (igloo, 6 tiles, 96 B) is about 60% of that; averages are about a tenth. Steps are never aligned on purpose, and any step can slip a frame or two if scroll streaming needs the VBlank. Color writes the same tile bytes to bank 0; attributes do not change except the 2 lodge puff cells.
 
