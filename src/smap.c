@@ -795,7 +795,7 @@ void smap_enter(uint8_t quick) BANKED {
         OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
     }
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = map_progress() < NSTOPS - 1 ? map_progress() : TOWN;
-    V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : 10;
+    V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : map_progress() < 10 ? 10 : 11;     // (11: the story is done, the fountain repaired)
     s16(V_FX, smapw_stop[smap_stop][0]); s16(V_FY, smapw_stop[smap_stop][1]);
     smap_cam_target(&tx, &ty);
     s16(V_CAMX, tx); s16(V_CAMY, ty);

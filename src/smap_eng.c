@@ -1022,7 +1022,7 @@ static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_
 uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED {
     uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1);
     int16_t lim;
-    if (up ? hi >= (horiz ? 63 : 47) : !lo) return 255;
+    if (up ? hi >= (horiz ? 63 : SMAPW_CH - 1) : !lo) return 255;
     if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 60) - (int16_t)f;
     else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 84);
     return lim < 0 ? 0 : lim > 255 ? 255 : (uint8_t)lim;
@@ -1061,7 +1061,7 @@ void smap_region_work(void) BANKED {
     if (dx == 1) wc0 = wc0 > LEAD ? wc0 - LEAD : 0;
     if (dx == 2) wc1 = wc1 + LEAD > 63 ? 63 : wc1 + LEAD;
     if (dy == 1) wr0 = wr0 > LEAD ? wr0 - LEAD : 0;
-    if (dy == 2) wr1 = wr1 + LEAD > 47 ? 47 : wr1 + LEAD;
+    if (dy == 2) wr1 = wr1 + LEAD > SMAPW_CH - 1 ? SMAPW_CH - 1 : wr1 + LEAD;
     i = V(V_JI);
     if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) { if (!job_abort()) return; }       // (still taking its cells out: nothing else this frame)
     if (V(V_PANEL) || vq_held) return;

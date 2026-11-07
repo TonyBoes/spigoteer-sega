@@ -515,9 +515,18 @@ def emit_accessors_a(m, tag):
          "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "smap_world.h"', '#include "asm_cfg.h"', "", f"BANKREF({tag}_a)", f"BANKREF({tag}_cell)"]
     L.append(carr("uint16_t", f"{tag}_cell", m.cell, 12, 4))
     L.append(carr("uint8_t", f"{tag}_zone", m.zone, 16, 2))
-    L.append(carr("uint16_t", f"{tag}_fcell", m.fog_cell, 12, 4))
-    L.append(carr("uint16_t", f"{tag}_fword", m.fog_word, 12, 4))
-    L.append(carr("uint16_t", f"{tag}_foff", m.fog_off, 12, 4))
+    # the lists of the cloud's edge cells, one per state; states with the same list share it (here the fountain's cells are the same in states 1..10): foff = start, end of each state's
+    fc, fw, span, seen = [], [], [], {}
+    for i in range(NSTATE):
+        lst = (tuple(m.fog_cell[m.fog_off[i]:m.fog_off[i + 1]]), tuple(m.fog_word[m.fog_off[i]:m.fog_off[i + 1]]))
+        if lst not in seen:
+            seen[lst] = (len(fc), len(fc) + len(lst[0]))
+            fc += lst[0]
+            fw += lst[1]
+        span += list(seen[lst])
+    L.append(carr("uint16_t", f"{tag}_fcell", fc or [0], 12, 4))
+    L.append(carr("uint16_t", f"{tag}_fword", fw or [0], 12, 4))
+    L.append(carr("uint16_t", f"{tag}_foff", span, 12, 4))
     L.append(carr("uint8_t", f"{tag}_inner", m.inner, NSTATE + 1))
     L.append(carr("uint16_t", f"{tag}_fint", m.fogint, 4, 4))
     if cgb:
@@ -658,8 +667,8 @@ __endasm;
         asm_close = "#endif\n"
     L.append(f"""
 {'static ' if cgb else ''}uint16_t {tag}_fogfind(uint16_t c, uint8_t p) {{
-    uint16_t base = {tag}_foff[p - 1];                          // (the lists of one state are < 256 long: asserted by the generator)
-    uint8_t lo = 0, hi = (uint8_t)({tag}_foff[p] - base), mid;
+    uint16_t base = {tag}_foff[(uint8_t)(p - 1) << 1];          // (the lists of one state are < 256 long: asserted by the generator)
+    uint8_t lo = 0, hi = (uint8_t)({tag}_foff[((uint8_t)(p - 1) << 1) + 1] - base), mid;
     while (lo < hi) {{
         mid = (uint8_t)((lo + hi) >> 1);
         if ({tag}_fcell[base + mid] < c) lo = mid + 1; else hi = mid;
@@ -868,7 +877,7 @@ def main(build, preview):
     pal_cols = [[rgb555(c) for c in PAL.get(n)] for n in PAL_NAMES]
     info = {
         "stops": stops, "stop_order": STOP_ORDER, "legs": [[a, b, [list(q) for q in p]] for a, b, p in legs], "exits": exits, "exit_leg": exit_leg,
-        "ufo": ufo, "ndmg": dm.nt, "ncgb": cg.nt, "ncgb_blocks": cg.nsig, "alt_flip_c": cg.altflip, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
+        "ufo": ufo, "cw": CW, "ch": CH, "ndmg": dm.nt, "ncgb": cg.nt, "ncgb_blocks": cg.nsig, "alt_flip_c": cg.altflip, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
         "state_end_c": cg.state_end, "state_end_d": dm.state_end, "tiles_c": bytes(dc).hex(), "tiles_d": bytes(dd).hex(),
         "win_d_21x19": n21, "win_d_22x20": n22, "win_c_pal_21x19": p21, "win_c_pal_22x20": p22, "uses_max_22x20": uses, "hint_conflicts": int(bad_d),
         "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "hint_d": dm.hint,

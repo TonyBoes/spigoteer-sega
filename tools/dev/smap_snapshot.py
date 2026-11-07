@@ -28,8 +28,12 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 OUT = ROOT / "assets" / "smap"
 PROP = ROOT / "docs" / "dev" / "proposals"
 TEA_ART = "v_tea_pass"          # <- the teahouse swap point: the module (docs/dev/proposals/smap_tea_pass/<name>.py, same build(dmg) as tools/smap_world/v_tea.py)
-TEA_LEVEL = "BWD"               # its texture level: roof B, walls, the door and the second lantern (no zen garden)
+TEA_LEVEL = "C1S"               # rib roof, textured walls, the wide curtain (no slit), both lanterns at y36, no garden (final, d73ad77f)
+FALLS = "A"                     # <- the falls / mountain interface swap point: A (owner pick 11-07, "for now"), B, or "cave" (the stage 1 cave); a later redesign drops in at big_mountain.py
+FALLS_ANIM_CELLS = [(47, 3), (46, 4), (47, 4)]      # falls A's animated cells (4 images each): pinned from the flip-merge; stage 3's engine table
 MAP_ENV = {"SMAP_TEA_PASS": "1", "SMAP_TEA_TEX": TEA_LEVEL}
+if FALLS != "cave":
+    MAP_ENV["SMAP_FALLS"] = FALLS
 
 
 def dump(path, broken):
@@ -59,7 +63,7 @@ def dump(path, broken):
         "legs": [[a, b, [list(q) for q in pts]] for (a, b), pts in W.LEGS.items()],
         "venues": {k: list(v[1]) for k, v in W.VENUES.items()},
         "px_c": pc, "px_d": pd, "pal_c": palc, "rgb": rgb, "dmg_shade": list(M.PAL.DMG_SHADE),
-        "anim_cells": sorted(getattr(W, "ANIM_CELLS", ())),
+        "anim_cells": sorted(set(getattr(W, "ANIM_CELLS", ())) | (set(FALLS_ANIM_CELLS) if FALLS != "cave" else set())),
     }
     with open(path, "wb") as f:
         pickle.dump(data, f)
