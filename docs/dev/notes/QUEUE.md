@@ -617,3 +617,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - 11-06 milk bar round 4e in A5 (105c2796): at cell (50,55), lot = ring road south lane widened; width fits; open: cow on road cells x52-53 (and Sal stop under it), generator venue/road assert needs lot exemption + walkable. Q106 reopened.
 - Owner 11-06, Q104: "104 flag at stadium looks great." Wavy flag accepted. Still vs animated not stated: asked to confirm (Q104 kept, narrowed).
 - Owner 11-06, Q109: "109: show me possibilities of what it could look like." Artist drawing 3 story-spigot mockups (water from the spout), proposal only.
+- Owner 11-06, Q106: "That milk bar option looks good, but lets reposition the sign and the cow.  Let's also get rid of the hay field--it's supposed to be a cow pasture." So: round 4e kept; sign and cow moved (2 arrangements, cow off the road); hay field north of the milk bar becomes a fenced cow pasture. Sent back to the milk bar artist.
