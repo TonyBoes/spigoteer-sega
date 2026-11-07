@@ -72,7 +72,7 @@ def pen(c):
     put(c, 88, 56, POST)
 
 
-def build(arr, style=None, roof=None, new=0):
+def build(arr, style=None, roof=None, new=0, borrow=None):
     """arr 1 and 2: as round 4f's first set; arr 3 (owner, after Q106): the building with its lot and bikes one cell (8 px) west, a cell of grass between it and
     the north-south road; the cow where the sign was in arrangement 1, the sign beside the building where the cow was; the pen of arrangement 1"""
     c = Canvas("cowA5_%d" % arr, "cow", W, H)
@@ -82,7 +82,7 @@ def build(arr, style=None, roof=None, new=0):
         cow_bldg.restyle(base, style)
     if roof:
         import cow_roof
-        cow_roof.restyle_roof(base, roof)
+        cow_roof.restyle_roof(base, roof, narrow=bool(borrow))
     for y in range(2, 56):                                   # the old sign and cow places are cleared
         for x in range(8, 24):
             base.px[y][x] = "0"
@@ -108,9 +108,13 @@ def build(arr, style=None, roof=None, new=0):
     elif arr == 3 and new:
         put(c, 28, 18, v_cow.COW)
         put(c, 6, 144, v_cow.COW)                            # the milk bar's cow across the lane: on the south verge, left of the building's span
-        sign(c, 12, 2 + OFF, 46 + OFF, 8)                    # the sign a few px further left
-        if new == 2:
-            arrow(c)
+        if new in (3, 4):
+            import cow_sign
+            (cow_sign.sign_a if new == 3 else cow_sign.sign_b)(c)
+        else:
+            sign(c, 12, 2 + OFF, 46 + OFF, 8)                # the sign a few px further left
+            if new == 2:
+                arrow(c)
     elif arr == 3:
         put(c, 28, 18, v_cow.COW)
         put(c, 1, 98, v_cow.COW)                             # the lawn cow, where the sign stood in arrangement 1
@@ -118,6 +122,14 @@ def build(arr, style=None, roof=None, new=0):
     else:
         put(c, 4, 34 + OFF, v_cow.COW)                       # the cow on the lawn west of the building, above the lane
         sign(c, 44, 142, 174)                                # the south verge: bottle y 142..164, a short pole, the foot at y 174
+    if borrow:                                               # the building's body cells on an existing palette that has a silver (Color only): the wall cells y 96..119, cols 3 and 10 at y 96..103
+        c.palrect(24, 96, 32, 104, borrow)
+        c.palrect(80, 96, 88, 104, borrow)
+        c.palrect(24, 104, 88, 120, borrow)
+        for (x0, y0, x1, y1) in ((24, 96, 32, 104), (80, 96, 88, 104), (24, 104, 88, 120)):
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    assert c.px[y][x] != "0", ("ground would show", x, y)
     return c
 
 

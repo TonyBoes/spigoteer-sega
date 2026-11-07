@@ -96,7 +96,10 @@ def board(px, x0, y0, x1, y1, ty, stars=False):
         star(px, (x1 - 2 + tx + tw) // 2 - 1, ty + 2)
 
 
-def restyle_roof(base, v):
+def restyle_roof(base, v, narrow=False):
+    """narrow (v2 only): the raised block is 48 px wide (x 40..87) so that its edges fall on cell edges and the two wings are whole cells; the word gap is 4"""
+    global WORD
+    WORD = 4 if narrow else 5
     px = base.px
     clear(px)
     if v == 1:                                               # flat roof, parapet: coping, cornice line, dentils
@@ -115,8 +118,8 @@ def restyle_roof(base, v):
         for y in range(31, 40):                              # the wings' wall
             row(px, y, 32, 96, "1")
         for y0, ch in ((21, "3"), (22, "1"), (23, "1"), (24, "3")):
-            row(px, y0, 38, 90, ch)
-        board(px, 38, 25, 90, 40, 29, stars=False)
+            row(px, y0, 40 if narrow else 38, 88 if narrow else 90, ch)
+        board(px, 40, 25, 88, 40, 29, stars=False) if narrow else board(px, 38, 25, 90, 40, 29, stars=False)
         hline(px, 36, 46, 82, "2")                           # an underline tube
         px[36][45] = "3"
         px[36][82] = "3"

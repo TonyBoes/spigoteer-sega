@@ -1,4 +1,30 @@
-# Milk bar round 4j (current): cow across the lane, sign left, neon arrow, silver building
+# Milk bar round 4k (current): classic roadside arrow signs, building on a borrowed silver palette
+
+Owner: "not what I wanted with the arrow. Something more like what these classic signs looked like" (refs `docs/dev/proposals/refs/owner_sign_diner.jpg`, `owner_sign_coffee.jpg`), then "can we borrow a silver palette from somewhere else on the map? so the cows and milk sign can stay white?" `milkbar_sheet11.png`: 4j silver (COW idx 1) | building on the FACTORY palette, no arrow | A coffee sign | B diner sign; close-up x4, A5 map x3, DMG and Color. Code: `src/cow_sign.py` (both signs typed row by row), `build(3, 'A', 2, new, borrow)` in `src/cow_a5.py`, `src/cow_roof.py` (`narrow`), `src/sheet11.py`.
+
+**Signs** (both 24 px wide on the lawn between the bank and the building, x 0..23, y 64..119; thick 6 px band: ink outline, chrome tube, pink fill; a big solid head with a flat back and a 2 px tip pointing right at the bar; static):
+- **A coffee:** the bottle on top of a tall vertical panel (10 wide) reading MILK top to bottom in chrome on pink, whose foot bends into the arm and head. The bottle moved up 2 rows (cap at y 64, just under the fence) to fit 4 letters and the bend above the lane.
+- **B diner:** the bottle on its pole (pole and foot as before, 2 px right of 4j), the band wraps round the bottle's left side and under it into the arm and head, a row of bulbs (chrome dots, every other pixel) along the band's middle.
+The head is only 10 px tall (6 px band): there is no room for more between the bottle and the lane (the lane starts at y 120).
+
+**Silver by borrowing a palette.** COW idx 1 is back to `e8e0f0` (cows, bottle, fence, trough, sign post white). The building's body cells (wall cells y 96..119 in the picture: the two wing wall cells and the two cell rows under the sign block) are on an existing table entry:
+- `base` [f8e090, 98a0b0, 1c2468, 080818] has the better silver but puts **9 palettes** in the milk bar window (limit 8): rejected.
+- `factory` [d0c890, 88a090, 385048, 101818] gives 8. Its silver is a green-grey: it reads as dark olive-grey, not as light silver. It is the only candidate that fits the window; the 4j recolour (COW idx 1 `b0b8c8`) looks better. The trim line (pink in COW) becomes factory's idx 2, a dark green-grey.
+- Cells: no cell shows ground (asserted in the build: no index 0 pixel in those cells). To get this the raised sign block is 48 px wide (was 52, edges on cell edges, word gap 4 instead of 5) so the two wings are whole cells; the wings' top row of cells (parapet and blank rows) stays COW, so the wing parapet is white and the wing wall silver. The neon block and the roof cap stay COW. DMG unchanged (index shades are the same).
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window (milk bar) |
+| --- | --- | --- | --- | --- | --- |
+| 4j silver, no arrow | 574 | 133 | 112 | 76 | 8 |
+| FACTORY silver, no arrow | 574 | 133 | 112 | 76 | 8 |
+| A coffee | 578 | 133 | 113 | 80 | 8 |
+| B diner | 579 | 133 | 117 | 81 | 8 |
+(`base` instead of `factory`: 9 in every row.)
+
+Lint PASS DMG and Color for A and B.
+
+---
+
+# Milk bar round 4j: cow across the lane, sign left, neon arrow, silver building
 
 Owner: "v2. but move the cow to the left of the building under the building to the other side of the road, then move the milk bottle sign to the left a bit. Maybe try adding a neon arrow to the milk bottle sign that curves pointing down at the venue. And try making the color of the building silver instead of white." Base: 4i v2. `milkbar_sheet10.png`: v2 | new (no arrow) | new + arrow, close-up x4 and the A5 map x3, DMG and Color. Code: `build(3, 'A', 2, new)` in `src/cow_a5.py`, `MB_SILVER=1` in `src/a5env.py`, `src/sheet10.py`.
 

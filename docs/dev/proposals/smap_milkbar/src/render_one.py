@@ -20,6 +20,8 @@ TMP = C.ROOT + '/out/mb'
 mode = sys.argv[1]
 X0, Y0, X1, Y1 = 40, 44, 64, 70                 # the crop, in cells
 STOP = (418, 508)
+import os
+BORROW = os.environ.get('MB_BORROW', 'factory')
 
 
 def piece():
@@ -29,6 +31,10 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode in ('b1', 'bA', 'bB'):
+        return A.build(3, 'A', 2, {'b1': 1, 'bA': 3, 'bB': 4}[mode], borrow=BORROW), (50, 47)
+    if mode in ('sA', 'sB'):
+        return A.build(3, 'A', 2, 3 if mode == 'sA' else 4), (50, 47)
     if mode in ('n1', 'n2'):
         return A.build(3, 'A', 2, int(mode[1])), (50, 47)
     if mode.startswith('roof'):
@@ -106,7 +112,11 @@ def counts(wd, wc):
     for y0 in range(CH - 18):
         for x0 in range(CW - 20):
             pbest = max(pbest, len(np.unique(pg[y0:y0 + 19, x0:x0 + 21])))
-    return {"unique_tiles": len(ids), "worst_21x19": best, "worst_at": at, "worst_near_milkbar": near, "near_at": nat, "palettes_21x19": pbest}
+    nb = 0
+    for y0 in range(47 - 18, 70 - 18):
+        for x0 in range(50 - 20, 62):
+            nb = max(nb, len(np.unique(pg[y0:y0 + 19, x0:x0 + 21])))
+    return {"palettes_near_milkbar": nb, "unique_tiles": len(ids), "worst_21x19": best, "worst_at": at, "worst_near_milkbar": near, "near_at": nat, "palettes_21x19": pbest}
 
 
 def main():
