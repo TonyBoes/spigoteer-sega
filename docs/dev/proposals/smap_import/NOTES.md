@@ -89,3 +89,77 @@ The saloon edge (A5 biome rows 21..27, desert end 12 13 15 14 16 15 17) is a typ
 | lots (town cobble, stadium paved, bistro, tea, cow pen, factory yard), roads, water banks | | | left alone (not seams for this pass) |
 No farm / meadow seam exists: the map has no meadow ground. On DMG sand and grass share the white ground, so a seam shows only as the tuft style changing; the stepped edge is there but quiet.
 Numbers (dark / light / broken): DMG tiles 797 / 798 / 792 (the seams cost 0 tiles: the same flat and tuft tiles, only their cells move), worst 21x19 view 143 of 176, 22x20 152, Color 859 / 859 / 854, palettes per window 8 with 0 over in all three, table 21 / 21 / 20, flat uses 238. Sheets: sheet_seams_1.png and sheet_seams_2.png (before | after, x3, Color over DMG), sheet_whole_map.png.
+
+### Stage 1d (owner Q115 and details) -- all shown, none applied. Light water is now the default (Q101); SMAP_WATERDMG=dark restores dark.
+Env switches (mapctx.py): SMAP_CURVE=16|24|32|40|48|56|80|96|120|fit, SMAP_CURVE_TRIM, SMAP_BIG=A|B, SMAP_NO_CLUSTERS / SMAP_CLUSTERS=trees,bamboo, SMAP_NO_DESERT / SMAP_DESERT_PIECES=peaks,cacti,none, SMAP_STADIUM_BUSH_X (40 for r32 and up), SMAP_TILE_MAX.
+- **Bigger curves (Q115).** bend_smooth.py now has rings for R = 16..120 (outer arc R, inner R-16, kerb 2, line 1; staircases whose runs shrink to the diagonal). The ring lists for R >= 32 came from a scratch dynamic-programming search (out/, not committed) and were pasted after review; the specks are hand-typed polar pairs. roads_smooth.py lays a patch only where its n x n cells are road arms or plain ground; it reports why each bend is skipped.
+- Largest radius per bend (blocker is always a venue, art, prop, or the palette limit): (0,11) 40 with the stadium bush moved to x 40; (0,29) 24; (0,45) 96; (0,63) 24; (37,28) 120; (37,46) 24 (palette: the windows round (35,44) hold 8 already); (50,28) 24 (15 px grass prop at (53,30)); (50,46) 16, 24 with trim; (63,11) 40; (63,29) 16, 24 with trim; (63,45) 16, 24 with trim; (63,63) 24 (milk bar art).
+- Trim (SMAP_CURVE_TRIM=1, r24): the road covers art only where it overlaps: factory 0 px, lodge 11 px (cell 61,27), cow fence 1 px (61,47).
+- Numbers, light water, no other proposals (DMG / Color tiles, worst 21x19, windows over 8, table): none 798 / 859 / 143 / 0 / 21; r16 792 / 853; r24 825 / 885 / 143; r32 827 / 887 / 144; r40 834 / 894 / 148; r48 850 / 911 / 155; r56 854 / 915 / 156; r80 876 / 935 / 160 (all 0 over, table 21). "fit" (each bend its largest): 964 / 1020 tiles, FAILS: 3 windows over 8 palettes at (33..35,41), and Color is 4 tiles under the 1024 tile-id limit before any other proposal. So the whole-map fit set is not shippable as is; uniform r24 to r56 pass. The fit render is shown only to see the shapes (q115_whole_fit.png).
+- Anti-aliasing test (SMAP_CURVE_AA): no visible gain at x1 to x3, so not shown.
+- Palette compromises: desert-block interior cells in smooth bends use town1 (cream); the bends at (37,46) and (50,46) show that cream block.
+- **Desert (owner).** desert_extras.py: five typed peaks (cone, twin, mesa, spire, slope, 14 to 30 px wide), 7 cacti (S, S2, Q, B barrel; 8 px wide), three sand spills across the road (north 27..25, south 47/48 twice). Whole small rocks touching a placement are cleared. Cactus palette `cactus` = [sand, grass 1..3] is a new table entry: 3 B, table 22 of 23, 0 windows over 8. DMG cost of all extras: peaks +37 tiles (worst view 150), cacti +6, spill 0.
+- **Zoo bamboo and trees (owner).** clusters.py: fewer round trees between zoo and teahouse, eight typed bamboo clumps (TALL 16x24, MID 16x16, SMALL 8x14, cell aligned so tiles repeat), overlapping tree clusters (RR, RRR, PP, PPP, JJ composited back to front) replacing 16 singles. Bamboo +14 DMG tiles, trees +38. Flat tile uses 219 of 239 with all proposals.
+- **Big mountain (owner).** big_mountain.py: 84 x 60 typed igloo-palette peak with a secondary summit, off-screen crop. A = top right corner, B = head of the river. Both fall only on igloo-palette cells. All proposals + A: DMG 919 / Color 980 / worst view 159 at (43,0); + B: 930 / 991 / 157; all with no big mountain 893 / 954 / 157; fountain broken + all 888 / 949. 0 windows over 8, table 22.
+- **Light water animation (DMG).** Typed frames read through the light maps: glints and log bob fine; the falls column washes out (foam maps to the land shade). Needs one DMG-typed falls frame set in stage 2.
+- Sheets: q115_stadium_close.png, q115_stadium_ctx.png, q115_biggest.png, q115_trims.png, q115_whole_fit.png, sheet_big_mountain_A_color.png and _B_color.png, sheet_desert_after_color.png, sheet_zoo_after_color.png. Raw runs: out/smap_import/mm/*.log.
+
+### Stage 1e (coordinator review of 1d) -- shown, none applied
+Replaces the big mountain, tree-cluster and bend-budget numbers of 1d above. The Color tile-id ceiling is 1024 (10-bit id in the cell word) and is the real limit: every table below carries it. Columns: DMG tiles / Color tile ids of 1024 / worst DMG 21x19 view (176 hard, flagged over 165) / windows over 8 palettes / palette-table entries. `generator ok` means the full generator passed; a Color count above 1023 makes it fail at the fog check, so those rows are counted only (SMAP_TILE_MAX=4096). Raw runs: out/smap_import/mm/e_*.log, table by mm_table.py.
+- **Big mountain redrawn** (big_mountain.py, 84 x 44, hand-typed per-row outlines): main summit and a lower shoulder summit with a snow valley between, outline steps of 1 to 3 px with no repeated runs, lit/shadow face split along a ridge that jogs 1 px most rows (RIDGE_M, RIDGE_S), the shoulder's own left edge a diagonal ink line that dies into the main ridge (no vertical line), ragged snow caps on both faces, strata dashes, crevice marks, rock spurs on the lower slopes, ragged foot. A and B keep their places (top 4 rows, and for A 16 columns, off the map). The base is pasted behind the front-tier peaks; back-tier peaks under its silhouette are removed (the big one replaces them). Known limit: a front-tier peak that touches a back-tier one is one connected piece and goes with it, so on B no small peak stands over the foot; on A the left-hand ones do. Sheet s1e_bigmountain.png (A | B, Color and DMG).
+- **Tree clusters** (clusters.py): tighter offsets so the front canopy covers the back trunk: round pairs (5,6), RR_L (6,0)+(0,6), RRR (5,0)(0,6)(9,6), pine pairs (5,6), PPP (4,0)(0,6)(8,6); new jungle clumps JJJ (128,440) and JJ (80,400) in the zoo (the other zoo candidates hit the zoo building or grass palette and were dropped). Sheets s1e_trees.png (east pines, lawn round, north pines) and s1e_zoo.png, before | after, Color and DMG. Clumps are 2 or 3 trees.
+- **DMG versions** of desert (s1e_desert.png), zoo with bamboo (s1e_zoo.png), trees (s1e_trees.png) and the big mountain (s1e_bigmountain.png): every row pair is Color then DMG.
+- **Bend budget, everything else on, mountain A, bush at x 40** (before curves, r8 corners: 926 / 987 / 162 / 0 / 22; with B 935 / 996 / 159):
+| bends | DMG | Color of 1024 | worst | over 8 | generator ok |
+|---|---|---|---|---|---|
+| uniform r24 where it fits (9 bends) | 953 | 1013 | 166 | 0 | yes |
+| uniform r40 where it fits (4 bends, others stay r8) | 960 | 1020 | 174 | 0 | yes |
+| r40 with fallback to 32/24/16 (= the fit set, long sweeps off) | 978 | 1039 | 174 | 0 | no, 15 over |
+| same, mountain B | 987 | 1048 | 159 | 0 | no |
+| same, trim on | 976 | 1040 | 174 | 0 | no |
+| r40 fallback + (0,45) r96 | 1027 | 1084 | 174 | 0 | no |
+| r40 fallback + (37,28) r96 | 1027 | 1084 | 181 | 10 | no |
+| r40 fallback + (0,45) r96 + (37,28) r96 | 1076 | 1129 | 181 | 10 | no |
+| r40 fallback + (0,45) r96 + (37,28) r120 (the ask) | 1090 | 1146 | 188 | 33 | no |
+| same, trim on, r96 + r96 | 1074 | 1130 | 181 | 10 | no |
+Ways to buy room under 1024 (r40 fallback set, A): no tree clusters 938 / 999 / 174 / 0 ok; no desert peaks (cacti kept) 941 / 1002 / 174 / 0 ok; no bamboo 971 / 1032 no. With (0,45) r96 plus r40 elsewhere: needs bamboo + cacti only (no peaks, no tree clusters) 950 / 1007 / 174 / 0 ok; no extras at all 950 / 1003 / 163 / 0 ok. So the long sweeps and the full set of extras cannot both ship: pick which to drop.
+- **Which bend breaks the fit map.** The largest-fit map (no extras) has 3 windows with 9 palettes at (33..35,41). Bisected: (37,28) at r120 is the cause. Same map with (37,28) at r96 (950 / 1003 tiles, 0 over) or r24 (910 / 967, 0 over) passes; dropping (0,45) r96 or (37,46) r24 changes nothing (still 3 over). Its patch reaches row 43, into the windows of the (37,46) bend. With everything on, (37,28) beyond r40 gives 10 windows over (r96) or 33 (r120).
+- **Whole map** Color | DMG, light water, everything on, r40 with fallback (note: 15 Color tile ids over 1024), mountain A and B: s1e_whole_c40_A.png, s1e_whole_c40_B.png.
+- **For stage 3: the DMG falls frames on light water.** The approved falls frames are typed for dark water (foam 1, water 2). On light water foam maps to 0, the land shade, and the falls column washes out. Stage 3 needs typed DMG foam frames (foam against water at the light shades) for the falls tiles; nothing to do now.
+
+### Stage 1f (coordinator review of 1e) -- shown, none applied. These numbers replace the 1e tables, whose mountain and trees were older.
+- **Big mountain cuts fixed.** A: the sliver was a back peak cut by the paste box edge; the box now widens to the nearest empty columns, so a peak is removed whole or left whole (the three peaks left of A's foot are gone, the others stay). B: the snow / grass edge ran 3 cells straight; one typed extra snow cell at (33,3) makes the west edge 36 35 34 33 34 by row. The cell takes the `igloo` palette (already present in the windows), no new tile pixels.
+- **Round clusters redrawn** (clusters.py combo): each clump now has exactly one whole tree in front (one trunk); the others show only their canopy (rows 0..9 of the same tree, no trunk) above and to one side, and the front canopy's ink wins where they meet. RR_R, RR_L: canopy peeking up-left or up-right; RRR and JJJ: two canopies behind (left lower, right higher) and one whole tree in front. Pines unchanged. Sheets s1e_trees.png, s1e_zoo.png (before | after, Color and DMG).
+- **Measures** (SMAP_TILE_MAX=4096, bush at x 40; DMG / Color ids of 1024 / worst DMG view / windows over 8; generator ok = the full generator passed, Color above 1023 fails it):
+| run | DMG | Color of 1024 | worst | over 8 | ok |
+|---|---|---|---|---|---|
+| everything on, r8 corners, mountain A | 915 | 977 | 156 | 0 | yes |
+| same, mountain B | 926 | 988 | 156 | 0 | yes |
+| uniform r24, A | 942 | 1003 | 156 | 0 | yes |
+| uniform r24, B | 953 | 1014 | 156 | 0 | yes |
+| r40 fallback, all extras, A | 967 | 1029 | 159 | 0 | no, 5 over |
+| r40 fallback, all extras, B | 978 | 1040 | 159 | 0 | no |
+| Option C: (0,45) r96 + r40 fallback + bamboo + cacti + spill, no peaks, no tree clusters, A | 943 | 1000 | 154 | 0 | yes |
+| Option C, B | 954 | 1011 | 153 | 0 | yes |
+| Option A (read as r40 fallback, all extras): round clusters dropped (RR_R, RR_L, RRR, JJ, JJJ), pine clusters kept, A | 943 | 1004 | 159 | 0 | yes |
+| same, B | 954 | 1015 | 159 | 0 | yes |
+| same, only the lawn round clusters RR_R, RR_L, RRR dropped (jungle kept), A | 957 | 1019 | 159 | 0 | yes |
+| uniform r24, round clusters dropped, A | 918 | 978 | 155 | 0 | yes |
+The run scripts are in out/smap_import/ (run_meas11.sh), logs in out/smap_import/mm/f_*.log; table by mm_table.py. SMAP_SKIP_CLUSTERS=RR_R,RR_L,RRR,JJ,JJJ drops clusters by name.
+
+### Stage 1g: saving Color ids under the 1024 ceiling (r40 fallback, all extras, mountain A was 1029, 5 over)
+- Why single changes cost more: the Color tile set has no flip merging (a tile is its 64 pixels), so every bend orientation has its own tiles and bends of the same radius share them. One bend at r32 among r40 bends adds a whole new radius set: any one of the four long bends alone at 32 gives 1043 (+14), two give 1025. Only all four together saves.
+- **Result: the four long bends (0,11), (0,45), (37,28), (63,11) at r32 instead of r40, everything else unchanged** (the other eight stay 24 / 16, all extras on, mountain A): DMG 960, Color 1022 of 1024, worst view 156, windows over 8: 0, flat uses 218, table 22; generator passes at the real 1024 limit (7 ids saved). Whole map: s1e_whole_s32_A.png. Not invisible: those four bends are 8 px tighter than the r40 shown to the owner.
+- Tried and no help: the three r16 bends (50,46), (63,29), (63,45) left at the r8 corner (1029, same count: their tiles are shared), each of them at r16 only, trim at r24 (+1).
+- Mountain B on the same set: DMG 971 / Color 1033 / worst 156, fails (B costs 11 ids more than A). Cheapest ways to give B room: drop the round tree clusters (about 25 ids), or the desert peaks (about 37), or take the long bends to r24 (uniform r24 with B is 1014).
+- Mountain B's right foot ends in a straight vertical ink edge against the grass; to be fixed only if B is picked.
+
+### Stage 1h: no bend at r16 (owner: r24 is the minimum). Replaces the 1g option sets.
+(50,46), (63,29), (63,45) go to r24 with the trims (factory 0 px, lodge 11 px in cell (61,27), cow fence 1 px in (61,47)); every bend is now r24 or larger (mapctx SMAP_RADII "x,y:24!" means exactly that radius, else the bend keeps the r8 corner; all 12 bends laid in every run below). Mountain A, bush at x 40, trims on. DMG tiles / Color ids of 1024 / worst DMG view / windows over 8 / generator at the real 1024 limit:
+| option | DMG | Color | worst | over 8 | gen |
+|---|---|---|---|---|---|
+| A': four long bends (0,11) (0,45) (37,28) (63,11) at r32, the other eight at r24 with trims, all extras (peaks, cacti, spill, bamboo, tree clusters) | 958 | 1023 | 156 | 0 | passes |
+| C': (0,45) r96, the other three long at r40, the other eight r24 with trims, bamboo, cacti, spill, no peaks, no tree clusters | 941 | 1001 | 154 | 0 | passes |
+| C' + pine clusters | 953 | 1013 | 159 | 0 | passes |
+| C' + pine + round clusters (RR_R, RR_L, RRR, JJ, JJJ) | 977 | 1038 | 159 | 0 | fails (15 over) |
+The round clusters cost 25 ids, the 10 ids of room after the pines do not cover them; no subset was tried. Sheets: s1e_whole_Ap.png, s1e_whole_Cp.png, s1e_whole_Cp_pine.png (Color | DMG), s1e_trims.png (lodge and cow, r8 corner without trim | r24 with trim, Color and DMG, x4). The factory yard needs no trim at r24 (0 px).
