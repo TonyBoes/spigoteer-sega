@@ -39,5 +39,7 @@ def write(n, c):
     print(n, 'palettes', pals)
 
 
-write('upright', L.upright({1: L.UP_A, 3: L.UP_B, 4: L.UP_A}))
-write('slant', L.slant({1: L.SL_A, 3: L.SL_B, 5: L.SL_A}))
+import cow_a3
+write('A', L.build_a())
+write('B', L.build_b())
+write('C', L.build_c())

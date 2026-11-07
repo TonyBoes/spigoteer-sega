@@ -1,143 +1,115 @@
-"""Milk bar round 4: ONLY the lot and the bikes change.  The building (y < 56), the bottle sign and the cow are round 3's cow_a3, pixel for pixel
-(checked by lot_check in sheet.py).  Lot = whole cells x 32..95, y 56..71 (8 x 2 cells) in its own palette (cell palette, set with palrect).
-Palette indices in the lot's palette (FACTORY on Color): 0 paving (light), 1 paint lines and chrome, 2 shade row and tank, 3 ink.
-Everything below is typed: bay tiles are 8 px wide x 16 rows (y 56 to 71) as ASCII, bike rows are typed per row.  '.' in a typed row is transparent.
-DMG: paving is shade 0 (lightest), the lot has NO outline and NO front kerb: the bays simply run off the bottom of the piece."""
+"""Milk bar round 4c: ONLY the lot and the bikes change; building (y < 56), bottle sign and cow are round 3's cow_a3, pixel for pixel.
+Owner (11-06): the whole map is front-on with a little top showing, so no top-down anything.  Three proposals, all front-on:
+  A  rear view: narrow upright bikes seen from behind, nose-in to the diner, on a shallow strip of grey paving with short bay lines running up toward the diner.
+  B  side view, three bikes in a row along the front, the middle one nearer (2 px lower) and overlapping its neighbours, on the grey paving strip, no bays, no outline.
+  C  no lot: two side-view bikes on kickstands on the meadow beside the door, like props (cells in the FARM palette, the ground's own palette).
+Lot palette (A, B): FACTORY: 0 white (paint, chrome, lights), 1 paving, 2 slate, 3 ink.  C uses FARM: 0 meadow, 1 gold chrome, 2 brown, 3 dark brown.
+Everything is typed: bikes as rows of run specs ('c:n', '.' = transparent, 'w' = the chrome/light shade, set per proposal), pixel lists, bay line runs.
+No outline round any lot, no front kerb: open front."""
 import common as C
 import cow_a3
 
-W, H = cow_a3.W, cow_a3.H
+W = cow_a3.W
 BIOME, AT = cow_a3.BIOME, cow_a3.AT
-LOT_PAL = 'factory'
-X0, Y0, X1, Y1 = 32, 56, 96, 72
-REGION = None
-
-# ---- UPRIGHT: vertical bays 8 px apart (one cell), the line at the bay's left column, nose-in (front wheel up, toward the diner) ----
-# a bike seen from above and behind, 7 wide x 13 tall (local columns 0 to 6, centre 3), pasted at y 58; in the bay it sits at columns 1 to 7
-UP_A = C.G(
-    "...3...",
-    "...3...",
-    ".3.3.3.",
-    ".31113.",
-    "..323..",
-    ".31223.",
-    ".31223.",
-    ".31223.",
-    "..333..",
-    ".13331.",
-    ".13331.",
-    "..333..",
-    "...3...")
-UP_B = C.G(                                               # the chopper: a sissy bar behind the seat
-    "...3...",
-    "...3...",
-    ".3.3.3.",
-    ".31113.",
-    "..323..",
-    ".31223.",
-    ".31223.",
-    ".31223.",
-    "..333..",
-    ".13331.",
-    ".31113.",
-    ".3.3.3.",
-    "...3...")
+X0, X1, Y0, Y1 = 32, 96, 56, 72
 
 
-def upright(bikes, grain=False, line="1"):
-    """bikes: {bay k: typed bike}"""
-    c = cow_a3.build()
-    clear_lot(c)
-    if grain:
-        paving_grain(c)
-    for k in range(8):
-        x = X0 + 8 * k
-        for y in range(Y0, Y1):
-            c.px[y][x] = line if y > Y0 else "2"
-        for y in range(1):
-            for i in range(1, 8):
-                c.px[Y0][x + i] = "2"
-    for y in range(Y0 + 1, Y1):                           # the right edge of the last bay
-        c.px[y][X1 - 1] = line
-    for k, b in bikes.items():
-        C.paste(c, X0 + 8 * k + 1, 58, b)
-    c.palrect(X0, Y0, X1, Y1, LOT_PAL)
-    return c
+def R(spec):
+    out = ""
+    for tok in spec.split():
+        ch, n = tok.split(":")
+        out += ch * int(n)
+    return out
 
 
-# ---- SLANT: angled bays, lines at 1 column per 2 rows leaning to the upper right, nose-in (front wheel up and to the right) ----
-# a bay is one cell wide (the line starts at the cell's column 0 on the bottom row, y 71, and reaches column 7 at the top, y 57); the bike sits
-# between its line and the next one, so it spills into the next cell.  Each bike row is typed as (first frame column, 7 characters), frame
-# column 0 = the bay's cell column 0, y 58 to 70 (13 rows).
-SL_A = [
-    (7, "...3..."),   # y58
-    (7, "...3..."),   # y59
-    (6, ".3.3.3."),   # y60
-    (6, ".31113."),   # y61
-    (5, "..323.."),   # y62
-    (5, ".31223."),   # y63
-    (4, ".31223."),   # y64
-    (4, ".31223."),   # y65
-    (3, "..333.."),   # y66
-    (3, ".13331."),   # y67
-    (2, ".13331."),   # y68
-    (2, "..333.."),   # y69
-    (1, "...3...")]   # y70
-SL_B = [
-    (7, "...3..."),
-    (7, "...3..."),
-    (6, ".3.3.3."),
-    (6, ".31113."),
-    (5, "..323.."),
-    (5, ".31223."),
-    (4, ".31223."),
-    (4, ".31223."),
-    (3, "..333.."),
-    (3, ".13331."),
-    (2, ".31113."),
-    (2, ".3.3.3."),
-    (1, "...3...")]
-LINE_RUNS = [1, 2, 2, 2, 2, 2, 2, 2]       # rows per column, from the top (y 57) down: column 7 for 1 row, then 6, 5, ... 0 for 2 rows (y 71 and 70)
+# ---- SIDE VIEW, 21 x 12, facing right: handlebar and mirror, headlight, fork, tank (white stripe on its lit left), seat, rear fender, engine block, exhaust/frame,
+# two wheels (ink tyre, white rim, ink hub) pasted at y 5 ----
+SIDE = [R(s) for s in (
+    ".:14 3:1 .:6",
+    ".:14 3:1 w:2 3:1 .:3",
+    ".:3 3:4 .:1 3:5 .:2 3:1 .:1 w:1 3:1 .:2",
+    ".:2 3:6 3:1 w:1 2:2 3:1 .:2 3:1 .:1 w:1 3:1 .:2",
+    ".:1 3:7 3:1 2:3 3:1 .:3 3:1 .:4",
+    ".:7 3:1 w:5 .:8",
+    ".:7 3:1 w:1 3:3 w:1 .:8",
+    ".:7 3:1 w:5 .:8",
+    ".:7 3:7 .:7",
+    ".:21", ".:21", ".:21")]
+assert all(len(r) == 21 for r in SIDE) and len(SIDE) == 12
+SISSY = [(1, 0), (1, 1), (1, 2), (1, 3)]                    # the chopper: a sissy bar behind the seat
+KICK = [(10, 9), (9, 10), (8, 11)]                           # a kickstand, down and back from the frame to the ground line
+WHEEL = [".33333.", "33www33", "3w333w3", "3w333w3", "3w333w3", "33www33", ".33333."]
 
-
-def slant(bikes, grain=False, line="1"):
-    c = cow_a3.build()
-    clear_lot(c)
-    if grain:
-        paving_grain(c)
-    for k in range(8):
-        x = X0 + 8 * k
-        for i in range(8):                                 # shade row under the diner
-            c.px[Y0][x + i] = "2"
-        y, col = Y0 + 1, 7
-        for n in LINE_RUNS:
-            for _ in range(n):
-                c.px[y][x + col] = line
-                y += 1
-            col -= 1
-        assert y == Y1 + 0, y
-    for k, b in bikes.items():
-        x = X0 + 8 * k
-        for j, (off, s) in enumerate(b):
-            for i, ch in enumerate(s):
-                if ch != ".":
-                    c.px[58 + j][x + off + i] = ch
-    c.palrect(X0, Y0, X1, Y1, LOT_PAL)
-    return c
-
-
-def paving_grain(c):
-    """the paving's grain: shade 1 on an ordered 25 percent pattern (brick-staggered, period 4 x 4, tile-aligned) under the shade row"""
-    for y in range(Y0 + 1, Y1):
-        for x in range(X0, X1):
-            if (x + (y % 4 >= 2) * 2) % 4 == 1 and y % 2 == 1:
-                c.px[y][x] = "1"
+# ---- REAR VIEW, 7 x 13: mirrors, front tyre peeking between the stalks, wide bars, tank, seat, tail light, fender, the rear tyre (a narrow dark column) ----
+REAR_CHUNKY = ["3..3..3", "3..3..3", "3wwwww3", ".32223.", ".3w223.", ".32223.", ".33333.", ".33333.", "..3w3..", "..333..", "..333..", "..333..", "..333.."]
+REAR_SLIM = [".3.3.3.", ".3.3.3.", ".3www3.", "..323..", "..3w3..", "..3w3..", "..333..", "..333..", "..3w3..", "..333..", "..333..", "..333..", "..333.."]
+assert all(len(r) == 7 for r in REAR_CHUNKY + REAR_SLIM) and len(REAR_CHUNKY) == len(REAR_SLIM) == 13
 
 
 def clear_lot(c):
     for y in range(Y0, Y1):
         for x in range(X0, X1):
             c.px[y][x] = "0"
+
+
+def paving(c):
+    for y in range(Y0, Y1):
+        for x in range(X0, X1):
+            c.px[y][x] = "1"
+    for x in range(X0, X1):                                 # the shade row under the diner
+        c.px[Y0][x] = "2"
+    c.palrect(X0, Y0, X1, Y1, 'factory')
+
+
+def put_rows(c, x, y, rows, w):
+    for j, r in enumerate(rows):
+        for i, ch in enumerate(r):
+            if ch != ".":
+                c.px[y + j][x + i] = w if ch == "w" else ch
+
+
+def put_side(c, x, y, w, sissy=False, kick=False):
+    put_rows(c, x, y, SIDE, w)
+    for wx in (0, 14):
+        put_rows(c, x + wx, y + 5, WHEEL, w)
+    for on, pts in ((sissy, SISSY), (kick, KICK)):
+        if on:
+            for (i, j) in pts:
+                c.px[y + j][x + i] = "3"
+
+
+def build_a():
+    """rear view in bays: bay lines (white) 8 px apart, short, from y 63 to 71; bikes in bays 1, 3, 5"""
+    c = cow_a3.build()
+    clear_lot(c)
+    paving(c)
+    for k in range(8):
+        for y in range(63, Y1):
+            c.px[y][X0 + 8 * k] = "0"
+    for bay, art in ((1, REAR_CHUNKY), (3, REAR_SLIM), (5, REAR_CHUNKY)):
+        put_rows(c, X0 + 8 * bay + 1, 58, art, "0")
+    return c
+
+
+def build_b():
+    """three side-view bikes along the front; the middle one nearer"""
+    c = cow_a3.build()
+    clear_lot(c)
+    paving(c)
+    put_side(c, 33, 58, "0")
+    put_side(c, 73, 58, "0")
+    put_side(c, 53, 60, "0", sissy=True)
+    return c
+
+
+def build_c():
+    """no lot: two side-view bikes on kickstands on the meadow beside the door; the cells under them take the ground's own palette"""
+    c = cow_a3.build()
+    clear_lot(c)
+    put_side(c, 44, 59, "1", kick=True)
+    put_side(c, 68, 59, "1", sissy=True, kick=True)
+    c.palrect(40, Y0, X1, Y1, 'farm')
+    return c
 
 
 def round3():
