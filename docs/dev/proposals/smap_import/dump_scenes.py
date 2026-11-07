@@ -14,7 +14,8 @@ kind = sys.argv[1]
 P = Path(__file__).resolve().parents[1]
 ROOT = P.parents[2]
 SRC = {"stadium": "smap_stadium", "igloo": "smap_venue_redesign", "mountain": "smap_hangar", "cow": "smap_milkbar",
-       "range_a": "smap_venue_redesign3", "range_b": "smap_venue_redesign3", "range_c": "smap_venue_redesign3"}[kind]
+       "range_a": "smap_venue_redesign3", "range_b": "smap_venue_redesign3", "range_c": "smap_venue_redesign3",
+       "range_b2": "smap_venue_redesign3", "range_c2": "smap_venue_redesign3"}[kind]
 sys.path.insert(0, str(ROOT / "tools/smap_world"))
 if kind == "cow":                                            # smap_milkbar/src/a5env.py hard-codes another worktree: stand in for it (it only sets the A5 import paths)
     import types
@@ -43,6 +44,20 @@ elif kind == "mountain":
     import sheet_h9 as M
     c = M.build("n")
     res.update(at=[9, 36], mode="all", w=c.w // 8, h=c.h // 8, frames=[cells(c)])
+elif kind in ("range_b2", "range_c2"):
+    # stage 1c: ranges B and C with peak variants (range_peaks.py: A approved, B single summit, C shorter, D taller), snowy; back tier foot on px row 24, front tier foot on row 40
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import mtn_vert as M
+    import range_peaks as RP
+    PLAN = {"range_b2": ((34, 0), 112, [(16, "A"), (48, "B"), (80, "C")], [(0, "D"), (32, "C"), (64, "A")]),
+            "range_c2": ((48, 0), 128, [(0, "B"), (32, "A"), (64, "C"), (96, "B")], [(16, "D"), (48, "B"), (80, "D")])}
+    at, w, back, front = PLAN[kind]
+    c = M.canvas(w, 40, kind, True)
+    for x, k in back:
+        RP.paste_peak(c, x, 24, k)
+    for x, k in front:
+        RP.paste_peak(c, x, 40, k)
+    res.update(at=list(at), mode="nonblank", w=c.w // 8, h=c.h // 8, frames=[cells(c)])
 elif kind.startswith("range_"):
     import mtn_vert as M
     # round 3 range peak (owner 11-06) composed for the A5 layout's three range areas (cells x, y; px w, h).  Peak places in px inside the area, pasted back (higher) to front (lower):

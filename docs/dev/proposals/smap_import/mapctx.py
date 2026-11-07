@@ -33,6 +33,12 @@ import lay_A5 as lay  # noqa: E402
 
 lay.FIELDS = []
 lay.SCENERY = [s for s in lay.SCENERY if s[0] is not decor.HAY]
+BEFORE_1C = os.environ.get("SMAP_BEFORE_1C") == "1"         # the stage 1b state (square road corners, range A, uniform peaks): for the before | after renders
+if not BEFORE_1C:
+    # stage 1c: the round tree-bush at cell (2, 13) moves one cell east (its pixels sat in the ground cell the inner road corner at the stadium's gate road rounds into)
+    lay.SCENERY = [(p, 24, 104) if (p is decor.BUSH and x == 16 and y == 104) else (p, x, y) for (p, x, y) in lay.SCENERY]
+    # range A removed: its ground is the lawn round it; five of the map's own pines stand there, about the density of the lawn east of the bistro
+    lay.SCENERY = lay.SCENERY + [(decor.PINE, x * 8, y * 8) for (x, y) in [(18, 1), (22, 0), (25, 2), (28, 0), (31, 1)]]
 V = dict(lay.VENUES)
 for k in ("cow", "stadium", "igloo", "space"):
     V[k] = ("anim_stub", V[k][1])
@@ -111,12 +117,20 @@ g0 = PAL.RGB["grass"][0]
 PAL.RGB["stadium"] = [g0] + list(PAL.RGB["stadium"][1:])
 paste("stadium")
 PAL.RGB["park"] = [g0, PAL.RGB["grass"][1]] + list(PAL.RGB["park"][2:])
-for _n in ("igloo", "mountain", "cow", "range_a", "range_b", "range_c"):
+for _n in ("igloo", "mountain", "cow") + (("range_a", "range_b", "range_c") if BEFORE_1C else ("range_b2", "range_c2")):
     paste(_n)
 _ed = _load(PROP / "smap_stadium/src/edits.py", "stadium_edits")
 _ed.edit(W)
 _ed.edit_grass_cells(W)
 _step("stadium_edits")
+if not BEFORE_1C:
+    import snowfield
+    SNOW_CHANGES = snowfield.apply(W)                       # one continuous snowfield under ranges B and C
+    _step("snowfield")
+if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
+    import roads_round
+    ROAD_CHANGES = roads_round.apply(W, PAL)               # rounded outer and inner corners of the road loops (hand-typed pieces in roads_round.py)
+    _step("road_corners")
 for w in WORLDS:                                            # milk bar: the tea house cell next to the lot's lawn joins tea@g (Color palette only, DMG pixels unchanged)
     w.pal[59][34] = "tea@g"
 _step("tea_cell")
