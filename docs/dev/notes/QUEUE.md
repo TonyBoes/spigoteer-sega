@@ -605,3 +605,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - Owner 11-06: "Flag is too flat. Needs to wave or something." Stadium artist: hand-drawn rippled static flag (for import), plus a 3-frame wave GIF and its tile cost (animation not implemented without his OK).
 - 11-06 wavy flag done (stadium branch, 4th commit): static rippled 10x5 flag, 60 tiles; 3-frame wave = same VRAM, +4 ROM tiles, engine job. Asked as Q104 (still or animated).
 - 11-06 milk bar round 4c in (branch worktree-agent-a742552fa3a9454c1, 891afbd8): A rear view 40, B side row 47, C props by the door 43 (my pick). Asked as Q105.
+- Owner 11-06, Q105: "The bikes need to be 3/4 angled toward venue. Parking lot is ok, but needs to be logically connected to the rest of the map." So: 3/4 bikes angled toward the diner door, slanted bays; grey lot kept and opened onto the trunk road below (driveway joining the road). Sent back to the milk bar artist.
