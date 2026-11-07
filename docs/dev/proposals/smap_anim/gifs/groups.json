@@ -1,0 +1,50 @@
+{
+ "river top (falls + water)": {
+  "max_tiles": 5,
+  "max_bytes": 80,
+  "avg_bytes_per_frame": 10.13,
+  "tiles_per_s": 38.0
+ },
+ "town (bunting + fountain + river water)": {
+  "max_tiles": 6,
+  "max_bytes": 96,
+  "avg_bytes_per_frame": 8.67,
+  "tiles_per_s": 32.5
+ },
+ "lodge (smoke + water)": {
+  "max_tiles": 5,
+  "max_bytes": 80,
+  "avg_bytes_per_frame": 5.87,
+  "tiles_per_s": 22.0
+ },
+ "factory (smoke)": {
+  "max_tiles": 3,
+  "max_bytes": 48,
+  "avg_bytes_per_frame": 5.6,
+  "tiles_per_s": 21.0
+ },
+ "milk bar (two tails + lake water)": {
+  "max_tiles": 2,
+  "max_bytes": 32,
+  "avg_bytes_per_frame": 3.91,
+  "tiles_per_s": 14.7
+ },
+ "mountain (dish + lamp)": {
+  "max_tiles": 2,
+  "max_bytes": 32,
+  "avg_bytes_per_frame": 1.42,
+  "tiles_per_s": 5.3
+ },
+ "stadium (pennants + lamps)": {
+  "max_tiles": 2,
+  "max_bytes": 32,
+  "avg_bytes_per_frame": 1.4,
+  "tiles_per_s": 5.2
+ },
+ "ALL on screen at once (not possible)": {
+  "max_tiles": 20,
+  "max_bytes": 320,
+  "avg_bytes_per_frame": 30.6,
+  "tiles_per_s": 114.8
+ }
+}
