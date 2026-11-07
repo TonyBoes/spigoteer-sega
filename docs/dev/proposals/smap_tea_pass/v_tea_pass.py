@@ -14,6 +14,34 @@ PAL = "tea"
 DOOR_PANE = "3:1 2:1 1:5 2:1 3:4"
 DOOR_RAIL = "3:1 2:7 3:4"
 DOOR = piece("3:12", (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL)
+# Round 6 door (level BWN): a split noren, two cream panels hung from a rod at the top of the opening, a 2 px slit between them, the dark interior under the hem and through the slit.
+# Rod y29, heading tape y30, panels y31-37 (right column shade 2 = the fold/shadow side, light from the top left), hem stitch y38, cloth y39, soft hem y40 with rounded outer corners.
+NOREN2 = piece("3:12", "3:1 2:10 3:1", "3:1 2:10 3:1", ("3:1 1:3 2:1 3:2 1:3 2:1 3:1", 7), "3:1 2:4 3:2 2:4 3:1", "3:1 1:4 3:2 1:4 3:1",
+               "3:2 2:3 3:2 2:3 3:2", ("3:12", 8))
+def _rw(t):
+    return " ".join(f"{ch}:1" for ch in t) if t.isdigit() else t
+
+
+def P(*specs):
+    """piece() that also takes a row typed as its 12 digits"""
+    return piece(*[(_rw(a[0]), a[1]) if isinstance(a, tuple) else _rw(a) for a in specs])
+
+
+# Round 7 curtain concepts (12 x 21 opening, x34..45, y28..48; typed rows, 3 ink, 2 brown, 1 cream; every row 12 wide).  Keys SMAP_TEA_TEX = C1 C2 C3 C4.
+# C1 wide single noren: cream cloth across the opening, rod y29, heading tape y30, a brown disc mark (6 x 6) centred, shade-2 fold on the right, split only in the bottom third (y39-43), hem y43.
+_C1_PLAIN = "311111111123"
+_C1_MARK_END = "311122221123"
+_C1_MARK_MID = "311222222123"
+_C1_SPLIT = "311113311123"
+C1 = P("3:12", "3:1 1:10 3:1", "3:1 2:10 3:1", _C1_PLAIN, _C1_MARK_END, (_C1_MARK_MID, 4), _C1_MARK_END, _C1_PLAIN, (_C1_SPLIT, 5), "322223322223", ("3:12", 5))
+C1S = P("3:12", "3:1 1:10 3:1", "3:1 2:10 3:1", _C1_PLAIN, _C1_MARK_END, (_C1_MARK_MID, 4), _C1_MARK_END, _C1_PLAIN, (_C1_PLAIN, 5), "322222222223", ("3:12", 5))  # C1S: C1 with no slit, straight hem
+# C2 darker three-panel noren: brown cloth (shade 2) with an ink fold on the right of each panel and ink slits, two cream stripes, hangs to 3/4 of the opening (y43), the middle panel one row shorter.
+_C2 = "312231231223"
+C2 = P("3:12", "3:1 1:10 3:1", (_C2, 2), "311131131113", (_C2, 6), "311131131113", (_C2, 3), "312233331223", ("3:12", 5))
+# C3 flap tied back: one cream flap drawn from the rod down to the right jamb, gathered in a column of folds and tied with a brown cord (y36), flaring below the tie to the hem (y43); the left of the doorway is open and dark.
+C3 = P("3:12", "3:1 1:10 3:1", "311111111113", "331111111123", "333311111123", "333333111123", ("333333121123", 2), "333332222223", ("333331121123", 5), "333311211213", "333322222223", ("3:12", 5))
+# C4 eave-wide valance (level C4): the plain dark open doorway here, and a short brown noren (rows y28-30 with a cream hem stripe, ink slits every 8 px) across the whole front under the beam (see valance()).
+C4 = P("3:12", ("3:12", 20))
 NOREN = piece("3:12", ("3:1 2:4 3:2 2:4 3:1", 8), ("3:12", 12))
 LANT = piece(".:3 3:2 .:3", ".:1 3:6 .:1", "3:1 2:6 3:1", "3:8", ".:1 3:1 1:4 3:1 .:1", ".:1 3:1 1:4 3:1 .:1", ".:1 3:6 .:1",
              ".:2 3:1 2:2 3:1 .:2", ".:2 3:1 2:2 3:1 .:2", ".:2 3:1 2:2 3:1 .:2", "3:8", "3:8")
@@ -61,8 +89,11 @@ def build(dmg=False):
             c.row(y, "0:12 3:1 2:2 2:17 2:2 1:12 2:2 2:17 2:2 3:1 0:28")
         else:
             c.row(y, "0:12 3:1 2:2 1:8 2:1 1:8 2:2 1:12 2:2 1:8 2:1 1:8 2:2 3:1 0:28")
-    new = os.environ.get("SMAP_TEA_TEX", "A") == "BWD"
-    c.paste(34, 28, DOOR if new else NOREN)
+    lvl = os.environ.get("SMAP_TEA_TEX", "A")
+    new = lvl in ("BWD", "BWN", "C1", "C1S", "C2", "C3", "C4")
+    c.paste(34, 28, {"BWN": NOREN2, "BWD": DOOR, "C1": C1, "C1S": C1S, "C2": C2, "C3": C3, "C4": C4}.get(lvl, NOREN))
+    if lvl == "C4":
+        valance(c)
     # ---- the veranda.  PASS: row 50 is the lit top plane (paper), row 51 the dark front face, so the deck reads as a platform ---------------
     c.row(49, "0:6 3:68 0:22")
     c.row(50, "0:6 3:1 1:66 3:1 0:22")                                    # PASS
@@ -126,17 +157,28 @@ def walls(c):
     # panels: a quiet shade at the bottom of each paper panel, a sparse ordered 1/2 dither (every 4th pixel), light from the top left
     for y in (32, 37, 42, 47):
         for x in range(15, 65):
-            if px[y][x] == "1" and x % 4 == 0:
+            if px[y][x] == "1" and x % 4 == 0 and not 34 <= x <= 45:      # not on the door
                 px[y][x] = "2"
+
+
+def valance(c):
+    """C4: a short noren along the whole front, x16..63, rows y28..31 under the beam: brown cloth, a cream hem stripe on the third row, an ink slit at every x divisible by 8.
+    The pattern repeats on the 8 px grid, so the two cells x24..31 and x48..55 that share a tile still do."""
+    for x in range(16, 64):
+        slit = x % 8 == 0
+        c.px[28][x] = "3" if slit else "2"
+        c.px[29][x] = "3" if slit else "2"
+        c.px[30][x] = "3" if slit else "1"
+        c.px[31][x] = "3" if slit else "2"
 
 
 def texture(c, level, dmg):
     if level == "none":
         return
-    if level in ("B", "BW", "BWD"):
+    if level in ("B", "BW", "BWD", "BWN", "C1", "C1S", "C2", "C3", "C4"):
         ribs(c)
         light_b = True
-        if level in ("BW", "BWD"):
+        if level in ("BW", "BWD", "BWN", "C1", "C1S", "C2", "C3", "C4"):
             walls(c)
     else:
         light_b = False
