@@ -29,6 +29,13 @@ Both fit the DMG (shades: ink 3, navy seats 2, rails and red 1, white 0). Pennan
 ## My pick
 Option 1. It reads as a ballpark grandstand at 1x on DMG (roof, awning, posts, tiers, crowd) and costs 12 tiles less, its flags are the clearest pennants, and the 45 degree wings give the angle. Option 2 has the nicer silhouette (a real curve) but the crowd and the roofline get busy on the wings and it costs +22 tiles.
 
+## Final (owner picked option 2, added a flag on top)
+Sheets: `stadium_final_sheet.png` (option 2 | final, DMG above, Color below, x3), `stadium_final_top_x6.png` (x6 close-up). Sources: `src/park_s2.py` (final), `src/park_s2_old.py` (as proposed), `src/sheet2.py`.
+- Big flag: 9 x 4 ink-outlined red flag with a white stripe on a pole at x 47, on top of the arch centre (static). The pole shows only 2 px below the flag: the arch top is at y 6 and the canvas ends at y 0.
+- Home dirt: PARKHOME and the checker are gone. Solid shade 1 (PARK slot 1) inside a 1 px dirt rim: one step lighter than round 3 on DMG, no new Color slot. On Color the inside is grass green, so the apron reads as a dirt-rimmed ring round the plate (doubt). The sections above that mention PARKHOME describe the first proposal.
+- Clean-up: no pennants on the steepest wing columns (x 8 to 14, 81 to 87): plain navy wall there; the rest unchanged.
+- Tiles: 60 against option 2's 59 (flag +2, plain wing wall and solid apron -1).
+
 ## Self-audit (gb-pixel-art)
 | check | result |
 |---|---|

@@ -16,14 +16,14 @@ GRASS_FROM = {0: 40, 1: 32, 2: 32, 3: 24, 4: 24, 5: 24, 6: 24, 7: 24, 8: 24, 9: 
 
 # the new home apron, typed: y 64 to 71, x 38 to 57 (first column, then the row).  A solid dirt rim all round (it keeps the apron apart from the grass on DMG) and a
 # 1/2 checker inside (shade 1 and shade 2 on DMG: lighter than the solid dirt of round 3; slot 1 is pale sand on Color).
-APRON = [
+APRON = [          # solid shade 1 (PARK slot 1) inside a 1 px dirt rim, y 64 to 71: one step lighter than round 3's solid dirt on DMG, existing palette
     (42, "222222222222"),
-    (40, "2" + "12121212121212" + "2"),
-    (39, "2" + "1212121212121212" + "2"),
-    (38, "2" + "121212121212121212" + "2"),
-    (38, "2" + "212121212121212121" + "2"),
-    (39, "2" + "2121212121212121" + "2"),
-    (41, "2" + "121212121212" + "2"),
+    (40, "2" + "1" * 14 + "2"),
+    (39, "2" + "1" * 16 + "2"),
+    (38, "2" + "1" * 18 + "2"),
+    (38, "2" + "1" * 18 + "2"),
+    (39, "2" + "1" * 16 + "2"),
+    (41, "2" + "1" * 12 + "2"),
     (44, "22222222"),
 ]
 
@@ -59,5 +59,3 @@ def field(c, apron=True):
             if c.px[ty + dy][tx + dx] == "1":
                 c.px[ty + dy][tx + dx] = "2"
     K.hl(c, 55, 47, 50, "0")
-    if apron:
-        c.palrect(32, 64, 64, 72, "parkhome")

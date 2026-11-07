@@ -27,6 +27,11 @@ B_RUNS = [(0, 8, 40), (8, 24, 32), (24, 72, 24), (72, 88, 32), (88, 96, 40)]
 ENDS = ((0, 24, 40), (8, 16, 32), (87, 16, 32), (95, 24, 40))
 
 
+FLAG = ["333333333", "311111113", "300000003", "333333333"]      # the big flag on the arch top, 9 x 4, ink pole at x 47
+FLAGX = 47
+PLAIN_X = tuple(range(8, 15)) + tuple(range(81, 88))      # steep wing columns: plain wall, no pennants (clean-up)
+
+
 def stands(c, bunting=True):
     yt, b = [None] * 96, [None] * 96
     for x0, x1, y in LEFT + RIGHT + OUTER:
@@ -42,7 +47,7 @@ def stands(c, bunting=True):
             if rel < 3:
                 v = BACK[rel][x % 8]
             elif rel < 6:
-                v = (FLAGS[(x // 8) % 2] if bunting else PLAIN)[rel - 3][x % 8]
+                v = (FLAGS[(x // 8) % 2] if bunting and x not in PLAIN_X else PLAIN)[rel - 3][x % 8]
             elif rel == 6:
                 v = TAIL[0][x % 8]
             elif y >= base - 4:
@@ -53,6 +58,12 @@ def stands(c, bunting=True):
     for x, y0, y1 in ENDS:
         for y in range(y0, y1):
             c.px[y][x] = "3"
+    if bunting:
+        for y in range(0, 6):
+            c.px[y][FLAGX] = "3"
+        for j, row in enumerate(FLAG):
+            for i, ch in enumerate(row):
+                c.px[j][FLAGX + i] = ch
     for col in (0, 11):
         PP.cell(c, col, 0, PP.MAST_HEAD)
         PP.cell(c, col, 1, ["00023000"] * 8)
