@@ -239,3 +239,8 @@ Own tile ids: the two factory cells (60,37) and (52,37) start from the shared bl
 | four long bends at r24 instead of r32 | the four sweeps 8 px tighter | 947 | 1012 | 1015 fits |
 | four round clumps alone | the 4 clumps | 958 | 1022 | 1025 does not fit |
 | desert twin and slope out | two peaks | 957 | 1022 | 1025 does not fit |
+
+### Stage 1m: the fountain's broken state audited (coordinator)
+audit_town.py rebuilds the approved town picture from smap_fountain/src/v_town_fx.py (which includes the tavern awning's ink end of 8608d684) and compares it with the integrated map pixel for pixel at the town's origin (px 248, 152; 96 x 72), on Color and DMG. Working: 0 differing pixels on both. Broken (SMAP_BROKEN=1: statue stub, dry lilac basin, no streams): 0 differing pixels on both, and the awning's six ink pixels (x 95, y 41..46) are there in both states. The map takes the town from that module, so nothing was missing and nothing was pasted. In the broken state the four fountain animation cells (36,24) (37,24) (36,25) (37,25) have no streams to animate (the engine table skips them). Counts in the broken state: 969 DMG, 1034 Color, worst DMG view 170, windows over 8: 0 (before the +2 factory ids and the teahouse +1); the working state, the bigger one, is the one budgeted.
+
+Note from another agent (docs/dev/notes/color_tile_cap_2026-11-07.md): one ROM bank holds about 1018 Color tiles, and stage 2a plans a Color flip-merge (about 11% fewer ids). No "way under 1024" in this file is applied; the owner picks only if the measured saving does not hold.
