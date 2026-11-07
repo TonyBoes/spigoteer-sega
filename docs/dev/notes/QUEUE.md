@@ -671,3 +671,5 @@ Make sure you merge the mast lamp and radar animations."
 - 2026-11-06 milk bar final (sheet13, branch worktree-agent-a742552fa3a9454c1): B + base silver + tea merge; pass on the band only: ink outline, pink fill, 2x2 chrome bulbs every 4 px, rounded-step bend. 579 tiles, worst view 133, 8 palettes. Ready for the import round (venue-over-road assert still open). Sent to owner as status.
 - 2026-11-06 owner: "Milk bar final: quality pass looks good, but lets raise the bottom of the arrow a bit on the pole. Then lets move the whole sign to the left a bit."
   Plan: keep the passed band; raise the arm/head (bottom of the band) a few px up the pole; then shift the whole sign (bottle, pole, band, head) a few px left. Nothing else changes.
+- 2026-11-06 owner: "can we make the logs bob in the water?  New glints are better."
+  Plan: new glints approved; taking "subtle" (very subtle may vanish on DMG) unless he says otherwise. Anim agent adds a slow 1 px log bob (river logs, v1 single logs), report tile cost and DMG peak. Falls direction still awaiting his look.
