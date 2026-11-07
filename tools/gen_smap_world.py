@@ -52,7 +52,8 @@ STOP_ORDER = list(W.ORDER) + ["town"]            # stop index = chapter 0..9, 10
 WIN_C = (22, 20)                 # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)
-TILE_MAX = 1024                  # a cell word holds a 10-bit tile id and a 5-bit palette
+TILE_MAX = 1024                  # a cell word holds a 10-bit tile id, a 5-bit palette and (Color) the alternate-flip bit 15
+FLIP_MERGE = True                # Color: mirror-image blocks share one tile id (see Model.merge_flips)
 
 
 def rgb555(c):
@@ -91,9 +92,9 @@ class Model:
         self.cgb = cgb
         world = W.WORLD if cgb else W.WORLD_DMG
         self.world = world
-        self.ids = {}                                # pixel block -> tile id
-        self.sigs = []
-        self.grids = {}                              # p -> (CH, CW) tile ids
+        self.ids = {}                                # pixel block -> distinct block index (first-use order over the states)
+        self.sigs = []                               # the distinct pixel blocks
+        self.grids = {}                              # p -> (CH, CW) distinct block index; Color: replaced below by the tile id (see merge_flips)
         self.pals = {}                               # p -> (CH, CW) palette indices (Color)
         self.state_end = []
         for p in range(1, 11):
@@ -113,11 +114,103 @@ class Model:
                     pl[y, x] = PAL_NAMES.index(name)
             self.grids[p], self.pals[p] = g, pl
             self.state_end.append(len(self.sigs))
+        self.nsig = len(self.sigs)                   # distinct 8 x 8 blocks
+        self.all_sigs = list(self.sigs)
+        self.sg = dict(self.grids)                   # distinct block index per cell and state (the truth the tests compare with)
+        self.alt = {p: np.zeros((CH, CW), dtype=np.int32) for p in range(1, 11)}      # the cell word's bit 15: the tile is shown with its alternate flip (Color only)
+        self.altflip = []                            # per tile id: the alternate's attribute flip bits (1 = X, 2 = Y, 3 = both), 0 = none (Color only)
+        if cgb and FLIP_MERGE:
+            self.merge_flips()
+        if not self.altflip:
+            self.altflip = [0] * len(self.sigs)
         self.nt = len(self.sigs)
         assert self.nt < TILE_MAX
+        assert not cgb or self.nt * 16 + 69 <= 16384, f"Color: {self.nt} tiles do not fit one ROM bank"
         # revealed display of every cell = the late world (state 10)
-        self.cell = [int(self.grids[10][y, x]) | (int(self.pals[10][y, x]) << 10 if cgb else 0) for y in range(CH) for x in range(CW)]
+        self.cell = [int(self.grids[10][y, x]) | (int(self.pals[10][y, x]) << 10 if cgb else 0) | (int(self.alt[10][y, x]) << 15) for y in range(CH) for x in range(CW)]
         self.build_fog()
+
+    # ---- the Color flip-merge: a tile id stands for a canonical block and one alternate (its mirror image), shown with the attribute's flip bits ------------------
+    def merge_flips(self):
+        """Two blocks that are mirror images of each other (X, Y or both) share one tile id: the cell word's bit 15 selects the alternate and the slot table's bits 11-12 say which flip
+        it is.  A tile id has at most one alternate, so a family of four distinct mirror images takes two ids.  A block shown in an animated cell is pinned (its own id, nothing merged into
+        it: the animation rewrites the one tile, every cell of the id would play it)."""
+        sigs = self.sigs
+        pinned = set()
+        for (cx, cy) in getattr(W, "ANIM_CELLS", ()):
+            for p in range(1, 11):
+                pinned.add(int(self.sg[p][cy, cx]))
+
+        def fx(s):
+            return bytes(s[j * 8 + 7 - i] for j in range(8) for i in range(8))
+
+        def fy(s):
+            return bytes(s[(7 - j) * 8 + i] for j in range(8) for i in range(8))
+
+        def fxy(s):
+            return fx(fy(s))
+        FL = ((1, fx), (2, fy), (3, fxy))
+        index = {s: i for i, s in enumerate(sigs)}
+        family = {}
+        for i, s in enumerate(sigs):
+            key = min((s, fx(s), fy(s), fxy(s)))
+            family.setdefault(key, []).append(i)
+        base_of = {}                                  # distinct block index -> (base block index, flip bits to get it: 0 for the base itself)
+        for key, mem in family.items():
+            free = [i for i in mem if i not in pinned]
+            for i in mem:
+                if i in pinned:
+                    base_of[i] = (i, 0)
+            while free:
+                b = free.pop(0)
+                base_of[b] = (b, 0)
+                for k, (code, fn) in enumerate(FL):
+                    a = index.get(fn(sigs[b]))
+                    if a is not None and a != b and a in free:
+                        free.remove(a)
+                        base_of[a] = (b, code)
+                        break
+        # tile ids in first-use order of their base block, so the states' ids stay a prefix
+        tid = {}
+        new_sigs, altflip = [], []
+        for i in range(len(sigs)):
+            b, code = base_of[i]
+            if b not in tid:
+                tid[b] = len(new_sigs)
+                new_sigs.append(sigs[b])
+                altflip.append(0)
+            if code:
+                altflip[tid[b]] = code
+        # state_end: the number of tile ids once every block first used up to state p is placed
+        ends = []
+        for e in self.state_end:
+            seen_t = {tid[base_of[i][0]] for i in range(e)}
+            ends.append(len(seen_t))
+        self.merged_from = len(sigs)
+        for p in range(1, 11):
+            g = self.grids[p]
+            tg = np.zeros_like(g)
+            ag = np.zeros_like(g)
+            for y in range(CH):
+                for x in range(CW):
+                    b, code = base_of[int(g[y, x])]
+                    tg[y, x] = tid[b]
+                    ag[y, x] = 1 if code else 0
+            self.grids[p] = tg
+            self.alt[p] = ag
+        self.sigs = new_sigs
+        self.altflip = altflip
+        self.state_end = ends
+
+    def word_sig(self, w):
+        """the 64 pixels a cell word shows (Color: the tile id's block, mirrored when bit 15 is set)"""
+        s = self.sigs[w & 1023]
+        code = self.altflip[w & 1023] if self.cgb and (w >> 15) & 1 else 0
+        if code & 1:
+            s = bytes(s[j * 8 + 7 - i] for j in range(8) for i in range(8))
+        if code & 2:
+            s = bytes(s[(7 - j) * 8 + i] for j in range(8) for i in range(8))
+        return s
 
     # ---- the fog ----------------------------------------------------------------------------------------------------------------------
     def build_fog(self):
@@ -144,7 +237,7 @@ class Model:
                     if (x, y) not in fog:
                         continue
                     z = self.zone[y * CW + x]
-                    t = int(self.grids[p][y, x])
+                    t = int(self.grids[p][y, x]) | (int(self.alt[p][y, x]) << 15)      # (the word's tile part: id and the alternate bit)
                     pi = int(self.pals[p][y, x]) if self.cgb else 0
                     if (z >> 4) > p:                 # interior
                         par = (x & 1) | ((y & 1) << 1)
@@ -191,9 +284,9 @@ class Model:
             for y in range(CH):
                 for x in range(CW):
                     w = self.disp(y * CW + x, p)
-                    assert (w & 1023) == int(self.grids[p][y, x]), (self.cgb, p, x, y)
+                    assert self.word_sig(w) == self.all_sigs[int(self.sg[p][y, x])], (self.cgb, p, x, y)
                     if self.cgb:
-                        assert (w >> 10) == int(self.pals[p][y, x]), (self.cgb, p, x, y)
+                        assert ((w >> 10) & 31) == int(self.pals[p][y, x]), (self.cgb, p, x, y)
 
     # ---- windows -----------------------------------------------------------------------------------------------------------------------
     def window_max(self, ww, wh):
@@ -706,10 +799,10 @@ def main(build, preview):
         var_idx[t] = seen[c]
         seen[c] += 1
     nvar = max(seen.values())
-    if nvar > 15:
-        fail.append(f"Color: a slot is shared by {nvar} tiles (a variant is a nibble)")
+    if nvar > 4:
+        fail.append(f"Color: a slot is shared by {nvar} tiles (a variant is two bits of the slot table: bits 11-12 are the alternate's flips)")
     nslots = k_c
-    cg.slotvar = [int(col_c[t]) | (var_idx[t] << 9) for t in range(cg.nt)]
+    cg.slotvar = [int(col_c[t]) | (var_idx[t] << 9) | (cg.altflip[t] << 11) for t in range(cg.nt)]      # slot (9 bits), variant (2 bits), the alternate's flip bits (2 bits)
     cg.pal_words = []
     for name in PAL_NAMES:
         cols = PAL.get(name)
@@ -766,7 +859,7 @@ def main(build, preview):
     pal_cols = [[rgb555(c) for c in PAL.get(n)] for n in PAL_NAMES]
     info = {
         "stops": stops, "stop_order": STOP_ORDER, "legs": [[a, b, [list(q) for q in p]] for a, b, p in legs], "exits": exits, "exit_leg": exit_leg,
-        "ufo": ufo, "ndmg": dm.nt, "ncgb": cg.nt, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
+        "ufo": ufo, "ndmg": dm.nt, "ncgb": cg.nt, "ncgb_blocks": cg.nsig, "alt_flip_c": cg.altflip, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
         "state_end_c": cg.state_end, "state_end_d": dm.state_end, "tiles_c": bytes(dc).hex(), "tiles_d": bytes(dd).hex(),
         "win_d_21x19": n21, "win_d_22x20": n22, "win_c_pal_21x19": p21, "win_c_pal_22x20": p22, "uses_max_22x20": uses, "hint_conflicts": int(bad_d),
         "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "hint_d": dm.hint,
@@ -784,9 +877,8 @@ def main(build, preview):
                 for y in range(CH):
                     for x in range(CW):
                         w = m.disp(y * CW + x, p)
-                        t = w & 1023
-                        cols = PAL.get(PAL_NAMES[w >> 10]) if m.cgb else None
-                        s = m.sigs[t]
+                        cols = PAL.get(PAL_NAMES[(w >> 10) & 31]) if m.cgb else None
+                        s = m.word_sig(w)
                         for j in range(8):
                             for i in range(8):
                                 v = s[j * 8 + i]

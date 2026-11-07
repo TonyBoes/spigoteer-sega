@@ -56,7 +56,7 @@ def test_no_window_of_the_built_data_is_over_the_budgets():
     stops, legs, _, _ = g.geometry()
     assert dm.window_max(21, 19)[0] <= 176, "a view's tiles fit the DMG's 176 slots"
     assert cg.palette_max(21, 19)[0] <= 8, "a view's palettes fit the Color's 8 BG palette slots"
-    assert WORLD["vars_max"] <= 15 and WORLD["uses_max_22x20"] <= 255 and WORLD["slots_c"] <= 352
+    assert WORLD["vars_max"] <= 4 and WORLD["uses_max_22x20"] <= 255 and WORLD["slots_c"] <= 352
     worst_t = worst_p = 0
     for p in range(1, 11):
         for (c0, c1, r0, r1) in g.path_windows(stops, legs):          # (the camera's view on every pixel of the way, a line more on every side)
@@ -79,9 +79,13 @@ def world_image(model, state):
     tiles = bytes.fromhex(WORLD["tiles_c" if cgb else "tiles_d"])
     cache, im = {}, np.zeros((384, 512, 3), dtype=np.uint8)
     for c, w in enumerate(disp):
-        key = (w & 0x3FF, w >> 10)
+        key = (w & 0x3FF, (w >> 10) & 31, w >> 15)
         if key not in cache:
             ix = tile_idx(tiles[key[0] * 16:key[0] * 16 + 16])
+            if key[2]:                                            # (the Color flip-merge: bit 15 shows the tile id's alternate, its mirror image)
+                fl = WORLD["alt_flip_c"][key[0]]
+                ix = (ix[:, ::-1] if fl & 1 else ix)
+                ix = (ix[::-1, :] if fl & 2 else ix)
             cols = [((v & 31) << 3, ((v >> 5) & 31) << 3, ((v >> 10) & 31) << 3) for v in WORLD["pal"][key[1]]] if cgb else [DMG_GREY[i] for i in range(4)]
             cache[key] = np.array(cols, dtype=np.uint8)[ix]
         y, x = divmod(c, 64)

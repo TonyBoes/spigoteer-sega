@@ -622,6 +622,38 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     return R_OK;
 }
 
+
+// Color: the cell of a column or row for the Color model, the same as add_cell's Color half (a function of its own, so that the DMG's add_cell above is compiled exactly as it was).
+// The cell word's bits 10-14 are the palette, bit 15 says the cell shows the tile id's alternate (its mirror image, the Color flip-merge): the slot table's bits 11-12 are that flip
+// (attribute bit 5: X, bit 6: Y), bits 9-10 the variant.
+static uint8_t add_cell_c(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
+    uint16_t t = f->w & 0x3FF, slot9 = f->aux & 0x1FF;
+    uint8_t direct = V(V_DIRECT), need_t, need_p, hw, id, att, pal = (uint8_t)((f->w >> 10) & 31), bank, var = (uint8_t)((f->aux >> 9) & 3), cost, ents;
+    need_p = SC(A_PSLOT)[pal] == NIL;
+    need_t = nib_get(slot9) != var;
+    bank = slot9 >= SMAPW_POOL;
+    if (!direct) {
+        cost = CELL_COST(vert); ents = CELL_ENT(vert);
+        if (need_t) { if (V(V_NSTG) >= NSTG_MAX) return R_ROOM; cost += 9 + (bank << 1); ents++; }
+        if (need_p) { if (V(V_PALQ)) return R_ROOM; cost += 36; ents += 9; }
+        if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
+    }
+    hw = SC(A_PSLOT)[pal];
+    if (need_p) { hw = pal_take(pal); if (hw == NIL) return R_RES; }
+    id = pool_id(bank ? (uint8_t)(slot9 - SMAPW_POOL) : (uint8_t)slot9);
+    if (need_t) { nib_set(slot9, var); tile_load(bank, id, t); }
+    pal_count(pal, 1);
+    att = hw | (bank ? 8 : 0);
+    if (f->w & 0x8000) att |= (uint8_t)(f->aux >> 6) & 0x60;
+    SC(S_T + T_IDS)[k] = id;
+    SC(A_IDA)[k] = att;
+    if (direct) {
+        *(volatile uint8_t *)map_addr(cx, cy) = id;
+        VBK_REG = VBK_BANK_1; *(volatile uint8_t *)map_addr(cx, cy) = att; VBK_REG = VBK_BANK_0;
+    }
+    return R_OK;
+}
+
 #if ASM_SMAP
 // DMG: add_cell, with the tile-load cases in asm first (the Color calls add_cell itself: its code and cost are the same as without the asm)
 static uint8_t add_cell_d(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
@@ -640,7 +672,7 @@ static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     if (!direct) {
         if (room() < (uint8_t)(CELL_COST(vert) + V(V_RES)) || (uint8_t)(vq_count + CELL_ENT(vert) + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
-    if (is_cgb) { att = SC(A_IDA)[k - 1]; SC(A_IDA)[k] = att; pal_count((uint8_t)(f->w >> 10), 1); }
+    if (is_cgb) { att = SC(A_IDA)[k - 1]; SC(A_IDA)[k] = att; pal_count((uint8_t)((f->w >> 10) & 31), 1); }
     else SC(A_CNT)[slot_of_id(id)]++;
     SC(S_T + T_IDS)[k] = id;
     if (direct) {
@@ -653,7 +685,7 @@ static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
 // n cells that show f's tile leave the region
 static void drop_cells(const smap_fc *f, uint8_t n) {
     uint8_t s;
-    if (is_cgb) { pal_count((uint8_t)(f->w >> 10), -(int8_t)n); return; }
+    if (is_cgb) { pal_count((uint8_t)((f->w >> 10) & 31), -(int8_t)n); return; }
     s = tbl_find(f->w & 0x3FF, (uint8_t)f->aux);
     if (s == NIL) return;
     SC(A_CNT)[s] -= n;
@@ -902,7 +934,11 @@ static uint8_t job_run(uint8_t cap) {
                 if (!is_cgb) r = add_cell_d(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
                 else
 #endif
-                r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+#if ASM_SMAP
+                r = add_cell_c(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+#else
+                r = is_cgb ? add_cell_c(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert) : add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+#endif
             }
             if (r) break;
             V(V_RES) += cpc; V(V_RESE) += CELL_ENT(vert);
