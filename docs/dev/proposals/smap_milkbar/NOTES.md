@@ -1,4 +1,20 @@
-# Milk bar round 4f (current): sign and cow repositioned (two arrangements), the hay field replaced by a cow pasture
+# Milk bar round 4g (current): building one cell west, cow and sign swapped
+
+Owner: "move the milk bar to the left a bit so it is not right on the corner. swap th location of the milk sign and the cow to the left of the milk bar." Supervisor reading, built: arrangement 1's pen kept (2 cows and the trough). The building with its lot and bikes moves 8 px (one cell) west, so one cell of grass (x 88..95 of the picture, world cell 61) lies between it and the north-south road. The cow stands where the sign stood in arrangement 1; the bottle sign stands beside the building where the cow was in round 4e. `milkbar_sheet7.png`: arrangement 1 | new, DMG row then Color row, x3, in the A5 map (red tick = Sal's stop). Code: `src/cow_a5.py` (`build(3)`), `src/render_one.py arr3`, `src/sheet7.py`.
+
+Details: the lane (road tiles, TOWN1) runs the full picture width, the lot is the same 64 px wide, now at x 24..87. Sign: pole at x 16..19, bottle x 10..25 (1 px off the building's left edge at x 27), pole shortened by 8 px so the foot (y 110, 111) stays above Sal's 16 px box (y 116..132); Sal's stop (x 418, row 63) is on plain lane road. The lawn cow is at x 1..14, y 98..107, on grass, 1 cell from the river bank cell: the river bank needed no nudge. Only one reading was built: with a 16 px move there is no room left of the building for both.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| A5 as it is | 547 | 133 | 101 | 44 | 8 |
+| arrangement 1 | 557 | 133 | 111 | 61 | 8 |
+| new | 562 | 133 | 111 | 65 | 8 |
+
+Lint PASS DMG and Color; warnings as in round 4f (orphans, the road's L-doubles, the copied bottle).
+
+---
+
+# Milk bar round 4f: sign and cow repositioned (two arrangements), the hay field replaced by a cow pasture
 
 Owner (Q106): "That milk bar option looks good, but lets reposition the sign and the cow.  Let's also get rid of the hay field--it's supposed to be a cow pasture." `milkbar_sheet6.png`: 4e as shown | arrangement 1 | arrangement 2, in the A5 map around the milk bar, DMG row then Color row, x3, red tick = Sal's stop (world px 418, 508). Building, lot, bikes: round 4e, pixel-identical (`cow_lot4.build()` is embedded unchanged). Nothing imported, no golden touched.
 

@@ -3,5 +3,5 @@ import export as E
 
 import cow_a5 as A
 
-for a in (1, 2):
+for a in (1, 2, 3):
     E.write(f'arr{a}', A.build(a))

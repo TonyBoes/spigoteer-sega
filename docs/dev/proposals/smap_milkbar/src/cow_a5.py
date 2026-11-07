@@ -56,25 +56,36 @@ def pen(c):
 
 
 def build(arr):
+    """arr 1 and 2: as round 4f's first set; arr 3 (owner, after Q106): the building with its lot and bikes one cell (8 px) west, a cell of grass between it and
+    the north-south road; the cow where the sign was in arrangement 1, the sign beside the building where the cow was; the pen of arrangement 1"""
     c = Canvas("cowA5_%d" % arr, "cow", W, H)
     base = N.build()
-    for y in range(72):
-        for x in range(96):
-            c.px[y + OFF][x] = base.px[y][x]
-    c.palrect(32, 56 + OFF, 96, 72 + OFF, 'town1')
     for y in range(2, 56):                                   # the old sign and cow places are cleared
         for x in range(8, 24):
-            c.px[y + OFF][x] = "0"
-    for y in range(56, 72):                                  # round 2's cow place is the lane again: the road's own tiles (F1 above, ES kerb row below), TOWN1
+            base.px[y][x] = "0"
+    for y in range(56, 72):                                  # round 2's cow place (x < 32) is left to the lane tiles below
         for x in range(0, 32):
+            base.px[y][x] = "0"
+    dx = -8 if arr == 3 else 0
+    for y in range(72):
+        for x in range(96):
+            if 0 <= x + dx < 96:
+                c.px[y + OFF][x + dx] = base.px[y][x]
+    lot0 = 32 + dx
+    for y in range(56, 72):                                  # the lane outside the lot: the road's own tiles (F1 above, ES kerb row below), TOWN1
+        for x in list(range(0, lot0)) + list(range(96 + dx, 96)):
             c.px[y + OFF][x] = N.T.ROAD['F1'][y % 8][x % 8] if y < 64 else N.T.ROAD['ES'][y - 64][x % 8]
-    c.palrect(0, 56 + OFF, 32, 72 + OFF, 'town1')
+    c.palrect(0, 56 + OFF, 96, 72 + OFF, 'town1')
     pen(c)
     put(c, 14, 40, TROUGH)
     put(c, 62, 36, v_cow.COW)                                # the small cow in the pen
     if arr == 1:
         put(c, 28, 18, v_cow.COW)                            # the cow in the pen
         sign(c, 8, 2 + OFF, 54 + OFF, 8)                     # at the lane's west end, where the road comes in from the bridge (foot 8 wide, clear of Sal's stop)
+    elif arr == 3:
+        put(c, 28, 18, v_cow.COW)
+        put(c, 1, 98, v_cow.COW)                             # the lawn cow, where the sign stood in arrangement 1
+        sign(c, 18, 2 + OFF, 46 + OFF, 8)                    # the sign right beside the building, a shorter pole (the foot at y 110, above Sal's box)
     else:
         put(c, 4, 34 + OFF, v_cow.COW)                       # the cow on the lawn west of the building, above the lane
         sign(c, 44, 142, 174)                                # the south verge: bottle y 142..164, a short pole, the foot at y 174
