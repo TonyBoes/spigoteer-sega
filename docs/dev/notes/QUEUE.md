@@ -616,3 +616,4 @@ Owner: "From inside the game quitting a level should quit to map. With an option
 - 11-06 hangar jets in (round 4d): jet A out on apron 99 tiles, jet B tail in doors 97 (my pick). Q108 reopened with them.
 - 11-06 milk bar round 4e in A5 (105c2796): at cell (50,55), lot = ring road south lane widened; width fits; open: cow on road cells x52-53 (and Sal stop under it), generator venue/road assert needs lot exemption + walkable. Q106 reopened.
 - Owner 11-06, Q104: "104 flag at stadium looks great." Wavy flag accepted. Still vs animated not stated: asked to confirm (Q104 kept, narrowed).
+- Owner 11-06, Q109: "109: show me possibilities of what it could look like." Artist drawing 3 story-spigot mockups (water from the spout), proposal only.
