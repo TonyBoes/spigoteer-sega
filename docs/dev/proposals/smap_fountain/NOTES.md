@@ -58,3 +58,20 @@ Lamp-post proportions: bowl widened to 14 with an overhanging rim and a stepped 
 
 ## Rebuild
 `python3 -I docs/dev/proposals/smap_layout_a5/mk_src.py`, then `mk_a5.py` (scratch, untracked outputs); then `python3 -I run.py 1|2|cur OUTDIR [probe_presnap.py|metrics.py]` renders and counts; `town_png.py` writes the indexed DMG strip for the lint; `engshot.py` takes the engine pictures from a scratch ROM (`GB_ROM=...`). The scratch engine build is a copy of the repo with the A5 `src/` files over `tools/smap_world/`, `engine_scratch.patch` applied, `SMAP_LAYOUT=lay_A5 SMAP_FOG=none SMAP_WATERDMG=light SMAP_FOUNTAIN=1|2`, venue module `v_town_fx` (the copy's `lay_A5.py` reads `SMAP_TOWNMOD`).
+
+## Round 2 (owner: "for most of the game, the fountain will be broken. and the water doesn't seem to flow right out of the nozzle.")
+Sheet: `sheet_broken.png` (story broken crop | opt 1 broken | opt 1 working | opt 2 broken | opt 2 working, DMG and Color x4, and the whole town broken for both). `sheet_engine.png` still shows round 1's jet (the engine ROMs were not rebuilt for the jet fix).
+
+**Jet fix (both options, hand-typed pixels only):** the nozzle's bottom row is now solid ink (a lip) and the first two water rows sit directly under the mouth at x 56 and 57, so the water touches the opening and starts straight down, then drifts right (x 56, 56, 57, 57, 58, 58, 58, 59 ...), then falls into the basin. The cream glint no longer sits on the first row. Foam moved to x 60 to 63 under the new landing.
+
+**Broken state** (`SMAP_BROKEN=1`, same file): the statue is a jagged two-spike stub of the body (y 30 to 33) on the same collar and plinth steps; arm, handle, cap, lever and jet are gone; bowl, column, foot block and basin walls are identical to the working state. The basin is dry, not still: still blue water reads as a working fountain at 1x, while the lilac floor (DMG 88 against the water's 168) reads as empty, like the story's dry basin. The story's night colours are not part of this (the map is by day).
+
+| | opt 1 working | opt 1 broken | opt 2 working | opt 2 broken |
+|---|---|---|---|---|
+| DMG unique tiles (546 now) | 548 | 545 | 547 | 544 |
+| DMG worst 21x19 window | 135 | 132 | 134 | 131 |
+| DMG 22x20 window | 139 | 137 | 138 | 137 |
+| Color tiles / slots | 619 / 352 | 616 / 352 | 619 / 352 | 616 / 352 |
+| palettes per window | 8 | 8 | 8 | 8 |
+Cells that differ between the broken and the working state (pixels; the palette table is the same): option 1: 11 cells, option 2: 12. In picture cells (x, y of the 12 x 9 town block, add (31, 19) for the map): option 1 (5,2) (6,2) (5,3) (6,3) (7,3) (5,4) (7,4) (7,5) (5,6) (6,6) (7,6); option 2 the same plus (8,6). That is the statue's and arm's cells, the jet's cells and the basin water band. Cells whose palette would differ between the states: none by the engine's table, but the broken top cells are all air (town1@g with only index 0) and could take the grass palette if the swap code prefers.
+Lint of the broken picture was not rerun (the same grids with fewer pixels). The swap is not implemented in the engine.

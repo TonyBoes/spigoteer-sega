@@ -50,7 +50,7 @@ STATUE2 = P("....3333........",
             "..33333333333333",
             "..31111111111113",
             ".331112222222223",
-            "3131112223333223",
+            "3131112223333333",
             ".331112223......",
             "..31112223......",
             ".3333333333.....",
@@ -65,8 +65,16 @@ COLUMN = (46, "311223")
 BLOCK = "30002223"                    # the pedestal's foot standing in the water: stone (cream, lilac), x 45 to 52, y 49 to 51
 
 # the jet: 2 px wide, left pixel per row, y 32 to 48 (it falls over the back rim into the pool); leaves the nozzle under its mouth (x 56, 57) and drifts right
-JET_LEFT = [56, 57, 57, 58, 58, 58, 59, 59, 59, 59, 60, 60, 60, 60, 60, 61, 61]
-JET_GLINT = {0, 3, 7, 11, 15}         # rows where the left pixel is a cream glint
+JET_LEFT = [56, 56, 57, 57, 58, 58, 58, 59, 59, 59, 60, 60, 60, 60, 61, 61, 61]
+JET_GLINT = {3, 8, 13}                # rows where the left pixel is a cream glint (never the first row: that one touches the nozzle)
+
+# BROKEN state (env SMAP_BROKEN=1; the story's square after the explosion, intro_a.txt): the statue is gone down to a jagged stub of the body on the collar and
+# plinth steps (y 30 to 33), no jet, the basin dry (its floor lilac, no water).  Same bowl, column, foot block and basin walls as the working state.
+BROKEN = os.environ.get("SMAP_BROKEN") == "1"
+STUB = P("..3......3......",
+         "..31.33.13......",
+         "..31112223......",
+         "..31112223......")
 
 
 def basin(c, x0, x1):
@@ -75,9 +83,10 @@ def basin(c, x0, x1):
         r = (x - x0) % 8
         end = x in (x0, x1)
         col = {48: "3", 52: "3", 55: "3", 63: "3"}
-        col[49] = "3" if end else "w"
-        col[50] = "3" if end else ("0" if r in (2, 3) else "w")
-        col[51] = "3" if end else "w"
+        wet = "2" if BROKEN else "w"                  # dry: the floor is lilac
+        col[49] = "3" if end else wet
+        col[50] = "3" if end else ("0" if r in (2, 3) and not BROKEN else wet)
+        col[51] = "3" if end else wet
         col[53] = "3" if end else "0"
         col[54] = "3" if end else "0"
         for y in range(56, 62):
@@ -88,8 +97,9 @@ def basin(c, x0, x1):
     for k, ch in enumerate(BLOCK):                    # the foot of the column, in the water
         for y in (49, 50, 51):
             c.px[y][45 + k] = ch
-    for x in (59, 60, 61, 62):                       # the foam where the jet lands
-        c.px[49][x] = "0"
+    if not BROKEN:
+        for x in (60, 61, 62, 63):                   # the foam where the jet lands
+            c.px[49][x] = "0"
 
 
 def paste(c, x, y, rows):
@@ -102,6 +112,9 @@ def paste(c, x, y, rows):
 def fountain(c):
     statue = STATUE2 if OPT == "2" else STATUE1
     y0 = 31 - STATUE_NOZZLE_ROW + (len(STATUE2) - len(statue))        # the nozzle's mouth row is y 31 in both
+    if BROKEN:
+        statue = STUB + STATUE2[-3:]
+        y0 = 30
     paste(c, 43, y0, statue)
     y = y0 + len(statue)                     # the bowl's rim row
     for k, (x, s) in enumerate(BOWL_ROWS):
@@ -110,7 +123,7 @@ def fountain(c):
     while y < 48:
         paste(c, COLUMN[0], y, [COLUMN[1]])
         y += 1
-    for k, lx in enumerate(JET_LEFT):
+    for k, lx in enumerate([] if BROKEN else JET_LEFT):
         for i in (lx, lx + 1):
             c.px[32 + k][i] = "0" if (i == lx and k in JET_GLINT) else "w"
     basin(c, 40, 71 if OPT == "2" else 63)

@@ -27,4 +27,7 @@ res = {
 }
 print("METRICS", json.dumps(res))
 if len(sys.argv) > 2:
+    import hashlib
+    sig = {f"{x},{y}": [hashlib.md5(dmg[(x, y)]).hexdigest()[:8], hashlib.md5(col[(x, y)][0]).hexdigest()[:8], col[(x, y)][1]] for (x, y) in town}
+    Path(sys.argv[2]).joinpath("cells.json").write_text(json.dumps(sig))
     Path(sys.argv[2]).joinpath("metrics.json").write_text(json.dumps(res, indent=1))
