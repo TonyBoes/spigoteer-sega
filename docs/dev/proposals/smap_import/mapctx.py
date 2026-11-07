@@ -36,9 +36,13 @@ lay.SCENERY = [s for s in lay.SCENERY if s[0] is not decor.HAY]
 BEFORE_1C = os.environ.get("SMAP_BEFORE_1C") == "1"         # the stage 1b state (square road corners, range A, uniform peaks): for the before | after renders
 if not BEFORE_1C:
     # stage 1c: the round tree-bush at cell (2, 13) moves one cell east (its pixels sat in the ground cell the inner road corner at the stadium's gate road rounds into)
-    lay.SCENERY = [(p, 24, 104) if (p is decor.BUSH and x == 16 and y == 104) else (p, x, y) for (p, x, y) in lay.SCENERY]
+    lay.SCENERY = [(p, int(os.environ.get("SMAP_STADIUM_BUSH_X", "24")), 104) if (p is decor.BUSH and x == 16 and y == 104) else (p, x, y) for (p, x, y) in lay.SCENERY]
     # range A removed: its ground is the lawn round it; five of the map's own pines stand there, about the density of the lawn east of the bistro
     lay.SCENERY = lay.SCENERY + [(decor.PINE, x * 8, y * 8) for (x, y) in [(18, 1), (22, 0), (25, 2), (28, 0), (31, 1)]]
+if not BEFORE_1C and os.environ.get("SMAP_NO_CLUSTERS") != "1":
+    import clusters                                         # overlapping tree clusters and the zoo bamboo (clusters.py); SMAP_CLUSTERS=trees|bamboo limits it
+    _w = os.environ.get("SMAP_CLUSTERS", "trees,bamboo")
+    CLUSTER_MISS = clusters.apply(lay, trees="trees" in _w, bamboo="bamboo" in _w)
 V = dict(lay.VENUES)
 for k in ("cow", "stadium", "igloo", "space"):
     V[k] = ("anim_stub", V[k][1])
@@ -51,12 +55,17 @@ if SEAMS:                                                   # irregular ground s
     import seam_edges
     seam_edges.apply(lay)
 
+DESERT = not BEFORE_1C and os.environ.get("SMAP_NO_DESERT") != "1"
+if DESERT:                                                  # desert spills across the road (desert_extras.py): ground cells, typed before the world is built
+    import desert_extras
+    desert_extras.apply_grid(lay)
+
 import pal as PAL  # noqa: E402
 import world2 as W  # noqa: E402
 
 CW, CH = W.CW, W.CH
 BROKEN = os.environ.get("SMAP_BROKEN") == "1"
-LIGHT = os.environ.get("SMAP_WATERDMG") == "light"
+LIGHT = os.environ.get("SMAP_WATERDMG", "light") != "dark"       # light DMG water is the default (owner Q101, 11-06)
 SCENES = {}
 AT_OVERRIDE = {"mountain": (int(os.environ.get("SMAP_AIRBASE_X", "4")), int(os.environ.get("SMAP_AIRBASE_Y", "34")))}
 WORLDS = (W.WORLD, W.WORLD_DMG)
@@ -132,13 +141,23 @@ if not BEFORE_1C:
     import snowfield
     SNOW_CHANGES = snowfield.apply(W)                       # one continuous snowfield under ranges B and C
     _step("snowfield")
+BIGKEY = os.environ.get("SMAP_BIG", "none")                  # the big mountain proposal: A (top right) or B (head of the river); default none (the owner picks)
+if BIGKEY in ("A", "B"):
+    import big_mountain
+    BIG_TOUCHED = big_mountain.apply(W, WORLDS, BIGKEY)
+    _step("big_mountain")
+if DESERT:                                                  # small desert peaks and cacti (hand-typed in desert_extras.py); the cactus palette is the map grass' colours on the desert sand
+    PAL.RGB["cactus"] = [PAL.RGB["saloon"][0]] + list(PAL.RGB["grass"][1:])
+    DESERT_PLACED = desert_extras.apply_world(W, WORLDS, pieces=tuple(os.environ.get("SMAP_DESERT_PIECES", "peaks,cacti").split(",")),
+                                              cactus_pal=os.environ.get("SMAP_CACTUS_PAL", "cactus"))
+    _step("desert_extras")
 if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
     import roads_round
     CURVE = os.environ.get("SMAP_CURVE")                   # step 1 of the smooth bends: "16" or "24" lays the smooth bends of that outer radius instead of the r8 ones (not the default)
-    if CURVE in ("16", "24"):
+    if CURVE in ("16", "24", "32", "40", "48", "56", "80", "96", "120", "fit"):
         import roads_smooth
         ROAD_CHANGES = []
-        CURVE_LAID, CURVE_SKIPPED = roads_smooth.apply(W, PAL, int(CURVE))
+        CURVE_LAID, CURVE_SKIPPED, CURVE_TRIMMED = roads_smooth.apply(W, PAL, CURVE if CURVE == "fit" else int(CURVE))
     else:
         ROAD_CHANGES = roads_round.apply(W, PAL)           # rounded outer and inner corners of the road loops (hand-typed pieces in roads_round.py)
     _step("road_corners")

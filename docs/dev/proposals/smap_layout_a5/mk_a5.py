@@ -110,7 +110,7 @@ s = s.replace("""    def put_decor(self, pc, x, y):
         pal, rows = pc""", 1)
 s = s.replace("""CW, CH = lay.CW, lay.CH
 """, """CW, CH = lay.CW, lay.CH
-WATERLIGHT = os.environ.get("SMAP_WATERDMG") == "light"            # DMG data set only: the light water (default: the dark water of A4)
+WATERLIGHT = os.environ.get("SMAP_WATERDMG", "light") != "dark"            # DMG data set only: the light water is the default (owner Q101); SMAP_WATERDMG=dark gives the old dark water
 if os.environ.get("SMAP_LAYOUT") == "lay_A5":
     GROUND["yard"] = [GROUND["grass"][0], a4art.GRAVEL]            # the factory yard: packed earth with gravel
 """, 1)

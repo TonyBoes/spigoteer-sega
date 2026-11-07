@@ -156,17 +156,15 @@ def sheet(out):
     if (out / "P_corner0_color.png").exists():
         sheet_1c(out)
     # ---- whole map: three renders, x2 each, labelled ----
-    ims = [label(L("A_whole_color.png"), "COLOR", 44), label(L("A_whole_dmg.png"), "DMG DARK WATER", 44), label(L("B_whole_dmg.png"), "DMG LIGHT WATER", 44)]
-    stack_v([stack_h(ims[:2]), ims[2]]).save(out / "sheet_whole_map.png")
+    ims = [label(L("A_whole_color.png"), "COLOR", 44), label(L("A_whole_dmg.png"), "DMG", 44)]       # DMG is the light water (owner Q101): the dark water is gone from every sheet
+    stack_h(ims).save(out / "sheet_whole_map.png")
     stack_h(ims).save(out / "sheet_whole_map_row.png")
     # ---- pieces: row = [approved sheet | integrated close-up], column width 780 each ----
     COLW = 780
     rows = []
     for key, box, appr, text, water in PIECES:
         tag = "C" if key == "town_broken" else "A"
-        cols = [label(L(f"{tag}_{key}_color.png"), "COLOR", 30), label(L(f"{tag}_{key}_dmg.png"), "DMG" + (" DARK" if water else ""), 30)]
-        if water:
-            cols.append(label(L(f"B_{key}_dmg.png"), "DMG LIGHT", 30))
+        cols = [label(L(f"{tag}_{key}_color.png"), "COLOR", 30), label(L(f"{tag}_{key}_dmg.png"), "DMG", 30)]
         mine = stack_v(cols) if key == "ranges_ab" else stack_h(cols)
         mine = fit(mine, COLW) if mine.width > COLW else mine
         left = label(fit(Image.open(PROP / appr).convert("RGB"), COLW), "APPROVED SHEET", 30) if appr else label(Image.new("RGB", (COLW, 60), (60, 60, 60)), "no sheet: see the animation strips", 30)

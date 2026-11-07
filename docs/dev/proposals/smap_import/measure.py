@@ -22,6 +22,8 @@ extra = [n for n in used if n not in A5_TABLE]
 G.PAL_NAMES[:] = A5_TABLE + extra                         # A5's 18 entries, then what the approved pieces add (PARK for the stadium, `base` for the airbase and the milk bar)
 unused = [n for n in G.PAL_NAMES if n not in used]
 
+import os as _os
+G.TILE_MAX = int(_os.environ.get("SMAP_TILE_MAX", str(G.TILE_MAX)))          # the cell word's 10-bit tile id: 1024 in the engine; a scratch run may raise it to count a map that would not fit
 cg, dm = G.Model(True), G.Model(False)
 n21, at21 = dm.window_max(21, 19)
 n22, at22 = dm.window_max(22, 20)

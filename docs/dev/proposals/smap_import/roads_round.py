@@ -90,7 +90,7 @@ def classify(roads):
     return outer, inner
 
 
-def apply(W, PAL):
+def apply(W, PAL, skip_outer=(), skip_junction=()):
     """edits W.WORLD (Color) and W.WORLD_DMG in place; returns the list of cells it changed (for the report)"""
     for n, cols in NEW_PALS.items():
         PAL.RGB.setdefault(n, [PAL.h(c) for c in cols])
@@ -98,6 +98,8 @@ def apply(W, PAL):
     outer, inner = classify(roads)
     changed = []
     for (cx, cy, k) in outer:
+        if (cx, cy) in skip_outer:                                  # a smooth bend (roads_smooth.py) is laid here instead
+            continue
         rows = OUTER[k]
         pal = OUTER_PAL.get((cx, cy), "town1@g")
         for w, color in ((W.WORLD, True), (W.WORLD_DMG, False)):
@@ -112,6 +114,8 @@ def apply(W, PAL):
                 w.pal[cy][cx] = pal
         changed.append((cx, cy, "outer " + k + " " + pal))
     for (jx, jy, k) in inner:
+        if (jx, jy) in skip_junction:
+            continue
         gx, gy = jx + (1 if "e" in k else -1), jy + (1 if "s" in k else -1)         # the ground cell diagonal to the junction cell
         pal, kidx = INNER.get((gx, gy), ("town1@g", 2))
         for w, color in ((W.WORLD, True), (W.WORLD_DMG, False)):
