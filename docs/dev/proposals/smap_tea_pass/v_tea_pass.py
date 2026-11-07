@@ -31,7 +31,7 @@ def build(dmg=False):
     c.row(6, "0:20 3:4 1:2 2:30 3:4 0:36")                                # PASS
     c.row(7, "0:17 3:3 1:1 2:39 3:3 0:33")                                # PASS
     c.row(8, "0:15 3:2 1:1 2:45 3:2 0:31")                                # PASS
-    c.row(9, "0:15 3:50 0:31")                                            # PASS: the upper roof's eave gets its bottom outline (was only under the wall, 26..53)
+    c.row(9, "0:16 3:48 0:32")                                            # PASS: the upper roof's eave gets its bottom outline (was only under the wall, 26..53)
     # ---- the upper wall (unchanged) ---------------------------------------------------------------------------------------------
     for y in range(10, 16):
         c.row(y, "0:26 3:1 2:1 1:11 2:2 1:11 2:1 3:1 0:42")
@@ -67,7 +67,7 @@ def build(dmg=False):
     c.paste(1, 36, LANT)                                                  # PASS: two rows higher, its base no longer fuses with the veranda's left end
     # ---- the cherry tree (unchanged) ---------------------------------------------------------------------------------------------------
     c.paste(80, 34, TREE)
-    texture(c, os.environ.get("SMAP_TEA_TEX", "full"), dmg)
+    texture(c, os.environ.get("SMAP_TEA_TEX", "A"), dmg)
     return c
 
 
@@ -81,10 +81,39 @@ ROOF_UP = {4: JOINT_A, 5: CAP_A, 7: JOINT_B}              # upper roof rows y
 ROOF_LO = {19: JOINT_A, 20: CAP_A, 22: JOINT_B, 23: CAP_B}          # lower roof rows y
 
 
+# ---- OPTION B: kawara tile ribs.  An 8 px tile typed by hand: RIB_ROW is the body of a roof row (a lit cream pixel left of an ink rib line every 4 px, light from the top
+# left), END_ROW the eave row (round tile ends: light and dark pixels alternating).  Ribs run down the slope; painted only on roof body pixels, so outlines and the left-slope
+# taper stay clean.  Posts stay plain.
+RIB_ROW, END_ROW = "22132213", "13131313"
+RIBS_UP, ENDS_UP = range(3, 8), 8
+RIBS_LO, ENDS_LO = range(17, 23), 23
+
+
+def ribs(c):
+    for rows, end in ((RIBS_UP, ENDS_UP), (RIBS_LO, ENDS_LO)):
+        for y in list(rows) + [end]:
+            pat = END_ROW if y == end else RIB_ROW
+            r = c.px[y]
+            keep = list(r)
+            for x in range(1, W - 1):
+                if pat[x % 8] == "2":
+                    continue
+                if keep[x] != "2":
+                    continue
+                if pat[x % 8] == "1" and keep[x + 1] != "2":      # a lit pixel only beside its rib
+                    continue
+                r[x] = pat[x % 8]
+
+
 def texture(c, level, dmg):
     if level == "none":
         return
-    for rows in (ROOF_UP, ROOF_LO):
+    if level == "B":
+        ribs(c)
+        light_b = True
+    else:
+        light_b = False
+    for rows in (() if light_b else (ROOF_UP, ROOF_LO)):
         for y, pat in rows.items():
             if level == "light" and "1" in pat:
                 continue
@@ -106,8 +135,8 @@ def texture(c, level, dmg):
                 x = x1
     if level == "light":
         return
-    # wall posts: grain, short dark dashes in the inner column of each post, staggered left and right (posts are x13-14 and x65-66)
-    for x, ys in ((14, (29, 30, 31, 32, 36, 37, 41, 42, 44, 45, 46, 47)), (65, (30, 31, 34, 35, 36, 40, 41, 42, 46, 47))):
+    # wall posts: grain, short dark dashes in the inner column of each post, staggered left and right (posts are x13-14 and x65-66); option B leaves the posts plain
+    for x, ys in (() if light_b else ((14, (29, 30, 31, 32, 36, 37, 41, 42, 44, 45, 46, 47)), (65, (30, 31, 34, 35, 36, 40, 41, 42, 46, 47)))):
         for y in ys:
             c.px[y][x] = "3"
     # the veranda: board ends every 16 px, a shade-2 notch on the lit top plane and an ink notch on the front face in the same column

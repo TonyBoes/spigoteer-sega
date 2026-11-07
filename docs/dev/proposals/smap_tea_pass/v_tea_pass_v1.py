@@ -29,7 +29,7 @@ def build(dmg=False):
     c.row(6, "0:20 3:4 1:2 2:30 3:4 0:36")                                # PASS
     c.row(7, "0:17 3:3 1:1 2:39 3:3 0:33")                                # PASS
     c.row(8, "0:15 3:2 1:1 2:45 3:2 0:31")                                # PASS
-    c.row(9, "0:15 3:50 0:31")                                            # PASS: the upper roof's eave gets its bottom outline (was only under the wall, 26..53)
+    c.row(9, "0:16 3:48 0:32")                                            # PASS: the upper roof's eave gets its bottom outline (was only under the wall, 26..53)
     # ---- the upper wall (unchanged) ---------------------------------------------------------------------------------------------
     for y in range(10, 16):
         c.row(y, "0:26 3:1 2:1 1:11 2:2 1:11 2:1 3:1 0:42")

@@ -45,3 +45,20 @@ Texture, all typed 8 px course tiles repeated on the absolute column grid, paint
 Levels: `light` = roof joints only; `full` = the above.
 Cost, real `measure_pass.py` on A' (fountain working, light DMG water): default art 960 DMG / 1022 Color ids; v1 fixes 961 / 1023 (+1 / +1, the 3 rails and eave outlines make shared end tiles unique); **texture light 961 / 1023, full 961 / 1023 (+0 over v1, +1 / +1 over the default map)**. Worst view 156, windows over 8 palettes 0, flat uses 218, generator OK. The texture is free because nearly every cell of the house is already its own tile; the seams, post dashes and stones sit in such cells, and the roof courses are placed so the shared cells (28,57) (29,57) and the pairs (2,6) (3,6) (7,6) keep their tiles.
 If the +1 of the fixes must go too, drop the roof end outline fixes 2 and 3 (cells (25,56) (32,56)); not tried.
+
+## Round 3: option B, kawara tile ribs (owner read A as scattered dashes; posts as stray marks)
+Env: `SMAP_TEA_PASS=1` with `SMAP_TEA_TEX=A` (round 2 dashes, default) or `B` (ribs); `v1` = fixes only. Merged import tip 1f04da2a: A' is the mapctx default, so `SMAP_AP` is no longer needed. Sheets: `sheet_opts_x6.png` (fixes | A | B, Color over DMG), `sheet_B_ctx.png` (B in the map x3).
+B: a hand-typed 8 px tile repeated on the column grid: rib rows `22132213` (a lit cream pixel left of an ink rib line every 4 px, light from the top left) down both roof slopes, painted only on roof body, and the eave rows (y8 upper, y23 lower) `13131313` (round tile ends, light and dark alternating). Wall posts plain. Veranda board ends and stone shadows kept.
+
+**Measure, real `measure_pass.py` on the import default (A'), fountain working, light DMG water** (the generator fails above 1023 Color ids):
+
+| | DMG tiles | Color ids | worst view | windows over 8 | table |
+|---|---|---|---|---|---|
+| default art | 957 | 1023 | 156 | 0 | 22 |
+| fixes (v1) | 957 | 1022 | 156 | 0 | 22 |
+| A dashes | 957 | 1022 | 156 | 0 | 22 |
+| B ribs | 958 | 1023 | 156 | 0 | 22 |
+
+All generator OK. Which count is right: 1023 Color ids for the default; my round 2 "1022" came from a hand-copied A' env that differed slightly from the real default, so the earlier "+1" for the fixes was measured against the wrong base. My DMG is 957 where the import agent states 958; probably its DMG count differs (fog states or light-water variants); the Color number agrees.
+
+Correction to round 2: on the real default the upper eave end outline made two shared end tiles unique and pushed Color to 1024 (the generator fails). Fixed here: row 9 (upper eave bottom outline) spans x16..63 instead of 15..64, so the end cells keep the default single-pixel tiles. That is why fixes and A are now one id under the default; `v_tea_pass_v1.py` carries the same row. B costs +1 DMG tile and 0 Color ids against the default.
