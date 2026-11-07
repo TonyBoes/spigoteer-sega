@@ -62,3 +62,11 @@ B: a hand-typed 8 px tile repeated on the column grid: rib rows `22132213` (a li
 All generator OK. Which count is right: 1023 Color ids for the default; my round 2 "1022" came from a hand-copied A' env that differed slightly from the real default, so the earlier "+1" for the fixes was measured against the wrong base. My DMG is 957 where the import agent states 958; probably its DMG count differs (fog states or light-water variants); the Color number agrees.
 
 Correction to round 2: on the real default the upper eave end outline made two shared end tiles unique and pushed Color to 1024 (the generator fails). Fixed here: row 9 (upper eave bottom outline) spans x16..63 instead of 15..64, so the end cells keep the default single-pixel tiles. That is why fixes and A are now one id under the default; `v_tea_pass_v1.py` carries the same row. B costs +1 DMG tile and 0 Color ids against the default.
+
+## Round 4: walls on top of roof option B (approved, roof unchanged)
+Env: `SMAP_TEA_PASS=1 SMAP_TEA_TEX=BW` (B roof + walls); `B` is the roof alone. Sheets: `sheet_walls_x6.png` (B | B + walls, Color over DMG), `sheet_walls_ctx.png` (x3 in the map, light DMG water, the default).
+Done, all inside cells that already own a tile (the repeated panel pairs at x24..31 and x48..55 get identical pixels):
+- wall posts: a thin lit grain line (paper shade) down the outer column of each wall post, jogging one column in at a knot (y36-37). The posts are only 2 px wide, so a line in the wood shade is invisible and a dark one read as a black bar; the lit line reads as a lit edge.
+- shoji panels: a sparse ordered shade (every 4th pixel, shade 2) on the bottom row of each panel.
+Not done: door-post lines (the cream line made the door frame look wide; tried and removed), grain on the beam rows 26-27 (rows 25 and 28 touch it, so a line there reads as a thicker outline), a plinth strip (the wall has none: the sill rail at y48 sits on the veranda ink; a plank or stone hint there would change the pairs (2,6) (3,6) (7,6), which share one tile today: about +1 to +2 Color ids).
+Measure, real `measure_pass.py` on the import default: B roof 958 DMG / 1023 Color; B + walls 958 DMG / 1023 Color (+0 over B), worst view 156, 0 windows over 8, table 22, generator OK.

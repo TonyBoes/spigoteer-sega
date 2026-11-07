@@ -105,12 +105,31 @@ def ribs(c):
                 r[x] = pat[x % 8]
 
 
+# ---- WALLS (owner: "ribs look good but walls need some texture too").  Only inside cells that already own a tile; the repeated cells (the panel pairs at x24..31 and x48..55, the
+# veranda ends) get the same pixels in both.  Quiet: long thin grain lines in ink on the 2 px wood members (a line flows around a knot by one jog), a bottom row of ordered
+# 1/2 dither on every shoji panel (paper shade), nothing on the door.  (Posts: see walls().)
+def walls(c):
+    px = c.px
+    # posts: a thin lit grain line (paper shade) down the outer column of each wall post (x13, x66) that jogs one column in around a knot, and down the door-side column of the door
+    # posts (x33, x46); the lit line is what stays quiet against the dark wood and the outline
+    for x, jog in ((13, 14), (66, 65)):
+        for y in range(29, 47):
+            px[y][jog if (jog and y in (36, 37)) else x] = "1"
+    # panels: a quiet shade at the bottom of each paper panel, a sparse ordered 1/2 dither (every 4th pixel), light from the top left
+    for y in (32, 37, 42, 47):
+        for x in range(15, 65):
+            if px[y][x] == "1" and x % 4 == 0:
+                px[y][x] = "2"
+
+
 def texture(c, level, dmg):
     if level == "none":
         return
-    if level == "B":
+    if level in ("B", "BW"):
         ribs(c)
         light_b = True
+        if level == "BW":
+            walls(c)
     else:
         light_b = False
     for rows in (() if light_b else (ROOF_UP, ROOF_LO)):
