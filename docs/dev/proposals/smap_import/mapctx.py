@@ -154,10 +154,23 @@ if DESERT:                                                  # small desert peaks
 if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
     import roads_round
     CURVE = os.environ.get("SMAP_CURVE")                   # step 1 of the smooth bends: "16" or "24" lays the smooth bends of that outer radius instead of the r8 ones (not the default)
-    if CURVE in ("16", "24", "32", "40", "48", "56", "80", "96", "120", "fit"):
+    if CURVE in ("16", "24", "32", "40", "48", "56", "80", "96", "120", "fit", "mix", "radii"):
         import roads_smooth
         ROAD_CHANGES = []
-        CURVE_LAID, CURVE_SKIPPED, CURVE_TRIMMED = roads_smooth.apply(W, PAL, CURVE if CURVE == "fit" else int(CURVE))
+        if CURVE == "radii":                                # SMAP_RADII="x,y:r;x,y:r": those bends at r (or the next smaller that fits), the others keep r16 (bisecting the fit map)
+            _rad = {}
+            for _it in os.environ["SMAP_RADII"].split(";"):
+                _k, _r = _it.split(":")
+                _x, _y = (int(v) for v in _k.split(","))
+                _rad[(_x, _y)] = [r for r in (120, 96, 80, 56, 48, 40, 32, 24, 16) if r <= int(_r)]
+            CURVE_LAID, CURVE_SKIPPED, CURVE_TRIMMED = roads_smooth.apply(W, PAL, 16, radii=_rad)
+        elif CURVE == "mix":                                  # owner Q115 follow-up: r40 everywhere it fits (then 32, 24, 16), the long sweeps (0,45) r96 and (37,28) r120
+            _mix = {(0, 45): [96, 80, 56, 48, 40, 32, 24, 16], (37, 28): [120, 96, 80, 56, 48, 40, 32, 24, 16]}
+            _dflt = [40, 32, 24, 16]
+            _rad = {(x, y): _mix.get((x, y), _dflt) for (x, y) in [(0, 11), (0, 29), (0, 45), (0, 63), (37, 28), (37, 46), (50, 28), (50, 46), (63, 11), (63, 29), (63, 45), (63, 63)]}
+            CURVE_LAID, CURVE_SKIPPED, CURVE_TRIMMED = roads_smooth.apply(W, PAL, 40, radii=_rad)
+        else:
+            CURVE_LAID, CURVE_SKIPPED, CURVE_TRIMMED = roads_smooth.apply(W, PAL, CURVE if CURVE == "fit" else int(CURVE))
     else:
         ROAD_CHANGES = roads_round.apply(W, PAL)           # rounded outer and inner corners of the road loops (hand-typed pieces in roads_round.py)
     _step("road_corners")

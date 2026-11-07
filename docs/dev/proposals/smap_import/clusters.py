@@ -25,12 +25,13 @@ def combo(piece, offsets):
     return (piece[0], ["".join(r) for r in g])
 
 
-RR_R = combo(decor.ROUND, [(0, 0), (9, 4)])
-RR_L = combo(decor.ROUND, [(8, 0), (0, 5)])
-RRR = combo(decor.ROUND, [(6, 0), (0, 5), (12, 5)])
-PP = combo(decor.PINE, [(0, 0), (7, 5)])
-PPP = combo(decor.PINE, [(5, 0), (0, 6), (10, 6)])
-JJ = combo(decor.JUNGLE_TREE, [(0, 0), (9, 4)])
+RR_R = combo(decor.ROUND, [(0, 0), (5, 6)])
+RR_L = combo(decor.ROUND, [(6, 0), (0, 6)])
+RRR = combo(decor.ROUND, [(5, 0), (0, 6), (9, 6)])
+PP = combo(decor.PINE, [(0, 0), (5, 6)])
+PPP = combo(decor.PINE, [(4, 0), (0, 6), (8, 6)])
+JJ = combo(decor.JUNGLE_TREE, [(0, 0), (5, 6)])
+JJJ = combo(decor.JUNGLE_TREE, [(5, 0), (0, 6), (9, 6)])
 
 
 def stalks(w, h, specs, leaves):
@@ -67,7 +68,7 @@ BAMBOO = {"TALL": TALL, "MID": MID, "SMALL": SMALL}
 def piece(name, pal):
     if name in BAMBOO:
         return (pal, BAMBOO[name])
-    p = {"RR_R": RR_R, "RR_L": RR_L, "RRR": RRR, "PP": PP, "PPP": PPP, "JJ": JJ}[name]
+    p = {"RR_R": RR_R, "RR_L": RR_L, "RRR": RRR, "PP": PP, "PPP": PPP, "JJ": JJ, "JJJ": JJJ}[name]
     return p
 
 
@@ -86,6 +87,8 @@ CLUSTERS = [  # (cluster, x, y, [(piece name, x, y) of the singles it replaces])
     ("RR_R", 88, 120, [("ROUND", 92, 123)]),
     ("RRR", 200, 128, [("ROUND", 212, 123)]),
     ("RR_L", 144, 192, [("ROUND", 148, 195)]),
+    ("JJJ", 128, 440, []),
+    ("JJ", 80, 400, []),
 ]
 NAMES = {id(getattr(decor, n)): n for n in ("PINE", "ROUND", "JUNGLE_TREE", "JUNGLE_BUSH", "BUSH", "SPRUCE")}
 

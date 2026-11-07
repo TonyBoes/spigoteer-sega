@@ -55,7 +55,8 @@ try:                                                       # the full generator:
     info = json.load(open(out / "build" / "smap_world.json"))
     res["color_slots"] = info["slots_c"]
     res["generator_ok"] = True
-except SystemExit:
+except (SystemExit, AssertionError) as _e:             # AssertionError: a tile id above 1023 reached the fog check (the Color map does not fit the 10-bit tile id)
     res["generator_ok"] = False
+    res["generator_error"] = repr(_e)
 json.dump(res, open(out / "numbers.json", "w"), indent=1, default=str)
 print(json.dumps({k: v for k, v in res.items() if k not in ("table_names", "palette_histogram")}, default=str))
