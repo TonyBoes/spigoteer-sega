@@ -39,7 +39,8 @@ def write(n, c):
     print(n, 'palettes', pals)
 
 
-import cow_a3
+import cow_lot4 as N
 write('A', L.build_a())
 write('B', L.build_b())
 write('C', L.build_c())
+write('NEW', N.build())

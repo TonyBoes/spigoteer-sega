@@ -1,3 +1,30 @@
+# Milk bar: round 4d (current): 3/4 bikes, the lot joined to the road (proposal only)
+
+Owner: "The bikes need to be 3/4 angled toward venue. Parking lot is ok, but needs to be logically connected to the rest of the map." Sheet: `milkbar_sheet4.png` (round 4c A | NEW; DMG and Color at x3; then both in the real map around the milk bar, x3). Sources: `src/cow_lot4.py` (art), `src/sheet4.py` (renders the map shots from `world2.WORLD`). Building, bottle, cow: round 3 pixel for pixel (0 changed outside the lot rectangle).
+
+**How the lot joins the road.** The trunk road runs on cell rows 30 and 31, which are exactly the piece's lot rows (y 56..71), so the lot IS the road: the road widened to the diner with its north kerb removed. Paving is the game's own road tile rows (`tiles.ROAD` F1 speckle above, the ES south edge below: body, white line at y 69, kerb at y 70 and 71), so the south edge runs straight on into the road at both ends, and the road's north kerb simply ends where the lot begins (the mouth of the driveway). **On Color the lot cells use the road's palette TOWN1** (cream, skin, lilac, ink), which the road already uses: no new slot. On DMG it is the road's own speckled mid-grey. The bays are painted on the road: white lines at 45 degrees, leaning up and right toward the door, 20 px apart, and the bikes park between them.
+
+**Bikes.** Three typed 3/4 bikes heading up and right toward the door, seen from behind and the left: the rear wheel a tall ellipse at lower left, the front wheel a smaller ellipse at upper right, bars with mirror tips over it, fork, tank (lit stripe), seat, engine block and exhaust between. 16 x 12 px, all three are the same drawing (copies of my own). Open-ring wheels so the road shows through and they read as wheels.
+
+**Unique DMG tiles** (project counter; round 3 = 44): NEW **45** (+1); lot cells only 11 against round 3's 10. (4c A was 40.) The lint counts 46 (it counts the blank cell). Lint PASS DMG and Color; warnings are the road tile's own speckle (orphans, the game's tile), the bar corner L-doubles and the bottle's, unchanged.
+
+**What the map shot shows, and what has to be fixed in the import round (not fixed here):**
+1. The piece is 96 x 72, 12 x 9 cells at (39, 23); the block between the two roads is 11 x 7 cells (x 39..49, rows 23..29), and the old Chrome Cow piece was 80 x 56. The piece's last cell column (x 50) sits on the N-S road (x 50, 51): in the shot the N-S road narrows to one cell beside the building, and the lot's last cell overwrites the junction cell. The building (or the piece) is one cell too wide for this block; I did not trim it (the building must stay identical).
+2. The cow stands at piece (18, 58), on cells x 41 and 42, rows 30 and 31, which are road cells: the shot draws it over the road (its meadow index 0 left transparent). In the game those two cells need the cow moved up to the meadow, or the cow's cells given the road's palette.
+3. The lot's rows 30 and 31 replace road cells x 43..50: the walkable road under the diner stays walkable only if the engine treats the lot cells as road (Sal's feet line is y 252, inside the lot's lower row). The generator's `assert (cx, cy) not in self.roads` fires for this piece; it needs the lot cells exempt.
+
+**Self-audit (round 4d).**
+
+| check | result |
+|---|---|
+| Hand-placed | Bike rows, the two wheel rings and the bay-line formula (45 degrees, typed offsets) are in `src/cow_lot4.py`; the paving rows are the game's own road tile rows, copied. The wheel's size was found with a scaffold first (a rotated-ellipse printout in `out/mb`, not delivered); the delivered wheels are typed rings, not the scaffold. |
+| Clean-up pass by hand | Done. Log: first draft (5 x 5 diagonal wheels with a white plus hub) read as dice and the bike as a blob: replaced by open rings; second draft (12 x 12, wheels touching the body) still a blob: wheelbase opened up to 16 x 12; bay pitch 22 did not fit three bikes in 64 px: 20; the bike was moved right inside its bay so the tank does not touch the bay line. |
+| 1x comparison with the quality bar | Against round 3's bikes at 1x in the same sheet: the new bikes are smaller and ruder (12 px tall); they read as motorcycles heading up and right, not as clearly as round 3's side views. This is the weakest part. |
+| Squint test | The road reads first, the lot is clearly the road, three dark bikes on it. |
+| Palette | TOWN1 for the lot cells, COW for the building: no new slot. |
+
+Earlier rounds below are kept for history.
+
 # Milk bar: lot and bikes, round 4c (proposal only; supersedes the earlier sheets in this folder)
 
 Owner: "Milk bar perspective seems off on both because it doesn't match anything else really.  Ideas?" The whole map is front-on with a little top showing, so no top-down and no sheared bikes. `milkbar_sheet3.png` is the current sheet: round 3 | A | B | C, DMG row and Color row at x3, then lot close-ups at x4. (`milkbar_sheet.png`, `milkbar_sheet2.png`, `milkbar_options_*.png` are earlier, superseded rounds kept for history.) Sources: `src/cow_lot.py` (art), `src/sheet.py`, `src/export.py`; `common.py`, `kit.py`, `cow_c.py`, `cow_a3.py` are round 3's files with `ROOT` pointed at this worktree. Nothing in `assets/`, no goldens.
