@@ -14,6 +14,10 @@ PAL = "tea"
 DOOR_PANE = "3:1 2:1 1:5 2:1 3:4"
 DOOR_RAIL = "3:1 2:7 3:4"
 DOOR = piece("3:12", (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL, (DOOR_PANE, 4), DOOR_RAIL)
+# Round 6 door (level BWN): a split noren, two cream panels hung from a rod at the top of the opening, a 2 px slit between them, the dark interior under the hem and through the slit.
+# Rod y29, heading tape y30, panels y31-37 (right column shade 2 = the fold/shadow side, light from the top left), hem stitch y38, cloth y39, soft hem y40 with rounded outer corners.
+NOREN2 = piece("3:12", "3:1 2:10 3:1", "3:1 2:10 3:1", ("3:1 1:3 2:1 3:2 1:3 2:1 3:1", 7), "3:1 2:4 3:2 2:4 3:1", "3:1 1:4 3:2 1:4 3:1",
+               "3:2 2:3 3:2 2:3 3:2", ("3:12", 8))
 NOREN = piece("3:12", ("3:1 2:4 3:2 2:4 3:1", 8), ("3:12", 12))
 LANT = piece(".:3 3:2 .:3", ".:1 3:6 .:1", "3:1 2:6 3:1", "3:8", ".:1 3:1 1:4 3:1 .:1", ".:1 3:1 1:4 3:1 .:1", ".:1 3:6 .:1",
              ".:2 3:1 2:2 3:1 .:2", ".:2 3:1 2:2 3:1 .:2", ".:2 3:1 2:2 3:1 .:2", "3:8", "3:8")
@@ -61,8 +65,9 @@ def build(dmg=False):
             c.row(y, "0:12 3:1 2:2 2:17 2:2 1:12 2:2 2:17 2:2 3:1 0:28")
         else:
             c.row(y, "0:12 3:1 2:2 1:8 2:1 1:8 2:2 1:12 2:2 1:8 2:1 1:8 2:2 3:1 0:28")
-    new = os.environ.get("SMAP_TEA_TEX", "A") == "BWD"
-    c.paste(34, 28, DOOR if new else NOREN)
+    lvl = os.environ.get("SMAP_TEA_TEX", "A")
+    new = lvl in ("BWD", "BWN")
+    c.paste(34, 28, NOREN2 if lvl == "BWN" else DOOR if new else NOREN)
     # ---- the veranda.  PASS: row 50 is the lit top plane (paper), row 51 the dark front face, so the deck reads as a platform ---------------
     c.row(49, "0:6 3:68 0:22")
     c.row(50, "0:6 3:1 1:66 3:1 0:22")                                    # PASS
@@ -126,17 +131,17 @@ def walls(c):
     # panels: a quiet shade at the bottom of each paper panel, a sparse ordered 1/2 dither (every 4th pixel), light from the top left
     for y in (32, 37, 42, 47):
         for x in range(15, 65):
-            if px[y][x] == "1" and x % 4 == 0:
+            if px[y][x] == "1" and x % 4 == 0 and not 34 <= x <= 45:      # not on the door
                 px[y][x] = "2"
 
 
 def texture(c, level, dmg):
     if level == "none":
         return
-    if level in ("B", "BW", "BWD"):
+    if level in ("B", "BW", "BWD", "BWN"):
         ribs(c)
         light_b = True
-        if level in ("BW", "BWD"):
+        if level in ("BW", "BWD", "BWN"):
             walls(c)
     else:
         light_b = False
