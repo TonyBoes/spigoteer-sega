@@ -29,6 +29,8 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode.startswith('bld'):
+        return A.build(3, mode[3]), (50, 47)
     return A.build(int(mode[3])), (50, 47)
 
 
@@ -113,6 +115,10 @@ def main():
     if c is not None:
         res["piece_tiles"] = C.tile_count(c)
     json.dump(res, open(f'{TMP}/r6_{mode}.json', 'w'), default=str)
+    cc = C.render(c, 'farm', at, False, margin=0) if c is not None else None
+    if c is not None:
+        C.render(c, 'farm', at, False, margin=0).crop((16, 80, 96, 144)).save(f'{TMP}/r6_{mode}_closeDMG.png')
+        C.render(c, 'farm', at, True, margin=0).crop((16, 80, 96, 144)).save(f'{TMP}/r6_{mode}_closeColor.png')
     shot(wd, False).save(f'{TMP}/r6_{mode}_DMG.png')
     shot(wc, True).save(f'{TMP}/r6_{mode}_Color.png')
     print(mode, res)

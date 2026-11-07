@@ -1,4 +1,22 @@
-# Milk bar round 4g (current): building one cell west, cow and sign swapped
+# Milk bar round 4h (current): doors inside the wall, two non-pink window options
+
+Owner: "Looks better. fix the doors on the bar to fit more in the building. Also--do the windows need to be pink?" Round 4g kept as is (position, sign, cow, pasture). `milkbar_sheet8.png`: 4g | windows A | windows B; building close-up x4 and the A5 map x3, DMG row and Color row each. Code: `src/cow_bldg.py` (hand-typed panes and door rows), `build(3, 'A' or 'B')` in `src/cow_a5.py`, `src/sheet8.py`.
+
+**Doors.** Redrawn: 15 px wide (x 79..93 of the piece), with a chrome wall strip each side (x 76..78 and x 94), an ink frame, a chrome head, two leaves split by a 1 px ink line, 2 px handles, a chrome rail under the glass, the same ink line (y 51) as under the windows, a chrome panel and an ink threshold at the facade's foot (y 55). The door's top (y 42) is level with the window tops, the glass bottoms are level with the windows' (y 48). The pink trim row (y 41) now runs unbroken over the door.
+**Windows.** Five panes now x 36..75 (the wall is chrome on both sides). A: dark glass, ink with a 3 px chrome glint, chrome rims; door glass the same. B: light glass, index 0 with ink frame and a chrome glint; door handles ink. Pink stays only on the MILK BAR board stripe, the trim row y 41 and the bottle.
+**Palette.** COW: index 0 meadow (c8e888), 1 chrome (e8e0f0), **2 pink (f03898)**, 3 ink (2a1e34). No new colour. DMG: pink was shade 2 (88, mid-dark); A and B use shades 3 and 1 (A) and 0 and 1 (B) on the windows, so the DMG look changes too: A is dark panes with light glints, B is white panes with grey glints. Note for B on Color: index 0 is the meadow green, so the light glass is pale lime (it reads as reflecting the grass); there is no whiter index in COW.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| 4g | 562 | 133 | 111 | 65 | 8 |
+| A | 565 | 133 | 111 | 68 | 8 |
+| B | 565 | 133 | 111 | 68 | 8 |
+
+Lint PASS DMG and Color for both; A has more L-doubles (the dark glass meets the ink frame at its corners, deliberate), orphans as before.
+
+---
+
+# Milk bar round 4g: building one cell west, cow and sign swapped
 
 Owner: "move the milk bar to the left a bit so it is not right on the corner. swap th location of the milk sign and the cow to the left of the milk bar." Supervisor reading, built: arrangement 1's pen kept (2 cows and the trough). The building with its lot and bikes moves 8 px (one cell) west, so one cell of grass (x 88..95 of the picture, world cell 61) lies between it and the north-south road. The cow stands where the sign stood in arrangement 1; the bottle sign stands beside the building where the cow was in round 4e. `milkbar_sheet7.png`: arrangement 1 | new, DMG row then Color row, x3, in the A5 map (red tick = Sal's stop). Code: `src/cow_a5.py` (`build(3)`), `src/render_one.py arr3`, `src/sheet7.py`.
 

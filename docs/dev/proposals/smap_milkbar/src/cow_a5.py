@@ -55,11 +55,14 @@ def pen(c):
     put(c, 88, 56, POST)
 
 
-def build(arr):
+def build(arr, style=None):
     """arr 1 and 2: as round 4f's first set; arr 3 (owner, after Q106): the building with its lot and bikes one cell (8 px) west, a cell of grass between it and
     the north-south road; the cow where the sign was in arrangement 1, the sign beside the building where the cow was; the pen of arrangement 1"""
     c = Canvas("cowA5_%d" % arr, "cow", W, H)
     base = N.build()
+    if style:
+        import cow_bldg
+        cow_bldg.restyle(base, style)
     for y in range(2, 56):                                   # the old sign and cow places are cleared
         for x in range(8, 24):
             base.px[y][x] = "0"
