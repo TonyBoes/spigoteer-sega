@@ -153,3 +153,13 @@ The run scripts are in out/smap_import/ (run_meas11.sh), logs in out/smap_import
 - Tried and no help: the three r16 bends (50,46), (63,29), (63,45) left at the r8 corner (1029, same count: their tiles are shared), each of them at r16 only, trim at r24 (+1).
 - Mountain B on the same set: DMG 971 / Color 1033 / worst 156, fails (B costs 11 ids more than A). Cheapest ways to give B room: drop the round tree clusters (about 25 ids), or the desert peaks (about 37), or take the long bends to r24 (uniform r24 with B is 1014).
 - Mountain B's right foot ends in a straight vertical ink edge against the grass; to be fixed only if B is picked.
+
+### Stage 1h: no bend at r16 (owner: r24 is the minimum). Replaces the 1g option sets.
+(50,46), (63,29), (63,45) go to r24 with the trims (factory 0 px, lodge 11 px in cell (61,27), cow fence 1 px in (61,47)); every bend is now r24 or larger (mapctx SMAP_RADII "x,y:24!" means exactly that radius, else the bend keeps the r8 corner; all 12 bends laid in every run below). Mountain A, bush at x 40, trims on. DMG tiles / Color ids of 1024 / worst DMG view / windows over 8 / generator at the real 1024 limit:
+| option | DMG | Color | worst | over 8 | gen |
+|---|---|---|---|---|---|
+| A': four long bends (0,11) (0,45) (37,28) (63,11) at r32, the other eight at r24 with trims, all extras (peaks, cacti, spill, bamboo, tree clusters) | 958 | 1023 | 156 | 0 | passes |
+| C': (0,45) r96, the other three long at r40, the other eight r24 with trims, bamboo, cacti, spill, no peaks, no tree clusters | 941 | 1001 | 154 | 0 | passes |
+| C' + pine clusters | 953 | 1013 | 159 | 0 | passes |
+| C' + pine + round clusters (RR_R, RR_L, RRR, JJ, JJJ) | 977 | 1038 | 159 | 0 | fails (15 over) |
+The round clusters cost 25 ids, the 10 ids of room after the pines do not cover them; no subset was tried. Sheets: s1e_whole_Ap.png, s1e_whole_Cp.png, s1e_whole_Cp_pine.png (Color | DMG), s1e_trims.png (lodge and cow, r8 corner without trim | r24 with trim, Color and DMG, x4). The factory yard needs no trim at r24 (0 px).

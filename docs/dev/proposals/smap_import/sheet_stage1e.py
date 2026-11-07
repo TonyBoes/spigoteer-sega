@@ -59,3 +59,29 @@ def whole(name, tag, title):
 whole("s1e_whole_c40_A.png", "c40A", "everything on, bends r40 with fallback, big mountain A")
 whole("s1e_whole_c40_B.png", "c40B", "everything on, bends r40 with fallback, big mountain B")
 whole("s1e_whole_s32_A.png", "s32A", "everything on, four long bends at r32, mountain A (generator passes)")
+whole("s1e_whole_Ap.png", "Ap", "A': four long bends r32, all others r24 with trims, all extras, mountain A")
+whole("s1e_whole_Cp.png", "Cp", "C': (0,45) r96, three long r40, others r24 with trims, bamboo, cacti, spill, A")
+whole("s1e_whole_Cp_pine.png", "Cp_pine", "C' plus the pine clusters")
+
+
+def trims(name):
+    rows = []
+    for k, note in (("lodge", "lodge"), ("cow", "cow fence")):
+        for cgb, kn in (("color", "COLOR"), ("dmg", "DMG")):
+            a, b = SRC / "cc" / f"before_{k}_{cgb}.png", SRC / "cc" / f"after_{k}_{cgb}.png"
+            if a.exists() and b.exists():
+                rows.append(("%s  %s  r8 | r24 trim" % (note, kn), Image.open(a).convert("RGB"), Image.open(b).convert("RGB")))
+    w = max(a.width + b.width + 16 for _, a, b in rows) + 32
+    h = sum(max(a.height, b.height) + 48 for _, a, b in rows) + 16
+    out = Image.new("RGB", (w, h), BG)
+    d = ImageDraw.Draw(out)
+    y = 12
+    for label, a, b in rows:
+        d.text((16, y), label, fill=(255, 255, 255), font=FONT)
+        out.paste(a, (16, y + 40))
+        out.paste(b, (16 + a.width + 16, y + 40))
+        y += max(a.height, b.height) + 48
+    out.save(OUT / name)
+
+
+trims("s1e_trims.png")

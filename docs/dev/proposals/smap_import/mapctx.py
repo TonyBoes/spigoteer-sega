@@ -162,7 +162,7 @@ if not BEFORE_1C and os.environ.get("SMAP_NO_ROADS") != "1":
             for _it in os.environ["SMAP_RADII"].split(";"):
                 _k, _r = _it.split(":")
                 _x, _y = (int(v) for v in _k.split(","))
-                _rad[(_x, _y)] = [r for r in (120, 96, 80, 56, 48, 40, 32, 24, 16) if r <= int(_r)]
+                _rad[(_x, _y)] = [int(_r[:-1])] if _r.endswith("!") else [r for r in (120, 96, 80, 56, 48, 40, 32, 24, 16) if r <= int(_r)]       # "24!" = exactly r24 or the bend stays r8 (no r16)
             CURVE_LAID, CURVE_SKIPPED, CURVE_TRIMMED = roads_smooth.apply(W, PAL, 16, radii=_rad)
         elif CURVE == "mix":                                  # owner Q115 follow-up: r40 everywhere it fits (then 32, 24, 16), the long sweeps (0,45) r96 and (37,28) r120
             _mix = {(0, 45): [96, 80, 56, 48, 40, 32, 24, 16], (37, 28): [120, 96, 80, 56, 48, 40, 32, 24, 16]}
