@@ -39,5 +39,7 @@ def write(n, c):
     print(n, 'palettes', pals)
 
 
+for n2, kw in (('newA', dict(which='h2e', runway=True, plane='A', raised=True)), ('newB', dict(which='h2e', runway=True, plane='B', raised=True)), ('newAg', dict(which='h2e', runway=True, plane='A', tone='1', raised=True))):
+    write('mtn_' + n2, M.build(**kw))
 for w in ('r3', 'h1', 'h2'):
     write('mtn_' + w, M.build(w, w != 'r3'))

@@ -89,21 +89,24 @@ def hangar2(c, x, yf):
 # ------------------------------------------------------------------ the strip in front: an apron under the doors and a short runway across the foot of the piece.
 # Seen from above in the map's perspective: ink outline all round, navy asphalt, a one-pixel dashed centre line (4 on, 4 off, period 8 so every strip cell is the same tile),
 # a lit steel kerb line under the top ink.  Typed runs: apron x 4..29 on y 64..65, runway x 1..50 on y 66..70.
-def strip(c, apron=(4, 29), run=(1, 50)):
+def strip(c, apron=(4, 29), run=(1, 50), tone="2"):
+    """tone "2" = navy asphalt (the building colour on Color); tone "1" = grey tarmac (BASE steel, no new slot): then no lit kerb, and the dashes are navy"""
     ax0, ax1 = apron
     rx0, rx1 = run
+    dash = "0" if tone == "2" else "2"
     for y in (64, 65):                          # the apron: ink sides, asphalt between
         c.px[y][ax0] = "3"
         c.px[y][ax1] = "3"
         for x in range(ax0 + 1, ax1):
-            c.px[y][x] = "2"
+            c.px[y][x] = tone
     for x in range(rx0, rx1 + 1):               # the runway
         cap = x in (rx0, rx1)
-        c.px[66][x] = "3" if (cap or not ax0 < x < ax1) else "2"
-        c.px[67][x] = "3" if cap else "2"
-        c.px[68][x] = "3" if cap else ("0" if x % 8 < 4 else "2")
-        c.px[69][x] = "3" if cap else "2"
+        c.px[66][x] = "3" if (cap or not ax0 < x < ax1) else tone
+        c.px[67][x] = "3" if cap else tone
+        c.px[68][x] = "3" if cap else (dash if x % 8 < 4 else tone)
+        c.px[69][x] = "3" if cap else tone
         c.px[70][x] = "3"
-    for x in range(rx0 + 1, rx1):
-        if not ax0 < x < ax1:
-            c.px[67][x] = "1"                    # lit kerb under the top ink (not where the apron joins)
+    if tone == "2":
+        for x in range(rx0 + 1, rx1):
+            if not ax0 < x < ax1:
+                c.px[67][x] = "1"                # lit kerb under the top ink (not where the apron joins)
