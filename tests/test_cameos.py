@@ -2,6 +2,7 @@
 import pytest
 
 from test_flow import GS_STORY, run_until, state
+from conftest import POS_OF
 from test_scores import v7_image
 from test_story import SC, SCENES, page_ready, settle, skip_scene, start_story, turn_page
 
@@ -46,7 +47,7 @@ def scene_of(model, sid):
     c = {"LUMBER": 2, "ZOO": 8, "SPACE": 9}[sid.split("_")[1]]
     if sid.startswith("POST"):
         return post_scene(model, c)
-    return start_story(model, v7_image([], story=c), cont=True)
+    return start_story(model, v7_image([], story=POS_OF[c]), cont=True)
 
 
 def to_page(gb, k):

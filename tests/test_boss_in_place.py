@@ -9,7 +9,7 @@
 import pytest
 from split_helpers import win_lyc
 from boss_common import BS_ENTER, BS_WALK, BS_WALKIN, BS_WARM, hud, meter_tiles, row
-from conftest import BK_AT, bk_block, clear_regulars, ds_active
+from conftest import POS_OF, BK_AT, bk_block, clear_regulars, ds_active
 from save_images import put
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, run_until, state
 from test_pause import CARD_FRAMES, PAUSE_NR51, PAUSED, boss_cards, card_rows, shown, tap
@@ -34,7 +34,7 @@ def last_call(model, c, bk=None):
     """Chapter c's Last call in play with 3 lives; bk: the cartridge's "BK" block (None: every boss card seen, as the test images have it)."""
     img = None
     if bk is not None:
-        img = put(v7_image([], story=c, step=SHIFT_STEP[2]), BK_AT, bk)
+        img = put(v7_image([], story=POS_OF[c], step=SHIFT_STEP[2]), BK_AT, bk)
     return to_shift(model, c, 2, image=img)
 
 
@@ -353,7 +353,7 @@ def test_continue_after_reaching_the_boss_lands_on_the_venue_s_opening(model):
     c = 2
     with last_call(model, c) as gb:
         to_boss_banner(gb, c)
-        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, SHIFT_STEP[2])
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c], SHIFT_STEP[2])
         ram = save_ram(gb)
     from conftest import hold_stage_anim
     from test_story import to_continue

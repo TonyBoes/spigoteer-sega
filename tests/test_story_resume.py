@@ -4,7 +4,7 @@
 # BACK closes the panel. Everything else (ARCADE, CLASSIC, BOSS RUSH, a play from the map, BONUS > MINI GAMES) quits as before.
 import pytest
 import test_story as ts
-from conftest import hold_stage_anim
+from conftest import POS_OF, hold_stage_anim
 from test_flow import GS_GOAL, GS_STORY, PLAYING, run_until, state
 from test_mg import GS_MINI
 from test_pause import open_pause, quit_yes, sv_image, tap, win_text as pause_text
@@ -33,7 +33,7 @@ def panel(gb):
 
 
 def begin(model, c=2, k=1, score=12345):
-    gb = ts.to_shift(model, c, k, image=sv_image(c, 1, c, score))
+    gb = ts.to_shift(model, c, k, image=sv_image(POS_OF[c], 1, POS_OF[c], score))
     return gb
 
 

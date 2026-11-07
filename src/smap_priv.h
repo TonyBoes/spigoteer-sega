@@ -2,6 +2,7 @@
 // story_scratch is the map's while the map is up (src/scratch.h, tests/test_scratch_map.py).
 #ifndef SMAP_PRIV_H
 #define SMAP_PRIV_H
+#include "order.h"
 
 extern uint8_t smap_stop;
 extern uint8_t smap_flags;
@@ -57,7 +58,8 @@ static void s16(uint8_t n, uint16_t v) { V(n) = (uint8_t)v; V(n + 1) = (uint8_t)
 
 extern uint8_t story_chapter, save_lock;
 // How far the map is open: the story's progress, or in a debug-select run (nothing saved: the real progress stays) the chapter being played, so that the quit lands on its stop
-static uint8_t map_progress(void) { return save_lock == SAVE_LOCK_DEBUG && (story_chapter & 0x7F) > story_progress && (story_chapter & 0x7F) < NSTOPS - 1 ? story_chapter & 0x7F : story_progress; }
+// (a stop is a CHAPTER, a place in the story's order, as progress is; story_chapter is the VENUE being played: src/order.h POS(venue) is its chapter, VEN(chapter) the venue; the debug-select run opens the chapter being played)
+static uint8_t map_progress(void) { uint8_t c = story_chapter & 0x7F; return save_lock == SAVE_LOCK_DEBUG && c < NSTOPS - 1 && POS(c) > story_progress ? POS(c) : story_progress; }
 static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= map_progress(); }
 
 // ---- the VBlank copy list: entries the list's own vq_add cannot name (a raw address), with its tally ---------------------------------------------------------

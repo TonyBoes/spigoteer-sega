@@ -50,6 +50,9 @@ for _i, _n in enumerate(W.ORDER):
 PAL_NAMES = list(W.PAL_NAMES)
 FOG_PAL0 = 0                     # (the engine's cloud palette slots: unused, the cloud is cut)
 STOP_ORDER = list(W.ORDER) + ["town"]            # stop index = chapter 0..9, 10 the town (src/smap.c)
+VENUE_IDS = ["saloon", "stadium", "lodge", "bistro", "igloo", "factory", "cow", "tea", "zoo", "space"]       # the venue ids (the content's order: src/order.h)
+_ord = [int(v) for v in __import__("re").search(r"ven_at\[10\] = \{([^}]*)\}", (ROOT / "src" / "order.h").read_text()).group(1).split(",")]
+assert [VENUE_IDS[v] for v in _ord] == W.ORDER, ("src/order.h ven_at is not the map's order", [VENUE_IDS[v] for v in _ord], W.ORDER)
 WIN_C = (22, 20)                 # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)

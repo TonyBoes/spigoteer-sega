@@ -49,6 +49,7 @@
 #include "music.h"
 #include "mg.h"
 #include "boss.h"
+#include "order.h"
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
@@ -321,7 +322,7 @@ static void quit(void) {
     boss_set(BOSS_NONE);
     story_phase = 0;                             // (SP_OFF)
     if (story_on && !(story_arc & 1) && play_mode == MODE_STORY) {   // STORY: the map, Sal at this venue; A there offers RESUME (the shift again from its start)
-        smap_stop = mg_id == MG_POUROFF && (state_timer & PAUSE_MINI) ? 10 : story_chapter;   // (the Pour-Off: the town, nothing to resume)
+        smap_stop = mg_id == MG_POUROFF && (state_timer & PAUSE_MINI) ? 10 : POS(story_chapter);   // (the Pour-Off: the town, nothing to resume)
         if (smap_stop != 10) smap_flags |= SMAP_RESUME; else smap_flags &= ~SMAP_RESUME;
         smap_back();                             // (the venue's start score back, as after a map play; the run, its difficulty and its HUD tint go on)
         return;

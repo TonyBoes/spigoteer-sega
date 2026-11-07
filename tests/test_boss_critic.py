@@ -8,7 +8,7 @@ import pytest
 from boss_common import (Own, BP_GULP, BP_HAPPY, BP_WALK, BS_GULP, BS_OUTRO, BS_SPECIAL, EMPTY, FULL, RETURN, SP_OUTRO,
                          TAP_X, art, arrivals_ok, assert_body, block_empties, check_start, fight, frames, hud,
                          meter_tiles, mugs, play, row, still_regulars, throw, to_bar, until, until_g, gframes)
-from conftest import clear_regulars, GAME, ROOT, check_golden, check_golden_game, finish_goldens
+from conftest import POS_OF, clear_regulars, GAME, ROOT, check_golden, check_golden_game, finish_goldens
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, state
 from test_pour import drop_mugs, first_launch, hold_release
 from test_story import banner_text, centred, post, settle, to_goal
@@ -203,7 +203,7 @@ def test_eight_perfect_drinks_satisfy_him(model):
         assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(C), 300)
         settle(gb)
-        assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, C + 1)
+        assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, POS_OF[C] + 1)
 
 
 # ---- the readable states (owner 2026-10-14: "hard to tell what status he was in") ------------------------------------

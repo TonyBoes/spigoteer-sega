@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "order.h"
 #include "palettes.h"
 #include "music.h"
 #include "tip2.h"
@@ -456,7 +457,7 @@ void start_level(void) BANKED {
     TIP2->t = 0;                                    // (the second tip coin lives in story_scratch, which the last screen left junk in: tip2.h)
     if ((k = classic_row(&row)) != 255) c = &row;   // P5: CLASSIC's table (classic.c), its repeats as the loops
     else {
-        cur_group = idx % LEVEL_ROWS;
+        cur_group = story_on ? VEN(idx % LEVEL_ROWS) : idx % LEVEL_ROWS;   // (STORY / ARCADE: level n is chapter n of the story's order, its venue; the LEVEL harness plays the rows in order; src/order.h)
         c = &level_table[cur_group];
         arcade_loop = idx / LEVEL_ROWS + 1;
         k = arcade_loop - 1;

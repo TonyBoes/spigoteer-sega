@@ -5,7 +5,7 @@ import subprocess
 
 import pytest
 from split_helpers import win_lyc
-from conftest import (clear_regulars, debug_unlocked, du_block, gesture, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_DEBUG, K_ERASE, K_MUSIC, K_PLAY,
+from conftest import (VEN_AT, clear_regulars, debug_unlocked, du_block, gesture, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_DEBUG, K_ERASE, K_MUSIC, K_PLAY,
                       K_SETTINGS, K_SOUNDTRACK, K_STORY, KONAMI, MENU_SETTLE, ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, konami, menu_items, menu_tap, menu_to,
                       release_gesture, title_arcade, title_level, title_pick, unlock_debug, with_unlock)
 
@@ -638,7 +638,7 @@ def test_a_on_a_scene_plays_it(boot, pos_name, scene):
     from test_flow import run_until
     from test_story import SC
     open_on(boot, K_STORY)
-    for _ in range(3):
+    for _ in range(2):                                   # (the bistro is chapter 3 of the story's order)
         chap(boot, 1)
     if pos_name == "post":
         pos(boot, -1)
@@ -652,7 +652,7 @@ def test_on_continue_the_box_starts_at_the_saved_chapter():
     for story, step, p in ((4, 0, 0), (4, 3, 1)):
         with booted("cgb", v7_image([], story=story, step=step)) as rom:
             open_on(rom, K_CONTINUE)
-            assert rom.mem("debug_story") == 1 and (rom.mem("debug_chapter"), rom.mem("debug_pos")) == (story, p)
+            assert rom.mem("debug_story") == 1 and (rom.mem("debug_chapter"), rom.mem("debug_pos")) == (VEN_AT[story], p)      # (the box's chapter is a venue)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -664,7 +664,7 @@ def test_in_story_play_the_box_opens_where_the_story_is(model):
         gb.run(3)
         assert gb.mem("debug_story") == 1
         assert (gb.mem("debug_chapter"), gb.mem("debug_pos")) == (3, SHIFT_STEP[1] + 1)
-        assert banner_is(gb, "STORY 4 HAPPY")
+        assert banner_is(gb, "STORY 3 HAPPY")       # (the bistro is chapter 3 of the story's order)
         tap(gb, "b")
         assert gb.mem("game_state") == PLAYING and gb.mem("story_on") == 1, "B: the shift goes on"
 
