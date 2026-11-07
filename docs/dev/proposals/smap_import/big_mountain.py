@@ -238,7 +238,13 @@ def apply(W_, WORLDS, key):
             if w.pal[cy][cx] != "igloo":
                 w.pal[cy][cx] = "igloo"
     import os
-    if key == "B" and os.environ.get("SMAP_NO_CAVE") != "1":      # SMAP_NO_CAVE=1: B at its new place without the cave (to cost the cave)
+    if key == "B" and os.environ.get("SMAP_FALLS") in ("A", "B"):     # SMAP_FALLS=A|B: the falls v2 proposals (smap_falls_v2/falls_v2.py), instead of the cave
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "smap_falls_v2"))
+        import falls_v2
+        touched |= falls_v2.apply(WORLDS, os.environ["SMAP_FALLS"])
+    elif key == "B" and os.environ.get("SMAP_NO_CAVE") != "1":      # SMAP_NO_CAVE=1: B at its new place without the cave (to cost the cave)
         import falls_cave                                  # the falls come out of a cave mouth in B's right flank (falls_cave.py)
         touched |= falls_cave.apply(WORLDS)
     for (cx, cy) in EXTRA_SNOW.get(key, []):                # typed: one cell tab on the snowfield's west edge, so the snow / grass line does not run straight down beside the foot
