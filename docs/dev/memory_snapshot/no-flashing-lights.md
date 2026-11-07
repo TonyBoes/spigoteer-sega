@@ -11,3 +11,5 @@ Owner 2026-11-04, on the Lodge show GIFs: "Some of those lodge shows are going t
 **How to apply:** every light/palette change in shows, scenes and effects is a gradual fade; no hard cuts of large areas, no white flashes, nothing near 3 changes a second. Check any GIF frame by frame for flashing before showing it to him. Related: [[say-dmg-or-color]].
 
 Exception (owner 2026-11-04, Q77): the white flash when the spigot explodes in the INTRO is intentional. "the flash with the Explosion is intentional. Period." Leave it alone.
+
+Clarified 2026-11-06 (Q110): the rule bans strobing, big-area flashes and fast changes; a tiny, slow, soft blinking light (a mast lamp, runway lights, about 1 blink per 1-2 s, one shade step) is allowed and the owner asked for it.
