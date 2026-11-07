@@ -98,3 +98,12 @@ if LOGSEL in _logs5.VARIANTS:
     FLOATLOG_H_L = ("water", _logs5.conv(_h, light=True))
     FLOATLOG_V_L = ("water", _logs5.conv(_v, light=True))
     LIGHT_PIECE = {id(FLOATLOG_H): FLOATLOG_H_L, id(FLOATLOG_V): FLOATLOG_V_L}
+
+# ---- the bridges with raised sides (bridges5.py): SMAP_BRIDGE = old (A4's) | new (default) ------------------------------------------------------------------
+import bridges5 as _br
+
+BRIDGE_NEW = _os.environ.get("SMAP_BRIDGE", "new") != "old"
+DARK.update(_br.shadow_tiles(DARK, False))
+LIGHT.update(_br.shadow_tiles(LIGHT, True))
+if BRIDGE_NEW:
+    BRIDGE_TILES = dict(BRIDGE_TILES, **_br.TILES)

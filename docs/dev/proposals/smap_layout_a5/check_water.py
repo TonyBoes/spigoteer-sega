@@ -20,7 +20,7 @@ def tile(c, light=False):
 
 
 for light in (False, True):
-    T = {c: tile(c, light) for c in L.WATER}
+    T = {c: tile(c, light) for c in L.WATER if c not in L.BRIDGE_CELLS}          # (a bridge cell shows the bridge, not the water under it)
     for (x, y), t in T.items():
         e = T.get((x + 1, y))
         if e and [r[-1] for r in t] != [r[0] for r in e]:

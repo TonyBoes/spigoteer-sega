@@ -155,16 +155,28 @@ SPECIAL_WATER = {(46, 5): "FL_A", (47, 5): "FR_A", (46, 6): "FL_B", (47, 6): "FR
 VARIANTS = True                                                    # the second shore tiles on a typed rhythm (a5art.water_tile5)
 
 # the bridges: the lake (the south road, rows 62 and 63, columns 37 to 47) and the mill race (the lodge-factory road, columns 50 and 51, rows 32 to 34)
+#   raised sides (bridges5.py): the end cells close the parapets (TL BL TR BR; Lt Rt Lb Rb), and the water cells south / east of a deck take a shadow tile
 BRIDGE_CELLS = {}
+_N = a4art.BRIDGE_NEW
+
+
+def _ew(x, y, x0, x1):
+    s = "L" if (_N and x == x0) else "R" if (_N and x == x1) else ""
+    BRIDGE_CELLS[(x, y)] = "T" + s
+    BRIDGE_CELLS[(x, y + 1)] = "B" + s
+
+
 for x in range(37, 48):
-    BRIDGE_CELLS[(x, 62)] = "T"
-    BRIDGE_CELLS[(x, 63)] = "B"
+    _ew(x, 62, 37, 47)
 for y in (32, 33, 34):
-    BRIDGE_CELLS[(50, y)] = "L"
-    BRIDGE_CELLS[(51, y)] = "R"
+    e = "t" if (_N and y == 32) else "b" if (_N and y == 34) else ""
+    BRIDGE_CELLS[(50, y)] = "L" + e
+    BRIDGE_CELLS[(51, y)] = "R" + e
 for x in (46, 47):                                                 # A5: the bistro-igloo road crosses the stream in the snow on a short bridge (rows 11 and 12)
-    BRIDGE_CELLS[(x, 11)] = "T"
-    BRIDGE_CELLS[(x, 12)] = "B"
+    _ew(x, 11, 46, 47)
+if _N:
+    import bridges5
+    SPECIAL_WATER.update(bridges5.SHADOW_CELLS)
 
 # the mountain ranges: placeholder boxes (x, y, w, h, palette, assumed distinct tiles); the separate artist draws them
 RANGES = [(17, 0, 15, 4, "igloo", 26), (34, 0, 14, 5, "igloo", 30), (48, 0, 16, 5, "igloo", 36)]
