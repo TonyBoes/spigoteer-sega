@@ -111,6 +111,8 @@ def build(arr, style=None, roof=None, new=0, borrow=None):
         if new in (3, 4, 5):
             import cow_sign
             {3: cow_sign.sign_a, 4: cow_sign.sign_b, 5: cow_sign.sign_b2}[new](c)
+        elif new == 6:
+            pass                                             # no sign here: build_final draws it on a wider canvas
         else:
             sign(c, 12, 2 + OFF, 46 + OFF, 8)                # the sign a few px further left
             if new == 2:
@@ -130,6 +132,21 @@ def build(arr, style=None, roof=None, new=0, borrow=None):
             for y in range(y0, y1):
                 for x in range(x0, x1):
                     assert c.px[y][x] != "0", ("ground would show", x, y)
+    return c
+
+
+def build_final(shift=4, raise_=4):
+    """the owner's last pick (sign B on base silver) with the band raised on the pole and the whole sign moved left: the picture is 8 px wider on the left (104 x 184, top left at
+    world cell (49, 47); cell x 49 is farm ground, the COW palette's index 0 is the same colour), the rest is build(3, 'A', 2, 6, borrow='base') shifted 8 px right"""
+    import cow_sign
+    c96 = build(3, 'A', 2, 6, borrow='base')
+    c = Canvas("cowFinal", "cow", W + 8, H)
+    for y in range(H):
+        for x in range(W):
+            c.px[y][x + 8] = c96.px[y][x]
+    for (x0, y0, x1, y1, p) in c96.rects:
+        c.palrect(x0 + 8, y0, x1 + 8, y1, p)
+    cow_sign.sign_b3(c, 8 - shift, raise_=raise_)
     return c
 
 

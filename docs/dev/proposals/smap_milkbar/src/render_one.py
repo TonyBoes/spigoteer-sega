@@ -31,6 +31,8 @@ def piece():
         import cow_lot4 as N
         return N.build(), (50, 55)
     import cow_a5 as A
+    if mode == 'eB':
+        return A.build_final(), (49, 47)
     if mode in ('cB', 'dB'):
         return A.build(3, 'A', 2, 4 if mode == 'cB' else 5, borrow='base'), (50, 47)
     if mode in ('cA',):
@@ -144,8 +146,8 @@ def main():
     json.dump(res, open(f'{TMP}/r6_{mode}.json', 'w'), default=str)
     cc = C.render(c, 'farm', at, False, margin=0) if c is not None else None
     if c is not None:
-        C.render(c, 'farm', at, False, margin=0).crop((0, 60, 96, 160)).save(f'{TMP}/r6_{mode}_closeDMG.png')
-        C.render(c, 'farm', at, True, margin=0).crop((0, 60, 96, 160)).save(f'{TMP}/r6_{mode}_closeColor.png')
+        C.render(c, 'farm', at, False, margin=0).crop((0, 60, c.w, 160)).save(f'{TMP}/r6_{mode}_closeDMG.png')
+        C.render(c, 'farm', at, True, margin=0).crop((0, 60, c.w, 160)).save(f'{TMP}/r6_{mode}_closeColor.png')
     shot(wd, False).save(f'{TMP}/r6_{mode}_DMG.png')
     shot(wc, True).save(f'{TMP}/r6_{mode}_Color.png')
     print(mode, res)

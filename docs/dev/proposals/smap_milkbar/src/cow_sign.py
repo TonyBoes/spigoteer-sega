@@ -121,3 +121,43 @@ def sign_b2(c, y0=64):
         for j in range(2):
             for i in range(2):
                 c.px[y0 + br + j][bx + i] = "1"
+
+
+def sign_b3(c, xo, y0=64, raise_=4):
+    """sign_b2 with the band's bottom (the arm and the head) raised by raise_ rows (the left side is shorter by as much, the bulb pitch stays 4) and the whole sign moved to
+    x offset xo; the bottle, the pole and the foot keep their rows"""
+    d = -raise_
+    rows = {}
+    rows[6] = ".3333." + "." * 18
+    rows[7] = "322223" + "." * 18
+    for r in range(8, 34 + d):
+        band = "322223"
+        if r == 32 + d:
+            rows[r] = band + D + HEAD[0]
+        elif r == 33 + d:
+            rows[r] = band + D + HEAD[1]
+        else:
+            rows[r] = band + "." * 18
+    rows[34 + d] = "3" + "22222" + "3" * 10 + HEAD[2]
+    rows[35 + d] = "3" + "2" * 15 + HEAD[3]
+    rows[36 + d] = "3" + "2" * 15 + HEAD[4]
+    rows[37 + d] = ".3" + "2" * 14 + HEAD[5]
+    rows[38 + d] = "..3" + "2" * 13 + HEAD[6]
+    rows[39 + d] = "..." + "3" * 13 + HEAD[7]
+    rows[40 + d] = "." * 16 + HEAD[8]
+    rows[41 + d] = "." * 16 + HEAD[9]
+    for r, s in rows.items():
+        assert len(s) == 24, (r, len(s))
+    put(c, xo + 7, y0 + 2, BOTTLE)
+    for y in range(y0 + 25, y0 + 46):
+        for i, ch in enumerate("3113"):
+            c.px[y][xo + 13 + i] = ch
+    for i, ch in enumerate("33333333"):
+        c.px[y0 + 46][xo + 11 + i] = ch
+    for i, ch in enumerate("31111113"):
+        c.px[y0 + 47][xo + 11 + i] = ch
+    put(c, xo, y0, [rows.get(r, "." * 24) for r in range(56)])
+    for (bx, br) in ((2, 10), (2, 14), (2, 18), (2, 22), (2, 26), (2, 34 + d), (6, 36 + d), (10, 36 + d), (14, 36 + d)):
+        for j in range(2):
+            for i in range(2):
+                c.px[y0 + br + j][xo + bx + i] = "1"

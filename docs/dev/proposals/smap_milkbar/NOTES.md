@@ -1,3 +1,19 @@
+# Milk bar final round 2: band raised on the pole, whole sign 4 px left
+
+Owner on sheet13: "quality pass looks good, but lets raise the bottom of the arrow a bit on the pole. Then lets move the whole sign to the left a bit." `milkbar_sheet14.png` (two columns, large labels): After pass | Raised + left; DMG and Color, close-up x4 and map x3. Code: `sign_b3` in `src/cow_sign.py`, `build_final` in `src/cow_a5.py`, mode `eB` of `src/render_one.py`, `src/sheet14.py`.
+
+- **Raised:** the arm and head moved up 4 rows (the arm is y 94..99 now, was 98..103); the band's left side is 4 rows shorter; the passed band is otherwise the same (bulbs 2 x 2 every 4 px: 5 down the left, the corner one, 3 along the arm; ink outline; stepped radius 4 bend). Bottle, pole and foot keep their rows. The head still points at the building's left wall.
+- **Left:** the whole sign is 4 px left. The old picture started at the cell edge (x 0), so the picture is now 104 px wide, 8 px more on the left, top left at world cell (49, 47). Cell x 49, rows 55..61, is farm ground, and COW's index 0 is the farm colour, so no new palette and no visible seam; the cell loses its ground tuft tile where the sign covers it. The sign's leftmost pixels are 4 px into cell 49.
+
+| | whole map | worst 21 x 19 anywhere | worst window at the milk bar | piece only | palettes per window |
+| --- | --- | --- | --- | --- | --- |
+| After pass | 579 | 133 | 117 | 81 | 8 |
+| Raised + left | 581 | 133 | 119 | 83 | 8 |
+
+Palettes per window are 8 at worst everywhere (including the cell added at x 49). Tea cell (34, 59) on `tea@g` and the `base` building as before.
+
+---
+
 # Milk bar final round: sign B on `base` silver, tea cell merged, quality pass on the band
 
 Owner (Q106): "Keep airbase silver. ... I prefer the last sign where the arrow is on the side." Built: sign B (diner), building body cells on `base`, the tea house cell (34, 59) on `tea@g` (Color only, DMG unchanged, as in `milkbar_sheet12.png`). `milkbar_sheet13.png` (two columns, large labels): B as picked | B after pass; DMG and Color, close-up x4 and map x3. Code: `sign_b2` in `src/cow_sign.py`, modes `cB` and `dB` of `src/render_one.py` (env `MB_TEAFIX=1 MB_PASTURE=1`), `src/sheet13.py`.
