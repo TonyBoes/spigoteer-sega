@@ -65,6 +65,8 @@ for it in items:
     rows = []
     ev = []
     for a, base, cells in res:
+        if a.name.startswith('~'):
+            continue
         imgs = [base] + list(a.frames)
         orig_set = tiles_orig[id(it.scene)]
         rom_new = {x for x in imgs if x not in orig_set}
@@ -88,12 +90,12 @@ for it in items:
         per_t.setdefault(t, []).append(nme)
     maxw = max((len(v) for v in per_t.values()), default=0)
     events_per_loop = len(per_t)
-    rom_new_total = len({x for a, base, cells in res for x in ([base] + list(a.frames)) if x not in tiles_orig[id(it.scene)]})
-    rom_new_rest = len({base for a, base, cells in res if base not in tiles_orig[id(it.scene)]})
+    rom_new_total = len({x for a, base, cells in res if not a.name.startswith("~") for x in ([base] + list(a.frames)) if x not in tiles_orig[id(it.scene)]})
+    rom_new_rest = len({base for a, base, cells in res if not a.name.startswith("~") and base not in tiles_orig[id(it.scene)]})
     ids_new = sum(1 for r in rows if r["needs_id"])
     tiles_written = len(ev)
     report.append(dict(key=it.key, title=it.title, view=it.view, loop=L, gif_frames=len(ts), anims=rows, max_tiles_per_event=maxw, events_per_loop=events_per_loop,
-                       tile_writes_per_loop=tiles_written, rom_new=rom_new_total, rom_new_at_rest=rom_new_rest, ids_new=ids_new, slots=len(res), check=worst,
+                       tile_writes_per_loop=tiles_written, rom_new=rom_new_total, rom_new_at_rest=rom_new_rest, ids_new=ids_new, slots=len([a for a, b, c in res if not a.name.startswith("~")]), check=worst,
                        cells={r["name"]: r["cells"] for r in rows}))
     for t, nme in ev:
         all_events.append((it.key, nme, t % L, L))

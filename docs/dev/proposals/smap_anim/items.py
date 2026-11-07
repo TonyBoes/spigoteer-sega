@@ -54,7 +54,7 @@ def water(a5, strength="vsubtle"):
 #    on each side), breaking into foam holes, bubbles and a few spray pixels below.  Kept pixel-exact: the bank rims (land 0, rim 1) at both sides of every falls row and of the pool's
 #    four widening rows; pool rows 6-7 of the foot cells (they join the splash cells below); the splash cells themselves.  NEW STATIC ART: the 4 falls tiles + 2 foot tiles change on the map.
 #    Falls: the 12 flowing rows (0-11) fall 3 rows a step, 4 frames, 9 video frames a step (the aliasing note: a step must stay smaller than the gaps between streaks); the lower four
-#    rows (12-15) are a fixed foam lead-in.  Foot: foam lip + very subtle glints (the owner dropped the bubbles and spray); the splash arcs below stay as the approved map art, static.
+#    rows (12-15) are a fixed foam lead-in.  Foot: foam lip + very subtle glints (the owner dropped the bubbles and spray); the two splash arcs below are now the plain water tiles WA and WB (owner).
 #    Falls columns f0..f7 (f0 = left tile col 4 ... f3 = col 7; f4 = right tile col 0 ... f7 = col 3), '-' foam / '+' water, rows 0-11 of frame 0 (typed):
 FALL_COLS = ["++-+++-+++-+", "-------++--+", "++---+++---+", "----++-----+", "--+++----++-", "+++---++---+", "-----+++---+", "+++-++-+++-+"]
 FALL_FOOT = ["+--+---+", "+------+", "+-----+-", "--------"]                  # rows 12-15, f0..f7
@@ -110,6 +110,8 @@ def falls(a5):
                     assert tile[j][i] == old[j][i], ((cx, cy), j, i)
         if cy == 7:
             assert tile[7] == old[7], (cx, cy)
+    new_static[(46, 8)] = WS["vsubtle"]["A"][0]                                      # the two splash arcs go (owner: bubbles): the cells become the water tiles WA and WB,
+    new_static[(47, 8)] = WS["vsubtle"]["B"][0]                                      # already in the map, so no new image and the glints come with the water animation
     for (cx, cy), tile in new_static.items():                                       # NEW STATIC ART on the shared scene (every item that shows the falls sees it)
         for j, r in enumerate(tile):
             for i, c in enumerate(r):
@@ -118,6 +120,9 @@ def falls(a5):
     an = [TileAnim(n, c, [f[(n, k)] for k in range(1, FALL_FRAMES)], seq, 9) for n, c in cells]
     gseq = [0, 0, 1, 0, 0, 2]
     an += [TileAnim("FOOT_L", (46, 7), [FOOT_L[1], FOOT_L[2]], gseq, 30, FOOT_PH[0]), TileAnim("FOOT_R", (47, 7), [FOOT_R[1], FOOT_R[2]], [0, 0, 2, 0, 0, 1], 30, FOOT_PH[1])]
+    w = WS["vsubtle"]                                                               # "~" = the shared WA / WB tiles (counted in 01_water, shown here so the GIF moves)
+    an += [TileAnim("~WA", (46, 8), [w["A"][1], w["A"][2]], [0, 0, 1, 0, 0, 2], 30, 0, cells_list=((46, 8),)),
+           TileAnim("~WB", (47, 8), [w["B"][1], w["B"][2]], [0, 0, 2, 0, 0, 1], 30, 15, cells_list=((47, 8),))]
     return Item("02_falls", "Waterfall (foam drop, foam lip, glints in the pool)", a5, (304, 0), an, focus=(352, 32, 400, 80))
 
 

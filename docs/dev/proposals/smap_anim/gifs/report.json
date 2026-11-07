@@ -13,7 +13,7 @@
     "name": "WA",
     "frames": 3,
     "distinct_new": 3,
-    "cells": 19,
+    "cells": 20,
     "needs_id": true,
     "steps_per_loop": 4,
     "loop": 180,
@@ -23,7 +23,7 @@
     "name": "WB",
     "frames": 3,
     "distinct_new": 3,
-    "cells": 22,
+    "cells": 23,
     "needs_id": true,
     "steps_per_loop": 4,
     "loop": 180,
@@ -50,8 +50,8 @@
    ]
   },
   "cells": {
-   "WA": 19,
-   "WB": 22
+   "WA": 20,
+   "WB": 23
   }
  },
  {
