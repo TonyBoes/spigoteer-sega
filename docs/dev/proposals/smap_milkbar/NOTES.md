@@ -1,3 +1,19 @@
+# Milk bar round 4e (current): the same lot and 3/4 bikes, checked in the A5 layout
+
+Owner: "Milk bar maps are not helpful as they are not the current layout." `milkbar_sheet5.png`: the milk bar alone (DMG, Color x3), then in the A5 map around it (DMG, Color x3). The map shots come from the A5 scratch generator (`docs/dev/proposals/smap_layout_a5/src`, rebuilt with its `mk_src.py` and `mk_a5.py`, env `SMAP_LAYOUT=lay_A5 SMAP_FOG=none`; `src/a5env.py` here sets that up, `src/sheet5.py` renders). Art unchanged from round 4d (`src/cow_lot4.py`): building, sign and cow identical, 3/4 bikes, slanted bays.
+
+**Where it sits in A5.** Venue cell (50, 55) on the 64 x 70 map: the piece covers cells x 50..61, rows 55..63. The road that passes it is the ring road's south lane, cell rows 62 and 63, running west to the tea house and east to the ring's east edge road (cells x 62 and 63, running north). The lot rows of the piece (y 56..71) are those two road rows, as in the old layout, so the answer is the same: the lot is the south lane widened up to the diner (road tiles, TOWN1 on Color: no new palette; the road's south kerb runs straight through; the north kerb ends at the lot's west edge, x 54). What is better in A5: the lot's east end (cell x 61) meets the east road's junction (x 62, 63) head on, so the lot is a bay along the lane between the junction and the cow.
+
+**Re-check of the fit issues in A5**
+1. Piece width: **fixed by A5.** The block east of the old piece is free: the building ends at x 59 (old 80 px piece) and cells x 60 and 61 are free ground before the east road at x 62; the 96 px piece needs exactly x 50..61. It fits (in the old layout it did not).
+2. Cow on road cells: **still open.** The cow (piece (18, 58)) stands on cells x 52 and 53, rows 62 and 63, which are road cells; the map shot draws it over the road. The cow must move up a row or those two cells need a cow-over-road look. Also `STOP_LOCAL_X["cow"] = 18` puts Sal's stop at x 418 = cell 52, right under the cow.
+3. Venue-over-road assert (`assert (cx, cy) not in self.roads` in `world2.build`): **still fires**, the piece covers road cells x 54..61 (lot) and x 52, 53 (cow), rows 62, 63. The lot and cow cells need an exemption, and the engine must keep the lot cells walkable, because the cow-to-tea leg walks along feet row y 508 (cell row 63), through the lot.
+4. Palette windows: the lot cells use TOWN1, which the road already uses (the generator's windows are 8 at worst there), the building's cells stay COW; no new slot. I did not re-run the generator's window probe with the piece in place (the A5 scratch generator pastes the old 80 x 56 `v_cow`, so the real check needs the 96 x 72 piece wired into a layout).
+
+**Tiles (DMG, project counter):** the piece 45; the old `v_cow` that A5 pastes today is 44 and round 3's milk bar is 44, so +1. The map totals (A5 547) were not recomputed with the piece pasted.
+
+Rounds 4c/4d below are kept for history; their map shots use the old layout and are superseded.
+
 # Milk bar: round 4d (current): 3/4 bikes, the lot joined to the road (proposal only)
 
 Owner: "The bikes need to be 3/4 angled toward venue. Parking lot is ok, but needs to be logically connected to the rest of the map." Sheet: `milkbar_sheet4.png` (round 4c A | NEW; DMG and Color at x3; then both in the real map around the milk bar, x3). Sources: `src/cow_lot4.py` (art), `src/sheet4.py` (renders the map shots from `world2.WORLD`). Building, bottle, cow: round 3 pixel for pixel (0 changed outside the lot rectangle).

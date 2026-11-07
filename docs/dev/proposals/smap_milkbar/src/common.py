@@ -3,7 +3,8 @@ Nothing here decides a pixel.  A piece is typed as ASCII rows: '0'..'3' are pale
 import sys
 
 ROOT = '/workspace/.claude/worktrees/agent-a742552fa3a9454c1'
-sys.path.insert(0, ROOT + '/tools/smap_world')
+if ROOT + '/tools/smap_world' not in sys.path:
+    sys.path.insert(0, ROOT + '/tools/smap_world')
 from PIL import Image  # noqa: E402
 
 import pal as P  # noqa: E402
