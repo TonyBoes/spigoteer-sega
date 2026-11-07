@@ -31,6 +31,9 @@ TEA_ART = "v_tea_pass"          # <- the teahouse swap point: the module (docs/d
 TEA_LEVEL = "C1S"               # rib roof, textured walls, the wide curtain (no slit), both lanterns at y36, no garden (final, d73ad77f)
 FALLS = "A"                     # <- the falls / mountain interface swap point: A (owner pick 11-07, "for now"), B, or "cave" (the stage 1 cave); a later redesign drops in at big_mountain.py
 FALLS_ANIM_CELLS = [(47, 3), (46, 4), (47, 4)]      # falls A's animated cells (4 images each): pinned from the flip-merge; stage 3's engine table
+# DMG only, one pixel each: (cell x, cell y, pixel x, pixel y, old shade, new shade).  They make six DMG tiles of the top right (falls A, the igloo and the east road) equal to a neighbour's, so that
+# no padded path window (23 x 21 cells) needs more than the DMG's 176 tiles (it was 179 at cells 41..63 x 1..20; the camera would have stalled).  Each is a speck at a cell edge.
+DMG_TRIM = [(52, 1, 7, 3, 1, 2), (50, 2, 7, 7, 0, 1), (50, 4, 0, 7, 3, 0), (53, 6, 5, 7, 3, 0), (51, 8, 7, 7, 3, 0), (58, 8, 0, 7, 3, 0)]
 MAP_ENV = {"SMAP_TEA_PASS": "1", "SMAP_TEA_TEX": TEA_LEVEL}
 if FALLS != "cave":
     MAP_ENV["SMAP_FALLS"] = FALLS
@@ -80,6 +83,10 @@ def build():
     names = sorted(a["rgb"])
     assert set(b["rgb"]) <= set(names), (set(b["rgb"]) - set(names))
     idx = {n: i for i, n in enumerate(names)}
+    for (cx, cy, px, py, old, new) in DMG_TRIM:                # the DMG tile trims (DMG data set only; the Color pixels are untouched)
+        for d in (a, b):
+            assert d["px_d"][cy * 8 + py][cx * 8 + px] == old, (cx, cy, px, py, old)
+            d["px_d"][cy * 8 + py][cx * 8 + px] = new
     repair = []
     for y in range(ch):
         for x in range(cw):

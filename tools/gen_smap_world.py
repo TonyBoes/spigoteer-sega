@@ -535,7 +535,7 @@ def emit_accessors_a(m, tag):
     else:
         L.append(carr("uint8_t", f"{tag}_hint", m.hint, 16, 2))
     asm_open = asm_close = ""
-    if not cgb:
+    if True:
         asm_open = '''#if ASM_SMAP
 // asm (behind ASM_SMAP; the C twin follows in the #else): the stack holds, at entry, the return address, the trampoline's 4 bytes, then cx, cy, n, vert, p, out (2).
 // The loop's scratch lives in story_scratch's free bytes: V_BCAP (n), V_LIMC (p), V_LIMQ (vert). bc = the cell's index, de = the output pointer.
@@ -665,8 +665,72 @@ __endasm;
 #else
 '''
         asm_close = "#endif\n"
+        if cgb:                       # the Color's: the same loop, the aux word is slotvar[w & 0x3FF] (a word), the cloud's inside takes inner[p] << 10 (V_PWL is the Color's spare byte)
+            asm_open = asm_open.replace("_smap_d_", "_smap_c_").replace("smap_d_fetch", "smap_c_fetch")
+            blk = '''    and  a, #3
+    ld   h, a
+    push de
+    ld   de, #_smap_c_hint
+    add  hl, de
+    pop  de
+    ld   a, (hl)
+    ld   (de), a
+    inc  de
+    xor  a, a
+    ld   (de), a
+    inc  de
+'''.replace("_smap_c_hint", "_smap_c_hint")
+            blk = blk.replace("_smap_c_hint", "_smap_c_hint")
+            asm_open = asm_open.replace(blk.replace("_smap_c_hint", "_smap_c_hint"), '''    and  a, #3
+    ld   h, a
+    add  hl, hl
+    push de
+    ld   de, #_smap_c_slotvar
+    add  hl, de
+    pop  de
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl)
+    ld   (de), a
+    inc  de
+''')
+            assert "_smap_c_slotvar" in asm_open
+            old = '''    ld   de, #_smap_c_fint
+    add  hl, de
+    pop  de
+    ld   a, (hl+)
+    ld   h, (hl)
+    ld   l, a
+    jr   3$
+'''
+            assert old in asm_open
+            asm_open = asm_open.replace(old, '''    ld   de, #_smap_c_fint
+    add  hl, de
+    pop  de
+    ld   a, (hl+)
+    ld   h, (hl)
+    ld   l, a
+    push hl
+    ld   a, (_story_scratch + 452)
+    push de
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_smap_c_inner
+    add  hl, de
+    ld   a, (hl)
+    pop  de
+    add  a, a
+    add  a, a
+    ld   (_story_scratch + 450), a
+    pop  hl
+    ld   a, (_story_scratch + 450)
+    or   a, h
+    ld   h, a
+    jr   3$
+''')
     L.append(f"""
-{'static ' if cgb else ''}uint16_t {tag}_fogfind(uint16_t c, uint8_t p) {{
+uint16_t {tag}_fogfind(uint16_t c, uint8_t p) {{
     uint16_t base = {tag}_foff[(uint8_t)(p - 1) << 1];          // (the lists of one state are < 256 long: asserted by the generator)
     uint8_t lo = 0, hi = (uint8_t)({tag}_foff[((uint8_t)(p - 1) << 1) + 1] - base), mid;
     while (lo < hi) {{
