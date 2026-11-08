@@ -139,6 +139,7 @@ uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED;   // px Sal may
 uint8_t smap_camera_step(void) BANKED;                 // the camera moves toward Sal where the region covers its view. 1: it moved
 void smap_region_work(void) BANKED;                    // the region follows the camera: lines drop, lines load
 void smap_cam_target(int16_t *tx, int16_t *ty) BANKED; // where the camera wants to be (Sal at the centre, clamped to the world)
+uint8_t smap_stop_side(uint8_t s) BANKED;              // bit 0: the side of the name tag and the venue panel at a stop (1 the bottom, 0 the top); bit 1: the stop has a resting view
 void smap_fill_view(uint8_t c0, uint8_t c1) BANKED;    // LCD off: the columns c0..c1 of the view, straight into VRAM (the region starts as that)
 void smap_isr(void) BANKED;                            // the map's second VBlank handler (render.c smap_vbl calls it): the special runs of the copy list
 void smap_isr_arm(void) BANKED;                        // (smap_enter: before the handlers go in)

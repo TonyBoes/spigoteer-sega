@@ -174,15 +174,20 @@ def walk(model, s, d, progress=10, double=False):
     w = Watch(gb, model, progress)
     w.skip_first = True
     gb.press(DIRS[d], 4)
-    lines, holds, last = [], 0, None
+    lines, holds, last, started = [], 0, None, False
     for f in range(1500):
         sc = w.frame()
+        started = started or bool(sc[SV + V_WALK])           # (from a stop with a resting view the walk waits for the camera first: the measured frames are the walk's)
+        if not started:
+            continue
         lines.append(gb.mem16("perf_logic_last"))
         fx = (var(sc, V_FX), var(sc, V_FY))
         holds += bool(sc[SV + V_WALK]) and fx == last
         last = fx
         if f > 4 and not sc[SV + V_WALK]:
             break
+    for _ in range(70):                                       # (the arrival: the camera glides to the stop's resting view, the region must hold what it shows: smap_cam_target)
+        w.frame()
     return gb, w, lines, holds
 
 
@@ -257,9 +262,11 @@ def walk_frames(model, s, d):
     gb.pb.hook_register(v >> 16, v & 0xFFFF, f, None)
     gb.press(DIRS[d], 6)
     log.clear()
+    started = False
     for fr in range(1500):
         gb.run(1, True)
-        if fr > 4 and not gb.read("story_scratch", 520)[SV + V_WALK]:
+        started = started or bool(gb.read("story_scratch", 520)[SV + V_WALK])     # (a stop with a resting view: the walk waits for the camera first)
+        if fr > 4 and started and not gb.read("story_scratch", 520)[SV + V_WALK]:
             break
     return log[1:]
 

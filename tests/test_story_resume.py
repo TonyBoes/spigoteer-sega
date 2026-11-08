@@ -129,7 +129,7 @@ def test_junk_in_the_resume_flag_at_power_on_does_not_offer_a_resume(model):
     gb.run(100)
     assert gb.mem("smap_flags") & 8 == 0
     gb.write("smap_stop", 3)
-    gb.run(2)
+    ts.cam_settle(gb)
     mtap(gb, "a", 20)
     assert gb.mem("overlay_on") != 3 and gb.mem("story_phase") != SP_MAP, "A starts the venue: no panel"
 
