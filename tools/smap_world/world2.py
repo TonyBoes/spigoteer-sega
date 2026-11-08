@@ -87,7 +87,7 @@ FIELDS = [(53, 27, 62, 31), (53, 34, 62, 38)]
 
 # ---- the stops and the paths ---------------------------------------------------------------------------------------------------------------------------
 # palettes folded to keep a 21 x 19 window within the 8 BG palettes (the roads take the town palette, TOWN1: cream, skin, lilac)
-MERGE = {"forest": "grass", "desert": "saloon", "factory_b": "factory", "zoogate": "zoo", "tea_b": "tea", "town3": "town5"}
+MERGE = {"forest": "grass", "desert": "saloon", "factory_b": "factory", "tea_b": "tea", "town3": "town5"}
 
 FEET_DY = 12                                                      # feet are 12 px below the top of the road
 SW, SH = 16, 24                                                   # Sal's size

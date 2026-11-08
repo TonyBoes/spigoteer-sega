@@ -23,10 +23,13 @@ SHRUB = piece(".:3 3:5 .:3", ".:1 3:2 1:5 3:2 .:1", "3:1 1:3 2:3 1:3 3:1", "3:1 
 def build(dmg=False):
     c = Canvas("bistro", PAL, W, H)
     # ---- the sign board -------------------------------------------------------------------------------------------------
-    c.row(0, "0:20 3:32 0:20")
+    # Color: the board is 4 px wider each side (40 wide, letters where they were): its ends then lie on the cell boundaries x 16 and x 55, so no cell holds both the board's letters
+    # (index 0) and the cream margin, and the margin cells beside the sign can take the grass as index 0 (no cream block beside the board).  The DMG board is unchanged.
+    m, bw = (20, 32) if dmg else (16, 40)
+    c.row(0, f"0:{m} 3:{bw} 0:{m}")
     for y in range(1, 9):
-        c.row(y, "0:20 3:1 2:30 3:1 0:20")
-    c.row(9, "0:20 3:32 0:20")
+        c.row(y, f"0:{m} 3:1 2:{bw - 2} 3:1 0:{m}")
+    c.row(9, f"0:{m} 3:{bw} 0:{m}")
     for k, ch in enumerate("BISTRO"):
         for j, r in enumerate(LET[ch]):
             for i, v in enumerate(r):
@@ -62,7 +65,7 @@ def build(dmg=False):
     for y in range(52, 56):
         c.row(y, "(0:4 1:4)*9")
     if not dmg:                                              # DMG: no table and no potted shrub
-        c.paste(5, 44, TABLE)
+        c.paste(8, 44, TABLE)
     if not dmg:                                              # DMG: no potted shrub
         c.paste(57, 43, SHRUB)
     return c

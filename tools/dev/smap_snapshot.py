@@ -11,7 +11,7 @@ scratch src/ and scenes/ that mapctx reads).  The build itself never needs any o
 Output (read by tools/smap_world/world_snap.py):
   assets/smap/world_c.png    the Color data set's pixels, indexed 0..3, 512 x 560
   assets/smap/world_d.png    the DMG data set's pixels (the hand-trimmed set: light water)
-  assets/smap/world.json     the cell palettes (indices into pal_names), the 22 palettes' colours, the stops and legs, the venues' cells, and the REPAIR cells: the fountain's broken
+  assets/smap/world.json     the cell palettes (indices into pal_names), the 23 palettes' colours, the stops and legs, the venues' cells, and the REPAIR cells: the fountain's broken
                              state (shown until the story repairs it: the cells differ from the working fountain in both data sets)
 
 THE TEAHOUSE SWAP POINT is the one line TEA_ART below: the module that draws the teahouse (docs/dev/proposals/smap_tea_pass/v_tea_pass.py at 2d212801 today; the curtain version drops in

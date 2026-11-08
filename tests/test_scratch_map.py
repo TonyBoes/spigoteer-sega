@@ -235,3 +235,17 @@ def test_an_arcade_game_over_in_a_boss_fight_leaves_no_boss_on(model, c):
         assert state(gb) == TITLE
         gb.run(60)
         assert gb.mem("boss_on") == 0, "the title is up and the last fight's boss is still on"
+
+
+def test_the_color_tile_staging_is_on_a_16_byte_boundary_at_its_offset():
+    """src/smap_priv.h A_XSTG: the 23-palette table left no room to pad the Color staging up to a boundary, so the staging is laid at the offset that is aligned today,
+    and the palette write (A_PSTG) lies behind it. If story_scratch moves (a WRAM change), the staging would run into A_PSTG: re-lay smap_priv.h."""
+    noi = ROOT / "build" / "game.noi"
+    if not noi.exists():
+        pytest.skip("needs build/game.noi (make)")
+    h = (SRC / "smap_priv.h").read_text()
+    xstg = int(re.search(r"#define A_XSTG\s+(\d+)", h).group(1))
+    pstg = int(re.search(r"#define A_PSTG\s+(\d+)", h).group(1))
+    adr = int(re.search(r"DEF _story_scratch 0x([0-9A-Fa-f]+)", noi.read_text()).group(1), 16)
+    assert (adr + xstg) % 16 == 0, f"story_scratch is at {adr:#x}: A_XSTG {xstg} is no longer on a 16-byte boundary (A_PSTG {pstg} follows the staging's 80 bytes)"
+    assert xstg + 80 <= pstg
