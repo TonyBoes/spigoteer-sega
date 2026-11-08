@@ -5,7 +5,7 @@ proposal pipeline), in the shape tools/gen_smap_world.py expects of a world modu
     ORDER, STOPS, LEGS, VENUES    the chapters' order, the stops' feet positions, the legs' waypoints, the venues' picture cells
     WORLD, WORLD_DMG              the Color and the DMG data set: .px[y][x] (0..3, 8 px a cell), .pal[cy][cx] (the cell's palette name)
     ZONE           the zone of each cell: "town" (always shown) or "repair" (the fountain's broken cells: shown broken until the story repairs it, unlock state 11)
-    PAL_NAMES, RGB, DMG_SHADE     the 22 BG palettes the map uses and their colours
+    PAL_NAMES, RGB, DMG_SHADE     the 23 BG palettes the map uses and their colours
     with_fog(world, revealed)     the world as an unlock state shows it: the cloud is cut (owner 11-06), so the only cells that change are the REPAIR cells (the broken fountain)
     ANIM_CELLS     cells whose tile an animation rewrites (the flip-merge never merges those: none until the tile animation, stage 3)
 """

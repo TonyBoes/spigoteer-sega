@@ -22,13 +22,14 @@ extern uint8_t smap_flags;
 #define A_TBL        0       // DMG: 220 bytes: 176 low bytes of the tile id in each slot, then 44 bytes of the 2-bit highs (0x3FF: free)
 #define A_CNT        220     // DMG: 176 use counts (cells of the region that show the slot's tile)
 #define A_NIB        0       // Color: 176 bytes: the variant resident in each of the 352 slots, a nibble each (15: none)
-#define A_PCNT       176     // Color: 22 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 22 palettes)
-#define A_PSLOT      220     // Color: 22 bytes: the hardware slot of each palette (255: none)
-#define A_PUSE       242     // Color: 8 bytes: the palette in each hardware slot (255: free)
-#define A_ATTR_UI    250     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
-#define A_IDA        270     // Color: 22 bytes: the attribute bytes of the cells being written
-#define A_PSTG       292     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes)
-#define A_XSTG       301     // Color: 5 tiles of staging (80 bytes, on the first 16-byte boundary at or after this: 95 bytes cover it; DMA reads them; the DMG's tables lie here)
+#define A_PCNT       176     // Color: 23 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 23 palettes: ZOOGATE is the 23rd)
+#define A_PSLOT      222     // Color: 23 bytes: the hardware slot of each palette (255: none)
+#define A_PUSE       245     // Color: 8 bytes: the palette in each hardware slot (255: free)
+#define A_ATTR_UI    253     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
+#define A_IDA        273     // Color: 22 bytes: the attribute bytes of the cells being written
+#define A_XSTG       301     // Color: 5 tiles of staging (80 bytes, on the first 16-byte boundary at or after this; DMA reads them; the DMG's tables lie here). story_scratch is at 0xD373, so 301 is
+                             //   already on a boundary and the staging is 301..381 (tests/test_scratch_map.py checks that); the worst case, a staging moved up by 15, still ends at S_V
+#define A_PSTG       381     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes), after the staging (23 palettes left no room for it before the staging: 301 stays aligned)
 #define NSTG_MAX     (is_cgb ? 5 : 2)
 #define S_V          396     // the variables (V_N <= 68)
 #define S_T          464     // 56 bytes: tile staging (2 tiles) | the line's tile ids (22) | SCY, SCX; the panel's two rolling rows and the name tag's row lie over the first 40
@@ -44,8 +45,8 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_W
        V_DK, V_DI, V_DA, V_DN, V_DP,                                           // the drop job: the same
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
        V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
-typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PSTG && A_PSTG + 9 <= S_V
-                                && A_ATTR_UI + 20 <= A_IDA && A_PSTG + 9 <= A_XSTG && A_XSTG + 95 <= S_V && A_PCNT + 2 * 22 <= A_PSLOT && A_PSLOT + 22 <= A_PUSE && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
+typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_XSTG && A_XSTG + 80 <= A_PSTG && A_PSTG + 9 <= S_V && A_XSTG + 15 + 80 <= S_V
+                                && A_ATTR_UI + 20 <= A_IDA && A_PUSE + 8 <= A_ATTR_UI && A_PCNT + 2 * 23 <= A_PSLOT && A_PSLOT + 23 <= A_PUSE && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
 #define J_NONE       0
 #define J_COL        1

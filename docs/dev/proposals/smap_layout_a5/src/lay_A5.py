@@ -24,7 +24,7 @@ VENUES = {
     "stadium": ("ph_stadium5" if os.environ.get("SMAP_GOLD") == "own" else "ph_stadium", (1, 1)), "bistro": ("v_bistro", (20, 4)), "igloo": ("v_igloo", (50, 5)),
     "saloon": ("v_saloon", (3, 21)), "town": ("v_town_a5", (31, 19)), "lodge": ("v_lodge", (52, 20)),
     "space": ("ph_space", (10, 33)), "factory": ("v_factory", (52, 38)),
-    "zoo": ("v_zoo", (3, 55)), "tea": ("v_tea", (24, 55)), "cow": ("v_cow", (50, 55)),
+    "zoo": ("v_zoo", (3, 53)), "tea": ("v_tea", (24, 55)), "cow": ("v_cow", (50, 55)),
 }
 ROAD_ROW = {"stadium": 11, "igloo": 11, "bistro": 11, "saloon": 28, "town": 28, "lodge": 28, "space": 45, "factory": 45, "zoo": 62, "tea": 62, "cow": 62}
 
