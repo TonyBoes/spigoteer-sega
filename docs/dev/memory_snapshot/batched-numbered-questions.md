@@ -1,6 +1,6 @@
 ---
 name: batched-numbered-questions
-description: Number ONLY direct questions/decisions for the owner (Q1..); never number reports or findings; numbering restarted at Q1 on 2026-10-21 and again on 2026-10-28 (after Q78) and 2026-11-01 (after Q93)
+description: Number ONLY direct questions/decisions for the owner (Q1..); never number reports or findings; numbering restarted at Q1 on 2026-10-21 and again on 2026-10-28 (after Q78) , 2026-11-01 (after Q93) and 2026-11-07 (after Q121)
 metadata:
   node_type: memory
   type: feedback
@@ -9,7 +9,7 @@ metadata:
 ---
 
 Owner, 2026-10-21: "I really only want you to use a queue number when you have a direct question for me, a decision that I need to make."
-- The earlier Q59–Q92 labels got mixed into reports and confused him. Numbering restarted at **Q1** that day. Owner 2026-10-28, after Q78: "Also, reset question numbering." Owner 2026-11-01, after answering Q93: "Reset question numbering." Next question is Q1 again; old Q numbers in notes are history (date them when cited, e.g. "Q93 of 2026-11-01").
+- The earlier Q59–Q92 labels got mixed into reports and confused him. Numbering restarted at **Q1** that day. Owner 2026-10-28, after Q78: "Also, reset question numbering." Owner 2026-11-01, after answering Q93: "Reset question numbering." Owner 2026-11-07, after answering Q121: "Renumber questions." Next question is Q1 again; old Q numbers in notes are history (date them when cited, e.g. "Q93 of 2026-11-01").
 - A Qn label goes ONLY on a direct question or decision for him. Findings, results, status and recommendations get no Q label.
 - If a report needs a decision, put the question at the end under a clear "Questions for you" heading.
 - Technical choices that are mine to make (e.g. test strategy) are not questions: decide them and mention it plainly, unnumbered.
