@@ -5,7 +5,7 @@ import subprocess
 
 import pytest
 from split_helpers import win_lyc
-from conftest import (VEN_AT, clear_regulars, debug_unlocked, du_block, gesture, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_DEBUG, K_ERASE, K_MUSIC, K_PLAY,
+from conftest import (POS_OF, VEN_AT, clear_regulars, debug_unlocked, du_block, gesture, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_DEBUG, K_ERASE, K_MUSIC, K_PLAY,
                       K_SETTINGS, K_SOUNDTRACK, K_STORY, KONAMI, MENU_SETTLE, ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, konami, menu_items, menu_tap, menu_to,
                       release_gesture, title_arcade, title_level, title_pick, unlock_debug, with_unlock)
 
@@ -604,7 +604,7 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
     ram = v7_image([("ABC", 500)], story=1, step=1, tunes=0x21)
     with booted(model, ram) as rom:
         open_on(rom, K_STORY)
-        for _ in range(c):
+        for _ in range(POS_OF[c]):                       # (the box steps through the chapters of the story's order; c is the venue)
             chap(rom, 1)
         while rom.mem("debug_pos") != SHIFT_STEP[k] + 1:
             pos(rom, 1)
@@ -613,7 +613,7 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
         rom.run(3)
         assert rom.mem("story_on") == 1 and rom.mem("debug_menu_open") == 0 and rom.mem("save_lock") == SAVE_LOCK_DEBUG
         assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (c, SHIFT_STEP[k], k)
-        assert rom.mem("level") == c + 1 and rom.mem("cur_group") == c, "the chapter's venue"
+        assert rom.mem("level") == POS_OF[c] + 1 and rom.mem("cur_group") == c, "the chapter's venue"
         assert rom.mem("lives") == 3 and rom.mem("score") == 0, "the venue's lives, a fresh score"
         assert goal_text(rom, 1) == centred(shift_title(c, k)) and goal_text(rom, 2) == centred(SHIFTS[c][k]["line1"])
         assert rom.mem("story_goal") == SHIFTS[c][k]["type"], "the shift's goal"

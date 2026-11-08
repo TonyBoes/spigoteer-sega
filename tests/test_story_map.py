@@ -373,7 +373,7 @@ def test_play_runs_that_venues_mini_game_only_and_upgrades_the_medal(model):
     back_to_map(gb)
     assert gb.mem("story_progress") == 5 and gb.mem("story_reached") == 0 and gb.mem("story_chapter") == 5
     ram = save_ram(gb)
-    assert (ram[4] & 0x3F, ram[5]) == (5, 0), "the saved progress did not move"
+    assert (ram[4] & 0x3F, ram[5] & 0x7F) == (5, 0), "the saved progress did not move"      # (bit 7 of byte 5: the order stamp)
     assert ram[0x40 + 6 + 1] & 3 == 3, "the saved gold (Practice's block, the stadium's byte)"
 
 
@@ -457,7 +457,7 @@ def test_the_gold_bang_shows_over_the_tent_while_a_new_festival_game_has_not_bee
         assert bang_shown(gb), f"game {k} just unlocked"
         o = oam(gb, OAM_BANG)
         cx, cy = cam(gb)
-        assert (o["x"] - 8, o["y"] - 16) == (220 - cx, 216 - cy), "over the tent"
+        assert (o["x"] - 8, o["y"] - 16) == (STOPS[TOWN][0] - 4 - cx, STOPS[TOWN][1] - 36 - cy), "over the tent (the new map's: SMAPW_BANG_X / Y)"
         gb.write("smap_flags", gb.mem("smap_flags") | (1 << k))
         gb.run(3)
         assert not bang_shown(gb), f"game {k} was played"
@@ -695,12 +695,12 @@ def test_a_post_scene_returns_to_the_map_with_sal_on_the_venue_just_played(model
     gb.write("story_step", ts.STORY_STEPS - 1)           # (the chapter's last step: the Opening won)
     ts.win(gb, 2, 0)
     run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == ts.post(2), 400)
-    assert gb.mem("story_progress") == 3
+    assert gb.mem("story_progress") == POS_OF[2] + 1       # (the lodge is chapter 5: its stop is 4)
     ts.skip_scene(gb, stay=True)
-    assert gb.mem("smap_stop") == 2 and gb.mem("story_chapter") == 2
+    assert gb.mem("smap_stop") == POS_OF[2] and gb.mem("story_chapter") == 2
     gb.run(130)
-    go(gb, "right")
-    assert gb.mem("smap_stop") == 3, "the next venue is open"
+    go(gb, "down")      # (the lodge: the way on is south)
+    assert gb.mem("smap_stop") == POS_OF[2] + 1, "the next stop is open"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
