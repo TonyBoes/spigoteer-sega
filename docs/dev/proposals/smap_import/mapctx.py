@@ -195,6 +195,11 @@ if not BEFORE_1C:                                           # stage 1c, rounded 
     _step("tea_cells_to_tea_g")
 
 
+# smap_venue_redesign3/src/common.py (imported later through big_mountain -> range_peaks) puts the pre-blend PARK back (d4d8e4 chalk, 68b048); the approved BLEND is the map grass as index 0
+# and the map's field grass as index 1, so the stadium's pads and the right-hand wedge vanish on Color (owner Q110 / Q112): set it again after every import has run
+PAL.RGB["park"] = [g0, PAL.RGB["grass"][1]] + list(PAL.RGB["park"][2:])
+
+
 def grid(dmg=False):
     w = W.WORLD_DMG if dmg else W.WORLD
     return [row[:] for row in w.px], [row[:] for row in w.pal]
