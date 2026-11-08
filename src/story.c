@@ -59,6 +59,7 @@
 #include "story.h"
 #include "mg.h"
 #include "rush.h"
+#include "order.h"
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
@@ -612,7 +613,7 @@ static void shift_start(void) {
     DISPLAY_OFF;
     smap_pal_back();                             // (from the story map: the HUD palette its picture borrowed)
     banner_build();
-    level = story_chapter + 1;                  // (lives: set by venue_start, carried from shift to shift)
+    level = POS(story_chapter) + 1;             // (the chapter's place in the story's order, src/order.h; lives: set by venue_start, carried from shift to shift)
     if (story_arc & 1) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
     if (story_goal.secs) mg_hourglass_load(SHIFT_HOURGLASS);   // a timed shift: its HUD's hourglass (LCD off)
     if (story_goal.type < G_CLEAR) hud_icon_load(HUD_GOAL_BG, story_goal.type == G_CATCH ? HUD_ICON_CATCH : HUD_ICON_MUGCHECK);   // the goal's icon
@@ -688,8 +689,8 @@ static void venue_start(void) {
 
 static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
     if (story_arc & 1) { bonus_enter(); game_state = GS_BONUS; return; }   // ARCADE: the bonus round (then arcade_next)
-    story_save(story_chapter + 1, story_chapter + 1 == STORY_CHAPTERS);   // (the last venue: step 1 = the finale is reached, not done: CONTINUE returns to the map, src/save.c)
-    venue_score_put(story_chapter + 1, score);   // (the next venue's start score: what CONTINUE gives back)
+    story_save(POS(story_chapter) + 1, POS(story_chapter) + 1 == STORY_CHAPTERS);   // (the last venue: step 1 = the finale is reached, not done: CONTINUE returns to the map, src/save.c)
+    venue_score_put(POS(story_chapter) + 1, score);   // (the next venue's start score: what CONTINUE gives back)
     scene_enter(SC_POST_SALOON + 2 * story_chapter);
 }
 
@@ -719,7 +720,7 @@ void story_begin(uint8_t how) BANKED {
     }
     story_arc = cont ? story_diff_saved() << 1 : how & 6;   // the difficulty: the saved one, or the prompt's (bits 1-2, DIFF_*; the run's, game.h RUN_DIFF)
     if (cont && can_continue()) {                // a saved story, not one whose finale is done: the story map, Sal where he stood (src/smap.c)
-        story_chapter = story_progress < STORY_CHAPTERS ? story_progress : STORY_CHAPTERS - 1;
+        story_chapter = VEN(story_progress < STORY_CHAPTERS ? story_progress : STORY_CHAPTERS - 1);
         score = venue_score_get(story_progress); // the score the venue was entered with (owner 2026-10-14), lives 3 (run_begin); all ten cleared: the finale's
         split6(score_digits, score);
         smap_continue();                         // (A at the next venue: its Opening banner when a step of it was reached, else its PRE scene: story_map_venue)
@@ -744,11 +745,13 @@ void arcade_begin(void) BANKED {
 // ARCADE: GS_BONUS is over (main.c): the next venue, or after the last one the saloon again, a loop harder
 void arcade_next(void) BANKED {
     TRANS_WANT();                                // (src/trans.c: the bonus round -> the next venue)
-    if (++story_chapter >= STORY_CHAPTERS) {
-        story_chapter = 0;
+    uint8_t p = POS(story_chapter) + 1;          // (the next place in the story's order)
+    if (p >= STORY_CHAPTERS) {
+        p = 0;
         if (arc_loop < 255) arc_loop++;
         arc_banner = 1;
     }
+    story_chapter = VEN(p);
     venue_start();
 }
 
@@ -786,10 +789,10 @@ static void scene_done(void) {
         smap_stop = 10; smap_enter(0);          // (a new story starts the map at the town: the saloon is the next stop, Sal walks there)
         return;
     }
-    if (!((s - SC_PRE_SALOON) & 1)) { venue_score_put(story_chapter, score); venue_start(); return; }     // a PRE scene: the chapter
-    if (!save_lock) { smap_stop = story_chapter; smap_enter(0); return; }   // a POST scene: the map, Sal on the venue just played (A there: the next venue's PRE, or the Pour-Off at the town)
-    if (story_chapter + 1 < STORY_CHAPTERS) {                       // (a debug-select run: the next chapter's PRE as before)
-        story_chapter++;
+    if (!((s - SC_PRE_SALOON) & 1)) { venue_score_put(POS(story_chapter), score); venue_start(); return; }     // a PRE scene: the chapter
+    if (!save_lock) { smap_stop = POS(story_chapter); smap_enter(0); return; }   // a POST scene: the map, Sal on the venue just played (A there: the next venue's PRE, or the Pour-Off at the town)
+    if (POS(story_chapter) + 1 < STORY_CHAPTERS) {                  // (a debug-select run: the next chapter's PRE as before)
+        story_chapter = VEN(POS(story_chapter) + 1);
         scene_enter(SC_PRE_SALOON + 2 * story_chapter);
     } else scene_enter(SC_FINALE_A);
 }
@@ -798,10 +801,10 @@ static void scene_done(void) {
 // reached before (CONTINUE), straight to its Opening banner (as CONTINUE always did)
 void story_map_venue(uint8_t c) BANKED {
     TRANS_WANT();                                // (src/trans.c: the map -> the scene behind the fade)
-    story_chapter = c;
-    story_scene = SC_PRE_SALOON + 2 * c;
+    story_chapter = VEN(c);                      // (c: the stop, a chapter of the story's order; the venue is what plays)
+    story_scene = SC_PRE_SALOON + 2 * VEN(c);
     if (story_progress == c && story_reached) venue_start();
-    else scene_enter(SC_PRE_SALOON + 2 * c);
+    else scene_enter(SC_PRE_SALOON + 2 * VEN(c));
 }
 
 // The map's THE POUR-OFF (all ten venues cleared): FINALE_A, the Pour-Off, FINALE_B, the credits
@@ -825,7 +828,7 @@ void story_level_done(void) BANKED {
     if (play_mode == MODE_RUSH) { rush_won(); return; }   // BOSS RUSH: no progress, the rush's next screen
     TRANS_WANT();                                // (src/trans.c: the next shift / mini-game / boss / scene comes up behind the drink)
     if (s >= STORY_STEPS) { chapter_done(); return; }
-    story_save(story_chapter, story_progress == story_chapter && story_reached > n ? story_reached : n);
+    story_save(POS(story_chapter), story_progress == POS(story_chapter) && story_reached > n ? story_reached : n);
     story_step = s;
     step_start();
 }
@@ -1130,7 +1133,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
             if (lives) shift_start();
             else {                               // out of lives: the venue again, with the score it was entered with (owner 2026-10-14)
                 story_restarts++;
-                score = save_lock ? 0 : venue_score_get(story_chapter);   // (a debug-select run saves none: it was entered with 0)
+                score = save_lock ? 0 : venue_score_get(POS(story_chapter));   // (a debug-select run saves none: it was entered with 0)
                 split6(score_digits, score);
                 venue_start();
             }

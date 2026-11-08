@@ -56,9 +56,9 @@ def test_no_window_of_the_built_data_is_over_the_budgets():
     stops, legs, _, _ = g.geometry()
     assert dm.window_max(21, 19)[0] <= 176, "a view's tiles fit the DMG's 176 slots"
     assert cg.palette_max(21, 19)[0] <= 8, "a view's palettes fit the Color's 8 BG palette slots"
-    assert WORLD["vars_max"] <= 15 and WORLD["uses_max_22x20"] <= 255 and WORLD["slots_c"] <= 352
+    assert WORLD["vars_max"] <= 4 and WORLD["uses_max_22x20"] <= 255 and WORLD["slots_c"] <= 352
     worst_t = worst_p = 0
-    for p in range(1, 11):
+    for p in (1, 10, 11):
         for (c0, c1, r0, r1) in g.path_windows(stops, legs):          # (the camera's view on every pixel of the way, a line more on every side)
             worst_t = max(worst_t, len(np.unique(dm.grids[p][r0:r1 + 1, c0:c1 + 1])))
             worst_p = max(worst_p, len(np.unique(cg.pals[p][r0:r1 + 1, c0:c1 + 1])))
@@ -73,15 +73,19 @@ def tile_idx(b):
 
 
 def world_image(model, state):
-    """The whole 512 x 384 world as it looks in unlock state `state` (1..10), from the built tables."""
+    """The whole 512 x 384 world as it looks in unlock state `state` (1..11), from the built tables."""
     cgb = model == "cgb"
     disp = WORLD["disp_c" if cgb else "disp_d"][state - 1]
     tiles = bytes.fromhex(WORLD["tiles_c" if cgb else "tiles_d"])
-    cache, im = {}, np.zeros((384, 512, 3), dtype=np.uint8)
+    cache, im = {}, np.zeros((WORLD["ch"] * 8, 512, 3), dtype=np.uint8)
     for c, w in enumerate(disp):
-        key = (w & 0x3FF, w >> 10)
+        key = (w & 0x3FF, (w >> 10) & 31, w >> 15)
         if key not in cache:
             ix = tile_idx(tiles[key[0] * 16:key[0] * 16 + 16])
+            if key[2]:                                            # (the Color flip-merge: bit 15 shows the tile id's alternate, its mirror image)
+                fl = WORLD["alt_flip_c"][key[0]]
+                ix = (ix[:, ::-1] if fl & 1 else ix)
+                ix = (ix[::-1, :] if fl & 2 else ix)
             cols = [((v & 31) << 3, ((v >> 5) & 31) << 3, ((v >> 10) & 31) << 3) for v in WORLD["pal"][key[1]]] if cgb else [DMG_GREY[i] for i in range(4)]
             cache[key] = np.array(cols, dtype=np.uint8)[ix]
         y, x = divmod(c, 64)
@@ -102,7 +106,7 @@ class Watch:
     count, nor does the name tag's window (this frame's and the last one's rows). The first frame has no last one: any scroll within the 12 pixels."""
 
     def __init__(self, gb, model, progress):
-        self.gb, self.img = gb, world_image(model, min(progress + 1, 10))
+        self.gb, self.img = gb, world_image(model, progress + 1 if progress < 9 else 10 if progress < 10 else 11)
         self.prev, self.poam, self.frames, self.bad = gb.regs(), [], 0, []
         sc = gb.read("story_scratch", 520)
         self.pwin = (sc[SV + V_WY], sc[SV + V_WH])
@@ -132,7 +136,7 @@ class Watch:
         best = None
         for x in xs:
             for y in ys:
-                if x + 160 > 512 or y + 144 > 384:
+                if x + 160 > 512 or y + 144 > WORLD["ch"] * 8:
                     continue
                 n = int((np.any(self.img[y:y + 144, x:x + 160] != scr, axis=2) & ~m).sum())
                 if best is None or n < best[0]:

@@ -14,7 +14,7 @@ import pytest
 from boss_common import (BP_HAPPY, BP_WALK, BS_GULP, BS_OUTRO, BS_SPECIAL, BS_TELL, Clock, EMPTY, FULL, SP_OUTRO,
                          SPOUT_X, TAP_X, art, arrivals_ok, assert_body, body, pair_id, check_start, fight, frames, mugs, play, pour, row,
                          still_regulars, throw, to_bar, until)
-from conftest import clear_regulars, ROOT, check_golden, venue, double_speed
+from conftest import POS_OF, clear_regulars, ROOT, check_golden, venue, double_speed
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, run_until, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
 
@@ -337,7 +337,7 @@ def test_win_the_fight_by_pouring(model):
         assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(C), 300)
         settle(gb)
-        assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, C + 1)
+        assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, POS_OF[C] + 1)
 
 
 def wall_bare(gb):

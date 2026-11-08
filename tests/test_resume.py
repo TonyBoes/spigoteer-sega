@@ -6,7 +6,7 @@ the owner had cleared one chapter, the Igloo was a debug jump). A quit debug-sel
 is untouched."""
 import pytest
 import test_story as ts
-from conftest import K_CONTINUE, K_STORY, menu_items, menu_tap, title_pick
+from conftest import POS_OF, K_CONTINUE, K_STORY, menu_items, menu_tap, title_pick
 from test_debug import chap, open_on, pos, tap
 from test_flow import GS_GOAL, TITLE, run_until, state
 from test_pause import open_pause, quit_yes, settled
@@ -47,7 +47,7 @@ def test_quit_in_a_debug_selected_first_shift_and_continue_resumes_it_and_saves_
     ram = v7_image([], story=1, step=0)                    # (a real save: chapter 1 cleared, the Stadium is next)
     with booted(model, ram) as gb:
         open_on(gb, K_STORY)
-        for _ in range(c):
+        for _ in range(POS_OF[c]):                         # (the box steps through the chapters of the story's order; c is the venue)
             chap(gb, 1)
         while gb.mem("debug_pos") != ts.SHIFT_STEP[0] + 1:
             pos(gb, 1)

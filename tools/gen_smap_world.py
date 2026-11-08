@@ -34,25 +34,30 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT / "tools" / "smap_world"))
-import world2 as W  # noqa: E402  (the concept world; builds both data sets, 1 s)
-import pal as PAL  # noqa: E402
+import world_snap as W  # noqa: E402  (the frozen integrated map, assets/smap/: tools/dev/smap_snapshot.py writes it)
+PAL = W  # noqa: E402  (W.get(name): a palette's four colours, W.DMG_SHADE)
 
 CW, CH = W.CW, W.CH
 NCELLS = CW * CH
 POOL = 176                       # BG ids 0-35 and 93-232 in one VRAM bank
 MAX_SLOTS_C = 2 * POOL           # Color: both banks
-ORD = {"town": 0}
+NSTATE = 11                      # unlock states 1..10 = the venues open (the map is the same in all of them: the cloud is cut), 11 = the story is done and the fountain repaired
+STATES = range(1, NSTATE + 1)
+ORD = {"town": 0, W.REPAIR_ZONE: NSTATE}
 for _i, _n in enumerate(W.ORDER):
     ORD[_n] = _i + 1
-# the 18 BG palettes (NOTES round 5): the 15 ground / venue palettes and the 3 cloud palettes
-PAL_NAMES = ["base", "bistro", "cow", "factory", "farm", "grass", "igloo", "lodge", "saloon", "stadium", "tea", "town1", "town4", "town5", "zoo",
-             "fog:grass", "fog:saloon", "fog:fogbase"]
-FOG_PAL0 = 15
+# the BG palettes the map uses (22: the snapshot lists them; the cloud palettes are gone with the cloud)
+PAL_NAMES = list(W.PAL_NAMES)
+FOG_PAL0 = 0                     # (the engine's cloud palette slots: unused, the cloud is cut)
 STOP_ORDER = list(W.ORDER) + ["town"]            # stop index = chapter 0..9, 10 the town (src/smap.c)
+VENUE_IDS = ["saloon", "stadium", "lodge", "bistro", "igloo", "factory", "cow", "tea", "zoo", "space"]       # the venue ids (the content's order: src/order.h)
+_ord = [int(v) for v in __import__("re").search(r"ven_at\[10\] = \{([^}]*)\}", (ROOT / "src" / "order.h").read_text()).group(1).split(",")]
+assert [VENUE_IDS[v] for v in _ord] == W.ORDER, ("src/order.h ven_at is not the map's order", [VENUE_IDS[v] for v in _ord], W.ORDER)
 WIN_C = (22, 20)                 # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)
-TILE_MAX = 1024                  # a cell word holds a 10-bit tile id and a 5-bit palette
+TILE_MAX = 1024                  # a cell word holds a 10-bit tile id, a 5-bit palette and (Color) the alternate-flip bit 15
+FLIP_MERGE = True                # Color: mirror-image blocks share one tile id (see Model.merge_flips)
 
 
 def rgb555(c):
@@ -81,7 +86,7 @@ def zone_orders():
 
 
 def state_world(world, p):
-    return W.with_fog(world, {"town"} | set(W.ORDER[:p])) if p < 10 else world
+    return W.with_fog(world, {"town"} | set(W.ORDER[:p]) | ({W.REPAIR_ZONE} if p >= NSTATE else set()))
 
 
 class Model:
@@ -91,13 +96,19 @@ class Model:
         self.cgb = cgb
         world = W.WORLD if cgb else W.WORLD_DMG
         self.world = world
-        self.ids = {}                                # pixel block -> tile id
-        self.sigs = []
-        self.grids = {}                              # p -> (CH, CW) tile ids
+        self.ids = {}                                # pixel block -> distinct block index (first-use order over the states)
+        self.sigs = []                               # the distinct pixel blocks
+        self.grids = {}                              # p -> (CH, CW) distinct block index; Color: replaced below by the tile id (see merge_flips)
         self.pals = {}                               # p -> (CH, CW) palette indices (Color)
         self.state_end = []
-        for p in range(1, 11):
+        prev = None
+        for p in STATES:
             v = state_world(world, p)
+            if prev is not None and v.px == prev.px and v.pal == prev.pal:       # (the same picture as the state before: the same grids)
+                self.grids[p], self.pals[p] = self.grids[p - 1], self.pals[p - 1]
+                self.state_end.append(len(self.sigs))
+                continue
+            prev = v
             g = np.zeros((CH, CW), dtype=np.int32)
             pl = np.zeros((CH, CW), dtype=np.int32)
             for y in range(CH):
@@ -113,11 +124,107 @@ class Model:
                     pl[y, x] = PAL_NAMES.index(name)
             self.grids[p], self.pals[p] = g, pl
             self.state_end.append(len(self.sigs))
+        self.nsig = len(self.sigs)                   # distinct 8 x 8 blocks
+        self.all_sigs = list(self.sigs)
+        self.sg = dict(self.grids)                   # distinct block index per cell and state (the truth the tests compare with)
+        self.ustates = [p for p in STATES if p == 1 or self.grids[p] is not self.grids[p - 1]]      # the states that differ from the one before (the window checks run on those)
+        self.alt = {p: np.zeros((CH, CW), dtype=np.int32) for p in STATES}      # the cell word's bit 15: the tile is shown with its alternate flip (Color only)
+        self.altflip = []                            # per tile id: the alternate's attribute flip bits (1 = X, 2 = Y, 3 = both), 0 = none (Color only)
+        if cgb and FLIP_MERGE:
+            self.merge_flips()
+        if not self.altflip:
+            self.altflip = [0] * len(self.sigs)
         self.nt = len(self.sigs)
         assert self.nt < TILE_MAX
+        assert not cgb or self.nt * 16 + 69 <= 16384, f"Color: {self.nt} tiles do not fit one ROM bank"
         # revealed display of every cell = the late world (state 10)
-        self.cell = [int(self.grids[10][y, x]) | (int(self.pals[10][y, x]) << 10 if cgb else 0) for y in range(CH) for x in range(CW)]
+        self.cell = [int(self.grids[NSTATE][y, x]) | (int(self.pals[NSTATE][y, x]) << 10 if cgb else 0) | (int(self.alt[NSTATE][y, x]) << 15) for y in range(CH) for x in range(CW)]
         self.build_fog()
+
+    # ---- the Color flip-merge: a tile id stands for a canonical block and one alternate (its mirror image), shown with the attribute's flip bits ------------------
+    def merge_flips(self):
+        """Two blocks that are mirror images of each other (X, Y or both) share one tile id: the cell word's bit 15 selects the alternate and the slot table's bits 11-12 say which flip
+        it is.  A tile id has at most one alternate, so a family of four distinct mirror images takes two ids.  A block shown in an animated cell is pinned (its own id, nothing merged into
+        it: the animation rewrites the one tile, every cell of the id would play it)."""
+        sigs = self.sigs
+        pinned = set()
+        for (cx, cy) in getattr(W, "ANIM_CELLS", ()):
+            for p in STATES:
+                pinned.add(int(self.sg[p][cy, cx]))
+
+        def fx(s):
+            return bytes(s[j * 8 + 7 - i] for j in range(8) for i in range(8))
+
+        def fy(s):
+            return bytes(s[(7 - j) * 8 + i] for j in range(8) for i in range(8))
+
+        def fxy(s):
+            return fx(fy(s))
+        FL = ((1, fx), (2, fy), (3, fxy))
+        index = {s: i for i, s in enumerate(sigs)}
+        family = {}
+        for i, s in enumerate(sigs):
+            key = min((s, fx(s), fy(s), fxy(s)))
+            family.setdefault(key, []).append(i)
+        base_of = {}                                  # distinct block index -> (base block index, flip bits to get it: 0 for the base itself)
+        for key, mem in family.items():
+            free = [i for i in mem if i not in pinned]
+            for i in mem:
+                if i in pinned:
+                    base_of[i] = (i, 0)
+            while free:
+                b = free.pop(0)
+                base_of[b] = (b, 0)
+                for k, (code, fn) in enumerate(FL):
+                    a = index.get(fn(sigs[b]))
+                    if a is not None and a != b and a in free:
+                        free.remove(a)
+                        base_of[a] = (b, code)
+                        break
+        # tile ids in first-use order of their base block, so the states' ids stay a prefix
+        tid = {}
+        new_sigs, altflip = [], []
+        for i in range(len(sigs)):
+            b, code = base_of[i]
+            if b not in tid:
+                tid[b] = len(new_sigs)
+                new_sigs.append(sigs[b])
+                altflip.append(0)
+            if code:
+                altflip[tid[b]] = code
+        # state_end: the number of tile ids once every block first used up to state p is placed
+        ends = []
+        for e in self.state_end:
+            seen_t = {tid[base_of[i][0]] for i in range(e)}
+            ends.append(len(seen_t))
+        self.merged_from = len(sigs)
+        for p in STATES:
+            if p > 1 and p not in self.ustates:
+                self.grids[p], self.alt[p] = self.grids[p - 1], self.alt[p - 1]
+                continue
+            g = self.grids[p]
+            tg = np.zeros_like(g)
+            ag = np.zeros_like(g)
+            for y in range(CH):
+                for x in range(CW):
+                    b, code = base_of[int(g[y, x])]
+                    tg[y, x] = tid[b]
+                    ag[y, x] = 1 if code else 0
+            self.grids[p] = tg
+            self.alt[p] = ag
+        self.sigs = new_sigs
+        self.altflip = altflip
+        self.state_end = ends
+
+    def word_sig(self, w):
+        """the 64 pixels a cell word shows (Color: the tile id's block, mirrored when bit 15 is set)"""
+        s = self.sigs[w & 1023]
+        code = self.altflip[w & 1023] if self.cgb and (w >> 15) & 1 else 0
+        if code & 1:
+            s = bytes(s[j * 8 + 7 - i] for j in range(8) for i in range(8))
+        if code & 2:
+            s = bytes(s[(7 - j) * 8 + i] for j in range(8) for i in range(8))
+        return s
 
     # ---- the fog ----------------------------------------------------------------------------------------------------------------------
     def build_fog(self):
@@ -128,23 +235,21 @@ class Model:
                 nb = [Z[y + dy, x + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dx or dy) and 0 <= x + dx < CW and 0 <= y + dy < CH]
                 self.zone.append(int(Z[y, x]) | (min(min(nb), 15) << 4))
         self.fog_cell, self.fog_word, self.fog_off = [], [], [0]
-        self.inner = [0] * 11
+        self.inner = [0] * (NSTATE + 1)
         self.fogint = None
         ground = self.world
-        for p in range(1, 11):
-            v = state_world(self.world, p)
-            if p == 10:
+        for p in STATES:
+            if p == NSTATE:
                 self.fog_off.append(len(self.fog_cell))
                 continue
             fog = {(x, y) for y in range(CH) for x in range(CW) if Z[y, x] > p}
-            ft = W.fog_tiles(self.world, fog)
             inner_cls = set()
             for y in range(CH):
                 for x in range(CW):
                     if (x, y) not in fog:
                         continue
                     z = self.zone[y * CW + x]
-                    t = int(self.grids[p][y, x])
+                    t = int(self.grids[p][y, x]) | (int(self.alt[p][y, x]) << 15)      # (the word's tile part: id and the alternate bit)
                     pi = int(self.pals[p][y, x]) if self.cgb else 0
                     if (z >> 4) > p:                 # interior
                         par = (x & 1) | ((y & 1) << 1)
@@ -187,18 +292,18 @@ class Model:
         raise AssertionError((c, p))
 
     def verify_fog(self):
-        for p in range(1, 11):
+        for p in STATES:
             for y in range(CH):
                 for x in range(CW):
                     w = self.disp(y * CW + x, p)
-                    assert (w & 1023) == int(self.grids[p][y, x]), (self.cgb, p, x, y)
+                    assert self.word_sig(w) == self.all_sigs[int(self.sg[p][y, x])], (self.cgb, p, x, y)
                     if self.cgb:
-                        assert (w >> 10) == int(self.pals[p][y, x]), (self.cgb, p, x, y)
+                        assert ((w >> 10) & 31) == int(self.pals[p][y, x]), (self.cgb, p, x, y)
 
     # ---- windows -----------------------------------------------------------------------------------------------------------------------
     def window_max(self, ww, wh):
         best, at = 0, None
-        for p in range(1, 11):
+        for p in self.ustates:
             g = self.grids[p]
             for y0 in range(CH - wh + 1):
                 for x0 in range(CW - ww + 1):
@@ -209,7 +314,7 @@ class Model:
 
     def palette_max(self, ww, wh):
         best, at = 0, None
-        for p in range(1, 11):
+        for p in self.ustates:
             g = self.pals[p]
             for y0 in range(CH - wh + 1):
                 for x0 in range(CW - ww + 1):
@@ -220,7 +325,7 @@ class Model:
 
     def max_uses(self, ww, wh):
         mx = 0
-        for p in range(1, 11):
+        for p in self.ustates:
             g = self.grids[p]
             for y0 in range(CH - wh + 1):
                 for x0 in range(CW - ww + 1):
@@ -232,7 +337,7 @@ class Model:
     def conflicts(self, ww, wh):
         n = self.nt
         conf = np.zeros((n, n), dtype=bool)
-        for p in range(1, 11):
+        for p in self.ustates:
             g = self.grids[p]
             present = np.unique(g)
             m = {int(t): i for i, t in enumerate(present)}
@@ -343,7 +448,7 @@ def path_hints(dm, wins, k):
     n = dm.nt
     conf = np.zeros((n, n), dtype=bool)
     wt = np.zeros((n, n), dtype=np.float32)
-    for p in range(1, 11):
+    for p in dm.ustates:
         gr = dm.grids[p]
         for (c0, c1, r0, r1) in wins:
             ts = np.unique(gr[r0:r1 + 1, c0:c1 + 1])
@@ -413,10 +518,19 @@ def emit_accessors_a(m, tag):
          "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "smap_world.h"', '#include "asm_cfg.h"', "", f"BANKREF({tag}_a)", f"BANKREF({tag}_cell)"]
     L.append(carr("uint16_t", f"{tag}_cell", m.cell, 12, 4))
     L.append(carr("uint8_t", f"{tag}_zone", m.zone, 16, 2))
-    L.append(carr("uint16_t", f"{tag}_fcell", m.fog_cell, 12, 4))
-    L.append(carr("uint16_t", f"{tag}_fword", m.fog_word, 12, 4))
-    L.append(carr("uint16_t", f"{tag}_foff", m.fog_off, 12, 4))
-    L.append(carr("uint8_t", f"{tag}_inner", m.inner, 11))
+    # the lists of the cloud's edge cells, one per state; states with the same list share it (here the fountain's cells are the same in states 1..10): foff = start, end of each state's
+    fc, fw, span, seen = [], [], [], {}
+    for i in range(NSTATE):
+        lst = (tuple(m.fog_cell[m.fog_off[i]:m.fog_off[i + 1]]), tuple(m.fog_word[m.fog_off[i]:m.fog_off[i + 1]]))
+        if lst not in seen:
+            seen[lst] = (len(fc), len(fc) + len(lst[0]))
+            fc += lst[0]
+            fw += lst[1]
+        span += list(seen[lst])
+    L.append(carr("uint16_t", f"{tag}_fcell", fc or [0], 12, 4))
+    L.append(carr("uint16_t", f"{tag}_fword", fw or [0], 12, 4))
+    L.append(carr("uint16_t", f"{tag}_foff", span, 12, 4))
+    L.append(carr("uint8_t", f"{tag}_inner", m.inner, NSTATE + 1))
     L.append(carr("uint16_t", f"{tag}_fint", m.fogint, 4, 4))
     if cgb:
         L.append(carr("uint16_t", f"{tag}_slotvar", m.slotvar, 12, 4))
@@ -424,7 +538,7 @@ def emit_accessors_a(m, tag):
     else:
         L.append(carr("uint8_t", f"{tag}_hint", m.hint, 16, 2))
     asm_open = asm_close = ""
-    if not cgb:
+    if True:
         asm_open = '''#if ASM_SMAP
 // asm (behind ASM_SMAP; the C twin follows in the #else): the stack holds, at entry, the return address, the trampoline's 4 bytes, then cx, cy, n, vert, p, out (2).
 // The loop's scratch lives in story_scratch's free bytes: V_BCAP (n), V_LIMC (p), V_LIMQ (vert). bc = the cell's index, de = the output pointer.
@@ -554,10 +668,74 @@ __endasm;
 #else
 '''
         asm_close = "#endif\n"
+        if cgb:                       # the Color's: the same loop, the aux word is slotvar[w & 0x3FF] (a word), the cloud's inside takes inner[p] << 10 (V_PWL is the Color's spare byte)
+            asm_open = asm_open.replace("_smap_d_", "_smap_c_").replace("smap_d_fetch", "smap_c_fetch")
+            blk = '''    and  a, #3
+    ld   h, a
+    push de
+    ld   de, #_smap_c_hint
+    add  hl, de
+    pop  de
+    ld   a, (hl)
+    ld   (de), a
+    inc  de
+    xor  a, a
+    ld   (de), a
+    inc  de
+'''.replace("_smap_c_hint", "_smap_c_hint")
+            blk = blk.replace("_smap_c_hint", "_smap_c_hint")
+            asm_open = asm_open.replace(blk.replace("_smap_c_hint", "_smap_c_hint"), '''    and  a, #3
+    ld   h, a
+    add  hl, hl
+    push de
+    ld   de, #_smap_c_slotvar
+    add  hl, de
+    pop  de
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl)
+    ld   (de), a
+    inc  de
+''')
+            assert "_smap_c_slotvar" in asm_open
+            old = '''    ld   de, #_smap_c_fint
+    add  hl, de
+    pop  de
+    ld   a, (hl+)
+    ld   h, (hl)
+    ld   l, a
+    jr   3$
+'''
+            assert old in asm_open
+            asm_open = asm_open.replace(old, '''    ld   de, #_smap_c_fint
+    add  hl, de
+    pop  de
+    ld   a, (hl+)
+    ld   h, (hl)
+    ld   l, a
+    push hl
+    ld   a, (_story_scratch + 452)
+    push de
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_smap_c_inner
+    add  hl, de
+    ld   a, (hl)
+    pop  de
+    add  a, a
+    add  a, a
+    ld   (_story_scratch + 450), a
+    pop  hl
+    ld   a, (_story_scratch + 450)
+    or   a, h
+    ld   h, a
+    jr   3$
+''')
     L.append(f"""
-{'static ' if cgb else ''}uint16_t {tag}_fogfind(uint16_t c, uint8_t p) {{
-    uint16_t base = {tag}_foff[p - 1];                          // (the lists of one state are < 256 long: asserted by the generator)
-    uint8_t lo = 0, hi = (uint8_t)({tag}_foff[p] - base), mid;
+uint16_t {tag}_fogfind(uint16_t c, uint8_t p) {{
+    uint16_t base = {tag}_foff[(uint8_t)(p - 1) << 1];          // (the lists of one state are < 256 long: asserted by the generator)
+    uint8_t lo = 0, hi = (uint8_t)({tag}_foff[((uint8_t)(p - 1) << 1) + 1] - base), mid;
     while (lo < hi) {{
         mid = (uint8_t)((lo + hi) >> 1);
         if ({tag}_fcell[base + mid] < c) lo = mid + 1; else hi = mid;
@@ -693,7 +871,7 @@ def main(build, preview):
     uses = dm.max_uses(*WIN_C)
     if uses > MAX_CELLS_IN_WIN:
         fail.append(f"DMG: a tile fills {uses} cells of a 22 x 20 window (a use count is a byte)")
-    if any(cg.fog_off[i + 1] - cg.fog_off[i] > 255 for i in range(10)) or any(dm.fog_off[i + 1] - dm.fog_off[i] > 255 for i in range(10)):
+    if any(cg.fog_off[i + 1] - cg.fog_off[i] > 255 for i in range(NSTATE)) or any(dm.fog_off[i + 1] - dm.fog_off[i] > 255 for i in range(NSTATE)):
         fail.append("a state's list of cloud edge cells is longer than 255")
     # ---- the slot plans ----------------------------------------------------------------------------------------------------------------------
     conf_c = cg.conflicts(*WIN_C)
@@ -706,10 +884,10 @@ def main(build, preview):
         var_idx[t] = seen[c]
         seen[c] += 1
     nvar = max(seen.values())
-    if nvar > 15:
-        fail.append(f"Color: a slot is shared by {nvar} tiles (a variant is a nibble)")
+    if nvar > 4:
+        fail.append(f"Color: a slot is shared by {nvar} tiles (a variant is two bits of the slot table: bits 11-12 are the alternate's flips)")
     nslots = k_c
-    cg.slotvar = [int(col_c[t]) | (var_idx[t] << 9) for t in range(cg.nt)]
+    cg.slotvar = [int(col_c[t]) | (var_idx[t] << 9) | (cg.altflip[t] << 11) for t in range(cg.nt)]      # slot (9 bits), variant (2 bits), the alternate's flip bits (2 bits)
     cg.pal_words = []
     for name in PAL_NAMES:
         cols = PAL.get(name)
@@ -726,7 +904,7 @@ def main(build, preview):
     # ---- files -------------------------------------------------------------------------------------------------------------------------------
     ufo = (W.VENUES["space"][1][0] * 8 + 62, W.VENUES["space"][1][1] * 8 + 6)
     h = ["// generated by tools/gen_smap_world.py -- do not edit", "#ifndef SMAP_WORLD_H", "#define SMAP_WORLD_H", "#include <stdint.h>", "",
-         f"#define SMAPW_CW 64", f"#define SMAPW_CH 48", f"#define SMAPW_C_TILES {cg.nt}", f"#define SMAPW_D_TILES {dm.nt}",
+         f"#define SMAPW_CW 64", f"#define SMAPW_CH {CH}", f"#define SMAPW_C_TILES {cg.nt}", f"#define SMAPW_D_TILES {dm.nt}",
          f"#define SMAPW_C_SLOTS {nslots}", f"#define SMAPW_POOL {POOL}", f"#define SMAPW_NPAL {len(PAL_NAMES)}", f"#define SMAPW_PAL_TOWN {PAL_NAMES.index('town1')}",
          f"#define SMAPW_UFO_X {ufo[0]}", f"#define SMAPW_UFO_Y {ufo[1]}",
          f"#define SMAPW_BANG_X {stops[10][0] - 4}", f"#define SMAPW_BANG_Y {stops[10][1] - 36}",
@@ -766,27 +944,26 @@ def main(build, preview):
     pal_cols = [[rgb555(c) for c in PAL.get(n)] for n in PAL_NAMES]
     info = {
         "stops": stops, "stop_order": STOP_ORDER, "legs": [[a, b, [list(q) for q in p]] for a, b, p in legs], "exits": exits, "exit_leg": exit_leg,
-        "ufo": ufo, "ndmg": dm.nt, "ncgb": cg.nt, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
+        "ufo": ufo, "cw": CW, "ch": CH, "ndmg": dm.nt, "ncgb": cg.nt, "ncgb_blocks": cg.nsig, "alt_flip_c": cg.altflip, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
         "state_end_c": cg.state_end, "state_end_d": dm.state_end, "tiles_c": bytes(dc).hex(), "tiles_d": bytes(dd).hex(),
         "win_d_21x19": n21, "win_d_22x20": n22, "win_c_pal_21x19": p21, "win_c_pal_22x20": p22, "uses_max_22x20": uses, "hint_conflicts": int(bad_d),
         "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "hint_d": dm.hint,
         "fog_c": [cg.fog_off, cg.fog_cell, cg.fog_word], "fog_d": [dm.fog_off, dm.fog_cell, dm.fog_word], "inner_c": cg.inner, "fogint_c": cg.fogint, "fogint_d": dm.fogint,
         "zone": cg.zone, "cell_c": cg.cell, "cell_d": dm.cell,
-        "disp_c": [[cg.disp(c, p) for c in range(CW * CH)] for p in range(1, 11)], "disp_d": [[dm.disp(c, p) for c in range(CW * CH)] for p in range(1, 11)],   # the world shown in unlock state p (the tests expected pictures)
+        "disp_c": [[cg.disp(c, p) for c in range(CW * CH)] for p in STATES], "disp_d": [[dm.disp(c, p) for c in range(CW * CH)] for p in STATES],   # the world shown in unlock state p (the tests expected pictures)
     }
     (build / "smap_world.json").write_text(json.dumps(info, default=int))
     # ---- previews ------------------------------------------------------------------------------------------------------------------------------
     try:
         from PIL import Image
         for name, m in (("cgb", cg), ("dmg", dm)):
-            for p in (1, 10):
+            for p in (1, NSTATE):
                 im = Image.new("RGB", (CW * 8, CH * 8))
                 for y in range(CH):
                     for x in range(CW):
                         w = m.disp(y * CW + x, p)
-                        t = w & 1023
-                        cols = PAL.get(PAL_NAMES[w >> 10]) if m.cgb else None
-                        s = m.sigs[t]
+                        cols = PAL.get(PAL_NAMES[(w >> 10) & 31]) if m.cgb else None
+                        s = m.word_sig(w)
                         for j in range(8):
                             for i in range(8):
                                 v = s[j * 8 + i]

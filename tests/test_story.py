@@ -9,7 +9,7 @@ import re
 
 import pytest
 from po_helpers import po_win
-from conftest import (clear_regulars, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROM, ROOT, check_golden, hold_stage_anim,
+from conftest import (POS_OF, VEN_AT, clear_regulars, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROM, ROOT, check_golden, hold_stage_anim,
                       menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
@@ -546,7 +546,7 @@ def to_chapter(model, c, banner=False):
     """A rom in chapter c's opening shift, just past the goal banner (banner=True: still on it; a save with c
     chapters cleared: CONTINUE)."""
     if c:
-        rom = start_story(model, v7_image([], story=c), cont=True)
+        rom = start_story(model, v7_image([], story=POS_OF[c]), cont=True)
     else:
         rom = start_story(model)
         skip_scene(rom)                                   # INTRO (and the story map: A at the saloon)
@@ -565,7 +565,7 @@ def to_shift(model, c, k, banner=False, image=None):
     story_step poked to the step before shift k, so the next playable step is k's (one SHIFT CLEAR)."""
     if k == 0:
         return to_chapter(model, c, banner)
-    rom = booted(model, image or v7_image([], story=c, step=SHIFT_STEP[k]))
+    rom = booted(model, image or v7_image([], story=POS_OF[c], step=SHIFT_STEP[k]))
     hold_stage_anim(rom)
     to_continue(rom)                                      # CONTINUE: the venue's Opening
     run_until(rom, lambda: state(rom) == GS_GOAL, 60)
@@ -914,7 +914,7 @@ def test_every_page_shows_its_portrait(model, c):
         tour_scene(gb, "INTRO", seen)
         skip_scene(gb)
     else:
-        gb = start_story(model, v7_image([], story=c), cont=True)
+        gb = start_story(model, v7_image([], story=POS_OF[c]), cont=True)
     with gb:
         tour_scene(gb, SCENES[pre(c)]["id"], seen)
         skip_scene(gb)                           # the PRE scene -> the Opening; won as the chapter's last step
@@ -1072,7 +1072,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
         for k in range(3):
             sh = SHIFTS[c][k]
             assert gb.mem("story_shift") == k and gb.mem("story_step") == SHIFT_STEP[k] and gb.mem("lives") == 3
-            assert gb.mem("cur_group") == CHAPTERS[c]["venue"] and gb.mem("level") == c + 1
+            assert gb.mem("cur_group") == CHAPTERS[c]["venue"] and gb.mem("level") == POS_OF[c] + 1
             if sh["type"] != G_CLEAR:
                 assert gb.mem("story_left") == sh["count"] and gb.mem("quota") == 255
             elif sh["quota"]:
@@ -1095,14 +1095,14 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             if mini:                                  # Quick Draw, Order Up!, Battery Sort (test_qd / test_ou / test_bs)
                 run_until(gb, lambda: state(gb) == GS_MINI, 800)
                 assert gb.mem("mg_id") == CHAPTERS[c]["venue"] and gb.mem("story_step") == MINI_STEP
-                assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, MINI_STEP)
+                assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c], MINI_STEP)
                 finish_mini(gb)
             run_until(gb, lambda: state(gb) == GS_GOAL, 800)
             gb.run(3)
             assert banner_text(gb, 1) == centred(shift_title(c, k + 1))
             assert banner_text(gb, 2) == centred(SHIFTS[c][k + 1]["line1"])
             # saved: the next step reached (after the happy hour the mini-game slot, built or skipped)
-            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, (MINI_STEP if mini else SHIFT_STEP[k]) + 1)
+            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c], (MINI_STEP if mini else SHIFT_STEP[k]) + 1)
             to_goal(gb)
         # Last call: its quota met -> the boss, in the same level (no SHIFT CLEAR)
         win(gb, c, 2)
@@ -1114,7 +1114,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             gb.run(3)
             assert state(gb) == PLAYING, "no banner, no screen change: he comes in on the same level"
             assert gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_shift") == 2
-            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, SHIFT_STEP[2]), "Last call stays the step reached"
+            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c], SHIFT_STEP[2]), "Last call stays the step reached"
             to_goal(gb)
             gb.write("boss_hook", 3)
             clear_regulars(gb)
@@ -1127,10 +1127,10 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_scene") == post(c)
-        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c + 1, int(c == 9)), "the last venue marks the finale reached (10, 1)"
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c] + 1, int(c == 9)), "the last venue marks the finale reached (10, 1)"
         assert gb.mem("story_fails") == 0
         ram = save_ram(gb)
-    assert saved_story(ram) == (c + 1, int(c == 9)), "the progress is in SRAM"
+    assert saved_story(ram) == (POS_OF[c] + 1, int(c == 9)), "the progress is in SRAM"
     (o_spd, o_hur, _, _), (h_spd, h_hur, _, _), (l_spd, l_hur, _, _) = paces
     assert o_spd == h_spd * 85 // 100 and l_spd == h_spd * SHIFTS[c][2]["walk"] // 100
     assert o_spd < h_spd < l_spd
@@ -1224,14 +1224,14 @@ def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
         assert gb.mem("story_shift") == 0 and gb.mem("story_step") == 0, "the venue again, from its Opening"
         assert gb.mem("story_restarts") == 1 and hud_lives(gb) == lives_hud(3)
         assert banner_text(gb, 1) == centred(shift_title(c, 0))
-        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "the step reached is kept"
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c], 3), "the step reached is kept"
         assert gb.mem("story_scene") == pre(c), "no PRE scene: straight to the goal"
         assert score > 0 and int.from_bytes(gb.read("score", 4), "little") == 0, "out of lives: the venue-start score (0 here)"
         assert gb.mem("pat_len") == 0, "the Opening's normal arrivals"
         to_goal(gb)
         win(gb, c, 0)
         run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "Practice unlocks never go back"
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (POS_OF[c], 3), "Practice unlocks never go back"
         assert gb.mem("lives") == 3
 
 
@@ -1543,7 +1543,7 @@ def test_continue_mid_venue_starts_the_venue_over(model):
 def test_continue_keeps_the_step_reached_for_practice(model, step):
     """A save at the mini-game slot or the Last call: CONTINUE opens the venue's Opening; winning it again keeps the
     furthest step reached (the record Practice unlocks from), the next shift is the Happy hour."""
-    with booted(model, v7_image([], story=4, step=step)) as rom:
+    with booted(model, v7_image([], story=POS_OF[4], step=step)) as rom:
         hold_stage_anim(rom)
         to_continue(rom)
         run_until(rom, lambda: state(rom) == GS_GOAL, 60)
@@ -1552,7 +1552,7 @@ def test_continue_keeps_the_step_reached_for_practice(model, step):
         win(rom, 4, 0)
         run_until(rom, lambda: state(rom) == GS_GOAL, 800)
         assert rom.mem("story_shift") == 1
-        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, step)
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (POS_OF[4], step)
         assert saved_story(save_ram(rom))[1] == step
 
 
@@ -1594,16 +1594,16 @@ def test_a_version_3_save_migrates_at_the_chapter_start(model):
     with booted(model, v3_image(entries, story=4)) as rom:
         hold_stage_anim(rom)
         assert rom.mem("save_migrated") == 3 and table(rom) == EMPTY, "the old table is dropped"
-        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, 0), "4 chapters cleared, chapter 5 not begun"
-        to_continue(rom)                                # CONTINUE: chapter 5's PRE scene, as with version 3
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (3, 0), "3 chapters cleared (the old 4 in the old order), the igloo next"
+        to_continue(rom)                                # CONTINUE: the igloo's PRE scene, as with version 3
         run_until(rom, lambda: state(rom) == GS_STORY, 30)
         assert rom.mem("story_scene") == pre(4) and rom.mem("story_chapter") == 4
         ram = save_ram(rom)
     # written back as version 7 at once, with the unlocks its progress implies; the PRE scene's venue tune then played
-    assert main_block(ram) == (4, 0, progress_unlocks(4, 0) | 1 << (5 + 4))
+    assert main_block(ram) == (3, 0, progress_unlocks(3, 0) | 1 << (5 + 4))
     assert all(parse_save(ram, t) == EMPTY for t in range(3))
     with booted(model, ram) as again:
-        assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 4
+        assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 3
 
 
 # The 10th venue: versions 3-5 counted nine chapters in the old order (6 factory, 7 teahouse, 8 space, 9 zoo). A
@@ -1711,7 +1711,7 @@ def test_try_again_gives_the_venue_start_score(model):
     from test_pause import sv_image
     from test_scores import set_score
     c = 2
-    with to_shift(model, c, 2, image=sv_image(c, SHIFT_STEP[2], c, 12345)) as gb:
+    with to_shift(model, c, 2, image=sv_image(POS_OF[c], SHIFT_STEP[2], POS_OF[c], 12345)) as gb:
         set_score(gb, 54321)
         gb.write("served", 3)
         gb.write("lives", 1)

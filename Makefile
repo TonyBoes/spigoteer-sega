@@ -200,7 +200,7 @@ $(BUILD)/smap_art.h: tools/gen_smap.py $(wildcard assets/story_map/*.png) | $(BU
 SMAPW_C := $(BUILD)/smap_wc_a.c $(BUILD)/smap_wc_t.c $(BUILD)/smap_wd_a.c $(BUILD)/smap_wd_t.c
 GEN      += $(SMAPW_C)
 BONUS_H  += $(BUILD)/smap_world.h
-$(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_world.py $(wildcard tools/smap_gear.json) $(wildcard tools/smap_world/*.py) $(wildcard assets/story_map/world/*.txt) | $(BUILD) $(OUT)/preview
+$(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_world.py $(wildcard tools/smap_gear.json) $(wildcard tools/smap_world/world_snap.py) $(wildcard assets/smap/*) $(wildcard assets/story_map/world/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_smap_world.py $(BUILD) $(OUT)/preview
 
 preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h

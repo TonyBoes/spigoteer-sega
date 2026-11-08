@@ -3,7 +3,7 @@
 # lives at 20,000 and every 40,000 after (at most 4); a bonus round after every venue (rotating); after the space
 # lounge "LOOP 2" and the saloon again, harder; game over -> initials -> the ARCADE top 5; nothing saved or unlocked.
 import pytest
-from conftest import clear_regulars, GAME, check_golden, hold_stage_anim, title_arcade
+from conftest import VEN_AT, clear_regulars, GAME, check_golden, hold_stage_anim, title_arcade
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, lose_a_life, run_until,
                        state)
 from test_scores import (EMPTY, GS_INITIALS, GS_SCORES, MODE_ARCADE, MODE_STORY, booted, main_block, parse_save,
@@ -57,7 +57,7 @@ def finish_venue(gb):
         cleared = banner_text(gb, 1)
         run_until(gb, lambda: state(gb) in (GS_GOAL, BONUS, GS_MINI), 400)
         if state(gb) == GS_MINI:                          # a built mini-game (the saloon's Quick Draw, the lodge's Log Roll): ended at once
-            assert gb.mem("mg_mode") == 0 and gb.mem("mg_id") == gb.mem("story_chapter") in (0, 1, 2)
+            assert gb.mem("mg_mode") == 0 and gb.mem("mg_id") == gb.mem("story_chapter") in (0, 1, 2, 3)
             seen.append("MINI")
             finish_mini(gb)
             run_until(gb, lambda: state(gb) in (GS_GOAL, BONUS), 400)
@@ -94,7 +94,7 @@ def test_venues_in_story_order_lives_carry_and_a_bonus_round_after_each(model):
         assert gb.mem("lives") == 2
         kinds = []
         for c in range(3):
-            assert gb.mem("story_chapter") == c and gb.mem("cur_group") == CHAPTERS[c]["venue"] and gb.mem("level") == c + 1
+            assert gb.mem("story_chapter") == VEN_AT[c] and gb.mem("cur_group") == CHAPTERS[VEN_AT[c]]["venue"] and gb.mem("level") == c + 1   # (c: the place in the story's order, src/order.h)
             seen, cleared = finish_venue(gb)
             assert cleared == centred("VENUE CLEAR"), "not the story's CHAPTER CLEAR"
             assert gb.mem("bonus_round") == c + 1
@@ -103,7 +103,7 @@ def test_venues_in_story_order_lives_carry_and_a_bonus_round_after_each(model):
             finish_bonus(gb)
             assert gb.mem("story_scene") == 0, "no scene ever entered"
         assert kinds == [0, 1, 2], "the rounds rotate as before"
-        assert gb.mem("story_chapter") == 3 and banner_text(gb, 1) == centred(shift_title(3, 0))
+        assert gb.mem("story_chapter") == VEN_AT[3] and banner_text(gb, 1) == centred(shift_title(VEN_AT[3], 0))
         assert hud_lives(gb) == lives_hud(2)
         assert gb.mem("story_progress") == 0 and gb.mem16("tune_unlocked") == 1, "nothing saved, nothing unlocked"
 

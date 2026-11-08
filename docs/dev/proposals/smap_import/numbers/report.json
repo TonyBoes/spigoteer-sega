@@ -1,0 +1,827 @@
+[
+ {
+  "key": "01_water",
+  "title": "Water glints, very subtle (shared tiles WA, WB)",
+  "view": [
+   272,
+   392
+  ],
+  "loop": 180,
+  "gif_frames": 60,
+  "anims": [
+   {
+    "name": "WA",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 19,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 30
+   },
+   {
+    "name": "WB",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 21,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 180,
+    "period": 30
+   }
+  ],
+  "max_tiles_per_event": 1,
+  "events_per_loop": 8,
+  "tile_writes_per_loop": 8,
+  "rom_new": 6,
+  "rom_new_at_rest": 2,
+  "ids_new": 2,
+  "slots": 2,
+  "check": {
+   "dmg": [
+    0.1,
+    80,
+    1.33
+   ],
+   "cgb": [
+    0.1,
+    90,
+    1.33
+   ]
+  },
+  "cells": {
+   "WA": 19,
+   "WB": 21
+  }
+ },
+ {
+  "key": "02_falls",
+  "title": "Waterfall (foam drop, foam lip, glints in the pool)",
+  "view": [
+   304,
+   0
+  ],
+  "loop": 180,
+  "gif_frames": 60,
+  "anims": [
+   {
+    "name": "FL_A",
+    "frames": 4,
+    "distinct_new": 4,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
+    "period": 9
+   },
+   {
+    "name": "FL_B",
+    "frames": 4,
+    "distinct_new": 4,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
+    "period": 9
+   },
+   {
+    "name": "FR_A",
+    "frames": 4,
+    "distinct_new": 4,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
+    "period": 9
+   },
+   {
+    "name": "FR_B",
+    "frames": 4,
+    "distinct_new": 4,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 36,
+    "period": 9
+   },
+   {
+    "name": "FOOT_L",
+    "frames": 12,
+    "distinct_new": 12,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 20,
+    "loop": 180,
+    "period": 9
+   },
+   {
+    "name": "FOOT_R",
+    "frames": 10,
+    "distinct_new": 10,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 20,
+    "loop": 180,
+    "period": 9
+   }
+  ],
+  "max_tiles_per_event": 4,
+  "events_per_loop": 40,
+  "tile_writes_per_loop": 120,
+  "rom_new": 38,
+  "rom_new_at_rest": 6,
+  "ids_new": 6,
+  "slots": 6,
+  "check": {
+   "dmg": [
+    0.27,
+    80,
+    6.67
+   ],
+   "cgb": [
+    0.27,
+    90,
+    6.67
+   ]
+  },
+  "cells": {
+   "FL_A": 1,
+   "FL_B": 1,
+   "FR_A": 1,
+   "FR_B": 1,
+   "FOOT_L": 1,
+   "FOOT_R": 1
+  }
+ },
+ {
+  "key": "03_fountain",
+  "title": "Town fountain: two streams and basin (approved round 3)",
+  "view": [
+   232,
+   136
+  ],
+  "loop": 36,
+  "gif_frames": 12,
+  "anims": [
+   {
+    "name": "streams(36,24)",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 36,
+    "period": 12
+   },
+   {
+    "name": "streams(37,24)",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 36,
+    "period": 12
+   },
+   {
+    "name": "basin(36,25)",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 2,
+    "loop": 36,
+    "period": 12
+   },
+   {
+    "name": "basin(37,25)",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 2,
+    "loop": 36,
+    "period": 12
+   }
+  ],
+  "max_tiles_per_event": 2,
+  "events_per_loop": 5,
+  "tile_writes_per_loop": 10,
+  "rom_new": 6,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 4,
+  "check": {
+   "dmg": [
+    0.02,
+    80,
+    3.33
+   ],
+   "cgb": [
+    0.02,
+    26,
+    3.33
+   ]
+  },
+  "cells": {
+   "streams(36,24)": 1,
+   "streams(37,24)": 1,
+   "basin(36,25)": 1,
+   "basin(37,25)": 1
+  }
+ },
+ {
+  "key": "04a_bunting",
+  "title": "Town bunting",
+  "view": [
+   232,
+   136
+  ],
+  "loop": 60,
+  "gif_frames": 20,
+  "anims": [
+   {
+    "name": "P",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 3,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "Q",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 3,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "END",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   }
+  ],
+  "max_tiles_per_event": 2,
+  "events_per_loop": 8,
+  "tile_writes_per_loop": 12,
+  "rom_new": 6,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 3,
+  "check": {
+   "dmg": [
+    0.08,
+    224,
+    4.0
+   ],
+   "cgb": [
+    0.08,
+    167,
+    4.0
+   ]
+  },
+  "cells": {
+   "P": 3,
+   "Q": 3,
+   "END": 1
+  }
+ },
+ {
+  "key": "04b_stadium_flag",
+  "title": "Stadium: the wavy flag (approved stadium)",
+  "view": [
+   0,
+   0
+  ],
+  "loop": 27,
+  "gif_frames": 9,
+  "anims": [
+   {
+    "name": "flag(7,1)",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 27,
+    "period": 9
+   },
+   {
+    "name": "flag(8,1)",
+    "frames": 3,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 3,
+    "loop": 27,
+    "period": 9
+   }
+  ],
+  "max_tiles_per_event": 2,
+  "events_per_loop": 3,
+  "tile_writes_per_loop": 6,
+  "rom_new": 4,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 2,
+  "check": {
+   "dmg": [
+    0.11,
+    224,
+    6.67
+   ],
+   "cgb": [
+    0.11,
+    171,
+    6.67
+   ]
+  },
+  "cells": {
+   "flag(7,1)": 1,
+   "flag(8,1)": 1
+  }
+ },
+ {
+  "key": "05_airbase",
+  "title": "Airbase: radar dish turning and mast lamp blinking (one frame set, round 4i art)",
+  "view": [
+   16,
+   246
+  ],
+  "loop": 120,
+  "gif_frames": 40,
+  "anims": [
+   {
+    "name": "DISH",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 8,
+    "loop": 120,
+    "period": 15
+   },
+   {
+    "name": "LAMP",
+    "frames": 2,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 2,
+    "loop": 120,
+    "period": 15
+   }
+  ],
+  "max_tiles_per_event": 1,
+  "events_per_loop": 10,
+  "tile_writes_per_loop": 10,
+  "rom_new": 4,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 2,
+  "check": {
+   "dmg": [
+    0.09,
+    224,
+    4.0
+   ],
+   "cgb": [
+    0.09,
+    212,
+    4.0
+   ]
+  },
+  "cells": {
+   "DISH": 1,
+   "LAMP": 1
+  }
+ },
+ {
+  "key": "06a_smoke_lodge",
+  "title": "Lodge chimney smoke (white, not tan)",
+  "view": [
+   352,
+   120
+  ],
+  "loop": 60,
+  "gif_frames": 20,
+  "anims": [
+   {
+    "name": "lodge(58,19)",
+    "frames": 4,
+    "distinct_new": 4,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "lodge(59,19)",
+    "frames": 4,
+    "distinct_new": 4,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   }
+  ],
+  "max_tiles_per_event": 2,
+  "events_per_loop": 4,
+  "tile_writes_per_loop": 8,
+  "rom_new": 8,
+  "rom_new_at_rest": 2,
+  "ids_new": 2,
+  "slots": 2,
+  "check": {
+   "dmg": [
+    0.11,
+    80,
+    2.0
+   ],
+   "cgb": [
+    0.11,
+    46,
+    2.0
+   ]
+  },
+  "cells": {
+   "lodge(58,19)": 1,
+   "lodge(59,19)": 1
+  }
+ },
+ {
+  "key": "06c_smoke_igloo",
+  "title": "Igloo chimney smoke (approved igloo)",
+  "view": [
+   352,
+   0
+  ],
+  "loop": 60,
+  "gif_frames": 20,
+  "anims": [
+   {
+    "name": "IGLOO",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   }
+  ],
+  "max_tiles_per_event": 1,
+  "events_per_loop": 4,
+  "tile_writes_per_loop": 4,
+  "rom_new": 3,
+  "rom_new_at_rest": 0,
+  "ids_new": 0,
+  "slots": 1,
+  "check": {
+   "dmg": [
+    0.07,
+    160,
+    3.0
+   ],
+   "cgb": [
+    0.07,
+    168,
+    3.0
+   ]
+  },
+  "cells": {
+   "IGLOO": 1
+  }
+ },
+ {
+  "key": "06b_smoke_factory",
+  "title": "Factory stack smoke (two stacks)",
+  "view": [
+   352,
+   232
+  ],
+  "loop": 60,
+  "gif_frames": 20,
+  "anims": [
+   {
+    "name": "factory R(60,37)",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "factory R(60,38)",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "factory R(61,38)",
+    "frames": 4,
+    "distinct_new": 1,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 2,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "factory L(52,37)",
+    "frames": 4,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 3,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "factory L(52,38)",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   },
+   {
+    "name": "factory L(53,38)",
+    "frames": 4,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": false,
+    "steps_per_loop": 4,
+    "loop": 60,
+    "period": 15
+   }
+  ],
+  "max_tiles_per_event": 3,
+  "events_per_loop": 8,
+  "tile_writes_per_loop": 21,
+  "rom_new": 15,
+  "rom_new_at_rest": 0,
+  "ids_new": 2,
+  "slots": 6,
+  "check": {
+   "dmg": [
+    0.11,
+    80,
+    2.0
+   ],
+   "cgb": [
+    0.11,
+    45,
+    2.0
+   ]
+  },
+  "cells": {
+   "factory R(60,37)": 1,
+   "factory R(60,38)": 1,
+   "factory R(61,38)": 1,
+   "factory L(52,37)": 1,
+   "factory L(52,38)": 1,
+   "factory L(53,38)": 1
+  }
+ },
+ {
+  "key": "07_cow_tail",
+  "title": "Cow tail swish (pasture cows, new tail art)",
+  "view": [
+   352,
+   352
+  ],
+  "loop": 72,
+  "gif_frames": 24,
+  "anims": [
+   {
+    "name": "cow1(55,49)",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 72,
+    "period": 12
+   },
+   {
+    "name": "cow2(59,52)",
+    "frames": 3,
+    "distinct_new": 3,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 4,
+    "loop": 72,
+    "period": 12
+   }
+  ],
+  "max_tiles_per_event": 1,
+  "events_per_loop": 8,
+  "tile_writes_per_loop": 8,
+  "rom_new": 6,
+  "rom_new_at_rest": 2,
+  "ids_new": 2,
+  "slots": 2,
+  "check": {
+   "dmg": [
+    0.03,
+    224,
+    3.33
+   ],
+   "cgb": [
+    0.03,
+    180,
+    3.33
+   ]
+  },
+  "cells": {
+   "cow1(55,49)": 1,
+   "cow2(59,52)": 1
+  }
+ },
+ {
+  "key": "09_logs",
+  "title": "Floating logs sinking (6 logs, three phase groups)",
+  "view": [
+   304,
+   320
+  ],
+  "loop": 108,
+  "gif_frames": 36,
+  "anims": [
+   {
+    "name": "HA_L",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "HA_R",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "HB_L",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "HB_R",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "HC_L",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "HC_R",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "VA_T",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "VA_B",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "VB_T",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "VB_B",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "VC_T",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   },
+   {
+    "name": "VC_B",
+    "frames": 2,
+    "distinct_new": 2,
+    "cells": 1,
+    "needs_id": true,
+    "steps_per_loop": 2,
+    "loop": 108,
+    "period": 18
+   }
+  ],
+  "max_tiles_per_event": 2,
+  "events_per_loop": 12,
+  "tile_writes_per_loop": 24,
+  "rom_new": 8,
+  "rom_new_at_rest": 4,
+  "ids_new": 12,
+  "slots": 12,
+  "check": {
+   "dmg": [
+    0.13,
+    144,
+    1.11
+   ],
+   "cgb": [
+    0.13,
+    135,
+    1.11
+   ]
+  },
+  "cells": {
+   "HA_L": 1,
+   "HA_R": 1,
+   "HB_L": 1,
+   "HB_R": 1,
+   "HC_L": 1,
+   "HC_R": 1,
+   "VA_T": 1,
+   "VA_B": 1,
+   "VB_T": 1,
+   "VB_B": 1,
+   "VC_T": 1,
+   "VC_B": 1
+  }
+ }
+]

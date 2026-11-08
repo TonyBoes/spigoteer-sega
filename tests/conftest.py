@@ -843,3 +843,10 @@ def pytest_collection_modifyitems(config, items):
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
+
+
+# The story's order of the venues (src/order.h, owner 2026-11-07): chapter c plays venue VEN_AT[c]; venue v is chapter POS_OF[v]. A chapter is a place in that order (story_progress,
+# the map's progress, the saved progress); a venue is the content (story_chapter, cur_group, the scenes, bosses, mini-games and tunes).
+VEN_AT = (0, 1, 3, 4, 2, 5, 6, 7, 8, 9)
+POS_OF = (0, 1, 4, 2, 3, 5, 6, 7, 8, 9)
+STEP_STAMP = 0x80    # save.c: byte 5 bit 7, set by every save made with this order

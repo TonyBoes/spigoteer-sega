@@ -6,7 +6,7 @@
 import contextlib
 
 import pytest
-from conftest import double_speed
+from conftest import POS_OF, VEN_AT, double_speed
 from split_helpers import win_lyc
 from tick_helpers import FRAME
 from conftest import unlock_debug
@@ -425,7 +425,7 @@ def test_story_quit_goes_to_the_title_and_continue_starts_from_the_save_point(mo
     from test_story import to_shift
     from test_scores import v7_image
     c = 2
-    with to_shift(model, c, 1, image=sv_image(c, 1, c, 12345)) as gb:   # the lumber lodge's Happy hour: step 1 reached (saved)
+    with to_shift(model, c, 1, image=sv_image(POS_OF[c], 1, POS_OF[c], 12345)) as gb:   # the lumber lodge's Happy hour: step 1 reached (saved)
         saved = (gb.mem("story_progress"), gb.mem("story_reached"))
         assert saved[1] > 0
         gb.run(60)
@@ -468,7 +468,7 @@ def score_of(gb):
 def test_continue_takes_the_venue_start_score_only_when_it_checks_out(model, img, want):
     from test_story import start_story
     with start_story(model, img, cont=True) as gb:        # the PRE scene of chapter 2
-        assert gb.mem("story_chapter") == 2 and gb.mem("lives") == 3
+        assert gb.mem("story_chapter") == VEN_AT[2] and gb.mem("lives") == 3
         assert score_of(gb) == want, "another chapter's, a bad checksum or a score out of range reads as 0"
 
 

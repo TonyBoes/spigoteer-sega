@@ -1,7 +1,7 @@
 # M10b arcade mode: the top-5 table with initials in SRAM (save.c), endless loops of the ten venues with a
 # "LOOP n" banner and harder loops (main.c), the initials entry and the table screen (scores.c).
 import pytest
-from conftest import GAME, ROM, check_golden, title_level
+from conftest import GAME, ROM, STEP_STAMP, VEN_AT, check_golden, title_level
 from gbtools import Rom
 from test_flow import GAME_OVER, LIFE_LOST, PLAYING, TITLE, hi_score, hi_shown, hi_tiles, lose_a_life, run_until, state
 from test_sound import make_rom, save_ram, start_game
@@ -85,7 +85,15 @@ def v6_image(entries, story=0, step=0, tunes=1, size=0x2000):
 def old_progress(story, step):
     """save.c old_progress: a version 3-5 save's progress (nine chapters, the old order) today: p <= 5 kept with its
     step, p >= 6 (the old 6 factory, 7 teahouse, 8 space, 9 zoo) is 6 with step 0 (The Chrome Cow not cleared)."""
-    return (story, step) if story < 6 else (6, 0)
+    return reordered(*((story, step) if story < 6 else (6, 0)))
+
+
+def reordered(p, step):
+    """save.c: progress in the order before 2026-11-07 (lodge, bistro, igloo) today (saloon, stadium, bistro, igloo, lodge): the old 2 (lodge next)
+    is the bistro next, step 0; the old 3 and 4 are one less (the same venue is next)."""
+    if p == 2:
+        return 2, 0
+    return (p - 1, step) if p in (3, 4) else (p, step)
 
 
 def old_tunes(m):
@@ -103,7 +111,7 @@ def progress_unlocks(story, step):
     m = 1 << TUNE_TITLE
     n = story + 1 if step and story < 10 else story
     for c in range(n):
-        m |= 1 << (TUNE_VENUE0 + c)
+        m |= 1 << (TUNE_VENUE0 + VEN_AT[c])
     return m | (JINGLES if story else 0)
 
 
@@ -133,7 +141,7 @@ def v7_image(arcade=(), story=0, step=0, tunes=1, story_tbl=(), classic=(), size
     """A version-7 save (today's): the main block and the three tables."""
     r = bytearray(size)
     r[0:4] = b"TPR7"
-    r[4], r[5] = story, step
+    r[4], r[5] = story, step | STEP_STAMP
     r[6:8] = tunes.to_bytes(2, "little")
     c = (0x5A + sum(r[:V7_SUM])) & 255
     r[V7_SUM], r[V7_SUM + 1] = c, c ^ 0xFF
@@ -147,7 +155,7 @@ def main_block(ram):
     assert ram[:4] == b"TPR7"
     c = (0x5A + sum(ram[:V7_SUM])) & 255
     assert ram[V7_SUM] == c and ram[V7_SUM + 1] == c ^ 0xFF, "checksum"
-    return ram[4], ram[5], int.from_bytes(ram[6:8], "little")
+    return ram[4], ram[5] & ~STEP_STAMP, int.from_bytes(ram[6:8], "little")
 
 
 def saved_tunes(ram):
@@ -259,17 +267,17 @@ def test_a_version_6_save_keeps_its_story_and_starts_the_tables_fresh(model):
     """Q4 (owner 2026-10-11): the old arcade's top 5 is dropped; the story progress and the unlocks are kept, written
     back as version 7 at once (the main block and three empty tables)."""
     tunes = 1 | 1 << 5 | 1 << 6 | 0x1E
-    want = tunes | progress_unlocks(3, 2)                # (plus what the progress implies, as every migration)
+    want = tunes | progress_unlocks(2, 2)                # (plus what the progress implies, as every migration; the old 3 is 2 in the new order, src/order.h)
     with booted(model, v6_image(FIVE, story=3, step=2, tunes=tunes)) as rom:
         assert rom.mem("save_migrated") == 6
         assert table(rom) == EMPTY and table(rom, MODE_STORY) == EMPTY and table(rom, MODE_CLASSIC) == EMPTY
         assert hi_score(rom) == 0 and hi_shown(rom) == hi_tiles("000000")
-        assert (rom.mem("story_progress"), rom.mem("story_reached"), rom.mem16("tune_unlocked")) == (3, 2, want)
+        assert (rom.mem("story_progress"), rom.mem("story_reached"), rom.mem16("tune_unlocked")) == (2, 2, want)
         ram = save_ram(rom)
-    assert main_block(ram) == (3, 2, want)
+    assert main_block(ram) == (2, 2, want)
     assert all(parse_save(ram, t) == EMPTY for t in range(3)), "three empty tables, each with its own checksum"
     with booted(model, ram) as again:
-        assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 3
+        assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 2
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

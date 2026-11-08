@@ -45,6 +45,7 @@
 #include "music.h"
 #include "story.h"
 #include "mg.h"
+#include "order.h"
 #include "palettes.h"
 #include "smap_art.h"
 #include "smap_priv.h"
@@ -63,7 +64,7 @@ void story_map_pouroff(void) BANKED;
 void cam_map_load(void) BANKED;                // src/cameo.c: the UFO and its beam (OBJ tiles at CAM_SPACE_BASE)
 uint8_t cam_map_beam(uint8_t t, int16_t sx, int16_t sy, int16_t ax, int16_t ay) BANKED;
 
-uint8_t smap_stop;                            // 0..10: the stop Sal stands at (venue = chapter, 10 the town)
+uint8_t smap_stop;                            // 0..10: the stop Sal stands at (a chapter of the story's order, src/order.h; 10 the town)
 uint8_t smap_flags;                           // bits 0-2: festival game k was played since it unlocked (its "!" is gone); bits 4-6: it won GOLD in this story run;
                                               // bit 7: the HUD palette is borrowed (smap_pal_back); bit 3: SMAP_RESUME
 #define F_PLAYED(k)  (1 << (k))
@@ -74,9 +75,9 @@ uint8_t smap_flags;                           // bits 0-2: festival game k was p
 
 // ---- the stops (feet positions and the legs: build/smap_world.h) ----------------------------------------------------------------------------------------------
 static const char *const tag_name[NSTOPS] = {
-    "CH1 THE SALOON", "CH2 THE STADIUM", "CH3 LUMBER LODGE", "CH4 THE BISTRO", "CH5 THE IGLOO", "CH6 ROBOT FACTORY",
+    "CH1 THE SALOON", "CH2 THE STADIUM", "CH3 THE BISTRO", "CH4 THE IGLOO", "CH5 LUMBER LODGE", "CH6 ROBOT FACTORY",
     "CH7 THE CHROME COW", "CH8 THE TEAHOUSE", "CH9 THE JUNGLE ZOO", "CH10 SPACE LOUNGE", "FESTIVAL SQUARE" };
-static const char *const game_name[10] = {    // each venue's mini-game (mg.c mg_name)
+static const char *const game_name[10] = {    // each VENUE's mini-game, in venue order (mg.c mg_name; a stop is a chapter: VEN(stop))
     "QUICK DRAW", "SHIRT CANNON", "LOG ROLL", "ORDER UP!", "MARSHMALLOW DROP", "BATTERY SORT", "MILK RUN", "TAIKO POUR", "MONKEY BUSINESS", "ASTEROIDS" };
 static const char *const fest_name[FEST_N] = { "SHAKE UP", "PERFECT POUR", "TIP SHOWER" };
 static const uint8_t fest_at[FEST_N] = { 2, 4, 7 };     // the chapters cleared before each festival game opens
@@ -431,7 +432,7 @@ static uint8_t panel_row(uint8_t kind, uint8_t want, uint8_t *out) {
         n = 5;
         break;
     case P_VENUE:
-        g = smap_stop;
+        g = VEN(smap_stop);                        // (the stop is a chapter: its venue has the game)
         centre_text(blank_row(ROW(1)), game_name[g]);
         put_text(blank_row(ROW(2)), 3, "PLAY", 0);
         put_text(blank_row(ROW(3)), 3, "BACK", 0);
@@ -628,7 +629,7 @@ static void leave(void) {                          // before any other screen: t
 static uint8_t press_a(void) {                     // A with no panel up. 1: the screen was left
     uint8_t s = smap_stop;
     if (s == TOWN) { panel_open(P_TOWN, 0); return 0; }
-    if ((smap_flags & SMAP_RESUME) && s == story_chapter && s == map_progress()) { panel_open(P_RESUME, 0); return 0; }   // (a shift of this venue was quit)
+    if ((smap_flags & SMAP_RESUME) && VEN(s) == story_chapter && s == map_progress()) { panel_open(P_RESUME, 0); return 0; }   // (a shift of this venue was quit)
     if (s < map_progress()) { panel_open(P_VENUE, 0); return 0; }
     if (s > map_progress()) return 0;              // (a locked stop: Sal never stands on one)
     if (s == 9 && !(story_progress == s && story_reached)) { win_hide(); V(V_BEAM) = 1; return 0; }   // the space lounge's PRE scene: the UFO beams Sal up first (beam_tick)
@@ -681,7 +682,7 @@ static uint8_t panel_a(void) {                     // A in a panel. 1: the scree
     if (kind == P_VENUE) {
         if (sel) { panel_close(); return 0; }
         leave();
-        mg_enter(mg_of_venue(smap_stop), MG_PRACTICE | MG_MAP);
+        mg_enter(mg_of_venue(VEN(smap_stop)), MG_PRACTICE | MG_MAP);
         return 1;
     }
     k = sel;                                       // P_FEST
@@ -795,7 +796,7 @@ void smap_enter(uint8_t quick) BANKED {
         OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
     }
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = map_progress() < NSTOPS - 1 ? map_progress() : TOWN;
-    V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : 10;
+    V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : map_progress() < 10 ? 10 : 11;     // (11: the story is done, the fountain repaired)
     s16(V_FX, smapw_stop[smap_stop][0]); s16(V_FY, smapw_stop[smap_stop][1]);
     smap_cam_target(&tx, &ty);
     s16(V_CAMX, tx); s16(V_CAMY, ty);

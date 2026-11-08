@@ -200,7 +200,7 @@ def test_the_choice_is_the_runs_difficulty_saved_with_the_progress_and_continue_
         run_until(rom, lambda: state(rom) == GS_GOAL, 800)       # the Opening shift cleared: saved (progress 0, step 1)
         assert run_diff(rom) == d
         ram = save_ram(rom)
-    assert ram[:4] == b"TPR7" and saved_code(ram) == d and ram[4] & 0x3F == 0 and ram[5] == 1
+    assert ram[:4] == b"TPR7" and saved_code(ram) == d and ram[4] & 0x3F == 0 and ram[5] & 0x7F == 1
     with booted(model, ram) as again:
         assert again.mem("story_progress") == 0 and again.mem("story_reached") == 1, "the progress is read without the difficulty bits"
         hold_stage_anim(again)

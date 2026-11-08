@@ -4,7 +4,7 @@
 # BACK closes the panel. Everything else (ARCADE, CLASSIC, BOSS RUSH, a play from the map, BONUS > MINI GAMES) quits as before.
 import pytest
 import test_story as ts
-from conftest import hold_stage_anim
+from conftest import POS_OF, hold_stage_anim
 from test_flow import GS_GOAL, GS_STORY, PLAYING, run_until, state
 from test_mg import GS_MINI
 from test_pause import open_pause, quit_yes, sv_image, tap, win_text as pause_text
@@ -33,7 +33,7 @@ def panel(gb):
 
 
 def begin(model, c=2, k=1, score=12345):
-    gb = ts.to_shift(model, c, k, image=sv_image(c, 1, c, score))
+    gb = ts.to_shift(model, c, k, image=sv_image(POS_OF[c], 1, POS_OF[c], score))
     return gb
 
 
@@ -59,7 +59,7 @@ def test_quit_goes_to_the_map_at_the_venue_and_resume_restarts_the_shift_with_it
         quit_yes(gb)
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
         gb.run(100)
-        assert gb.mem("story_on") == 1 and gb.mem("smap_stop") == c and gb.mem("smap_flags") & 8
+        assert gb.mem("story_on") == 1 and gb.mem("smap_stop") == POS_OF[c] and gb.mem("smap_flags") & 8
         assert gb.mem("boss_on") == 0
         assert panel(gb) == ["RESUME", "ENTER", "BACK"], panel(gb)
         mtap(gb, "a", 2)                                   # RESUME
@@ -86,7 +86,7 @@ def test_back_closes_the_panel_and_walking_elsewhere_keeps_the_resume(model):
         mtap(gb, "down", 4)
         mtap(gb, "down", 4)
         mtap(gb, "a", 12)                                  # BACK
-        assert gb.mem("overlay_on") == 0 and gb.mem("story_phase") == SP_MAP and gb.mem("smap_stop") == c
+        assert gb.mem("overlay_on") == 0 and gb.mem("story_phase") == SP_MAP and gb.mem("smap_stop") == POS_OF[c]
         assert gb.mem("smap_flags") & 8, "BACK keeps it"
         mtap(gb, "b", 12)
         assert gb.mem("smap_flags") & 8
@@ -149,7 +149,7 @@ def test_quit_from_a_boss_fight_resumes_the_shift_that_holds_it(model):
         quit_yes(gb)
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
         gb.run(100)
-        assert gb.mem("boss_on") == 0 and gb.mem("smap_stop") == c and gb.mem("smap_flags") & 8
+        assert gb.mem("boss_on") == 0 and gb.mem("smap_stop") == POS_OF[c] and gb.mem("smap_flags") & 8
         assert panel(gb) == ["RESUME", "ENTER", "BACK"]
         mtap(gb, "a", 2)
         run_until(gb, lambda: state(gb) == GS_GOAL, 300)
@@ -172,7 +172,7 @@ def test_quit_from_a_story_mini_game_resumes_that_mini_game(model):
         quit_yes(gb)
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
         gb.run(100)
-        assert gb.mem("smap_stop") == c and gb.mem("smap_flags") & 8
+        assert gb.mem("smap_stop") == POS_OF[c] and gb.mem("smap_flags") & 8
         assert panel(gb) == ["RESUME", "ENTER", "BACK"]
         mtap(gb, "a", 2)
         run_until(gb, lambda: state(gb) == GS_MINI, 300)
@@ -190,7 +190,7 @@ def debug_shift(model, c=2, k=0):
     gb = booted(model, ram)
     gb.ram_in = ram
     open_on(gb, K_STORY)
-    for _ in range(c):
+    for _ in range(POS_OF[c]):
         chap(gb, 1)
     while gb.mem("debug_pos") != SHIFT_STEP[k] + 1:
         pos(gb, 1)
@@ -217,7 +217,7 @@ def test_a_debug_select_run_quits_to_the_map_resumes_and_saves_nothing(model):
         quit_yes(gb)
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 200)
         gb.run(100)
-        assert gb.mem("smap_stop") == 2 and gb.mem("smap_flags") & 8 and gb.mem("story_on") == 1
+        assert gb.mem("smap_stop") == POS_OF[2] and gb.mem("smap_flags") & 8 and gb.mem("story_on") == 1
         assert panel(gb) == ["RESUME", "ENTER", "BACK"]
         mtap(gb, "a", 2)                                   # RESUME
         run_until(gb, lambda: state(gb) == GS_GOAL, 300)

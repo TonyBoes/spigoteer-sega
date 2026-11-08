@@ -85,6 +85,11 @@
 //   Unlocks of a version 3-4 save (progress_unlocks): the venues of the chapters cleared, the next chapter's venue when
 //   one of its steps was reached, the jingles once chapter 1 is cleared; the title tune.
 //   Versions 1 and 2 held nothing but a hi score table: they load as a fresh cartridge.
+//   The story's order changed on 2026-11-07 (the bistro and the igloo before the lumber lodge: chapters 3, 4, 5 = bistro, igloo, lodge, venue ids unchanged): a version 7 save
+//   without the stamp (byte 5 bit 7, set by every save from now on) counts its progress in the old order. Old 0, 1 and 5..10 chapters cleared are the same set of venues as now; old 3 (saloon,
+//   stadium, lodge) is 2 now, keeping its step (the next chapter is the bistro either way); old 4 (+ the bistro) is 3, keeping its step (the igloo is next either way); old 2
+//   (the next chapter was the lodge) is 2 with step 0. Tunes (by venue) and the tables are untouched; the story map's flags and the venue-start score are read as
+//   they are (a stop or score of another chapter reads as none). save_migrated = 7, written back stamped at once.
 // Anything that does not check out loads as no story progress and only the title tune.
 // The working copy (top_names / top_scores, table t from entry t * TOP_N) is in WRAM; hi_score / hi_digits mirror
 // entry 1 of the table hi_pick chose (the title's HI line).
@@ -95,6 +100,7 @@
 #include "music.h"
 #include "story.h"
 #include "mg.h"
+#include "order.h"
 
 extern uint32_t hi_score;
 extern uint8_t  hi_digits[6];
@@ -122,6 +128,7 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define DU_AT    0x18               // the DEBUG MENU unlock "DU" (see the top): 0..1 magic, 2 the flag, 3 checksum, 4 complement
 #define DU_LEN   3
 #define V7_LEN   8                 // bytes covered by the main block's checksum
+#define STEP_STAMP 0x80             // byte 5 bit 7: the save was made with the story's order of 2026-11-07 (saloon, stadium, bistro, igloo, lodge ...); a save without it is of the old order (hi_load)
 #define STEP_SAVED (STORY_STEPS + 1)  // a saved step below this reads (before the boss joined Last call, 2026-10-17, a venue had a fifth step: 4); it is clamped to the last
 #define STEP_CLAMP(r) ((r) >= STORY_STEPS ? STORY_STEPS - 1 : (r))
 #define BK_AT    0x28               // the boss cards seen "BK": 0..1 magic, 2..3 bit v = venue v's boss card was shown (LE; bits below BOSS_COUNT), 4 checksum, 5 complement
@@ -227,7 +234,7 @@ void hi_pick(uint8_t t) BANKED {
 static uint16_t progress_unlocks(uint8_t p, uint8_t r) {
     uint16_t m = 1 << TUNE_TITLE;
     uint8_t c, n = r && p < STORY_MAX ? p + 1 : p;
-    for (c = 0; c < n; c++) m |= (uint16_t)1 << (TUNE_VENUE0 + c);
+    for (c = 0; c < n; c++) m |= (uint16_t)1 << (TUNE_VENUE0 + VEN(c));
     if (p) m |= JINGLES;
     return m;
 }
@@ -480,7 +487,7 @@ void boss_beaten(uint8_t v) BANKED {
 
 void hi_load(void) BANKED {
     uint16_t old = 0;
-    uint8_t t;
+    uint8_t t, reorder = 0;
     volatile uint8_t *b;
     ENABLE_RAM;
     SWITCH_RAM(0);
@@ -493,20 +500,26 @@ void hi_load(void) BANKED {
     tune_unlocked = 0;
     story_progress = 0; story_reached = 0;
     if (magic('7')) {
-        if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && SRAM[V7_STEP] < STEP_SAVED
-            && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && SRAM[V7_STEP] > 1)) {   // (chapter 10 cleared, step 1: the finale is not done yet; CONTINUE returns to the map)
-            story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = STEP_CLAMP(SRAM[V7_STEP]);
+        if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && (SRAM[V7_STEP] & ~STEP_STAMP) < STEP_SAVED
+            && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && (SRAM[V7_STEP] & ~STEP_STAMP) > 1)) {   // (chapter 10 cleared, step 1: the finale is not done yet; CONTINUE returns to the map)
+            story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = STEP_CLAMP(SRAM[V7_STEP] & ~STEP_STAMP);
             tune_unlocked = SRAM[V7_TUNES] | ((uint16_t)SRAM[V7_TUNES + 1] << 8);
+            reorder = !(SRAM[V7_STEP] & STEP_STAMP);                     // (a save of the old order: below)
         }
         for (t = 0; t < TOP_TABLES; t++) load_tbl(t);   // each on its own (a bad main block keeps the tables)
     } else if (old_ok('6')) {
-        story_progress = SRAM[V3_STORY]; story_reached = STEP_CLAMP(SRAM[V4_STEP]); save_migrated = 6;
+        story_progress = SRAM[V3_STORY]; story_reached = STEP_CLAMP(SRAM[V4_STEP]); save_migrated = 6; reorder = 1;
         old = SRAM[V5_TUNES] | ((uint16_t)SRAM[V5_TUNES + 1] << 8);
     } else if (old_ok('5')) {
-        old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 5;
+        old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 5; reorder = 1;
         old = old_tunes(SRAM[V5_TUNES] | ((uint16_t)SRAM[V5_TUNES + 1] << 8));
-    } else if (old_ok('4')) { old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 4; }
-    else if (old_ok('3')) { old_progress(SRAM[V3_STORY], 0); save_migrated = 3; }
+    } else if (old_ok('4')) { old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 4; reorder = 1; }
+    else if (old_ok('3')) { old_progress(SRAM[V3_STORY], 0); save_migrated = 3; reorder = 1; }
+    if (reorder && story_progress > 1 && story_progress < 5) {      // progress in the order before 2026-11-07 (lodge, bistro, igloo): see the top of the file
+        if (story_progress == 2) story_reached = 0;                  // (the old chapter 3 was the lodge: its steps are not the bistro's)
+        else story_progress--;                                       // (old 3 cleared saloon, stadium, lodge: now 2; old 4 added the bistro: now 3; the next chapter is the same venue)
+        if (!save_migrated) { save_migrated = 7; old = tune_unlocked; }   // (a version 7 save: its tunes are kept as they are)
+    }
     b = SRAM + BC_AT;
     if (b[0] == 'B' && b[1] == 'C' && b[2] == 1 && sum_ok(b, BC_LEN)) level_dirs |= KEEP_POS;
     DISABLE_RAM;
@@ -627,7 +640,7 @@ static void save_all(uint8_t d) {
     SWITCH_RAM(0);
     if (d == 0xFF) d = magic('7') && sum_ok(SRAM, V7_LEN) ? SRAM[V7_STORY] >> 6 : 0;   // (before the magic is rewritten)
     SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '7';
-    SRAM[V7_STORY] = story_progress | (d == 3 ? 0 : d << 6); SRAM[V7_STEP] = story_reached;
+    SRAM[V7_STORY] = story_progress | (d == 3 ? 0 : d << 6); SRAM[V7_STEP] = story_reached | STEP_STAMP;
     SRAM[V7_TUNES] = (uint8_t)tune_unlocked; SRAM[V7_TUNES + 1] = (uint8_t)(tune_unlocked >> 8);
     sum_put(SRAM, V7_LEN);
     for (t = 0; t < TOP_TABLES; t++) {

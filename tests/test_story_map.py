@@ -8,7 +8,7 @@ import json
 
 import pytest
 import test_story as ts
-from conftest import K_CONTINUE, ROOT, check_golden, double_speed, menu_items, menu_tap, title_pick
+from conftest import POS_OF, VEN_AT, K_CONTINUE, ROOT, check_golden, double_speed, menu_items, menu_tap, title_pick
 from test_flow import GS_STORY, run_until, state
 from test_mg import mg_enter
 from test_scores import booted, v7_image
@@ -33,7 +33,7 @@ DIM_BASE = 233                                           # the greyed letters (t
 INV = {v: k for k, v in ts.GLYPH.items()}
 INV.update({DIM_BASE + i: c for i, c in enumerate("THEPOURF-")})
 PAIR = SMAP["obj_pairs"]
-TAGS = ["CH1 THE SALOON", "CH2 THE STADIUM", "CH3 LUMBER LODGE", "CH4 THE BISTRO", "CH5 THE IGLOO", "CH6 ROBOT FACTORY", "CH7 THE CHROME COW", "CH8 THE TEAHOUSE",
+TAGS = ["CH1 THE SALOON", "CH2 THE STADIUM", "CH3 THE BISTRO", "CH4 THE IGLOO", "CH5 LUMBER LODGE", "CH6 ROBOT FACTORY", "CH7 THE CHROME COW", "CH8 THE TEAHOUSE",
         "CH9 THE JUNGLE ZOO", "CH10 SPACE LOUNGE", "FESTIVAL SQUARE"]
 
 
@@ -100,7 +100,7 @@ def cam(gb):
 
 
 def open_stop(t, progress):
-    return t != NIL and (t <= progress or t == TOWN)
+    return t != NIL and (t <= progress or t == TOWN)               # (a stop is a chapter of the story's order, as progress is: src/order.h)
 
 
 def go(gb, name, limit=1500):
@@ -116,7 +116,7 @@ def go(gb, name, limit=1500):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_map_is_up_with_its_stops_dots_and_sal(model):
     gb = to_map(model, 3)
-    assert gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY and gb.mem("smap_stop") == 3, "CONTINUE: Sal at the next venue (chapter 4)"
+    assert gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY and gb.mem("smap_stop") == 3, "CONTINUE: Sal at the next stop (chapter 4: the igloo)"
     cx, cy = cam(gb)
     assert sal_xy(gb) == (STOPS[3][0] - 8 - cx, STOPS[3][1] - 24 - cy), "Sal stands on the stop, his feet at its centre"
     assert 0 <= sal_xy(gb)[0] and sal_xy(gb)[0] + 16 <= 160 and 0 <= sal_xy(gb)[1] and sal_xy(gb)[1] + 24 <= 144, "the camera keeps him on the screen"
@@ -219,13 +219,13 @@ def test_the_gold_arrows_show_the_open_directions(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_arrows_follow_the_open_stops_not_the_table(model):
-    gb = to_map(model, 3)                                # the bistro: the igloo and the factory past it are locked, so only the way back (left) is open
+    gb = to_map(model, 3)                                # the igloo (chapter 4): the lodge past it is locked, so only the way back (left) is open
     got = sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"])
     want = sorted({0: PAIR["arrow_u0"], 1: PAIR["arrow_d0"], 2: PAIR["arrow_r0"], 3: PAIR["arrow_r0"]}[d] for d in range(4) if open_stop(EXITS[3][d], 3))
     assert got == want and len(got) == 1, (got, want)
     gb = to_map(model, 4)
     got = sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"])
-    assert got == [PAIR["arrow_r0"]], "the igloo: one way, back"
+    assert got == [PAIR["arrow_u0"]], "the lodge (chapter 5): one way, back (up to the igloo)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -275,10 +275,11 @@ def test_the_name_tag_goes_when_sal_sets_off(model):
 @pytest.mark.parametrize("progress", [1, 3, 9])
 def test_a_at_the_next_uncleared_venue_starts_its_pre_scene(model, progress):
     gb = to_map(model, progress)
+    v = VEN_AT[progress]                                 # (the venue of the chapter Sal stands at)
     assert gb.mem("smap_stop") == progress
     tap(gb, "a", 2)
     run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 260)      # (the space lounge's beam-up first: about 125 frames)
-    assert gb.mem("story_scene") == ts.pre(progress) and gb.mem("story_chapter") == progress
+    assert gb.mem("story_scene") == ts.pre(v) and gb.mem("story_chapter") == v
     assert gb.mem("overlay_on") == 0, "the map's window is gone"
     assert gb.regs()["WY"] == 64, "the banner window's own place again"
 
@@ -288,7 +289,7 @@ def test_a_at_the_next_venue_with_a_step_reached_opens_its_banner_as_continue_di
     gb = to_map(model, 3, step=ts.SHIFT_STEP[1])
     tap(gb, "a", 2)
     run_until(gb, lambda: state(gb) == ts.GS_GOAL, 120)
-    assert gb.mem("story_chapter") == 3 and gb.mem("lives") == 3
+    assert gb.mem("story_chapter") == VEN_AT[3] and gb.mem("lives") == 3
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -372,7 +373,7 @@ def test_play_runs_that_venues_mini_game_only_and_upgrades_the_medal(model):
     back_to_map(gb)
     assert gb.mem("story_progress") == 5 and gb.mem("story_reached") == 0 and gb.mem("story_chapter") == 5
     ram = save_ram(gb)
-    assert (ram[4] & 0x3F, ram[5]) == (5, 0), "the saved progress did not move"
+    assert (ram[4] & 0x3F, ram[5] & 0x7F) == (5, 0), "the saved progress did not move"      # (bit 7 of byte 5: the order stamp)
     assert ram[0x40 + 6 + 1] & 3 == 3, "the saved gold (Practice's block, the stadium's byte)"
 
 
@@ -456,7 +457,7 @@ def test_the_gold_bang_shows_over_the_tent_while_a_new_festival_game_has_not_bee
         assert bang_shown(gb), f"game {k} just unlocked"
         o = oam(gb, OAM_BANG)
         cx, cy = cam(gb)
-        assert (o["x"] - 8, o["y"] - 16) == (220 - cx, 216 - cy), "over the tent"
+        assert (o["x"] - 8, o["y"] - 16) == (STOPS[TOWN][0] - 4 - cx, STOPS[TOWN][1] - 36 - cy), "over the tent (the new map's: SMAPW_BANG_X / Y)"
         gb.write("smap_flags", gb.mem("smap_flags") | (1 << k))
         gb.run(3)
         assert not bang_shown(gb), f"game {k} was played"
@@ -694,12 +695,12 @@ def test_a_post_scene_returns_to_the_map_with_sal_on_the_venue_just_played(model
     gb.write("story_step", ts.STORY_STEPS - 1)           # (the chapter's last step: the Opening won)
     ts.win(gb, 2, 0)
     run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == ts.post(2), 400)
-    assert gb.mem("story_progress") == 3
+    assert gb.mem("story_progress") == POS_OF[2] + 1       # (the lodge is chapter 5: its stop is 4)
     ts.skip_scene(gb, stay=True)
-    assert gb.mem("smap_stop") == 2 and gb.mem("story_chapter") == 2
+    assert gb.mem("smap_stop") == POS_OF[2] and gb.mem("story_chapter") == 2
     gb.run(130)
-    go(gb, "right")
-    assert gb.mem("smap_stop") == 3, "the next venue is open"
+    go(gb, "down")      # (the lodge: the way on is south)
+    assert gb.mem("smap_stop") == POS_OF[2] + 1, "the next stop is open"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -738,7 +739,7 @@ def test_a_bad_map_block_reads_as_nothing_and_continue_puts_sal_at_the_next_venu
     if bad != "none":
         ram[SM_AT:SM_AT + 6] = blk
     gb = to_map(model, ram=bytes(ram), progress=4)
-    assert gb.mem("smap_stop") == 4 and gb.mem("smap_flags") & 0x7F == 0, "the venue after the last cleared"
+    assert gb.mem("smap_stop") == 4 and gb.mem("smap_flags") & 0x7F == 0, "the stop after the last cleared"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

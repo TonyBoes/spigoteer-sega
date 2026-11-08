@@ -2,6 +2,7 @@
 // story_scratch is the map's while the map is up (src/scratch.h, tests/test_scratch_map.py).
 #ifndef SMAP_PRIV_H
 #define SMAP_PRIV_H
+#include "order.h"
 
 extern uint8_t smap_stop;
 extern uint8_t smap_flags;
@@ -21,13 +22,13 @@ extern uint8_t smap_flags;
 #define A_TBL        0       // DMG: 220 bytes: 176 low bytes of the tile id in each slot, then 44 bytes of the 2-bit highs (0x3FF: free)
 #define A_CNT        220     // DMG: 176 use counts (cells of the region that show the slot's tile)
 #define A_NIB        0       // Color: 176 bytes: the variant resident in each of the 352 slots, a nibble each (15: none)
-#define A_PCNT       176     // Color: 18 x u16: the cells of the region in each palette
-#define A_PSLOT      212     // Color: 18 bytes: the hardware slot of each palette (255: none)
-#define A_PUSE       230     // Color: 8 bytes: the palette in each hardware slot (255: free)
-#define A_ATTR_UI    240     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
-#define A_IDA        260     // Color: 22 bytes: the attribute bytes of the cells being written
-#define A_PSTG       282     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes)
-#define A_XSTG       300     // Color: 96 bytes: the staging of up to five tiles a frame (general-purpose DMA reads them: from the first 16-byte boundary in it; the DMG's tables lie here)
+#define A_PCNT       176     // Color: 22 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 22 palettes)
+#define A_PSLOT      220     // Color: 22 bytes: the hardware slot of each palette (255: none)
+#define A_PUSE       242     // Color: 8 bytes: the palette in each hardware slot (255: free)
+#define A_ATTR_UI    250     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
+#define A_IDA        270     // Color: 22 bytes: the attribute bytes of the cells being written
+#define A_PSTG       292     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes)
+#define A_XSTG       301     // Color: 5 tiles of staging (80 bytes, on the first 16-byte boundary at or after this: 95 bytes cover it; DMA reads them; the DMG's tables lie here)
 #define NSTG_MAX     (is_cgb ? 5 : 2)
 #define S_V          396     // the variables (V_N <= 68)
 #define S_T          464     // 56 bytes: tile staging (2 tiles) | the line's tile ids (22) | SCY, SCX; the panel's two rolling rows and the name tag's row lie over the first 40
@@ -44,7 +45,7 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_W
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
        V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
 typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PSTG && A_PSTG + 9 <= S_V
-                                && A_ATTR_UI + 20 <= A_IDA && A_PSTG + 9 <= A_XSTG && A_XSTG + 96 <= S_V && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
+                                && A_ATTR_UI + 20 <= A_IDA && A_PSTG + 9 <= A_XSTG && A_XSTG + 95 <= S_V && A_PCNT + 2 * 22 <= A_PSLOT && A_PSLOT + 22 <= A_PUSE && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
 #define J_NONE       0
 #define J_COL        1
@@ -57,7 +58,8 @@ static void s16(uint8_t n, uint16_t v) { V(n) = (uint8_t)v; V(n + 1) = (uint8_t)
 
 extern uint8_t story_chapter, save_lock;
 // How far the map is open: the story's progress, or in a debug-select run (nothing saved: the real progress stays) the chapter being played, so that the quit lands on its stop
-static uint8_t map_progress(void) { return save_lock == SAVE_LOCK_DEBUG && (story_chapter & 0x7F) > story_progress && (story_chapter & 0x7F) < NSTOPS - 1 ? story_chapter & 0x7F : story_progress; }
+// (a stop is a CHAPTER, a place in the story's order, as progress is; story_chapter is the VENUE being played: src/order.h POS(venue) is its chapter, VEN(chapter) the venue; the debug-select run opens the chapter being played)
+static uint8_t map_progress(void) { uint8_t c = story_chapter & 0x7F; return save_lock == SAVE_LOCK_DEBUG && c < NSTOPS - 1 && POS(c) > story_progress ? POS(c) : story_progress; }
 static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= map_progress(); }
 
 // ---- the VBlank copy list: entries the list's own vq_add cannot name (a raw address), with its tally ---------------------------------------------------------
@@ -115,7 +117,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 
 #define CAM_SPD  2                                    // = WALK_SPD: the camera moves with Sal, step for step
 #define CAM_MAXX 352                                  // 512 - 160
-#define CAM_MAXY 240                                  // 384 - 144
+#define CAM_MAXY (SMAPW_CH * 8 - 144)                 // the world's height less the screen's
 #define WALK_SPD 2                                    // px a frame at full pace; the first WALK_EASE frames of a leg and its last WALK_EASE px go at 1
 #define WALK_EASE 8
 // The pace follows the room the region leaves the camera (smap_room, px) against the cells the line being loaded still needs at the rate it has been loading (V_RATE),

@@ -622,6 +622,38 @@ static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     return R_OK;
 }
 
+
+// Color: the cell of a column or row for the Color model, the same as add_cell's Color half (a function of its own, so that the DMG's add_cell above is compiled exactly as it was).
+// The cell word's bits 10-14 are the palette, bit 15 says the cell shows the tile id's alternate (its mirror image, the Color flip-merge): the slot table's bits 11-12 are that flip
+// (attribute bit 5: X, bit 6: Y), bits 9-10 the variant.
+static uint8_t add_cell_c(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
+    uint16_t t = f->w & 0x3FF, slot9 = f->aux & 0x1FF;
+    uint8_t direct = V(V_DIRECT), need_t, need_p, hw, id, att, pal = (uint8_t)((f->w >> 10) & 31), bank, var = (uint8_t)((f->aux >> 9) & 3), cost, ents;
+    need_p = SC(A_PSLOT)[pal] == NIL;
+    need_t = nib_get(slot9) != var;
+    bank = slot9 >= SMAPW_POOL;
+    if (!direct) {
+        cost = CELL_COST(vert); ents = CELL_ENT(vert);
+        if (need_t) { if (V(V_NSTG) >= NSTG_MAX) return R_ROOM; cost += 9 + (bank << 1); ents++; }
+        if (need_p) { if (V(V_PALQ)) return R_ROOM; cost += 36; ents += 9; }
+        if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
+    }
+    hw = SC(A_PSLOT)[pal];
+    if (need_p) { hw = pal_take(pal); if (hw == NIL) return R_RES; }
+    id = pool_id(bank ? (uint8_t)(slot9 - SMAPW_POOL) : (uint8_t)slot9);
+    if (need_t) { nib_set(slot9, var); tile_load(bank, id, t); }
+    pal_count(pal, 1);
+    att = hw | (bank ? 8 : 0);
+    if (f->w & 0x8000) att |= (uint8_t)(f->aux >> 6) & 0x60;
+    SC(S_T + T_IDS)[k] = id;
+    SC(A_IDA)[k] = att;
+    if (direct) {
+        *(volatile uint8_t *)map_addr(cx, cy) = id;
+        VBK_REG = VBK_BANK_1; *(volatile uint8_t *)map_addr(cx, cy) = att; VBK_REG = VBK_BANK_0;
+    }
+    return R_OK;
+}
+
 #if ASM_SMAP
 // DMG: add_cell, with the tile-load cases in asm first (the Color calls add_cell itself: its code and cost are the same as without the asm)
 static uint8_t add_cell_d(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
@@ -640,7 +672,7 @@ static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
     if (!direct) {
         if (room() < (uint8_t)(CELL_COST(vert) + V(V_RES)) || (uint8_t)(vq_count + CELL_ENT(vert) + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
-    if (is_cgb) { att = SC(A_IDA)[k - 1]; SC(A_IDA)[k] = att; pal_count((uint8_t)(f->w >> 10), 1); }
+    if (is_cgb) { att = SC(A_IDA)[k - 1]; SC(A_IDA)[k] = att; pal_count((uint8_t)((f->w >> 10) & 31), 1); }
     else SC(A_CNT)[slot_of_id(id)]++;
     SC(S_T + T_IDS)[k] = id;
     if (direct) {
@@ -653,7 +685,7 @@ static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uin
 // n cells that show f's tile leave the region
 static void drop_cells(const smap_fc *f, uint8_t n) {
     uint8_t s;
-    if (is_cgb) { pal_count((uint8_t)(f->w >> 10), -(int8_t)n); return; }
+    if (is_cgb) { pal_count((uint8_t)((f->w >> 10) & 31), -(int8_t)n); return; }
     s = tbl_find(f->w & 0x3FF, (uint8_t)f->aux);
     if (s == NIL) return;
     SC(A_CNT)[s] -= n;
@@ -902,7 +934,11 @@ static uint8_t job_run(uint8_t cap) {
                 if (!is_cgb) r = add_cell_d(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
                 else
 #endif
-                r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+#if ASM_SMAP
+                r = add_cell_c(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+#else
+                r = is_cgb ? add_cell_c(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert) : add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
+#endif
             }
             if (r) break;
             V(V_RES) += cpc; V(V_RESE) += CELL_ENT(vert);
@@ -986,7 +1022,7 @@ static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_
 uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED {
     uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1);
     int16_t lim;
-    if (up ? hi >= (horiz ? 63 : 47) : !lo) return 255;
+    if (up ? hi >= (horiz ? 63 : SMAPW_CH - 1) : !lo) return 255;
     if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 60) - (int16_t)f;
     else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 84);
     return lim < 0 ? 0 : lim > 255 ? 255 : (uint8_t)lim;
@@ -1025,7 +1061,7 @@ void smap_region_work(void) BANKED {
     if (dx == 1) wc0 = wc0 > LEAD ? wc0 - LEAD : 0;
     if (dx == 2) wc1 = wc1 + LEAD > 63 ? 63 : wc1 + LEAD;
     if (dy == 1) wr0 = wr0 > LEAD ? wr0 - LEAD : 0;
-    if (dy == 2) wr1 = wr1 + LEAD > 47 ? 47 : wr1 + LEAD;
+    if (dy == 2) wr1 = wr1 + LEAD > SMAPW_CH - 1 ? SMAPW_CH - 1 : wr1 + LEAD;
     i = V(V_JI);
     if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) { if (!job_abort()) return; }       // (still taking its cells out: nothing else this frame)
     if (V(V_PANEL) || vq_held) return;

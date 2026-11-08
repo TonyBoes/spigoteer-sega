@@ -3,7 +3,7 @@
 # over (0), are win_rows[0][0] and [0][4] (src/story.c, the goal banner's buffer, unused in a scene).
 import pytest
 
-from conftest import check_golden
+from conftest import POS_OF, check_golden
 from test_flow import GS_STORY, run_until, state
 from test_scores import v7_image
 from test_story import (SCENES, STORY_STEPS, post, page_ready, settle, skip_scene, start_story, tilemap_row, to_goal, win)
@@ -55,7 +55,7 @@ def gag_pages(c):
 
 
 def post_scene(model, c):
-    gb = start_story(model, v7_image([], story=c), cont=True) if c else start_story(model)
+    gb = start_story(model, v7_image([], story=POS_OF[c]), cont=True) if c else start_story(model)
     if not c:
         skip_scene(gb)                                    # INTRO
     skip_scene(gb)                                        # the PRE scene

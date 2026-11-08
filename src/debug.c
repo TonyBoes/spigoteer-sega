@@ -36,6 +36,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "order.h"
 #include "music.h"
 #include "mg.h"
 #include "story.h"
@@ -235,8 +236,8 @@ static void line_row(uint8_t kind, uint8_t *r) {
 #endif
     case DL_CHAPTER:
         put(r, COL_LABEL, "CHAPTER");
-        if (debug_chapter >= 9) { r[COL_VALUE] = glyph('1'); r[COL_VALUE + 1] = glyph('0' + debug_chapter - 9); }   // chapter 10
-        else r[COL_VALUE] = glyph('1' + debug_chapter);
+        if (POS(debug_chapter) >= 9) { r[COL_VALUE] = glyph('1'); r[COL_VALUE + 1] = glyph('0' + POS(debug_chapter) - 9); }   // chapter 10 (the number is the venue's place in the story's order)
+        else r[COL_VALUE] = glyph('1' + POS(debug_chapter));
         break;
     case DL_STEP: {
         const char *n;
@@ -333,7 +334,7 @@ void debug_open(void) BANKED {
         else if (k == K_ARCADE) { debug_story = 2; debug_chapter = 0; debug_pos = pos_next(0, 0, 1); }
         else if (k == K_CONTINUE) {                  // as CONTINUE starts it (story.c story_begin)
             debug_story = 1;
-            debug_chapter = story_progress < STORY_CHAPTERS ? story_progress : STORY_CHAPTERS - 1;
+            debug_chapter = VEN(story_progress < STORY_CHAPTERS ? story_progress : STORY_CHAPTERS - 1);
             debug_pos = story_reached ? pos_next(debug_chapter, 0, 1) : 0;
         }
     } else if (story_on) {                           // in story (ARCADE) play: where the story (the run) is
@@ -515,7 +516,8 @@ uint8_t debug_step(uint8_t pressed) BANKED {
         break;
 #endif
     case DL_CHAPTER:
-        c = d == 1 ? (c == STORY_CHAPTERS - 1 ? 0 : c + 1) : (c == 0 ? STORY_CHAPTERS - 1 : c - 1);
+        c = POS(c);                                                  // (the box steps through the chapters of the story's order; debug_chapter is the venue played, src/order.h)
+        c = VEN(d == 1 ? (c == STORY_CHAPTERS - 1 ? 0 : c + 1) : (c == 0 ? STORY_CHAPTERS - 1 : c - 1));
         if (!pos_ok(c, p)) p = pos_next(c, p, 1);
         debug_chapter = c; debug_pos = p;
         draw_line(old); draw_line(old + 1);
