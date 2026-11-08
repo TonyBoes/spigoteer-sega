@@ -226,3 +226,9 @@ if os.environ.get("SMAP_NO_ANIM_STATIC") != "1" and not os.environ.get("SMAP_NOP
     import anim_static
     ANIM_STATIC_CELLS = anim_static.apply(W, WORLDS, sys.modules[__name__])
     _step("anim_static")
+
+# the remaining Color pads (pads.py: the bistro sign, the factory yard's east edge, mountain B's snow fringe); Color data set only
+if not BEFORE_1C and os.environ.get("SMAP_NO_PADS") != "1" and not os.environ.get("SMAP_NOPASTE"):
+    import pads
+    PADS_CHANGED = pads.apply(W, PAL)
+    _step("pads")

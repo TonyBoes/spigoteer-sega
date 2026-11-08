@@ -22,7 +22,7 @@ extern uint8_t smap_flags;
 #define A_TBL        0       // DMG: 220 bytes: 176 low bytes of the tile id in each slot, then 44 bytes of the 2-bit highs (0x3FF: free)
 #define A_CNT        220     // DMG: 176 use counts (cells of the region that show the slot's tile)
 #define A_NIB        0       // Color: 176 bytes: the variant resident in each of the 352 slots, a nibble each (15: none)
-#define A_PCNT       176     // Color: 23 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 23 palettes: ZOOGATE is the 23rd)
+#define A_PCNT       176     // Color: 23 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 23 palettes: ZOOGATE is the 23rd; the layout has room for 25)
 #define A_PSLOT      222     // Color: 23 bytes: the hardware slot of each palette (255: none)
 #define A_PUSE       245     // Color: 8 bytes: the palette in each hardware slot (255: free)
 #define A_ATTR_UI    253     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
