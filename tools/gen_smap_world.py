@@ -53,7 +53,19 @@ STOP_ORDER = list(W.ORDER) + ["town"]            # stop index = chapter 0..9, 10
 VENUE_IDS = ["saloon", "stadium", "lodge", "bistro", "igloo", "factory", "cow", "tea", "zoo", "space"]       # the venue ids (the content's order: src/order.h)
 _ord = [int(v) for v in __import__("re").search(r"ven_at\[10\] = \{([^}]*)\}", (ROOT / "src" / "order.h").read_text()).group(1).split(",")]
 assert [VENUE_IDS[v] for v in _ord] == W.ORDER, ("src/order.h ven_at is not the map's order", [VENUE_IDS[v] for v in _ord], W.ORDER)
-WIN_C = (22, 20)                 # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
+# The resting view at each stop (owner Q121, 11-07): where the camera stands while Sal does: (x, y, side). x, y: the screen's top-left in the world, None = Sal at the centre as
+# when he walks (clamped to the world). side: where the name tag and the venue panel go there (1 the bottom, 0 the top): away from the venue's art.
+# Stadium: the floodlights and the flag; space: the UFO and the peak. The other stops show their whole venue with the camera on Sal.
+STOP_VIEW = {"stadium": (None, 0, 1), "space": (80, 262, 1)}
+
+
+def view_bytes(name):
+    x, y, side = STOP_VIEW.get(name, (None, None, 1))
+    assert all(v is None or (v % 2 == 0 and 0 <= v < 510) for v in (x, y)), (name, x, y)
+    return (255 if x is None else x // 2, 255 if y is None else y // 2, side)
+
+
+WIN_C = (22, 20)               # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)
 TILE_MAX = 1024                  # a cell word holds a 10-bit tile id, a 5-bit palette and (Color) the alternate-flip bit 15
@@ -433,6 +445,11 @@ def path_windows(stops, legs, pad=1):
         wins.add((max((cx >> 3) - pad, 0), min(((cx + 159) >> 3) + pad, CW - 1), max((cy >> 3) - pad, 0), min(((cy + 143) >> 3) + pad, CH - 1)))
     for sx, sy in stops:
         add(sx, sy)
+    for n, (sx, sy) in zip(STOP_ORDER, stops):           # the resting views (STOP_VIEW): the camera stands there too, and the walk leaves from there
+        vx, vy, _ = STOP_VIEW.get(n, (None, None, 1))
+        if vx is not None or vy is not None:
+            for i in range(33):                          # (and the glide between the view and Sal's follow spot: the camera crosses these windows, in steps of 2 px)
+                add(sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32, sy if vy is None else vy + 84 + (sy - 84 - vy) * i // 32)
     for a, b, pts in legs:
         for k in range(len(pts) - 1):
             (x0, y0), (x1, y1) = pts[k], pts[k + 1]
@@ -915,6 +932,9 @@ def main(build, preview):
          "void smap_d_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED;",
          "void smap_d_tile(uint16_t t, uint8_t *dst) BANKED;",
          "uint8_t smap_d_hintof(uint16_t t) BANKED;", "",
+         "#ifdef SMAPW_VIEWS      // (src/smap_eng.c alone) each stop's resting view: camera x / 2, y / 2 (255: follow Sal), the side of the tag and the panel (1 the bottom)",
+         "static const uint8_t smapw_view[11][3] = { " + ", ".join("{ %d, %d, %d }" % view_bytes(n) for n in STOP_ORDER) + " };",
+         "#endif",
          "#ifdef SMAPW_GEOMETRY   // (src/smap.c alone)",
          f"static const uint16_t smapw_stop[11][2] = {{ " + ", ".join("{ %d, %d }" % s for s in stops) + " };",
          f"static const uint8_t smapw_stopc[11][2] = {{ " + ", ".join("{ %d, %d }" % (s[0] >> 3, s[1] >> 3) for s in stops) + " };   // (the stops' cells: the dots' quick cull)",

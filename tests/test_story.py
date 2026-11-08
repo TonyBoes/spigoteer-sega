@@ -444,6 +444,18 @@ def play_items(rom):
 SP_MAP = 9
 
 
+def cam_settle(gb):
+    """A test teleports Sal's stop with a poke: the camera then glides to that stop's resting view (src/smap_eng.c smap_cam_target); wait until it has stood still for 40 frames (a glide pauses while a row loads)."""
+    sc, still, last = "story_scratch", 0, None
+    for _ in range(400):
+        d = bytes(gb.read(sc, 520)[408:412])               # (V_CAMX, V_CAMY: the map's variables, src/smap_priv.h)
+        still = still + 1 if d == last else 0
+        last = d
+        if still >= 40:
+            return
+        gb.run(1)
+
+
 def through_the_map(gb, limit=200):
     """CONTINUE and every POST scene lead to the story map (src/smap.c, 2026-10-18): wait for it and press A at the stop Sal stands on (the next
     venue: its PRE scene, or its Opening banner when a step of it was reached)."""
@@ -455,7 +467,7 @@ def through_the_map(gb, limit=200):
             run_until(gb, lambda: gb.mem("smap_stop") == 0, 600)
             gb.run(130)                                   # (the tag is gone, the streaming done: as a player A at the saloon)
         gb.write("smap_stop", min(gb.mem("story_progress"), 9))   # (Sal on the next venue, wherever the saved map block left him)
-        gb.run(2)
+        cam_settle(gb)
         gb.press("a", 2)
         gb.run(6)
         if gb.mem("story_phase") == SP_MAP and gb.mem("smap_stop") == 9:   # (the space lounge: the UFO's beam-up plays on the map; A skips it)
@@ -1729,7 +1741,7 @@ def map_to_finale(gb):
     run_until(gb, lambda: gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY, 200)
     gb.run(4)
     gb.write("smap_stop", 10)
-    gb.run(3)
+    cam_settle(gb)
     for b, w in (("a", 25), ("down", 6), ("a", 25)):
         gb.press(b, 2)
         gb.run(w)

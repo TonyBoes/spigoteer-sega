@@ -8,6 +8,7 @@
 #include "asm_cfg.h"
 #include "game.h"
 #include "music.h"
+#define SMAPW_VIEWS
 #include "smap_world.h"
 #include "smap_priv.h"
 
@@ -1008,8 +1009,17 @@ static void drop_run(uint8_t cap) {
     if (pos >= n) V(V_DK) = J_NONE;
 }
 
+// Walking, the camera follows Sal (feet at 80, 84 on the screen); standing at a stop it rests at the stop's own view (smapw_view: the whole venue and Sal on the screen);
+// the same camera step glides it there and back. A walk that is set off from a resting view waits (V_DONE: its direction + 1, smap.c) until the camera has come to Sal's spot:
+// the walk then runs as it always did.
+uint8_t smap_stop_side(uint8_t s) BANKED { return smapw_view[s][2] | (smapw_view[s][0] != 255 || smapw_view[s][1] != 255 ? 2 : 0); }   // bit 0: the side of the name tag and the venue panel at stop s (1 the bottom, 0 the top: away from the art); bit 1: the stop has a resting view
+
 void smap_cam_target(int16_t *tx, int16_t *ty) BANKED {
     int16_t x = (int16_t)g16(V_FX) - 80, y = (int16_t)g16(V_FY) - 84;
+    if (!V(V_WALK) && !V(V_DONE) && smap_stop < NSTOPS) {
+        if (smapw_view[smap_stop][0] != 255) x = (int16_t)smapw_view[smap_stop][0] << 1;
+        if (smapw_view[smap_stop][1] != 255) y = (int16_t)smapw_view[smap_stop][1] << 1;
+    }
     *tx = x < 0 ? 0 : x > CAM_MAXX ? CAM_MAXX : x;
     *ty = y < 0 ? 0 : y > CAM_MAXY ? CAM_MAXY : y;
 }

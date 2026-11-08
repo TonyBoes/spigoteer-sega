@@ -396,7 +396,7 @@ static void tag_show(void) {                       // the name tag of the stop S
     vq_add(0, SC(S_T), 0, 32, 20);
     V(V_NSTG) = 2;
     if (is_cgb) { ui_attr_row(); if (!(V(V_ATTR) & 1)) { vq_add(1, SC(A_ATTR_UI), 0, 32, 20); V(V_ATTR) |= 1; } }
-    V(V_BOTTOM) = (int16_t)g16(V_FY) - (int16_t)g16(V_CAMY) < 40;          // Sal in the top rows: the tag goes along the bottom edge
+    V(V_BOTTOM) = smap_stop_side(smap_stop) & 1;   //the side away from the venue's art (smapw_view)
     V(V_TAG) = TAG_FRAMES + 1;
 }
 
@@ -480,7 +480,6 @@ static void panel_open(uint8_t kind, uint8_t sel) {
     win_hide();
     V(V_PANEL) = kind; V(V_SEL) = sel; V(V_STEP) = 0; V(V_DONE) = 0;
     V(V_ROWS) = panel_row(kind, 255, SC(PANBUF));
-    V(V_TOP) = (int16_t)g16(V_FY) - (int16_t)g16(V_CAMY) > 72;
     if (is_cgb) ui_attr_row();
 }
 
@@ -496,8 +495,8 @@ static void panel_pump(void) {
     if (s >= 2 * rows) {
         if (!V(V_DONE)) {
             V(V_DONE) = 1;
-            if (V(V_TOP)) win_show(0, rows * 8, rows * 8 - 2);
-            else win_show(144 - rows * 8, rows * 8, LYC_NONE);
+            uint8_t wy = (144 - rows * 8) >> 1;      // across the middle of the screen at every stop (owner Q5): cut at its last glyph line, as show_note
+            win_show(wy, rows * 8, wy + rows * 8 - 2);
         }
         return;
     }
@@ -521,7 +520,7 @@ static void start_walk(uint8_t d) {
     V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
     V(V_WALK) = 1; V(V_WPH) = 0; V(V_LAG) = 0; V(V_RATE) = is_cgb ? 16 : 2; V(V_DOTS) = V(V_FULL) = 1;
     stretch_init();
-    if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
+    if (V(V_TAG)) V(V_TAG) = 1;                     // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
     SFX(SFX_DON);
 }
 
@@ -569,6 +568,20 @@ static void walk_dirs(void) {
         else V(V_DIRY) = (V(V_DIRY) & 4) | (f & F_NUP ? 2 : 1);
     }
     V(V_LAG) = (f & ~F_CROSS) | (((f & F_HZ ? V(V_CAMX) : V(V_CAMY)) & 6) == 6 ? F_CROSS : 0);   // (a camera 6 or 7 px into a cell may cross its line: the still sprites are all drawn again: ly_ok)
+}
+
+// A walk set off from a resting view waits for the camera (V_DONE: its direction + 1). With the camera at Sal's spot the first stretch's direction is set (as the walk would) so that
+// its lead line loads; the walk starts when that is done (1): it then runs as at a stop where the camera follows Sal. tx, ty: the camera's target.
+static uint8_t walk_ready(uint8_t d, int16_t tx, int16_t ty) {
+    uint8_t e = smapw_exit_leg[smap_stop][d], f, c0 = (uint8_t)(tx >> 3), c1 = (uint8_t)((tx + 159) >> 3), r0 = (uint8_t)(ty >> 3), r1 = (uint8_t)((ty + 143) >> 3);
+    V(V_LEG) = e & 0x7F; V(V_REV) = e >> 7;
+    V(V_WK) = V(V_REV) ? smapw_leg_n[V(V_LEG)] - 2 : 1;
+    V(V_LAG) = 0;
+    stretch_init(); walk_dirs();
+    f = V(V_LAG);
+    if (V(V_JK) || V(V_DK) != J_NONE) return 0;
+    if (f & F_HZ) return f & F_UP ? V(V_C1) > c1 || V(V_C1) >= 63 : V(V_C0) < c0 || !V(V_C0);
+    return f & F_UP ? V(V_R1) > r1 || V(V_R1) >= SMAPW_CH - 1 : V(V_R0) < r0 || !V(V_R0);
 }
 
 // One step of the walk, after this frame's region work (smap_update): as fast as the stream allows. 2 px, or 1 or 1 in 2 or 1 in 4 frames where the line the camera will want
@@ -706,6 +719,7 @@ static void panel_input(uint8_t pressed) {
 uint8_t smap_update(uint8_t pressed) BANKED {
     uint8_t d;
     uint16_t ocx, ocy;
+    int16_t tx, ty;
     V(V_NSTG) = 0; V(V_PALQ) = 0; V(V_SLOW) = 0; V(V_TICK)++;
     if (V(V_PANEL)) {
         panel_pump();
@@ -724,7 +738,17 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     tag_tick();
     if (!V(V_WALK) && !V(V_BEAM)) {
         d = (pressed & J_UP) ? 0 : (pressed & J_DOWN) ? 1 : (pressed & J_LEFT) ? 2 : (pressed & J_RIGHT) ? 3 : 4;
-        if (d < 4) start_walk(d);
+        if (V(V_DONE)) {                                     // (a walk waits for the camera to come from the resting view to Sal's spot: V_DONE its direction + 1; no panel is up, V_DONE is free)
+            if (d < 4) V(V_DONE) = d + 1;
+            smap_cam_target(&tx, &ty);
+            if (tx == (int16_t)g16(V_CAMX) && ty == (int16_t)g16(V_CAMY) && walk_ready(V(V_DONE) - 1, tx, ty)) {
+                d = V(V_DONE) - 1; V(V_DONE) = 0; start_walk(d);
+            }
+        }
+        else if (d < 4) {
+            if ((smap_stop_side(smap_stop) & 2) && smapw_exit[smap_stop][d] != NIL && open_stop(smapw_exit[smap_stop][d])) { V(V_DONE) = d + 1; if (V(V_TAG)) V(V_TAG) = 1; }    // (the name tag goes as the key is pressed, as it does when the walk sets off)
+            else start_walk(d);
+        }
         else if ((pressed & J_A) && press_a()) return 1;
         else if (pressed & J_START) panel_open(P_MENU, 0);
     }

@@ -106,8 +106,10 @@ def open_stop(t, progress):
 def go(gb, name, limit=1500):
     """Press a direction and wait until Sal stands still again (the walk takes as long as the leg is)."""
     gb.press(name, 4)
+    started = False
     for _ in range(limit):
-        if not gb.read("story_scratch", 520)[SV + V_WALK]:
+        started = started or bool(gb.read("story_scratch", 520)[SV + V_WALK])    # (from a stop with a resting view the walk waits for the camera to come to Sal first)
+        if (started or _ > 60) and not gb.read("story_scratch", 520)[SV + V_WALK]:
             break
         gb.run(1)
     gb.run(2)
@@ -267,7 +269,9 @@ def test_the_name_tag_goes_when_sal_sets_off(model):
     run_until(gb, lambda: gb.mem("overlay_on") == 3, 60)
     gb.press("right", 4)
     gb.run(4)
-    assert gb.read("story_scratch", 520)[SV + V_WALK] and gb.mem("overlay_on") == 0
+    assert gb.mem("overlay_on") == 0                    # (the tag goes with the key; the stadium's walk then waits for the camera to come to Sal: it starts within 60 frames)
+    run_until(gb, lambda: gb.read("story_scratch", 520)[SV + V_WALK], 60)
+    assert gb.mem("overlay_on") == 0
 
 
 # ---- A at a venue -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -848,6 +852,107 @@ def test_golden_scroll_map_festival_panel(model):
     tap(gb, "a", 20)
     gb.run(10)
     check_golden(gb, "story_map_scroll_festival_panel")
+
+
+# ---- the stops' resting views (owner Q121, 11-07): at a stop the camera frames the whole venue and Sal; walking it follows him -----------------------------------------
+import re
+_WORLD = json.loads((ROOT / "build" / "smap_world.json").read_text())
+_VIEWS = [[int(v) for v in m.split(",")] for m in re.findall(r"\{ (\d+, \d+, \d+) \}", re.search(r"smapw_view\[11\]\[3\] = \{(.*?)\};", (ROOT / "build" / "smap_world.h").read_text()).group(1))]
+SIDE_BOTTOM = {s: bool(v[2]) for s, v in enumerate(_VIEWS)}
+REST = {}
+for _s, _v in enumerate(_VIEWS):
+    _fx, _fy = _WORLD["stops"][_s]
+    REST[_s] = (_v[0] * 2 if _v[0] != 255 else min(max(_fx - 80, 0), 352), _v[1] * 2 if _v[1] != 255 else min(max(_fy - 84, 0), _WORLD["ch"] * 8 - 144))
+
+
+def test_the_resting_views_are_the_ones_the_map_was_measured_for():
+    assert REST[1] == (0, 0), "the stadium: the floodlights and the flag (the follow view cut them at y 16)"
+    assert REST[9] == (80, 262), "the space lounge: the UFO over the peak"
+    assert [s for s, v in enumerate(_VIEWS) if v[0] != 255 or v[1] != 255] == [1, 9], "every other stop shows its venue with the camera on Sal"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("s", range(11))
+def test_the_camera_rests_at_the_stops_view_with_sal_on_the_screen(model, s):
+    gb = to_map(model, 10, step=1, stop=s)
+    assert cam(gb) == REST[s], (s, cam(gb))
+    x, y = sal_xy(gb)
+    assert 0 <= x and x + 16 <= 160 and 0 <= y and y + 24 <= 144, (s, x, y)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("s", [1, 9])
+def test_the_camera_glides_to_the_view_on_arrival_and_back_to_sal_when_he_walks_off(model, s):
+    gb = to_map(model, 10, step=1, stop=s)
+    ex = _WORLD["exits"][s]
+    k = next(i for i in range(4) if ex[i] != 255)
+    gb.press(DIRS[k], 4)
+    n = 0
+    while not gb.read("story_scratch", 520)[SV + V_WALK] and n < 90:     # (the walk waits for the camera to come to Sal's spot)
+        gb.run(1)
+        n += 1
+    sc = gb.read("story_scratch", 520)
+    assert sc[SV + V_WALK] and n < 60, n
+    fx, fy = var(sc, 16), var(sc, 18)
+    assert cam(gb) == (min(max(fx - 80, 0), 352), min(max(fy - 84, 0), _WORLD["ch"] * 8 - 144)), "the walk starts with the camera on Sal"
+    run_until(gb, lambda: not gb.read("story_scratch", 520)[SV + V_WALK], 1500)
+    t = gb.mem("smap_stop")
+    assert t == ex[k]
+    gb.run(120)
+    assert cam(gb) == REST[t], (t, cam(gb))
+    back = next(i for i in range(4) if _WORLD["exits"][t][i] == s)
+    gb.press(DIRS[back], 4)
+    run_until(gb, lambda: gb.mem("smap_stop") == s and not gb.read("story_scratch", 520)[SV + V_WALK], 1500)
+    gb.run(120)
+    assert cam(gb) == REST[s], (s, cam(gb))
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("s", range(11))
+def test_the_name_tag_goes_to_the_stops_side(model, s):
+    gb = to_map(model, 10, step=1, stop=s, tag_gone=False)
+    gb.run(14)
+    wy = gb.regs()["WY"]
+    assert (wy == 136) == SIDE_BOTTOM[s] and (wy == 0) != SIDE_BOTTOM[s], (s, wy)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("s", [0, 1, 9])
+def test_the_venue_panel_opens_across_the_middle_at_every_stop(model, s):   # (owner Q5 11-08: the same place every time)
+    gb = to_map(model, 10, step=1, stop=s)
+    tap(gb, "a", 20)
+    gb.run(10)
+    rows = gb.read("story_scratch", 520)[SV + 2]
+    wy = gb.regs()["WY"]
+    assert wy == (144 - rows * 8) // 2, (s, wy, rows)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_stadium_framed(model):
+    gb = to_map(model, 10, step=1, stop=1)
+    check_golden(gb, "story_map_scroll_stop_stadium")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_space_lounge_framed(model):
+    gb = to_map(model, 10, step=1, stop=9)
+    check_golden(gb, "story_map_scroll_stop_space")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_stadium_panel_in_the_middle(model):
+    gb = to_map(model, 10, step=1, stop=1)
+    tap(gb, "a", 20)
+    gb.run(10)
+    check_golden(gb, "story_map_scroll_stop_stadium_panel")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_space_lounge_panel_in_the_middle(model):
+    gb = to_map(model, 10, step=1, stop=9)
+    tap(gb, "a", 20)
+    gb.run(10)
+    check_golden(gb, "story_map_scroll_stop_space_panel")
 
 
 # ---- the UFO's beam-up (src/smap.c beam_tick, src/cameo.c cam_map_beam): the space lounge's stop, before its PRE scene ------------------------------------------------

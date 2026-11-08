@@ -37,7 +37,7 @@ extern uint8_t smap_flags;
 #define T_IDS        32
 #define T_CAM        54
 #define V(n)         (story_scratch[S_V + (n)])
-enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
+enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
        V_CAMX = 12, V_CAMY = 14, V_FX = 16, V_FY = 18,                         // the camera's and Sal's feet's pixel positions in the world (16 bit each)
        V_WALK = 20, V_LEG, V_REV, V_WK, V_DEST, V_TICK,                        // the walk: on, the leg, walked backwards, the waypoint heading for, the stop heading for
        V_C0, V_C1, V_R0, V_R1,                                                 // the region (cells; V_C1 = V_C0 - 1: no columns yet)
@@ -110,7 +110,8 @@ static void qsp(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
     if (vq_count < SMAP_VQ_MAX) vq[vq_count].n = 0;     // (the list's end, for smap_isr's scan)
 }
 
-static uint8_t room(void) { return qv_cost + 5 >= VQ_DRAIN_BUDGET ? 0 : (uint8_t)(VQ_DRAIN_BUDGET - 5 - qv_cost); }      // (5: the camera's scroll entry, queued after the region's work)
+#define GLIDE_LESS 8                                   // (Color, the camera gliding between a stop's resting view and Sal: the drain budget is 8 less, the drain ends before line 153 as a walk's does)
+static uint8_t room(void) { uint8_t b = VQ_DRAIN_BUDGET - 5 - (is_cgb && !V(V_WALK) ? GLIDE_LESS : 0); return qv_cost >= b ? 0 : (uint8_t)(b - qv_cost); }      // (5: the camera's scroll entry, queued after the region's work)
 
 static uint16_t tile_addr(uint8_t id) { return id < 128 ? 0x9000 + ((uint16_t)id << 4) : 0x8800 + ((uint16_t)(id - 128) << 4); }
 static uint16_t map_addr(uint8_t cx, uint8_t cy) { return 0x9800 + ((uint16_t)(cy & 31) << 5) + (cx & 31); }
@@ -126,8 +127,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define WALK_LINE 20                                  // cells in a line (the room is 8 px or more when the line the stretch wants next is loaded)
 #define WALK_S   4
 #define WALK_SC  1
-#define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_TOP are free, panel_open sets them again) the walk's stretch length
-#define V_WT     V_TOP                                // the px walked on the stretch (a panel's byte, free while Sal walks)
+#define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_WT are free, panel_open sets them again) the walk's stretch length
 #define V_WPH    V_ROWS                               // the walk's pose clock: timer << 2 | phase (a panel's byte, free while Sal walks)
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
@@ -140,6 +140,7 @@ uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED;   // px Sal may
 uint8_t smap_camera_step(void) BANKED;                 // the camera moves toward Sal where the region covers its view. 1: it moved
 void smap_region_work(void) BANKED;                    // the region follows the camera: lines drop, lines load
 void smap_cam_target(int16_t *tx, int16_t *ty) BANKED; // where the camera wants to be (Sal at the centre, clamped to the world)
+uint8_t smap_stop_side(uint8_t s) BANKED;              // bit 0: the side of the name tag and the venue panel at a stop (1 the bottom, 0 the top); bit 1: the stop has a resting view
 void smap_fill_view(uint8_t c0, uint8_t c1) BANKED;    // LCD off: the columns c0..c1 of the view, straight into VRAM (the region starts as that)
 void smap_isr(void) BANKED;                            // the map's second VBlank handler (render.c smap_vbl calls it): the special runs of the copy list
 void smap_isr_arm(void) BANKED;                        // (smap_enter: before the handlers go in)
