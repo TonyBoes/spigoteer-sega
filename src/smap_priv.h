@@ -37,7 +37,7 @@ extern uint8_t smap_flags;
 #define T_IDS        32
 #define T_CAM        54
 #define V(n)         (story_scratch[S_V + (n)])
-enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
+enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
        V_CAMX = 12, V_CAMY = 14, V_FX = 16, V_FY = 18,                         // the camera's and Sal's feet's pixel positions in the world (16 bit each)
        V_WALK = 20, V_LEG, V_REV, V_WK, V_DEST, V_TICK,                        // the walk: on, the leg, walked backwards, the waypoint heading for, the stop heading for
        V_C0, V_C1, V_R0, V_R1,                                                 // the region (cells; V_C1 = V_C0 - 1: no columns yet)
@@ -126,8 +126,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define WALK_LINE 20                                  // cells in a line (the room is 8 px or more when the line the stretch wants next is loaded)
 #define WALK_S   4
 #define WALK_SC  1
-#define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_TOP are free, panel_open sets them again) the walk's stretch length
-#define V_WT     V_TOP                                // the px walked on the stretch (a panel's byte, free while Sal walks)
+#define V_LEN    V_STEP                               // (while Sal walks no panel is up: V_STEP, V_SEL, V_ROWS and V_WT are free, panel_open sets them again) the walk's stretch length
 #define V_WPH    V_ROWS                               // the walk's pose clock: timer << 2 | phase (a panel's byte, free while Sal walks)
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch

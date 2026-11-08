@@ -917,14 +917,14 @@ def test_the_name_tag_goes_to_the_stops_side(model, s):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("s", [1, 9])
-def test_the_venue_panel_opens_on_the_side_away_from_the_art(model, s):
+@pytest.mark.parametrize("s", [0, 1, 9])
+def test_the_venue_panel_opens_across_the_middle_at_every_stop(model, s):   # (owner Q5 11-08: the same place every time)
     gb = to_map(model, 10, step=1, stop=s)
     tap(gb, "a", 20)
     gb.run(10)
     rows = gb.read("story_scratch", 520)[SV + 2]
     wy = gb.regs()["WY"]
-    assert SIDE_BOTTOM[s] and wy == 144 - rows * 8, (s, wy, rows)
+    assert wy == (144 - rows * 8) // 2, (s, wy, rows)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -940,7 +940,7 @@ def test_golden_scroll_map_the_space_lounge_framed(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_golden_scroll_map_the_stadium_panel_at_the_bottom(model):
+def test_golden_scroll_map_the_stadium_panel_in_the_middle(model):
     gb = to_map(model, 10, step=1, stop=1)
     tap(gb, "a", 20)
     gb.run(10)
@@ -948,7 +948,7 @@ def test_golden_scroll_map_the_stadium_panel_at_the_bottom(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_golden_scroll_map_the_space_lounge_panel_at_the_bottom(model):
+def test_golden_scroll_map_the_space_lounge_panel_in_the_middle(model):
     gb = to_map(model, 10, step=1, stop=9)
     tap(gb, "a", 20)
     gb.run(10)

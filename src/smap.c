@@ -480,7 +480,6 @@ static void panel_open(uint8_t kind, uint8_t sel) {
     win_hide();
     V(V_PANEL) = kind; V(V_SEL) = sel; V(V_STEP) = 0; V(V_DONE) = 0;
     V(V_ROWS) = panel_row(kind, 255, SC(PANBUF));
-    V(V_TOP) = !(smap_stop_side(smap_stop) & 1);
     if (is_cgb) ui_attr_row();
 }
 
@@ -496,8 +495,8 @@ static void panel_pump(void) {
     if (s >= 2 * rows) {
         if (!V(V_DONE)) {
             V(V_DONE) = 1;
-            if (V(V_TOP)) win_show(0, rows * 8, rows * 8 - 2);
-            else win_show(144 - rows * 8, rows * 8, LYC_NONE);
+            uint8_t wy = (144 - rows * 8) >> 1;      // across the middle of the screen at every stop (owner Q5): cut at its last glyph line, as show_note
+            win_show(wy, rows * 8, wy + rows * 8 - 2);
         }
         return;
     }
