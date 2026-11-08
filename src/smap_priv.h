@@ -110,7 +110,8 @@ static void qsp(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
     if (vq_count < SMAP_VQ_MAX) vq[vq_count].n = 0;     // (the list's end, for smap_isr's scan)
 }
 
-static uint8_t room(void) { return qv_cost + 5 >= VQ_DRAIN_BUDGET ? 0 : (uint8_t)(VQ_DRAIN_BUDGET - 5 - qv_cost); }      // (5: the camera's scroll entry, queued after the region's work)
+#define GLIDE_LESS 8                                   // (Color, the camera gliding between a stop's resting view and Sal: the drain budget is 8 less, the drain ends before line 153 as a walk's does)
+static uint8_t room(void) { uint8_t b = VQ_DRAIN_BUDGET - 5 - (is_cgb && !V(V_WALK) ? GLIDE_LESS : 0); return qv_cost >= b ? 0 : (uint8_t)(b - qv_cost); }      // (5: the camera's scroll entry, queued after the region's work)
 
 static uint16_t tile_addr(uint8_t id) { return id < 128 ? 0x9000 + ((uint16_t)id << 4) : 0x8800 + ((uint16_t)(id - 128) << 4); }
 static uint16_t map_addr(uint8_t cx, uint8_t cy) { return 0x9800 + ((uint16_t)(cy & 31) << 5) + (cx & 31); }
