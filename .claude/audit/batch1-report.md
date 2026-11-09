@@ -68,4 +68,16 @@ verify.sh writes its RESULT line only to /workspace/out/verify/<name>.log and pr
 - Remaining "full make test while working" lines after grep: none in CLAUDE.md, .claude/agents, SUPERVISOR.md, LESSONS.md, memory_snapshot. Left deliberately: SKILL.md:43 (skeleton), rules_code.txt:13 (superseded), SUPERVISOR.md:73 and :76 (they say verify/gb-runner runs the full test, which is the policy).
 - A pkill I tried to clean up my own dry-run was denied; I stopped my background task through TaskStop instead. No process of mine remains.
 
-Verify time: (pending gb-runner)
+Verify time (gb-runner, new default stages, branch 946eac8e incl. latest main, load 2.0): **8 min 20 s**, RESULT: PASS (vs the audit's full run 21 min 24 s).
+
+| Stage | New default | Audit full run |
+|---|---|---|
+| make -B | 80 s | 81 s |
+| make cfall | 75 s | 76 s |
+| pytest, asm build | 256 s (6575 passed, 56 skipped, 0 failed) | 233 s |
+| make check | ~1 s, DMG + CGB OK | (not resolvable) |
+| slow fade | skipped (FULL=1) | 448 s |
+| pytest, C build | skipped (CBUILD=1) | 363 s |
+| double speed / half rate | 80 s (63 passed) | 79 s |
+
+Log: /workspace/out/verify/batch1.log
