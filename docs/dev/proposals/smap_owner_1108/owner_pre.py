@@ -76,6 +76,9 @@ def apply(lay, decor):
     B.picture = picture
     if "B3" in FLAGS or "B2" in FLAGS:
         layout(lay, decor)
+    if "Q10" in FLAGS:                      # the owner's Q10 of 11-08: no round trees or bushes, no overlapping pine clusters, the single pines snapped (q10_pre.py)
+        import q10_pre
+        q10_pre.apply(lay, decor)
 
 
 def apron_cells(cx0):

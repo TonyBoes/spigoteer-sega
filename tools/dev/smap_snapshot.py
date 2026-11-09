@@ -25,18 +25,18 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-OUT = ROOT / "assets" / "smap"
+OUT = Path(os.environ["SMAP_SNAP_OUT"]) if os.environ.get("SMAP_SNAP_OUT") else ROOT / "assets" / "smap"      # (SMAP_SNAP_OUT: write somewhere else, for before / after pictures)
 PROP = ROOT / "docs" / "dev" / "proposals"
 TEA_ART = "v_tea_pass"          # <- the teahouse swap point: the module (docs/dev/proposals/smap_tea_pass/<name>.py, same build(dmg) as tools/smap_world/v_tea.py)
 TEA_LEVEL = "C1S"               # rib roof, textured walls, the wide curtain (no slit), both lanterns at y36, no garden (final, d73ad77f)
 FALLS = "A"                     # <- the falls / mountain interface swap point: A (owner pick 11-07, "for now"), B, or "cave" (the stage 1 cave); a later redesign drops in at big_mountain.py
 FALLS_ANIM_CELLS = [(47, 3), (46, 4), (47, 4)]      # falls A's animated cells (4 images each): pinned from the flip-merge; stage 3's engine table
-# DMG only, one pixel each: (cell x, cell y, pixel x, pixel y, old shade, new shade).  They make six DMG tiles of the top right (falls A, the igloo and the east road) equal to a neighbour's, so that
-# no padded path window (23 x 21 cells) needs more than the DMG's 176 tiles (it was 179 at cells 41..63 x 1..20; the camera would have stalled).  Each is a speck at a cell edge.
-DMG_TRIM = [(52, 1, 7, 3, 1, 2), (50, 2, 7, 7, 0, 1), (50, 4, 0, 7, 3, 0), (53, 6, 5, 7, 3, 0), (51, 8, 7, 7, 3, 0), (58, 8, 0, 7, 3, 0)]
+# DMG only, one pixel each: (cell x, cell y, pixel x, pixel y, old shade, new shade).  There were six of them (the top right's falls A, igloo and east road: a padded path window needed 179 DMG tiles,
+# the limit is 176).  The Q10 tree removal and near-twin merge (owner 11-08) bring the worst padded path window to 173 without them, so none is needed; the old six are in commit e574897b.
+DMG_TRIM = []
 # The owner's map changes of 11-08 (Q6 "a2", Q7 "yes", docs/dev/proposals/smap_owner_1108): A2 desert peaks (prop_a.py), B1 awning, B2 paving, B3 the town 8 cells west, B4 the band's rounded ends (owner_pre.py).
 # ctx.py applies them to the proposal pipeline; they are part of the integrated map now, so dump() always sets this.
-OWNER_FLAGS = "A2,B1,B2,B3,B4"
+OWNER_FLAGS = "A2,B1,B2,B3,B4,Q10"
 MAP_ENV = {"SMAP_TEA_PASS": "1", "SMAP_TEA_TEX": TEA_LEVEL}
 if FALLS != "cave":
     MAP_ENV["SMAP_FALLS"] = FALLS
@@ -76,8 +76,91 @@ def dump(path, broken):
         "px_c": pc, "px_d": pd, "pal_c": palc, "rgb": rgb, "dmg_shade": list(M.PAL.DMG_SHADE),
         "anim_cells": sorted(set(getattr(W, "ANIM_CELLS", ())) | (set(FALLS_ANIM_CELLS) if FALLS != "cave" else set())),
     }
+    import numpy as np
+    import q10_twins                                          # the near-twin merge's areas (owner Q10, 11-08): read from the layout here, applied in build()
+    ok, prot = q10_twins.area_masks(M.lay, palc, cw, ch)
+    data["q10_ok"], data["q10_prot"] = ok.tolist(), prot.tolist()
     with open(path, "wb") as f:
         pickle.dump(data, f)
+
+
+TWIN_PX = int(os.environ.get("SMAP_TWIN_PX", "2"))                    # owner Q10 (11-08): near twins 1 to 2 px apart fold into the most-used tile, in the approved areas only (docs/dev/proposals/smap_owner_1108/q10_twins.py)
+
+
+def q10_twins_apply(a, b):
+    """merge the working state's tiles, then give the broken state the same edits wherever its cell still holds the pixels the working one had (so only the fountain's cells differ)"""
+    import numpy as np
+    sys.path.insert(0, str(PROP / "smap_owner_1108"))
+    import q10_twins
+    ok, prot = np.array(a["q10_ok"]), np.array(a["q10_prot"])
+    cw, ch = a["cw"], a["ch"]
+    for key, flips in (("px_c", True), ("px_d", False)):
+        old = np.array(a[key], dtype=np.uint8)
+        new, st, _ = q10_twins.merge(old, ok, prot, flips, TWIN_PX)
+        print(f"near twins {key}: {st}")
+        bb = np.array(b[key], dtype=np.uint8)
+        for cy in range(ch):
+            for cx in range(cw):
+                sl = (slice(cy * 8, cy * 8 + 8), slice(cx * 8, cx * 8 + 8))
+                if (old[sl] != new[sl]).any() and (bb[sl] == old[sl]).all():
+                    bb[sl] = new[sl]
+        a[key], b[key] = new.tolist(), bb.tolist()
+
+
+MAX_FLAT = 239                  # the engine's byte use count per DMG tile in a 22 x 20 window (tools/gen_smap_world.py MAX_CELLS_IN_WIN)
+
+
+def q10_ground(a, b):
+    """With the trees and bushes gone, the plain ground of a few windows (cells 21..45 x 30..54, the lawn between the desert and the river) holds the flat ground tile in more than MAX_FLAT of the
+    440 cells of a 22 x 20 window.  The ground's own tuft (tiles.SPROUT, the same tile as everywhere on the grass) goes on the fewest extra flat grass or sand cells that bring every window back to the
+    limit: the cell covered by most windows over the limit first, never beside another tuft.  Both data sets and both fountain states get the same cells."""
+    import numpy as np
+    sys.path.insert(0, str(ROOT / "tools" / "smap_world"))
+    import tiles
+    cw, ch = a["cw"], a["ch"]
+    TUFT = {n: np.array([[int(c) for c in r] for r in rows], dtype=np.uint8) for n, rows in (("grass", tiles.SPROUT), ("saloon", tiles.RIPPLE))}   # the grass's sprout, the sand's ripple
+    pd = np.array(a["px_d"], dtype=np.uint8)
+    pc = np.array(a["px_c"], dtype=np.uint8)
+
+    def blocks(p):
+        return p.reshape(ch, 8, cw, 8).transpose(0, 2, 1, 3).reshape(ch, cw, 64)
+    bd, bc = blocks(pd), blocks(pc)
+    flat = ~(bd.any(axis=2))
+    cand = flat & ~(bc.any(axis=2)) & np.array([[n in TUFT for n in r] for r in a["pal_c"]])
+    tuft = np.zeros((ch, cw), dtype=bool)
+    for t in TUFT.values():
+        tuft |= (bd == t.reshape(64)).all(axis=2)
+    wins = [(x0, y0) for y0 in range(ch - 19) for x0 in range(cw - 21)]
+    added = []
+    while True:
+        over = [(x0, y0) for (x0, y0) in wins if flat[y0:y0 + 20, x0:x0 + 22].sum() > MAX_FLAT]
+        if not over:
+            break
+        score = np.zeros((ch, cw), dtype=int)
+        for (x0, y0) in over:
+            score[y0:y0 + 20, x0:x0 + 22] += 1
+        score = np.where(cand, score, -1)
+        for (x, y) in zip(*np.nonzero(cand)[::-1]):                     # keep the tufts apart (no tuft on a cell beside another)
+            if any(0 <= x + dx < cw and 0 <= y + dy < ch and tuft[y + dy, x + dx] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1))):
+                score[y, x] = -1
+        best = score.max()
+        assert best > 0, "no flat ground cell left to take a tuft"
+        ys, xs = np.nonzero(score == best)
+        k = (xs * 7 + ys * 13) % len(xs)                                # deterministic pick among equals
+        x, y = int(xs[int(np.argmin(k))]), int(ys[int(np.argmin(k))])
+        added.append((x, y))
+        flat[y, x] = False
+        tuft[y, x] = True
+        cand[y, x] = False
+    for key in ("px_c", "px_d"):
+        for d in (a, b):
+            for (x, y) in added:
+                t = TUFT[a["pal_c"][y][x]]
+                for j in range(8):
+                    for i in range(8):
+                        assert d[key][y * 8 + j][x * 8 + i] == 0
+                        d[key][y * 8 + j][x * 8 + i] = int(t[j][i])
+    print(f"ground tufts added: {len(added)} {added}")
 
 
 def build():
@@ -91,7 +174,9 @@ def build():
     names = sorted(a["rgb"])
     assert set(b["rgb"]) <= set(names), (set(b["rgb"]) - set(names))
     idx = {n: i for i, n in enumerate(names)}
-    for (cx, cy, px, py, old, new) in DMG_TRIM:                # the DMG tile trims (DMG data set only; the Color pixels are untouched)
+    q10_twins_apply(a, b)
+    q10_ground(a, b)
+    for (cx, cy, px, py, old, new) in DMG_TRIM:              # the DMG tile trims (DMG data set only; the Color pixels are untouched)
         for d in (a, b):
             assert d["px_d"][cy * 8 + py][cx * 8 + px] == old, (cx, cy, px, py, old)
             d["px_d"][cy * 8 + py][cx * 8 + px] = new
