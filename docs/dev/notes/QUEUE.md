@@ -905,3 +905,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-09 OWNER: "What is the little black dot in those pictures?"
   -> answer: a stray leftover pixel: cells (37,46) and (50,46) are plain grass except ONE dark pixel in their top corner (index 3), left from the old square road corner when the bends were rounded; on DMG too. Plan: remove it (both DMG and Color) with the dots merge.
 - 11-09 OWNER: "Still running the testing review?"
+  -> cause of the 3 px shift: lone cell (0,29) moved to town1@w, so town1@g now loads when the town front enters (drain 6->11) on leg 0 right; timing only. All 32 Color legs main vs branch: 27 identical; branch adds ONE new mid-walk 0 px frame (stop 10 left, frame 63). MAIN ALREADY HAS 0 px frames on 0 right (f61) and 7 left (f71). Sent back: remove the new one data-side, erase the stray bend pixels (DMG+Color), give causes of the two main ones.
