@@ -129,3 +129,17 @@ Not done on purpose: no timed verify (gb-runner), and no "about N min" or stage-
 **C2b: cfall moved out from beside pytest (found in the timed run c1c2: 6533 passed / 95 skipped against 6574 / 56).** B1's A4 "no shared files" was wrong: pytest reads build/game-c.gb (test_mugs_asm 12, test_catch_asm 10, test_asm_equiv 9, test_asm_twins 6, test_story_map_world 4 skip without it; in incremental mode they read the old or a half-written one) while `make cfall` ran beside it. Now `make cfall` starts in the build phase beside `make` and `make release` (after `make prep`; -B mode also removes build/game-c.gb), and the pytest stage starts only when all three are done. Guard: before pytest, verify.sh requires cfall's output to say CFALL_OK and build/game-c.gb to exist and be non-empty (make cfall exits 0 only when the C ROM is current, and in -B mode the old one was removed); otherwise the log gets the failed stage's section, `RESULT: FAIL (failed stages: cfall)` and END, and ptest never starts. A comment in verify.sh that said the three stages do not clash was rewritten.
 Proofs: (1) real: after `make prep`, `make`, `make release` and `make cfall` ran at once, all rc 0, done at 76, 76 and 78 s; game.gb 6303312820bc..., release.gb 929abe0177a1..., game-c.gb ff5b7a0c4d19... all byte-identical to the serial builds (cfall writes only build/game-c.*, build/obj/game-c/, game-c.flags, game-c_link.log). With the fresh C ROM, test_asm_twins + test_mugs_asm + test_catch_asm: 28 passed, none skipped. (2) stub: all pass, with cfall 5 s slow, shows ptest starting only after cfall finished; STUB_FAIL=cfall gives `RESULT cfall: FAIL`, `RESULT: FAIL (failed stages: cfall)`, END, and the call log has no ptest line.
 What else pytest reads that a parallel stage writes (checked): the only stage left beside pytest is the double speed / half rate one, which writes out/dsmr/ (own ROM build) and out/dsoff/ (patched ROM copies written by rename, same bytes for the same key; ptest's own tests use the same files); pytest reads build/game.gb, build/release.gb, build/game-c.gb, build/*.json, all finished before it starts. make check writes out/check before and alone. Not checked by running: the full ptest, so the skip count is expected back to about 56 but not measured (gb-runner's run shows it).
+
+## C2b timed (gb-runner, commit 092e624b, load 3.3 -> 5.9, build mode make -B because the Makefile changed)
+
+| Stage | Wall | Result |
+|---|---|---|
+| build (make -B) | 82 s | PASS |
+| release (beside) | 75 s | PASS |
+| cfall (beside) | 78 s | PASS |
+| make check | 1 s | PASS |
+| pytest (after all three builds) | 110 s | PASS, 6574 passed, 56 skipped |
+| double speed / half rate (beside pytest) | 14 s | PASS, 63 passed |
+| **total** | **3 min 15 s** | **RESULT: PASS** |
+
+Skips are back to the batch-1 set (56): no skips in test_mugs_asm, test_catch_asm, test_asm_twins, test_story_map_world; test_asm_equiv only the 2 RUN_SLOW exhaustive sweeps. The earlier c1c2 run (3 min, 6533 passed / 95 skipped) had read no game-c.gb: the race B1 introduced, fixed by C2b. Instruction lines now say "about 3 min" and list the new stage order (CLAUDE.md:67, SUPERVISOR.md:67-68, LESSONS.md:32-33, gb-runner.md:19, verify.sh:7, memory snapshot).
