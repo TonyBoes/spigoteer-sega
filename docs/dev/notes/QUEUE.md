@@ -838,3 +838,5 @@ The grass dithering patchiness looks better now."
 
   q9) Camera can rise to show it through the whole map route along the top of the map."
   Q3 closed for now (owner re-reviews framing after the Map Atlas work). Q9: along the whole top route the camera rises so the top 2 rows (peak tips, pines) show; not a fill. Next brief after the town/desert import merges (same goldens area): camera rule for the top-road legs (bias up / clamp to y 0 there, smooth in and out, DMG + Color), measure DMG padded windows (<=176), palettes (<=8), walk cost and drain guards, no guard raised; the 6 DMG trims may become unnecessary or need redoing.
+- 11-08 owner: "Go ahead and figure out what we can gain by reusing shapes and swapping palettes."
+  Plan: analysis agent (no map changes): shape reuse across palettes (index relabel, flips, near-twins, repeated objects per biome), palette merges, DMG and Color savings, effect on the tight windows; ranked list + contact sheet; then options for the owner.
