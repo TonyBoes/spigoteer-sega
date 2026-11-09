@@ -81,6 +81,9 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
    - update the Open Questions page;
    - sync `docs/dev/`;
    - add any lesson to `LESSONS.md`.
+   **Merge before review (owner, test batch 3, 2026-11-09):** only a fix for a problem already on main may merge before
+   the owner's review, and only if the report's first line says so, with the reason. Everything else waits for his
+   review. Before any merge of owner-reviewed work, ask: is this fixing something already broken on main?
 8. **Tell the owner** what changed, in plain words, that he can `git push`, and whether it is a good point to
    `/clear` or `/compact` (see above).
 

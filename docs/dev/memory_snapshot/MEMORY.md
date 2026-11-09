@@ -56,3 +56,4 @@
 - [Verify stages](verify-quick-for-map-art.md) — verify.sh default ~3 min (plain make, parallel stages); FULL=1 adds make -B, release-only tests, slow fade (engine/fade/timing/music, releases); CBUILD=1 adds C-build pytest; QUICK=1 no-op
 - [Supervisor never runs full suites](supervisor-no-full-runs.md) — every full make test / verify.sh goes to gb-runner, incl. the rerun on main (owner 11-09)
 - [One full test run](one-full-test-run.md) — owner Q12 11-08: agents run targeted tests, verify is the one full run, main reruns only if other merges landed
+- [Merge before review](merge-before-review.md) — owner 11-09: only a fix for a problem already on main may merge before review; report line 1 says so with the reason
