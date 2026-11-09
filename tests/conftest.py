@@ -829,13 +829,19 @@ def c_rom_fresh():
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: builds the ROM variants from scratch (tests/test_build.py)")
+    config.addinivalue_line("markers", "release_only: runs only with FULL=1 (a release or full verify); otherwise deselected at collection, "
+                            "so it never shows as a skip (test batch 2, B2)")
     config.addinivalue_line("markers", "only_model(name): the test applies to one hardware model ('dmg' or 'cgb'); the other "
                             "model's case is deselected at collection (so it never shows as a skip)")
 
 
 def pytest_collection_modifyitems(config, items):
     keep, drop = [], []
+    full = bool(os.environ.get("FULL"))
     for it in items:
+        if not full and it.get_closest_marker("release_only"):
+            drop.append(it)
+            continue
         mk = it.get_closest_marker("only_model")
         cs = getattr(it, "callspec", None)
         models = [v for v in cs.params.values() if v in ("dmg", "cgb")] if cs else []
