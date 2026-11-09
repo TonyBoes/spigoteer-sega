@@ -70,6 +70,9 @@ if DESERT:                                                  # desert spills acro
     import desert_extras
     desert_extras.apply_grid(lay)
 
+if os.environ.get("SMAP_PRE_WORLD"):                        # owner proposals 11-08 (docs/dev/proposals/smap_owner_1108): a module whose apply(lay, decor) edits the layout before the world is built; off by default
+    importlib.import_module(os.environ["SMAP_PRE_WORLD"]).apply(lay, decor)
+
 import pal as PAL  # noqa: E402
 import world2 as W  # noqa: E402
 

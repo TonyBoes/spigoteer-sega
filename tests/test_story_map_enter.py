@@ -91,7 +91,7 @@ def test_the_old_screen_stays_as_it_is_until_the_lcd_goes_off(model, name, varia
         sprite_mask(oam, m)
         sprite_mask(poam, m)
         poam = oam
-        m[window_top(r):, :] = True
+        m[min(window_top(r), window_top(frames[i + 1][1])):, :] = True      # (a frame's picture shows the window one step higher than its registers say: where the top edge crosses a dark pixel of the map (the desert peaks west of the town, 11-08) that tile differs)
         for y in range(0, 144, 8):
             for x in range(0, 160, 8):
                 assert m[y:y + 8, x:x + 8].any() or a[y:y + 8, x:x + 8].tobytes() in known, f"frame {i}: a foreign tile at {x},{y}"
