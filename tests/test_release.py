@@ -52,6 +52,7 @@ def dist_is_current(v):
             and rom.read_bytes() == rel.read_bytes())
 
 
+@pytest.mark.release_only
 def test_make_dist():
     v = ".".join(VERSION)
     if not dist_is_current(v):
