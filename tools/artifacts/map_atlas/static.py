@@ -24,7 +24,7 @@ LAND = {"grass": "Grass", "saloon": "Desert", "cactus": "Cactus", "water": "Wate
 
 def cam(fx, fy):
     """smap_cam_target: Sal's feet at the screen's centre (80, 84), clamped to the world (as tools/gen_smap_world.py path_windows)"""
-    return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - 84, 0), CH * 8 - 144)
+    return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - G.SAL_Y, 0), CH * 8 - 144)
 
 
 class Static:
@@ -151,7 +151,7 @@ class Static:
             if vx is not None or vy is not None:
                 for i in range(33):
                     fx = sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32
-                    fy = sy if vy is None else vy + 84 + (sy - 84 - vy) * i // 32
+                    fy = sy if vy is None else vy + G.SAL_Y + (sy - G.SAL_Y - vy) * i // 32
                     wins.add(self.view(*cam(fx, fy))["win"])
         self.path_wins = wins
         self.match_build = wins == set(G.path_windows(self.stops, self.legs))

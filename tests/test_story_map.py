@@ -862,13 +862,13 @@ SIDE_BOTTOM = {s: bool(v[2]) for s, v in enumerate(_VIEWS)}
 REST = {}
 for _s, _v in enumerate(_VIEWS):
     _fx, _fy = _WORLD["stops"][_s]
-    REST[_s] = (_v[0] * 2 if _v[0] != 255 else min(max(_fx - 80, 0), 352), _v[1] * 2 if _v[1] != 255 else min(max(_fy - 84, 0), _WORLD["ch"] * 8 - 144))
+    REST[_s] = (_v[0] * 2 if _v[0] != 255 else min(max(_fx - 80, 0), 352), _v[1] * 2 if _v[1] != 255 else min(max(_fy - 110, 0), _WORLD["ch"] * 8 - 144))
 
 
 def test_the_resting_views_are_the_ones_the_map_was_measured_for():
-    assert REST[1] == (0, 0), "the stadium: the floodlights and the flag (the follow view cut them at y 16)"
+    assert REST[1] == (0, 0), "the stadium: the floodlights and the flag (Sal low on the screen: the follow view is the top of the world, owner Q9)"
     assert REST[9] == (80, 262), "the space lounge: the UFO over the peak"
-    assert [s for s, v in enumerate(_VIEWS) if v[0] != 255 or v[1] != 255] == [1, 9], "every other stop shows its venue with the camera on Sal"
+    assert [s for s, v in enumerate(_VIEWS) if v[0] != 255 or v[1] != 255] == [9], "every other stop shows its venue with the camera on Sal"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -894,7 +894,7 @@ def test_the_camera_glides_to_the_view_on_arrival_and_back_to_sal_when_he_walks_
     sc = gb.read("story_scratch", 520)
     assert sc[SV + V_WALK] and n < 60, n
     fx, fy = var(sc, 16), var(sc, 18)
-    assert cam(gb) == (min(max(fx - 80, 0), 352), min(max(fy - 84, 0), _WORLD["ch"] * 8 - 144)), "the walk starts with the camera on Sal"
+    assert cam(gb) == (min(max(fx - 80, 0), 352), min(max(fy - 110, 0), _WORLD["ch"] * 8 - 144)), "the walk starts with the camera on Sal"
     run_until(gb, lambda: not gb.read("story_scratch", 520)[SV + V_WALK], 1500)
     t = gb.mem("smap_stop")
     assert t == ex[k]
@@ -1011,3 +1011,14 @@ def test_no_other_venue_has_a_beam(model):
     tap(gb, "a", 2)
     assert not beam_t(gb)
     run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 120)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_scroll_map_the_top_route_with_the_peaks(model):
+    # owner Q9 (11-08): Sal low on the screen, so on the top road the camera is at the world's top and the peaks of the top rows show
+    gb = to_map(model, 10, step=1, stop=1)
+    gb.press("right", 4)
+    run_until(gb, lambda: var(gb.read("story_scratch", 520), 16) >= 140, 400)
+    assert gb.read("story_scratch", 520)[SV + V_WALK]
+    assert var(gb.read("story_scratch", 520), 18) == 100 and var(gb.read("story_scratch", 520), 14) == 0, "the camera at the world's top on the top road"
+    check_golden(gb, "story_map_top_route_peaks")

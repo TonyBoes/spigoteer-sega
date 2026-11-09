@@ -56,7 +56,8 @@ assert [VENUE_IDS[v] for v in _ord] == W.ORDER, ("src/order.h ven_at is not the 
 # The resting view at each stop (owner Q121, 11-07): where the camera stands while Sal does: (x, y, side). x, y: the screen's top-left in the world, None = Sal at the centre as
 # when he walks (clamped to the world). side: where the name tag and the venue panel go there (1 the bottom, 0 the top): away from the venue's art.
 # Stadium: the floodlights and the flag; space: the UFO and the peak. The other stops show their whole venue with the camera on Sal.
-STOP_VIEW = {"stadium": (None, 0, 1), "space": (80, 262, 1)}
+SAL_Y = 110                      # Sal's feet on the screen (owner Q9 11-08: low, so the top rows show on the top road); x stays at 80
+STOP_VIEW = {"space": (80, None, 1)}
 
 
 def view_bytes(name):
@@ -437,7 +438,7 @@ def path_windows(stops, legs, pad=1):
     """The cell windows the region can hold while Sal walks: for every pixel of every leg (and every stop) the camera's view (Sal's feet at the screen's
     centre, clamped to the world) in cells, padded by pad cells on every side (the line ahead, the one the drop has not yet taken)."""
     def cam(fx, fy):
-        return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - 84, 0), CH * 8 - 144)
+        return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - SAL_Y, 0), CH * 8 - 144)
     wins = set()
 
     def add(fx, fy):
@@ -449,7 +450,7 @@ def path_windows(stops, legs, pad=1):
         vx, vy, _ = STOP_VIEW.get(n, (None, None, 1))
         if vx is not None or vy is not None:
             for i in range(33):                          # (and the glide between the view and Sal's follow spot: the camera crosses these windows, in steps of 2 px)
-                add(sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32, sy if vy is None else vy + 84 + (sy - 84 - vy) * i // 32)
+                add(sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32, sy if vy is None else vy + SAL_Y + (sy - SAL_Y - vy) * i // 32)
     for a, b, pts in legs:
         for k in range(len(pts) - 1):
             (x0, y0), (x1, y1) = pts[k], pts[k + 1]
@@ -457,6 +458,18 @@ def path_windows(stops, legs, pad=1):
             for i in range(n + 1):
                 add(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n)
     return sorted(wins)
+
+
+def path_max(m, wins, grids):
+    """the most distinct values (tile ids, or palettes) any window of wins holds in any unlock state: (n, (state, window))"""
+    best, at = 0, None
+    for p in m.ustates:
+        gr = grids[p]
+        for w in wins:
+            n = len(np.unique(gr[w[2]:w[3] + 1, w[0]:w[1] + 1]))
+            if n > best:
+                best, at = n, (p, w)
+    return best, at
 
 
 def path_hints(dm, wins, k):
@@ -911,7 +924,14 @@ def main(build, preview):
         cg.pal_words += [rgb555(c) for c in cols]
     # the DMG hints: a min-conflict colouring of the DMG tiles in 176 slots (the allocator takes a tile's hint slot when it is free)
     stops, legs, exits, exit_leg = geometry()
-    col_d, bad_d = path_hints(dm, path_windows(stops, legs), POOL)
+    pw = path_windows(stops, legs)
+    wd, wp = path_max(dm, pw, dm.grids), path_max(cg, path_windows(stops, legs, 0), cg.pals)       # the windows the camera can hold on the walk and at the stops
+    print(f"smap world path windows: DMG worst padded {wd[0]} of {POOL} at {wd[1]}, Color worst view palettes {wp[0]} of 8 at {wp[1]}")
+    if wd[0] > POOL:
+        fail.append(f"DMG: a padded path window holds {wd[0]} tiles at {wd[1]}, the pool is {POOL}")
+    if wp[0] > 8:
+        fail.append(f"Color: a path view needs {wp[0]} palettes at {wp[1]}")
+    col_d, bad_d = path_hints(dm, pw, POOL)
     dm.hint = [int(c) for c in col_d]
     if fail:
         print("gen_smap_world: BUDGET FAILURES\n  " + "\n  ".join(fail), file=sys.stderr)
