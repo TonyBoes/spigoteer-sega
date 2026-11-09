@@ -46,7 +46,7 @@ PYTEST="python3 -m pytest -q -p no:cacheprovider"
 PTEST="python3 tools/dev/ptest.py -j ${JOBS:-8}"
 now() { date +%H:%M:%S; }
 
-echo "worktree $WT${FULL:+ (FULL)}${CBUILD:+ (CBUILD)}" >> "$L"
+echo "worktree $WT${FULL:+ (FULL)}${CBUILD:+ (CBUILD)}${OBJ:+ (OBJ=$OBJ)}" >> "$L"
 echo "commit $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)" >> "$L"
 
 # Per-stage output goes to $P/<stage>.out; start/end times to $P/<stage>.t; "section" copies it into the log.
@@ -120,6 +120,7 @@ a=$(now)
 PREP_CMD="make prep"; [ "$BUILD_CMD" = "make -B" ] && PREP_CMD="make -B prep"
 $PREP_CMD > /dev/null 2>&1 || build_fail
 [ "$BUILD_CMD" = "make -B" ] && rm -f build/game.gb build/release.gb build/game-c.gb
+[ "$BUILD_CMD" = "make -B" ] && [ "${OBJ:-}" = 1 ] && rm -rf build/obj/*/o   # OBJ=1: make -B also recompiles every object (the per-object build keeps them between runs)
 release_stage() { make release 2>&1 | tail -15; [ "${PIPESTATUS[0]}" -eq 0 ] && echo RELEASE_OK || echo RELEASE_FAIL; }
 timed release release_stage &
 REL_PID=$!
