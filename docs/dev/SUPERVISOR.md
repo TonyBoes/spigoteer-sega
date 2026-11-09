@@ -72,8 +72,10 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
    to run only the tests for the area they touch while working (`pytest -k`, the relevant files), plus `make` and
    `make check`, and to leave the full `make test` to verify.
 7. **Fast-forward main.** No full test run on main after a fast-forward of the verified tip. If another branch was
-   merged in between (the merge is not a fast-forward of what verify tested), run `make cfall`, `make`, `make test`,
-   `make check` once on main. Then, through `gb-runner` where possible:
+   merged in between (the merge is not a fast-forward of what verify tested), brief `gb-runner` to run `make cfall`,
+   `make`, `make test`, `make check` once on main. **The supervisor never runs a full `make test` or `verify.sh`
+   itself (owner, test batch 1, 2026-11-09): every full run goes to `gb-runner`, including this rerun.** Targeted
+   tests (one file, `-k`) are fine. Then, through `gb-runner` where possible:
    - refresh Pocket Player's ROMs and republish;
    - `make atlas`, rebuild the Graphics Atlas (palette_plan/build.py) and republish after art changes;
    - update the Open Questions page;
