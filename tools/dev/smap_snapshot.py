@@ -33,8 +33,7 @@ FALLS = "A"                     # <- the falls / mountain interface swap point: 
 FALLS_ANIM_CELLS = [(47, 3), (46, 4), (47, 4)]      # falls A's animated cells (4 images each): pinned from the flip-merge; stage 3's engine table
 # DMG only, one pixel each: (cell x, cell y, pixel x, pixel y, old shade, new shade).  They make six DMG tiles of the top right (falls A, the igloo and the east road) equal to a neighbour's, so that
 # no padded path window (23 x 21 cells) needs more than the DMG's 176 tiles (it was 179 at cells 41..63 x 1..20; the camera would have stalled).  Each is a speck at a cell edge.
-DMG_TRIM = [(52, 1, 7, 3, 1, 2), (50, 2, 7, 7, 0, 1), (50, 4, 0, 7, 3, 0), (53, 6, 5, 7, 3, 0), (51, 8, 7, 7, 3, 0), (58, 8, 0, 7, 3, 0),
-            (4, 32, 7, 3, 2, 1)]                                 # the desert ridge (A2, 11-08): the left single peak's foot cell lost its one speck to equal the right peak's foot cell (the 21 x 19 window at 4, 23 was 177)
+DMG_TRIM = [(52, 1, 7, 3, 1, 2), (50, 2, 7, 7, 0, 1), (50, 4, 0, 7, 3, 0), (53, 6, 5, 7, 3, 0), (51, 8, 7, 7, 3, 0), (58, 8, 0, 7, 3, 0)]
 # The owner's map changes of 11-08 (Q6 "a2", Q7 "yes", docs/dev/proposals/smap_owner_1108): A2 desert peaks (prop_a.py), B1 awning, B2 paving, B3 the town 8 cells west, B4 the band's rounded ends (owner_pre.py).
 # ctx.py applies them to the proposal pipeline; they are part of the integrated map now, so dump() always sets this.
 OWNER_FLAGS = "A2,B1,B2,B3,B4"
@@ -58,6 +57,10 @@ def dump(path, broken):
     import mapctx as M
     W = M.W
     cw, ch = M.CW, M.CH
+    # Sal's path on the east road, space -> town: its two waypoints stand at x 295, not 296 (the road is 288..303 wide, the road pixels are unchanged: they were laid from the legs before this line).
+    # The walk's lookahead then loads the lead column 25 at the corner (the camera's first column is 26 all the way up) instead of column 26, the town hall's side with six tile uploads: the Color walk
+    # frame that cost 147 lines is gone (the guard is 145).
+    W.LEGS[("space", "town")] = [(295 if x == 296 else x, y) for (x, y) in W.LEGS[("space", "town")]]
     merge = getattr(W, "MERGE", {})
 
     def grid(w):
@@ -92,6 +95,12 @@ def build():
         for d in (a, b):
             assert d["px_d"][cy * 8 + py][cx * 8 + px] == old, (cx, cy, px, py, old)
             d["px_d"][cy * 8 + py][cx * 8 + px] = new
+    # palsnap (tools/smap_world, run by world2 on each build) moves cells to a neighbouring ground so that no window needs more than 8 palettes; the broken fountain's town has another
+    # palette set, so it snapped a few ground cells differently (the working state's snap is the one that is shown): a cell with the same pixels in both states takes the working palette
+    for y in range(ch):
+        for x in range(cw):
+            if a["pal_c"][y][x] != b["pal_c"][y][x] and all(a[k][y * 8 + j][x * 8 + i] == b[k][y * 8 + j][x * 8 + i] for k in ("px_c", "px_d") for j in range(8) for i in range(8)):
+                b["pal_c"][y][x] = a["pal_c"][y][x]
     repair = []
     for y in range(ch):
         for x in range(cw):

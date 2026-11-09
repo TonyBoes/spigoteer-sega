@@ -22,10 +22,12 @@ ARRANGEMENTS = {
     # A1: three peaks standing apart on one foot line (y 272), sand between them; every cactus where it was
     "A1": [("B", 40, 272), ("A", 80, 272), ("C", 112, 272)],
     # A2: a ridge: the tall peak behind, the short one in front of its right foot (they overlap by 8 px), a single-summit peak apart on their left and the approved peak apart on their
-    # right; the barrel cactus that stood under the right-hand peak (20, 33) moves to the free sand at (23, 34)
-    "A2": [("D", 80, 272), ("C", 104, 272), ("B", 32, 272), ("A", 152, 272)],
+    # right, one cell further left (11-08: clear sand between it and the south paving's west end); the barrel cactus that stood under the right-hand peak (20, 33) moves to the free sand at (23, 34)
+    "A2": [("D", 80, 272), ("C", 104, 272), ("B", 32, 272), ("A", 144, 272)],
 }
-MOVE_CACTI = {"A1": [], "A2": [("B", (20, 33), (23, 34))]}
+# (S2: one cell left, so that the peak A moved left has clear sand beside it; the barrel at (27, 43) one row down: the walk space -> town stalled at the tavern awning (palette town5, a 9th palette in the window) until the camera had
+# dropped the row of this barrel (palette cactus), 28 frames of holds: at row 44 its row drops first)
+MOVE_CACTI = {"A1": [], "A2": [("B", (20, 33), (23, 34)), ("S2", (18, 31), (17, 31)), ("B", (27, 43), (27, 44))]}
 
 
 def rows_of(key):

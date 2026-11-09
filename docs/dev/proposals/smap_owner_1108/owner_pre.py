@@ -4,8 +4,9 @@ Proposal B, the town (flags in env OWNER, e.g. OWNER=B1,B2,B3):
   B1  the tavern's awning (the rightmost building): an ink edge on its left, a peach hem row and an ink fringe (hand-typed below)
   B2  the paving: the cobbles run up to the building fronts (the strip y 60..63 under the tower, the hall and the tavern was bare grass), and a band of the same cobbles lies south of the road,
       so the road runs through the square
-  B4  the ends of the paved band south of the road are rounded (post(W), run after the world is built): a quarter circle of r 12 px (the bottom corners only; the top meets the road square) at each end, the cut-away pixels show the ground (sand at the west
-      end, grass at the east end: those cells take the grass palette town1@g); the west end of row 31 reaches one cell further (cell 22) so the curve has room
+  B4  the east end of the paved band south of the road is rounded (post(W), run after the world is built): a quarter circle of r 12 px (the bottom corner only; the top meets the road square), the cut-away
+      pixels show the grass (those cells take the grass palette town1@g, whose index 0 is the grass).  The west end lies on sand, which no palette in the table shares with the town's (a cut-away pixel
+      would be the town's cream, a third shade): it stays a cell-level step (row 30 one cell further west than row 31).  The lone sand cell of the biome map beside the hall's west wall (22, 26) is paved
   B3  the town moves SHIFT cells west (default 8, env OWNER_SHIFT): the venue cell, the stop, the legs, the apron, the zone, and the trees the new footprint covers move with it
 
 Placement and typed pixels only: nothing is generated.  Everything is read by ctx.py through the flags, so the unflagged map is byte for byte the snapshot."""
@@ -80,8 +81,10 @@ def apply(lay, decor):
 def apron_cells(cx0):
     """B2: row 27 two cells past the picture on each side (as before), the paved band south of the road (rows 30, 31), one cell wider than the picture each side, stopping short of the bend"""
     cells = [(cx0 - 2, 27), (cx0 - 1, 27), (cx0 + TOWN_W, 27), (cx0 + TOWN_W + 1, 27)]
+    if "B4" in FLAGS:
+        cells.append((cx0 - 1, 26))                       # the lone sand cell of the biome map beside the hall's west wall is paved (it read as a third, pale shade between the grass, the paving and the wall)
     if "B2" in FLAGS:
-        for y, (a, b) in ((30, (cx0 - 1, cx0 + TOWN_W)), (31, (cx0 - 1, cx0 + TOWN_W - 1))):
+        for y, (a, b) in ((30, (cx0 - 1, cx0 + TOWN_W)), (31, (cx0, cx0 + TOWN_W - 1))):
             cells += [(x, y) for x in range(a, min(b, BEND_X - 1) + 1)]
     return cells
 
@@ -194,7 +197,7 @@ def post(W):
     R = 12
     yc = y0 + 16 - R                                    # the circles' centre row: the top (against the road) stays square, only the bottom corners are cut
     gone = {}
-    for (x0, x1, cxc, west) in ((x_w, x_w + R, x_w + R, True), (x_e - R, x_e, x_e - R, False)):
+    for (x0, x1, cxc, west) in ((x_e - R, x_e, x_e - R, False),):          # (the west end lies on sand: a cut-away pixel there would show the town palette's cream, a third shade; it stays a cell-level step)
         for y in range(y0, y0 + 16):
             for x in range(x0, x1):
                 inside = (x + .5 - cxc) ** 2 + (y + .5 - yc) ** 2 <= R * R or y + .5 <= yc
