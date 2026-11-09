@@ -85,7 +85,7 @@ PERF_NORMAL = {
 }
 
 
-def pytest_collection_modifyitems(config, items):
+def _perf_only_filter(config, items):
     """PERF_ONLY=1: keep only the perf / timing guards of PERF_DS (a quick run of just the Color speed checks)."""
     if os.environ.get("PERF_ONLY"):
         keep = [i for i in items if i.module.__name__ in PERF_DS and (PERF_DS[i.module.__name__] is None or i.function.__name__ in PERF_DS[i.module.__name__])]
@@ -836,6 +836,8 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
+    """The one collection hook (it used to be two definitions, of which pytest only saw the second, so PERF_ONLY=1 did nothing): release_only,
+    only_model, then the PERF_ONLY=1 filter."""
     keep, drop = [], []
     full = bool(os.environ.get("FULL"))
     for it in items:
@@ -849,6 +851,7 @@ def pytest_collection_modifyitems(config, items):
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
+    _perf_only_filter(config, items)
 
 
 # The story's order of the venues (src/order.h, owner 2026-11-07): chapter c plays venue VEN_AT[c]; venue v is chapter POS_OF[v]. A chapter is a place in that order (story_progress,
