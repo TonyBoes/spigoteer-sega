@@ -860,3 +860,4 @@ The grass dithering patchiness looks better now."
 - 11-08 MERGED Q10 map pass (6e0c957c + goldens 33 commit, 29 replaced). Main 6573 passed, check OK. Pocket Player v80 (main c738c31e), Map Atlas v2 (path worst DMG 173, Color 8; walks DMG 138/160, Color 143/145). Next: Q9 camera rise along the top route (gb-worker).
 - 11-08 OWNER: "The arrows on the map for movement need to change. they should map the road direction so that they are intuitive for the user."
 - 11-08 OWNER: "How many times are the tests run on an average request. It seems to me that you are getting slower and slower and slower as this project prgresses." -> answered: 4-6 full runs per change; asked Q12 (one full run per change).
+- 11-08 OWNER: "q12) yes" -> one full test run per change (SUPERVISOR.md 6-7, memory one-full-test-run).

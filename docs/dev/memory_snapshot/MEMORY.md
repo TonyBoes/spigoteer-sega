@@ -54,3 +54,4 @@
 - [Map Atlas artifact](map-atlas-artifact.md) — story map tiles/palettes/walk load page; make map-atlas + republish after map merges
 - [Open Questions plain layout](open-questions-plain-layout.md) — one plain question per card, choices by name, picture under each choice, answer line; no letters/codes
 - [Quick verify for map/art](verify-quick-for-map-art.md) — QUICK=1 verify.sh (~7 min) for map/art branches; full 20 min for engine/fade/timing + releases
+- [One full test run](one-full-test-run.md) — owner Q12 11-08: agents run targeted tests, verify is the one full run, main reruns only if other merges landed
