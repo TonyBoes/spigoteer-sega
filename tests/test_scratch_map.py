@@ -63,7 +63,7 @@ USERS = {
     "ol.STATE": (H["SCR_OL_AT"], H["SCR_OL_AT"] + H["SCR_OL_N"], "oneline.h struct ol_state: the arrows' bob and the key repeat (SOUNDTRACK, MINI GAMES, the Boss Rush list)"),
     # the story map
     # (the scrolling map owns the whole of it: smap_priv.h lays it out)
-    "smap.TABLES": (0, 396, "smap_priv.h A_*: the tile allocator's tables (DMG 176 slots + counts; Color nibbles), the palettes' counts and slots, the window layer's attribute row, the cells' attributes, the palette hand-over's two bytes (A_PEND 295-296: Color only, between the attribute bytes and the staging; on DMG the use counts A_CNT 220-395 lie over them and nothing reads them), the palette write"),
+    "smap.TABLES": (0, 396, "smap_priv.h A_*: the tile allocator's tables (DMG 176 slots + counts; Color nibbles), the palettes' counts and slots, the window layer's attribute row, the cells' attributes, the palette hand-over's two bytes (A_PEND 298-299: Color only, between the attribute bytes and the staging; on DMG the use counts A_CNT 220-395 lie over them and nothing reads them), the palette write"),
     "smap.V": (396, 464, "smap_priv.h V(n): the variables (camera, Sal, region, add and drop jobs)"),
     "smap.STAGE": (464, 520, "smap_priv.h S_T: the tile staging, the line's tile ids, the scroll bytes; the panel's two rolling rows and the name tag's row lie over the first 40"),
     # the Practice list
