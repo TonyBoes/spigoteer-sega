@@ -884,3 +884,7 @@ The grass dithering patchiness looks better now."
      DONE: audit fix pass (zoo B thin, stadium blend, bistro pads, factory east dither, mountain B snow), stop framing + middle menu, town move/paving/awning, desert peaks A2, Q10 tree removal + near twins, Q9 top rows, Sal low (feet y110), arrows follow the road, UFO lower, Space stop by the base, Map Atlas.
      NOT DONE (approved, dropped off the queue after the fix pass - my miss): (1) map animations, all 11 approved items (water glints, falls foam, fountain, bunting, stadium flag, radar + mast lamp, lodge/factory/igloo smoke, cow tails, logs): no code in src/smap*; (2) sprite clouds (Q114 approved, branch worktree-agent-a67fbd137dc004f62 c2355d3d, needs re-basing). Plan: stage 3 starts right after the zoo<->UFO hitch fix merges (same engine files).
      STILL OPEN: zoo<->UFO Color hitch (worker running); Q8 road-bend cream wedges (mockup owed by me); factory yard still a straight edge on its west side; snow rim at peak feet (palette limit); runway blinking lights never drawn -> Q13; DMG long vertical roads stutter (owner told 11-09, untouched); Q3 framing re-review (owner); round-tree / pine-cluster redesign (later, owner Q10).
+- 11-09 OWNER: "Q13) yes
+
+On the bend fixes—I just played the latest main ROM. They are not in it."
+  -> Q13 = YES: runway lights that fade slowly on and off (no flashing), built with the stage 3 map animations.
