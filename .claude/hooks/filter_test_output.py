@@ -3,9 +3,10 @@
 
 Two modes:
   hook mode (no arguments): a Claude Code PreToolUse hook for Bash. Reads the tool call as JSON on stdin. If the
-      command is a plain `make`, `make test`, `make check`, `make cfall` or `pytest` run (optionally with VAR=value
-      prefixes), it rewrites the command so the full output goes to a log file and only a summary is printed.
-      Any other command is left alone.
+      command line contains a `make`, `pytest`, `tools/dev/ptest.py` or `tools/dev/verify.sh` run (optionally with
+      VAR=value prefixes), alone or in a pipe or chain (`|`, `&&`, `||`, `;`), it rewrites the command so the full
+      output goes to a log file and only a summary is printed. Multi-line commands and background jobs (`&`) and any
+      other command are left alone.
   summary mode (`filter_test_output.py --summary LOG`): prints the summary of a log.
 
 Nothing is lost: short output (<= SHORT lines) is printed whole, and the full log's path is always printed.
@@ -20,11 +21,25 @@ SHORT = 30           # print the whole log if it is this short
 MAX_MATCHES = 120    # cap on matched lines in a long log
 TAIL = 15            # last lines of a long log (pytest summary, romusage, gbcheck verdicts)
 
-# Plain test/build commands only: env prefixes allowed, no pipes, redirects, chaining or substitution.
+# A command line is wrapped when ANY segment of it (split on |, ||, && and ;) is a test or build command. Pipes and chains
+# are allowed: the whole line runs inside the wrapper and its exit status is kept. A segment is a test/build command when,
+# after optional VAR=value prefixes, it starts with make, pytest, tools/dev/ptest.py or tools/dev/verify.sh.
 ENV = r"(?:[A-Za-z_][A-Za-z0-9_]*=[^\s;&|<>`$()]+\s+)*"
-CMD = r"(?:make(?:\s+(?:-B|-j\d*|test|check|cfall|preview|atlas|[A-Za-z_]+=[^\s;&|<>`$()]+))*" \
-      r"|(?:python3\s+(?:-I\s+)?-m\s+)?pytest(?:\s+[^;&|<>`$()]+)?)"
-PATTERN = re.compile(r"^\s*" + ENV + CMD + r"\s*$")
+MAKE = r"make(?:\s|$)"
+PYTEST = r"(?:python3\s+(?:-I\s+)?-m\s+)?pytest(?:\s|$)"
+PTEST = r"(?:python3\s+)?(?:\S*/)?tools/dev/ptest\.py(?:\s|$)"
+VERIFY = r"(?:bash\s+)?(?:\S*/)?verify\.sh(?:\s|$)"
+SEGMENT = re.compile(r"^\s*" + ENV + r"(?:" + MAKE + "|" + PYTEST + "|" + PTEST + "|" + VERIFY + ")")
+SPLIT = re.compile(r"\|\||&&|;|\|")
+# a lone & (background job) would make $? meaningless, so such lines are left alone; 2>&1 and >&2 are fine
+BACKGROUND = re.compile(r"(?<![&>])&(?![&>0-9])")
+
+
+def is_test_command(cmd):
+    if "\n" in cmd or BACKGROUND.search(cmd):
+        return False
+    return any(SEGMENT.match(seg) for seg in SPLIT.split(cmd))
+
 
 INTERESTING = re.compile(
     r"^(FAILED|ERROR)\b|^E\s|Traceback|Error|error:|\bfailed\b|\bpassed\b|golden|bbox|"
@@ -65,7 +80,7 @@ def summarize(path):
 def hook():
     data = json.load(sys.stdin)
     cmd = (data.get("tool_input") or {}).get("command", "")
-    if not cmd or "\n" in cmd or not PATTERN.match(cmd):
+    if not cmd or not is_test_command(cmd):
         print("{}")
         return
     me = shlex.quote(__file__)
