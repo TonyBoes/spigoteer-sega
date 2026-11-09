@@ -4,7 +4,7 @@
 #   tools/dev/verify.sh <worktree> <name>
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
-#   Default stages (owner, test batches 1 and 2, 2026-11-09; about N min (pending, test batch 2)):
+#   Default stages (owner, test batches 1 and 2, 2026-11-09; about 5 min):
 #     plain make (incremental, up to date when this worktree's build/ is current; FULL=1 uses make -B, a full rebuild), then three stages side by side: pytest on the asm build, make cfall, and the RUN_SLOW double speed / half
 #     rate tests; make check runs right after the build (about 1 s).
 #   FULL=1 tools/dev/verify.sh <worktree> <name>
