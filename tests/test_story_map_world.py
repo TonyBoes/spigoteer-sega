@@ -24,6 +24,7 @@ pytestmark = pytest.mark.timeout(600)
 
 WORLD = json.loads((ROOT / "build" / "smap_world.json").read_text())
 STOPS, EXITS, LEGS = WORLD["stops"], WORLD["exits"], WORLD["legs"]
+EXIT_LEG = WORLD["exit_leg"]                                   # (bit 6: a forgiveness button, the old direction to the stop: no arrow)
 DIRS = ("up", "down", "left", "right")
 TOWN = 10
 C_ROM = ROOT / "build" / "game-c.gb"
@@ -46,7 +47,7 @@ def test_every_stop_is_reachable_from_the_town_along_the_legs():
         assert [pts[0], pts[-1]] == [STOPS[a], STOPS[b]], (a, b)
         assert all(p[0] == q[0] or p[1] == q[1] for p, q in zip(pts, pts[1:])), f"leg {a}-{b} has a slanted piece"
         assert b in EXITS[a] and a in EXITS[b], (a, b)
-    assert sum(1 for s in range(11) for t in EXITS[s] if t != 255) == 2 * len(LEGS)
+    assert sum(1 for s in range(11) for d in range(4) if EXITS[s][d] != 255 and not EXIT_LEG[s][d] & 0x40) == 2 * len(LEGS)
 
 
 def test_no_window_of_the_built_data_is_over_the_budgets():
@@ -164,7 +165,7 @@ def test_the_first_view_at_a_stop_is_the_worlds_picture(model, progress, stops):
 
 
 # ---- the walk ---------------------------------------------------------------------------------------------------------------------------------------------------
-LEG_WALKS = [(s, d) for s in range(11) for d in range(4) if EXITS[s][d] != 255]
+LEG_WALKS = [(s, d) for s in range(11) for d in range(4) if EXITS[s][d] != 255 and not EXIT_LEG[s][d] & 0x40]   # (the road's exits; a forgiveness button walks the same leg)
 
 
 def walk(model, s, d, progress=10, double=False):

@@ -499,13 +499,26 @@ def geometry():
         legs.append((a, b, pts))
     exits = [[255] * 4 for _ in stops]               # U, D, L, R: the neighbour stop
     exit_leg = [[255] * 4 for _ in stops]            # leg index | 0x80 when the leg runs b to a
+    def leaving(s, pts):                             # the side the road leaves stop s: the first point 16 px or more away, dominant axis (owner 11-08)
+        sx, sy = stops[s]
+        for (x, y) in pts:
+            dx, dy = x - sx, y - sy
+            if max(abs(dx), abs(dy)) >= 16:
+                return ((3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0))
+        raise AssertionError(f"leg of stop {s} never leaves it")
+    old = []                                         # the old button, the straight line to the destination: it stays where no road leaves that side (bit 6 of exit_leg: no arrow)
     for li, (a, b, pts) in enumerate(legs):
         for (s, t, rev) in ((a, b, 0), (b, a, 1)):
-            dx, dy = stops[t][0] - stops[s][0], stops[t][1] - stops[s][1]
-            d = (3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0)
+            d = leaving(s, pts[::-1] if rev else pts)
             assert exits[s][d] == 255, f"two exits of stop {s} lie to the same side"
             exits[s][d] = t
             exit_leg[s][d] = li | (0x80 if rev else 0)
+            dx, dy = stops[t][0] - stops[s][0], stops[t][1] - stops[s][1]
+            old.append((s, t, li, rev, (3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0)))
+    for (s, t, li, rev, d) in old:
+        if exits[s][d] == 255:
+            exits[s][d] = t
+            exit_leg[s][d] = li | (0x80 if rev else 0) | 0x40
     return stops, legs, exits, exit_leg
 
 
@@ -942,7 +955,7 @@ def main(build, preview):
     for s in range(11):
         h.append("    { " + ", ".join(str(v) for v in exits[s]) + " },")
     h.append("};")
-    h.append("static const uint8_t smapw_exit_leg[11][4] = {   // the leg of that exit, bit 7 set when it is walked backwards")
+    h.append("static const uint8_t smapw_exit_leg[11][4] = {   // the leg of that exit, bit 7 set when it is walked backwards, bit 6 a button with no arrow (the old direction to the stop)")
     for s in range(11):
         h.append("    { " + ", ".join(str(v) for v in exit_leg[s]) + " },")
     h.append("};")

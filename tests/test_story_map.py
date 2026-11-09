@@ -24,7 +24,9 @@ SMAP = json.loads((ROOT / "build" / "smap.json").read_text())
 SM_AT = 0x1E
 NIL = 255
 WORLD = json.loads((ROOT / "build" / "smap_world.json").read_text())
-STOPS, EXITS = WORLD["stops"], WORLD["exits"]                      # (the stops' world pixels: Sal's feet; up, down, left, right per stop, 255 none)
+STOPS, EXITS = WORLD["stops"], WORLD["exits"]
+LEG_OF = WORLD["exit_leg"]                                          # (bit 7: the leg runs backwards, bit 6: a forgiveness button, no arrow)
+ROAD = [[EXITS[s][d] if EXITS[s][d] != 255 and not LEG_OF[s][d] & 0x40 else 255 for d in range(4)] for s in range(11)]   # the exits a road leaves by: the arrows                      # (the stops' world pixels: Sal's feet; up, down, left, right per stop, 255 none)
 SV, V_WALK, V_CAMX, V_CAMY = 396, 20, 12, 14                       # (story_scratch + the map's variables, src/smap_priv.h)
 DIRS = ("up", "down", "left", "right")
 OAM_ARROWS, OAM_SAL, OAM_BANG, OAM_DOTS = 0, 3, 7, 8
@@ -201,7 +203,7 @@ def test_the_gold_arrows_show_the_open_directions(model):
     for s in range(11):
         gb = to_map(model, 10, step=1, stop=s)
         gb.run(3)
-        want = sorted(d for d in range(4) if EXITS[s][d] != NIL)
+        want = sorted(d for d in range(4) if ROAD[s][d] != NIL)
         arrows = [o for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"]]
         assert len(arrows) == len(want), f"stop {s}"
         sx, sy = sal_xy(gb)
@@ -223,11 +225,11 @@ def test_the_gold_arrows_show_the_open_directions(model):
 def test_the_arrows_follow_the_open_stops_not_the_table(model):
     gb = to_map(model, 3)                                # the igloo (chapter 4): the lodge past it is locked, so only the way back (left) is open
     got = sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"])
-    want = sorted({0: PAIR["arrow_u0"], 1: PAIR["arrow_d0"], 2: PAIR["arrow_r0"], 3: PAIR["arrow_r0"]}[d] for d in range(4) if open_stop(EXITS[3][d], 3))
+    want = sorted({0: PAIR["arrow_u0"], 1: PAIR["arrow_d0"], 2: PAIR["arrow_r0"], 3: PAIR["arrow_r0"]}[d] for d in range(4) if ROAD[3][d] != NIL and open_stop(EXITS[3][d], 3))
     assert got == want and len(got) == 1, (got, want)
     gb = to_map(model, 4)
     got = sorted(o["tile"] - OB for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"])
-    assert got == [PAIR["arrow_u0"]], "the lodge (chapter 5): one way, back (up to the igloo)"
+    assert got == [PAIR["arrow_r0"]], "the lodge (chapter 5): one way, back (right to the igloo)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -885,14 +887,14 @@ def test_the_camera_rests_at_the_stops_view_with_sal_on_the_screen(model, s):
 def test_the_camera_glides_to_the_view_on_arrival_and_back_to_sal_when_he_walks_off(model, s):
     gb = to_map(model, 10, step=1, stop=s)
     ex = _WORLD["exits"][s]
-    k = next(i for i in range(4) if ex[i] != 255)
+    k = next(i for i in range(4) if ROAD[s][i] != 255)
     gb.press(DIRS[k], 4)
     n = 0
     while not gb.read("story_scratch", 520)[SV + V_WALK] and n < 90:     # (the walk waits for the camera to come to Sal's spot)
         gb.run(1)
         n += 1
     sc = gb.read("story_scratch", 520)
-    assert sc[SV + V_WALK] and n < 60, n
+    assert sc[SV + V_WALK] and n < 66, n          # (60 before the buttons followed the roads: space now sets off on its left road, a camera glide 1 frame longer)
     fx, fy = var(sc, 16), var(sc, 18)
     assert cam(gb) == (min(max(fx - 80, 0), 352), min(max(fy - 84, 0), _WORLD["ch"] * 8 - 144)), "the walk starts with the camera on Sal"
     run_until(gb, lambda: not gb.read("story_scratch", 520)[SV + V_WALK], 1500)
@@ -900,7 +902,7 @@ def test_the_camera_glides_to_the_view_on_arrival_and_back_to_sal_when_he_walks_
     assert t == ex[k]
     gb.run(120)
     assert cam(gb) == REST[t], (t, cam(gb))
-    back = next(i for i in range(4) if _WORLD["exits"][t][i] == s)
+    back = next(i for i in range(4) if ROAD[t][i] == s)
     gb.press(DIRS[back], 4)
     run_until(gb, lambda: gb.mem("smap_stop") == s and not gb.read("story_scratch", 520)[SV + V_WALK], 1500)
     gb.run(120)
@@ -1011,3 +1013,39 @@ def test_no_other_venue_has_a_beam(model):
     tap(gb, "a", 2)
     assert not beam_t(gb)
     run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 120)
+
+
+# ---- the buttons follow the road (owner 11-08) ------------------------------------------------------------------------------------------------------------------
+def _leaves(s, e):
+    """the side the leg of exit e leaves stop s by: its first point 16 px or more from the stop (read from the world's own leg points)"""
+    pts = WORLD["legs"][e & 0x3F][2]
+    pts = pts[::-1] if e & 0x80 else pts
+    sx, sy = STOPS[s]
+    for x, y in pts:
+        dx, dy = x - sx, y - sy
+        if max(abs(dx), abs(dy)) >= 16:
+            return (3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0)
+
+
+def test_every_arrow_side_is_the_direction_the_road_leaves_the_stop():
+    for s in range(11):
+        sides = [d for d in range(4) if ROAD[s][d] != 255]
+        assert len(sides) == 2, s
+        for d in sides:
+            assert _leaves(s, LEG_OF[s][d]) == d, f"stop {s}: the {DIRS[d]} arrow does not match the road"
+            assert d in (2, 3), f"stop {s}: every road leaves sideways"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_forgiveness_button_walks_the_right_leg_and_draws_no_arrow(model):
+    found = 0
+    for s in range(11):
+        for d in range(4):
+            if EXITS[s][d] != 255 and LEG_OF[s][d] & 0x40:
+                found += 1
+                gb = to_map(model, 10, step=1, stop=s)
+                gb.run(3)
+                assert len([o for o in gb.oam()[OAM_ARROWS:OAM_ARROWS + 3] if o["y"]]) == sum(1 for e in ROAD[s] if e != 255)
+                go(gb, DIRS[d])
+                assert gb.mem("smap_stop") == EXITS[s][d], f"stop {s} {DIRS[d]}"
+    assert found
