@@ -926,3 +926,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
   Hold C3, C4, C5. C3 will be its own batch: first make the per-object link deterministic, then propose the layout change.
   Reply with the merge commit, the new verify time, and a 3-line summary."
 - 11-09 MERGED test batch 2 (see merge commit) incl. owner fixes: verify picks make -B when the branch changes the Makefile or a generator (48 tools/ files from make -pn), one pytest_collection_modifyitems (PERF_ONLY works again: 253 tests). Next: C1+C2 branch, timed verify.
+- 11-09 C1+C2 back (worktree-agent-a16ad8051204b697e: 21d204d6 durations.json recorded at load ~2, longest shard plan 78 s; aed11454 make prep + make release beside make, proofs real build byte-identical + stub failures). Timed default verify (gb-runner) running; it will pick make -B (Makefile changed).
