@@ -24,7 +24,7 @@ import swap  # noqa: E402,F401
 sys.path.insert(0, str(PROP / "smap_import"))
 if FLAGS & {"A1", "A2"}:
     os.environ["SMAP_DESERT_PIECES"] = "cacti"              # the five scattered desert peaks are not laid: prop_a.py lays the new ones
-if FLAGS & {"B1", "B2", "B3"}:
+if FLAGS & {"B1", "B2", "B3", "B4"}:
     os.environ["SMAP_PRE_WORLD"] = "owner_pre"
 if "B2" in FLAGS and not FLAGS & {"A1", "A2"}:
     os.environ["SMAP_SKIP_DESERT"] = "cone"                 # the paved band south of the road covers the top of the old desert peak "cone" (cells 22..24 x 31..33): it is not laid
@@ -43,3 +43,6 @@ if FLAGS & {"A1", "A2"}:
 if FLAGS & {"C", "C2", "C3"}:
     import prop_c
     CHANGED_C = prop_c.apply(W, M.PAL, sorted(FLAGS & {"C", "C2", "C3"})[0])
+if "B4" in FLAGS:
+    import owner_pre
+    ROUNDED_B = owner_pre.post(W)

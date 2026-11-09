@@ -4,6 +4,8 @@ Proposal B, the town (flags in env OWNER, e.g. OWNER=B1,B2,B3):
   B1  the tavern's awning (the rightmost building): an ink edge on its left, a peach hem row and an ink fringe (hand-typed below)
   B2  the paving: the cobbles run up to the building fronts (the strip y 60..63 under the tower, the hall and the tavern was bare grass), and a band of the same cobbles lies south of the road,
       so the road runs through the square
+  B4  the ends of the paved band south of the road are rounded (post(W), run after the world is built): a quarter circle of r 12 px (the bottom corners only; the top meets the road square) at each end, the cut-away pixels show the ground (sand at the west
+      end, grass at the east end: those cells take the grass palette town1@g); the west end of row 31 reaches one cell further (cell 22) so the curve has room
   B3  the town moves SHIFT cells west (default 8, env OWNER_SHIFT): the venue cell, the stop, the legs, the apron, the zone, and the trees the new footprint covers move with it
 
 Placement and typed pixels only: nothing is generated.  Everything is read by ctx.py through the flags, so the unflagged map is byte for byte the snapshot."""
@@ -79,7 +81,7 @@ def apron_cells(cx0):
     """B2: row 27 two cells past the picture on each side (as before), the paved band south of the road (rows 30, 31), one cell wider than the picture each side, stopping short of the bend"""
     cells = [(cx0 - 2, 27), (cx0 - 1, 27), (cx0 + TOWN_W, 27), (cx0 + TOWN_W + 1, 27)]
     if "B2" in FLAGS:
-        for y, (a, b) in ((30, (cx0 - 1, cx0 + TOWN_W)), (31, (cx0, cx0 + TOWN_W - 1))):
+        for y, (a, b) in ((30, (cx0 - 1, cx0 + TOWN_W)), (31, (cx0 - 1, cx0 + TOWN_W - 1))):
             cells += [(x, y) for x in range(a, min(b, BEND_X - 1) + 1)]
     return cells
 
@@ -180,3 +182,35 @@ def relocate(scenery, nx, ny, d):
 
 MOVED = []
 DROPPED = []
+
+
+# ---- B4: the band's rounded ends (hand-placed: a quarter circle at each end, the same cobble texture, the ground showing in the cut-away pixels) -------------------------------------------------
+def post(W):
+    """round the two free ends of the band (rows 30, 31 of cells; the road lies above it).  Both data sets get the same pixels.  Needs B2 (the band) and B3 (the town's place)"""
+    cx0 = town_cell()[0]
+    x_w = (cx0 - 1) * 8                                  # the band's west end (px)
+    x_e = (min(cx0 + TOWN_W, BEND_X - 1) + 1) * 8        # its east end (px, exclusive)
+    y0 = 30 * 8
+    R = 12
+    yc = y0 + 16 - R                                    # the circles' centre row: the top (against the road) stays square, only the bottom corners are cut
+    gone = {}
+    for (x0, x1, cxc, west) in ((x_w, x_w + R, x_w + R, True), (x_e - R, x_e, x_e - R, False)):
+        for y in range(y0, y0 + 16):
+            for x in range(x0, x1):
+                inside = (x + .5 - cxc) ** 2 + (y + .5 - yc) ** 2 <= R * R or y + .5 <= yc
+                if not inside:
+                    gone.setdefault((x // 8, y // 8, west), []).append((x, y))
+    cells = set()
+    for (cx, cy, west), px in gone.items():
+        if len(px) <= 1:                                 # a cell that would lose one pixel only stays whole (it would be one more DMG tile for nothing)
+            continue
+        cells.add((cx, cy, west))
+        for (x, y) in px:
+            for w in (W.WORLD, W.WORLD_DMG):
+                w.px[y][x] = 0
+    for (cx, cy, west) in sorted(cells):
+        assert W.WORLD.pal[cy][cx] in ("town1", "town1@g"), (cx, cy, W.WORLD.pal[cy][cx])
+        if not west:
+            for w in (W.WORLD, W.WORLD_DMG):
+                w.pal[cy][cx] = "town1@g"
+    return sorted(cells)
