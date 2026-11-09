@@ -811,6 +811,7 @@ void smap_enter(uint8_t quick) BANKED {
         fill(SC(A_NIB), 0xFF, 176);
         fill(SC(A_PSLOT), NIL, SMAPW_NPAL);
         fill(SC(A_PUSE), NIL, 8);
+        PEND = NIL;
         pal_get(PAL_BARTENDER, p4);
         set_sprite_palette(OBJPAL_BARTENDER, 1, p4);
         set_sprite_palette(PAL_UFO, 3, smap_obj_pal[0]);

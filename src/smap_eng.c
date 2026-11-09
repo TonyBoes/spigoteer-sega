@@ -528,25 +528,59 @@ static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
 }
 
 // Color: palette pal takes a hardware slot (NIL: none free) and its colours are written (queued: one palette a frame, the caller checked V_PALQ and the room)
-static uint8_t pal_take(uint8_t pal) {
-    uint8_t s, *st = SC(A_PSTG);
-    for (s = 0; s < 8; s++) if (SC(A_PUSE)[s] == NIL) break;
-    if (s == 8) return NIL;
-    SC(A_PUSE)[s] = pal; SC(A_PSLOT)[pal] = s;
+static void pal_write(uint8_t s, uint8_t pal) {
+    uint8_t *st = SC(A_PSTG);
     smap_c_palette(pal, st + 1);
-    if (V(V_DIRECT)) { set_bkg_palette(s, 1, (const uint16_t *)(st + 1)); return s; }
+    if (V(V_DIRECT)) { set_bkg_palette(s, 1, (const uint16_t *)(st + 1)); return; }
     st[0] = 0x80 | (s << 3);                       // BCPS: auto increment from colour 0 of palette s
     qraw(0, st, 0xFF68, 1);
     for (pal = 1; pal < 9; pal++) qraw(0, st + pal, 0xFF69, 1);
     V(V_PALQ) = 1;
+}
+
+static uint8_t pal_take(uint8_t pal) {
+    uint8_t s;
+    for (s = 0; s < 8; s++) if (SC(A_PUSE)[s] == NIL) break;
+    if (s == 8) return NIL;
+    SC(A_PUSE)[s] = pal; SC(A_PSLOT)[pal] = s;
+    pal_write(s, pal);
     return s;
+}
+
+// THE PALETTE HAND-OVER (Color).  A line the camera cannot show yet may need a 9th palette: it is added with palette pal on the hardware slot of the palette q the generator named
+// (smapw_ret: q's only cells are in the line at the other end of the region, the last one the camera still shows).  Until q's cells have left, the slot is q's (PEND = pal, PLN the line);
+// when q's last cell goes (pal_count) the hand-over is due (PEND bit 5): pal_hand queues pal's colours into the slot, in the frame the line left.  The camera and Sal may not show the
+// borrowed line before that (smap_room, cov_ok), so no pixel ever has a wrong colour.
+static uint8_t pal_alias(uint8_t pal) {
+    uint8_t q = smapw_ret[pal], s;
+    if (q == NIL || PEND != NIL || V(V_DIRECT) || SC(A_PSLOT)[q] == NIL) return NIL;
+    s = SC(A_PSLOT)[q];
+    SC(A_PSLOT)[pal] = s;
+    PEND = pal; PLN = V(V_JI) | (V(V_JK) == J_COL ? 0x80 : 0);
+    return s;
+}
+
+static void pal_hand(void) {
+    uint8_t p = PEND, s;
+    if (!(p & 0x20) || p == NIL || V(V_PALQ) || room() < (uint8_t)(36 + V(V_RES)) || (uint8_t)(vq_count + 9 + V(V_RESE)) > VQ_USE) return;
+    p &= 0x1F;
+    s = SC(A_PSLOT)[p];
+    SC(A_PUSE)[s] = p;
+    pal_write(s, p);
+    PEND = NIL;
 }
 
 static void pal_count(uint8_t pal, int8_t d) {          // the region's cells in palette pal change by d; the slot is free at 0
     uint8_t *c = SC(A_PCNT) + (pal << 1);
     uint16_t v = (c[0] | ((uint16_t)c[1] << 8)) + (int16_t)d;
     c[0] = (uint8_t)v; c[1] = (uint8_t)(v >> 8);
-    if (!v && d < 0) { SC(A_PUSE)[SC(A_PSLOT)[pal]] = NIL; SC(A_PSLOT)[pal] = NIL; }
+    if (!v && d < 0) {
+        if (PEND != NIL) {
+            if (pal == PEND) { SC(A_PSLOT)[pal] = NIL; PEND = NIL; return; }                           // (the borrowing palette's cells all left again: the slot stays its owner's)
+            if (pal == smapw_ret[PEND & 0x1F] && !(PEND & 0x20)) { PEND |= 0x20; SC(A_PSLOT)[pal] = NIL; return; }   // (the owner's last cell left: the slot is due to the borrower, pal_hand)
+        }
+        SC(A_PUSE)[SC(A_PSLOT)[pal]] = NIL; SC(A_PSLOT)[pal] = NIL;
+    }
 }
 
 #define R_OK    0
@@ -640,7 +674,7 @@ static uint8_t add_cell_c(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, u
         if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
     hw = SC(A_PSLOT)[pal];
-    if (need_p) { hw = pal_take(pal); if (hw == NIL) return R_RES; }
+    if (need_p) { hw = pal_take(pal); if (hw == NIL) hw = pal_alias(pal); if (hw == NIL) return R_RES; }
     id = pool_id(bank ? (uint8_t)(slot9 - SMAPW_POOL) : (uint8_t)slot9);
     if (need_t) { nib_set(slot9, var); tile_load(bank, id, t); }
     pal_count(pal, 1);
@@ -1024,14 +1058,22 @@ void smap_cam_target(int16_t *tx, int16_t *ty) BANKED {
     *ty = y < 0 ? 0 : y > CAM_MAXY ? CAM_MAXY : y;
 }
 
-static uint8_t cov_x(int16_t x) { return (uint8_t)(x >> 3) >= V(V_C0) && (uint8_t)((x + 159) >> 3) <= V(V_C1); }
-static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_t)((y + 143) >> 3) <= V(V_R1); }
+// the line a borrowed palette stands in (the hand-over): the view may not show it before the hand-over, so no cell of it wears the leaving palette's colours on the screen
+static uint8_t cov_ok(uint8_t horiz, int16_t c) {
+    uint8_t n = PLN;
+    if (!is_cgb || PEND == NIL || ((n & 0x80) != 0) != (horiz != 0)) return 1;
+    n &= 0x7F;
+    return n <= (horiz ? V(V_C0) : V(V_R0)) ? (uint8_t)(c >> 3) > n : (uint8_t)((c + (horiz ? 159 : 143)) >> 3) < n;
+}
+static uint8_t cov_x(int16_t x) { return (uint8_t)(x >> 3) >= V(V_C0) && (uint8_t)((x + 159) >> 3) <= V(V_C1) && cov_ok(1, x); }
+static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_t)((y + 143) >> 3) <= V(V_R1) && cov_ok(0, y); }
 
 // How many px Sal may walk on, along x (horiz) or y, toward larger (up) or smaller coordinates, before the camera that follows him would show a cell the region does not hold
 // (255: as far as you like). fx or fy: his feet's coordinate on that axis. The camera follows him step for step (80 and 110: the feet's place on the screen), clamped to the world.
 uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED {
-    uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1);
+    uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1), n = PLN;
     int16_t lim;
+    if (is_cgb && PEND != NIL && ((n & 0x80) != 0) == (horiz != 0)) { n &= 0x7F; if (n <= lo) lo = n + 1; else hi = n - 1; }      // (a borrowed line is not shown before its hand-over)
     if (up ? hi >= (horiz ? 63 : SMAPW_CH - 1) : !lo) return 255;
     if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 34) - (int16_t)f;
     else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 110);
@@ -1094,6 +1136,7 @@ void smap_region_work(void) BANKED {
         }
     }
     if (V(V_DK) != J_NONE) drop_run(is_cgb ? 22 : DROP_CAP);
+    if (is_cgb && PEND != NIL) pal_hand();
     if (V(V_JK) == J_NONE) {
         if (rows1st && V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }     // (walking down or up: the rows first, a column's lead can wait)
         else if (rows1st && V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }

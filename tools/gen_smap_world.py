@@ -66,10 +66,6 @@ def view_bytes(name):
     return (255 if x is None else x // 2, 255 if y is None else y // 2, side)
 
 
-# Padded path windows (c0, c1, r0, r1) that need a 9th BG palette: the walk holds there on Color while the lead row waits for a slot (zoo <-> space, feet 8,454; no art swap fixes it without a
-# pixel change: tools/dev notes in the commit).  Awaiting the owner's decision; dropping known_pal9 makes the build fail on it.  Any other window over 8 fails the build.
-def known_pal9(w):                  # the far-left stretch of the south road: cells 0..20, rows 41..62
-    return w[0] == 0 and w[1] <= 21 and 41 <= w[2] <= 42 and 61 <= w[3] <= 62
 WIN_C = (22, 20)              # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)
@@ -466,7 +462,8 @@ def path_windows(stops, legs, pad=1):
 
 def path_windows_lead(legs, ahead=24):
     """The windows the REGION holds while Sal walks (smap_region_work): the camera's view plus one line ahead on the axis of travel, in the direction of travel; within `ahead` px of a corner
-    the next stretch's line too (WALK_AHEAD).  Every leg both ways.  (path_windows pads every side, which the engine never holds.)"""
+    the next stretch's line too (WALK_AHEAD).  Every leg both ways.  (c0, c1, r0, r1, axis, side): axis 'x' or 'y' and side -1 (low end) or 1 (high end) of the one lead line, or None
+    where two lines lead (a corner) or none does."""
     def cam(fx, fy):
         return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - SAL_Y, 0), CH * 8 - 144)
     sg = lambda v: (v > 0) - (v < 0)
@@ -481,10 +478,49 @@ def path_windows_lead(legs, ahead=24):
                 for i in range(n + 1):
                     cx, cy = cam(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n)
                     c0, c1, r0, r1 = cx >> 3, (cx + 159) >> 3, cy >> 3, (cy + 143) >> 3
-                    for dx, dy in leads + ([nxt] if nxt and n - i <= ahead else []):
+                    ls = leads + ([nxt] if nxt and n - i <= ahead else [])
+                    for dx, dy in ls:
                         c0 -= dx < 0; c1 += dx > 0; r0 -= dy < 0; r1 += dy > 0
-                    wins.add((max(c0, 0), min(c1, CW - 1), max(r0, 0), min(r1, CH - 1)))
-    return sorted(wins)
+                    c0, c1, r0, r1 = max(c0, 0), min(c1, CW - 1), max(r0, 0), min(r1, CH - 1)
+                    ax, side = None, 0
+                    if len(ls) == 1 and (ls[0][0] == 0) != (ls[0][1] == 0):
+                        ax, side = ("x", ls[0][0]) if ls[0][0] else ("y", ls[0][1])
+                        if (ax == "x" and ((side < 0 and c0 == cx >> 3) or (side > 0 and c1 == (cx + 159) >> 3))) or \
+                           (ax == "y" and ((side < 0 and r0 == cy >> 3) or (side > 0 and r1 == (cy + 143) >> 3))):
+                            ax = None                    # (the world's edge: no line ahead)
+                    wins.add((c0, c1, r0, r1, ax, side))
+    return sorted(wins, key=str)
+
+
+def palette_handovers(cg, wins):
+    """The palette hand-over (src/smap_eng.c pal_alias / pal_hand): a window of the region may need a 9th BG palette when the one line that leads holds the only user of one palette (P)
+    and the line at the other end, the last one the camera still shows, the only user of another (Q): the lead line is added with P on Q's hardware slot (off the screen), and the slot gets P's
+    colours in the VBlank in which the line of Q has left the screen (the camera cannot show the lead line before).  Returns ({P: Q}, [failures])."""
+    ret, bad = {}, []
+    for p in cg.ustates:
+        gr = cg.pals[p]
+        for (c0, c1, r0, r1, ax, side) in wins:
+            sub = gr[r0:r1 + 1, c0:c1 + 1]
+            full = set(int(v) for v in np.unique(sub))
+            if len(full) <= 8:
+                continue
+            if ax is None or len(full) > 9:
+                bad.append((len(full), p, (c0, c1, r0, r1)))
+                continue
+            lo_line = (sub[0:1, :] if ax == "y" else sub[:, 0:1])
+            hi_line = (sub[-1:, :] if ax == "y" else sub[:, -1:])
+            lead, trail = (lo_line, hi_line) if side < 0 else (hi_line, lo_line)
+            rest = (sub[1:, :] if ax == "y" else sub[:, 1:]) if side < 0 else (sub[:-1, :] if ax == "y" else sub[:, :-1])       # the window without the lead line
+            aligned = (sub[:-1, :] if ax == "y" else sub[:, :-1]) if side < 0 else (sub[1:, :] if ax == "y" else sub[:, 1:])   # without the trailing line
+            a, b = set(int(v) for v in np.unique(rest)), set(int(v) for v in np.unique(aligned))
+            ps, qs = full - a, full - b
+            if len(a) > 8 or len(b) > 8 or len(ps) != 1 or len(qs) != 1:
+                bad.append((len(full), p, (c0, c1, r0, r1)))
+                continue
+            P, Q = ps.pop(), qs.pop()
+            if ret.setdefault(P, Q) != Q:
+                bad.append((len(full), p, (c0, c1, r0, r1), "two victims"))
+    return ret, bad
 
 
 def path_max(m, wins, grids):
@@ -969,16 +1005,14 @@ def main(build, preview):
     print(f"smap world path windows: DMG worst padded {wd[0]} of {POOL} at {wd[1]}, Color worst view palettes {wp[0]} of 8 at {wp[1]}")
     # (the region holds the view, a line ahead and the line the drop has not taken yet: the padded windows; the plain views hid a 9th palette at the zoo <-> space bend, a hold on Color)
     pwl = path_windows_lead(legs)
-    wpp = path_max(cg, pwl, cg.pals)
-    print(f"smap world path windows: Color worst padded palettes {wpp[0]} of 8 at {wpp[1]}")
-    if wpp[0] > 8 and known_pal9(wpp[1][1]):
-        wpp = path_max(cg, [w for w in pwl if not known_pal9(w)], cg.pals)         # (the known one is known_pal9; anything else over 8 fails)
+    handover, pbad = palette_handovers(cg, pwl)
+    print(f"smap world path windows: Color lead windows over 8 palettes handled by the hand-over {dict((PAL_NAMES[k], PAL_NAMES[v]) for k, v in handover.items())}, unhandled {len(pbad)}")
     if wd[0] > POOL:
         fail.append(f"DMG: a padded path window holds {wd[0]} tiles at {wd[1]}, the pool is {POOL}")
     if wp[0] > 8:
         fail.append(f"Color: a path view needs {wp[0]} palettes at {wp[1]}")
-    if wpp[0] > 8:
-        fail.append(f"Color: a padded path window (the view, a line ahead, the line the drop has not taken) needs {wpp[0]} palettes at {wpp[1]}: the walk holds for a palette slot")
+    if pbad:
+        fail.append(f"Color: a lead window needs more palettes than the hand-over can give (the walk holds for a slot): {pbad[:3]}")
     col_d, bad_d = path_hints(dm, pw, POOL)
     dm.hint = [int(c) for c in col_d]
     if fail:
@@ -1002,6 +1036,7 @@ def main(build, preview):
          "uint8_t smap_d_hintof(uint16_t t) BANKED;", "",
          "#ifdef SMAPW_VIEWS      // (src/smap_eng.c alone) each stop's resting view: camera x / 2, y / 2 (255: follow Sal), the side of the tag and the panel (1 the bottom)",
          "static const uint8_t smapw_view[11][3] = { " + ", ".join("{ %d, %d, %d }" % view_bytes(n) for n in STOP_ORDER) + " };",
+         "static const uint8_t smapw_ret[%d] = { " % len(PAL_NAMES) + ", ".join(str(handover.get(i, 255)) for i in range(len(PAL_NAMES))) + " };   // the palette hand-over: the palette whose hardware slot palette i may borrow for a line the camera cannot show yet (255: none)",
          "#endif",
          "#ifdef SMAPW_GEOMETRY   // (src/smap.c alone)",
          f"static const uint16_t smapw_stop[11][2] = {{ " + ", ".join("{ %d, %d }" % s for s in stops) + " };",

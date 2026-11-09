@@ -27,6 +27,7 @@ extern uint8_t smap_flags;
 #define A_PUSE       245     // Color: 8 bytes: the palette in each hardware slot (255: free)
 #define A_ATTR_UI    253     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
 #define A_IDA        273     // Color: 22 bytes: the attribute bytes of the cells being written
+#define A_PEND       295     // Color: 2 bytes (free between the attribute bytes and the staging): the palette hand-over's borrower (NIL: none; bit 5: the lender's cells have left, the hand-over is due), the borrowed line (bit 7: a column)
 #define A_XSTG       301     // Color: 5 tiles of staging (80 bytes, on the first 16-byte boundary at or after this; DMA reads them; the DMG's tables lie here). story_scratch is at 0xD373, so 301 is
                              //   already on a boundary and the staging is 301..381 (tests/test_scratch_map.py checks that); the worst case, a staging moved up by 15, still ends at S_V
 #define A_PSTG       381     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes), after the staging (23 palettes left no room for it before the staging: 301 stays aligned)
@@ -37,6 +38,8 @@ extern uint8_t smap_flags;
 #define T_IDS        32
 #define T_CAM        54
 #define V(n)         (story_scratch[S_V + (n)])
+#define PEND         (story_scratch[A_PEND])
+#define PLN          (story_scratch[A_PEND + 1])
 enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
        V_CAMX = 12, V_CAMY = 14, V_FX = 16, V_FY = 18,                         // the camera's and Sal's feet's pixel positions in the world (16 bit each)
        V_WALK = 20, V_LEG, V_REV, V_WK, V_DEST, V_TICK,                        // the walk: on, the leg, walked backwards, the waypoint heading for, the stop heading for
