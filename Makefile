@@ -74,7 +74,7 @@ BONUS_H  += $(BUILD)/practice_art.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets release dist unlocked cfall atlas atlas-page
+.PHONY: all test check preview clean assets release dist unlocked cfall atlas atlas-page map-atlas
 
 all: $(ROM)
 
@@ -354,6 +354,10 @@ atlas: $(ROM)
 # + the 360 px page check, writes out/atlas_page/pub.json (the files to publish). Fails on any self-check error. Needs a built ROM for `make atlas`.
 atlas-page:
 	python3 tools/artifacts/palette_plan/atlas_page.py
+
+# The Map Atlas review page (owner 11-08): needs a built ROM (`make`); writes out/map_atlas/ (index.html + img/*.png) from tools/artifacts/map_atlas/.
+map-atlas:
+	python3 tools/artifacts/map_atlas/build.py
 
 clean:
 	rm -rf $(BUILD) $(OUT)
