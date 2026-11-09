@@ -17,7 +17,8 @@ How to work:
 - Restate the plan in two or three lines before editing, especially for layout asks; check your result against it.
 - Find code with `grep -n` and read only the lines you need. Use `gbtest symbols` and the `.noi` file instead of
   reading whole sources.
-- Test the narrowest thing first (one test file, one `gbtest run`), then the full `make test` and `make check`.
+- Test the narrowest thing first (one test file, one `gbtest run`, `make test F=<file>` or `K=<expr>`), then `make check`.
+  Do not run the full `make test`: verify does (CLAUDE.md rule 1).
 - Test output is filtered to failures and a summary, with the full log's path. Open that log only if you need it.
 - For pictures: build ONE labelled contact sheet (`tools/dev/contact_sheet.py`) of the stills you need to see or
   show, at 1x and x4, and look at that. For changed goldens, `tools/dev/golden_bbox.py` gives the bounding boxes.

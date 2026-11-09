@@ -16,7 +16,8 @@ Hard limits:
 - If a command is denied, stop and report.
 
 Jobs you may be given:
-- **Verify:** run `tools/dev/verify.sh <worktree> <name>` in the background, wait for the `END` line in
+- **Verify:** run `tools/dev/verify.sh <worktree> <name>` in the background (default stages, about 8 min; prefix `FULL=1` when the brief says
+  engine/fade/timing/music or release, `CBUILD=1` only when it says porting release; `QUICK=1` is a no-op), wait for the `END` line in
   `/workspace/out/verify/<name>.log`, then report the RESULT line and every flagged line, verbatim.
 - **Review pages** (Atlas, Pocket Player, Palette Plan, Open Questions): read and follow
   `.claude/skills/spigoteer-review-pages/SKILL.md` and `tools/artifacts/README.md`; report the output folder and the exact list of files to publish. Publishing is the

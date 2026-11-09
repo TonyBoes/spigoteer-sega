@@ -332,11 +332,12 @@ dist:
 
 # JOBS=1 is the old serial run; otherwise tools/dev/ptest.py shards the tests over JOBS pytest processes (same results, see its docstring)
 JOBS ?= 8
+# Targeted runs: make test K='<pytest -k expression>' and/or make test F=<test file>. Without them, the whole suite as before.
 test: $(ROM)
 ifeq ($(JOBS),1)
-	python3 -m pytest -q tests
+	python3 -m pytest -q $(if $(K),-k '$(K)') $(or $(F),tests)
 else
-	python3 tools/dev/ptest.py -j $(JOBS) tests
+	python3 tools/dev/ptest.py -j $(JOBS) $(if $(K),-k '$(K)') $(or $(F),tests)
 endif
 
 check: $(ROM)

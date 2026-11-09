@@ -29,8 +29,10 @@ Boy project. Kept up to date during development; the newest items are added unde
 
 ## Verification
 
-- **Done means:** `make -B`, `make cfall` (the C reference build), the full pytest suite on both models, `make check`
-  (SameBoy, DMG + CGB), the slow tests (`RUN_SLOW=1`), and the suite again on the C build (`GB_ROM=build/game-c.gb`).
+- **Done means:** committed, and `tools/dev/verify.sh` (run by gb-runner) passes. Default stages: `make -B`, `make cfall`
+  (the C reference build), the full pytest suite on both models, `make check` (SameBoy, DMG + CGB), and the
+  `RUN_SLOW=1` double-speed and half-rate tests. `FULL=1` adds the slow fade tests; `CBUILD=1` adds the suite on the C
+  build (`GB_ROM=build/game-c.gb`), only before a porting release. While working, run targeted tests only.
 - **Replace goldens one by one, only after checking each diff's bounding box** against the intended change. Never
   regenerate all of them. Name each replaced golden, and the reason, in the commit message.
 - **PyBoy is for driving and asserting; SameBoy is the timing truth.** PyBoy zeroes RAM that real hardware leaves as

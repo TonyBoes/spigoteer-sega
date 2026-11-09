@@ -8,8 +8,8 @@ metadata:
   modified: 2026-11-09T03:40:24.269Z
 ---
 
-One full test run per change. Agents run only the tests for the area they touch while working (plus `make` and `make check`); the verify run (QUICK for map/art, see [[verify-quick-for-map-art]]) is the single full run; after a fast-forward merge of the verified tip, no rerun on main. Rerun on main once only when other merges landed in between.
+One full test run per change. Agents run only the tests for the area they touch while working (plus `make` and `make check`); the verify run (default stages; `FULL=1` for engine/fade/timing/music and releases, see [[verify-quick-for-map-art]]) is the single full run; after a fast-forward merge of the verified tip, no rerun on main. Rerun on main once only when other merges landed in between, and that rerun goes to gb-runner like every full run ([[supervisor-no-full-runs]]).
 
 **Why:** owner asked why work got slower; each change was running the full suite 4-6 times (~25-45 min). Owner: "q12) yes".
 
-**How to apply:** put "targeted tests only; verify does the full run" in every gb-worker brief; procedure in docs/dev/SUPERVISOR.md steps 6-7.
+**How to apply:** put "targeted tests only (`make test F=`/`K=`); verify does the full run" in every gb-worker brief; CLAUDE.md rule 1 states it; procedure in docs/dev/SUPERVISOR.md steps 6-7.
