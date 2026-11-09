@@ -5,7 +5,8 @@
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
 #   Default stages (owner, test batches 1 and 2, 2026-11-09; about 5 min):
-#     plain make (incremental, up to date when this worktree's build/ is current; FULL=1 uses make -B, a full rebuild), then three stages side by side: pytest on the asm build, make cfall, and the RUN_SLOW double speed / half
+#     plain make (incremental; make -B instead with FULL=1, or when the branch, its uncommitted changes or its untracked files touch the
+#     Makefile or a generator under tools/, see build_mode below; the log has a "build mode:" line with the reason), then three stages side by side: pytest on the asm build, make cfall, and the RUN_SLOW double speed / half
 #     rate tests; make check runs right after the build (about 1 s).
 #   FULL=1 tools/dev/verify.sh <worktree> <name>
 #     adds the slow fade stage (RUN_SLOW=1 tests/test_fade_hw.py, about 7 min) and the release-only tests (FULL=1 is
@@ -80,7 +81,28 @@ timed() {
 }
 
 # ---- the build: plain make (test batch 2, B3: proven equal to a clean build, with the Makefile's missing prerequisites added); FULL=1 forces make -B ----
-BUILD_CMD="make"; [ -n "${FULL:-}" ] && BUILD_CMD="make -B"
+# Fix 1 (owner, after batch 2): plain make is only trusted while the build rules and generators are unchanged. The branch (git diff main...HEAD),
+# the uncommitted changes and untracked files are checked: if any of them is the Makefile or a "generator file", the build is make -B.
+# Generator files = every tools/ path that make itself names, i.e. the scripts its recipes run (tools/gen_*.py, palettes2c.py, ...) and every
+# tools/ prerequisite of its build/ rules (gen_art.py, harmony.py, taiko_chart.py, cannon_table.py, tools/smap_world/*, tools/artifacts/palette_plan/*,
+# tools/dev/extra_combos.py, the B3a additions ...), read from `make -pn all` (wildcards already expanded), so the list follows the Makefile.
+# A tools/ module a generator imports without the Makefile naming it would be missed; the import closure of every generator was checked in
+# batch 2 (A2): none.
+build_mode() {  # prints "<command>|<reason>"
+  [ -n "${FULL:-}" ] && { echo "make -B|FULL=1"; return; }
+  local changed gens hit
+  git rev-parse --verify -q "${VERIFY_BASE:-main}" > /dev/null 2>&1 || { echo "make -B|no main branch to compare with"; return; }
+  changed=$( { git diff --name-only "${VERIFY_BASE:-main}...HEAD"; git diff --name-only HEAD; git ls-files --others --exclude-standard; } 2> /dev/null | sort -u)
+  # only the rules whose target is under build/ (the generated files): not make test (ptest.py), atlas, map-atlas, dist
+  gens=$(make -pn all 2> /dev/null | awk '/^[^#\t.][^:=]*:/ { t = ($0 ~ /^build\//) } t' | grep -oE 'tools/[A-Za-z0-9_./-]+' | sort -u)
+  [ -z "$gens" ] && { echo "make -B|could not read the generator list from make"; return; }
+  hit=$(printf '%s\n' "$changed" | grep -Fx -e Makefile -f <(printf '%s\n' "$gens") | head -5 | tr '\n' ' ')
+  if [ -n "$hit" ]; then echo "make -B|changed vs main: $hit"; else echo "make|no change to the Makefile or a generator vs main"; fi
+}
+MODE=$(build_mode)
+BUILD_CMD=${MODE%%|*}
+if [ -n "${VERIFY_MODE_ONLY:-}" ]; then echo "$MODE"; exit 0; fi
+echo "build mode: $BUILD_CMD (${MODE#*|})" >> "$L"
 a=$(now)
 if $BUILD_CMD > /dev/null 2>&1; then
   { echo "== $BUILD_CMD ($a-$(now))"; echo BUILD_OK; echo "RESULT build: PASS"; } >> "$L"
