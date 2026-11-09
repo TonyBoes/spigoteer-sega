@@ -86,6 +86,27 @@ All three: RESULT PASS, 6574 passed / 56 skipped, slow 63 passed, no FAILED or t
 7. tools/dev/verify.sh header: rewritten (stage list, FULL=1, log format, why the stages do not clash). The live memory under /home/node/.claude/projects (not in the repo) still says about 8 min; the supervisor syncs it.
 All "N min" placeholders are now "about 5 min" (items 1 to 6 and the verify.sh header), from the source-touched run.
 
+## Owner fixes after batch 2 (one commit each)
+
+**Fix 1: `make -B` when the Makefile or a generator changed** (verify.sh `build_mode`). The default build is plain `make` unless `FULL=1`, or the branch (`git diff --name-only main...HEAD`), its uncommitted changes (`git diff --name-only HEAD`) or untracked files touch the Makefile or a generator file; then it is `make -B`. The log gets a line `build mode: <cmd> (<reason>)` before the build section. If `main` is missing or the list cannot be read, it chooses `make -B`.
+*Generator list, derived from make itself:* every `tools/` path in the rules whose target is under `build/` (`make -pn all`, wildcards expanded, so it follows the Makefile): the scripts the recipes run (48 files in all: tools/gen_*.py, palettes2c.py, rom0free.py, ...) and their `tools/` prerequisites (gen_art.py, harmony.py, taiko_chart.py, cannon_table.py, tools/dev/extra_combos.py, tools/smap_world/world_snap.py, palette_plan/*.py and plan_slots.json, the B3a additions). Rules for `make test`, atlas, map-atlas and dist are left out, so editing ptest.py does not force -B. Not covered: a `tools/` module a generator imports that no rule names; the import closure of every generator (A2) found none. `VERIFY_MODE_ONLY=1` prints the decision and exits; `VERIFY_BASE` (default `main`) is the ref to compare with.
+*Dry run proof* (real git, scratch edits appended and removed again by reverse edits; `VERIFY_BASE=HEAD VERIFY_MODE_ONLY=1`, out/b3/mode.sh):
+| Case | Decision |
+|---|---|
+| no edit | make |
+| Makefile (scratch comment) | make -B, changed vs main: Makefile |
+| tools/gen_trans.py (generator) | make -B, changed vs main: tools/gen_trans.py |
+| tools/harmony.py (B3a prerequisite) | make -B, changed vs main: tools/harmony.py |
+| src/tip.c | make |
+| tools/dev/ptest.py (not a generator) | make |
+| no edit again | make |
+| FULL=1 | make -B (FULL=1) |
+| base main, this branch (it changes the Makefile) | make -B |
+The stub flow still passes (stub run: `build mode: make -B (could not read the generator list from make)`, RESULT: PASS). git status was clean after the dry run except verify.sh itself.
+*Instruction lines touched.* CLAUDE.md:67 before "plain `make`, then pytest," after "plain `make` (`make -B` when the branch changes the Makefile or a generator), then pytest,". SUPERVISOR.md:67 before "are plain `make` (incremental), then" after "are plain `make` (incremental; `make -B` when the branch changes the Makefile or a generator), then". LESSONS.md:32 before "Default stages: plain `make`, then" after "Default stages: plain `make` (`make -B` when the branch changes the Makefile or a generator), then". verify.sh header line 8: now says make -B with FULL=1 or when the Makefile/a generator changed, and that the log has a "build mode:" line.
+
+**Fix 2: one `pytest_collection_modifyitems`** (tests/conftest.py). The two definitions are merged (release_only, only_model, then the PERF_ONLY filter as a helper). `--collect-only tests`, before / after: default 6630 / 6630; `FULL=1` 6631 / 6631; `PERF_ONLY=1` 6630 / 253 (the filter was dead before: pytest kept only the second definition; it now keeps the Color speed guards); `FULL=1 PERF_ONLY=1` 6631 / 253. Part C item 6 below is therefore fixed.
+
 ## Part C: proposals (not done)
 1. **Refresh tests/durations.json** (`tools/dev/ptest.py -j 1 --record`, serial, quiet machine, about 10 min; it is a balancing file, never changes results) and give test_show_ext, test_practice_art their real 80 s. Saves about 80 s of the pytest stage (shards 178 s to about 95 s by the simulation). Risk: none for results; re-record every few weeks. Do NOT raise `-j` after: -j 12 saves at most 10 s more (floor is the 84 s builds) and loads the shared machine. Do not add `-j` to the Makefile: only 6.5 s of generators, multi-target rules would first need `&:` (they race under -j; they already run twice under -B), saving at most 5 s.
 2. **Start `make release` with the build**: after the generators are up to date, run `make`, `make release` (and cfall) as three separate processes at once, so ptest's 75 s serial prebuild disappears behind the 80 s build. Saves about 75 s. Risk low (separate makes, own obj dirs, no shared output; same method as B1's no-clash table); the generators must run first and once (`make assets`).
