@@ -29,8 +29,8 @@ Boy project. Kept up to date during development; the newest items are added unde
 
 ## Verification
 
-- **Done means:** committed, and `tools/dev/verify.sh` (run by gb-runner) passes. Default stages: plain `make` (`make -B` when the branch changes the Makefile or a generator), with `make release` and `make cfall`
-  (the C reference build) beside it, `make check` (SameBoy, DMG + CGB), then side by side the full pytest suite on both models and the `RUN_SLOW=1` double-speed and half-rate tests. `FULL=1` uses `make -B` and adds the release-only tests and the slow fade tests; `CBUILD=1` adds the suite on the C
+- **Done means:** committed, and `tools/dev/verify.sh` (run by gb-runner, about 2.5 min) passes. `make` is the per-object build (8 jobs, ~15 s clean, < 1 s after a .c edit); `make OBJ=0` is the old one-shot lcc call (~75 s). Default stages: plain `make` (`make -B` when the branch changes the Makefile or a generator), with `make release` and `make cfall`
+  (the C reference build) beside it, `make check` (SameBoy, DMG + CGB), then side by side the full pytest suite on both models and the `RUN_SLOW=1` double-speed and half-rate tests. `FULL=1` uses `make -B`, also builds the ROMs with `OBJ=0` (one-shot lcc) and fails on any sha1 difference, and adds the release-only tests and the slow fade tests; `CBUILD=1` adds the suite on the C
   build (`GB_ROM=build/game-c.gb`), only before a porting release. While working, run targeted tests only.
 - **Replace goldens one by one, only after checking each diff's bounding box** against the intended change. Never
   regenerate all of them. Name each replaced golden, and the reason, in the commit message.

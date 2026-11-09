@@ -56,7 +56,8 @@ everything you need is local. The owner pushes to GitHub himself.
 
 ## The loop
 
-    make            # assets -> data, compile, link, bank usage
+    make            # assets -> data, per-object compile (8 jobs) and link, bank usage: ~15 s clean, < 1 s after a .c edit;
+                    # make OBJ=0 is the old one-shot lcc call (~75 s), the byte-identical reference build
     make test       # full pytest on DMG and CGB, 8 shards via tools/dev/ptest.py (~4 min); JOBS=1 for the serial run.
                     # Targeted (preferred while working): make test K=<expr> (pytest -k) or make test F=<file>
     make check      # SameBoy, DMG + CGB, screenshots in out/check/
@@ -64,7 +65,7 @@ everything you need is local. The owner pushes to GitHub himself.
     make cfall      # the C reference build of every asm routine
 
 Full branch verification, run only by a `gb-runner` agent: `tools/dev/verify.sh <worktree> <name>` (default stages
-about 3 min: plain `make` (`make -B` when the branch changes the Makefile or a generator) with `make release` and `make cfall` beside it, `make check`, then pytest and the double speed / half rate tests side by side; `FULL=1` uses `make -B`, adds the slow fade stage and the release-only tests, `CBUILD=1` adds the C-build pytest).
+about 2.5 min (2 min 29 s measured): plain `make` (`make -B` when the branch changes the Makefile or a generator) with `make release` and `make cfall` beside it, `make check`, then pytest and the double speed / half rate tests side by side; `FULL=1` uses `make -B`, builds the three ROMs with `OBJ=0` too and fails on any sha1 difference, adds the slow fade stage and the release-only tests, `CBUILD=1` adds the C-build pytest).
 
 Test and build commands (`make`, `make test`, `make check`, `pytest`) pass through a hook: if the output is long you
 see the failures, errors and the last lines, plus the path of the full log. Open the full log only when that is not

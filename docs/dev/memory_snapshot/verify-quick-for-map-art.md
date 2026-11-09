@@ -1,6 +1,6 @@
 ---
 name: verify-quick-for-map-art
-description: Owner Q11 (2026-11-08), updated 2026-11-09 (test batch 1, item 3): verify.sh default is the ~3 min stage set (plain make with make release and make cfall beside it; then pytest and slow ds/hr side by side); FULL=1 uses make -B, adds release-only tests and slow fade, CBUILD=1 adds the C-build pytest; QUICK=1 is a no-op alias
+description: Owner Q11 (2026-11-08), updated 2026-11-09 (test batch 1, item 3): verify.sh default is the ~2.5 min stage set (2 min 29 s measured; make is the per-object build, OBJ=0 the one-shot reference, FULL=1 compares them) (plain make with make release and make cfall beside it; then pytest and slow ds/hr side by side); FULL=1 uses make -B, adds release-only tests and slow fade, CBUILD=1 adds the C-build pytest; QUICK=1 is a no-op alias
 metadata:
   type: feedback
 ---

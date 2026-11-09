@@ -4,7 +4,7 @@
 #   tools/dev/verify.sh <worktree> <name>
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
-#   Default stages (owner, test batches 1 and 2, 2026-11-09; about 3 min):
+#   Default stages (owner, test batches 1 to 3, 2026-11-09; about 2.5 min, 2 min 29 s measured with the per-object build):
 #     plain make (incremental; make -B instead with FULL=1, or when the branch, its uncommitted changes or its untracked files touch the
 #     Makefile or a generator under tools/, see build_mode below; the log has a "build mode:" line with the reason), then make release and make cfall beside make, then side by side pytest on the asm build and the RUN_SLOW double speed / half
 #     rate tests; make check runs right after the build (about 1 s).
