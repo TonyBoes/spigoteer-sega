@@ -15,6 +15,9 @@
 #   CBUILD=1 tools/dev/verify.sh <worktree> <name>
 #     adds the pytest run on the C build (GB_ROM=build/game-c.gb, about 5 min). Only before a porting release, while C tests
 #     are on hold. FULL=1 CBUILD=1 together is the old full run.
+#   OBJ=1 tools/dev/verify.sh <worktree> <name>
+#     (test batch 3, opt-in) every build in the run, including the tests' own variant builds, is the per-object build (make OBJ=1: 8 jobs per build,
+#     byte-identical ROMs; see .claude/audit/batch3-report.md). The log header says (OBJ=1).
 #   QUICK=1 is accepted and does nothing (it was the default's old name), so old briefs keep working.
 #
 # Skips (batch 3, S2): tools/dev/skip_baseline.txt (the supervisor's file) holds the expected asm pytest skips (56); more skips, or a skipped ID not listed, adds "(skips 58 > 56)" after RESULT and lists the IDs in a "skipped tests" section. Never a failure.
