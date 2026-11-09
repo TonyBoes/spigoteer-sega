@@ -118,7 +118,7 @@ def dyn_analyse(st, dyn):
         frames = late = near = hold = vql = 0
         for key, w in sorted(dyn[m].items(), key=lambda kv: tuple(int(a) for a in kv[0].split(","))):
             s, d = (int(a) for a in key.split(","))
-            li = st.exit_leg[s][d] & 0x7F
+            li = st.exit_leg[s][d] & 0x3F                        # (bit 6: a forgiveness button, no arrow)
             rev = bool(st.exit_leg[s][d] & 0x80)
             xy = np.array([(a, b) for a, b, _ in st.leg_samples[li]])
             log = w["log"]
