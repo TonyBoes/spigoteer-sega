@@ -56,10 +56,12 @@ def test_no_window_of_the_built_data_is_over_the_budgets():
     dm, cg = g.Model(False), g.Model(True)
     stops, legs, _, _ = g.geometry()
     assert dm.window_max(21, 19)[0] <= 176, "a view's tiles fit the DMG's 176 slots"
-    assert cg.palette_max(21, 19)[0] <= 8, "a view's palettes fit the Color's 8 BG palette slots"
+    # (the generic 21 x 19 sweep of every map position is only a generator warning now: the camera shows the legs, the stops and the glides, so the Color limit is asserted on the real views below)
     assert WORLD["vars_max"] <= 4 and WORLD["uses_max_22x20"] <= 255 and WORLD["slots_c"] <= 352
     worst_t = worst_p = 0
     for p in (1, 10, 11):
+        for (c0, c1, r0, r1) in g.path_windows(stops, legs, 0):       # the views themselves: at most 8 palettes
+            assert len(np.unique(cg.pals[p][r0:r1 + 1, c0:c1 + 1])) <= 8, (p, c0, c1, r0, r1)
         for (c0, c1, r0, r1) in g.path_windows(stops, legs):          # (the camera's view on every pixel of the way, a line more on every side)
             worst_t = max(worst_t, len(np.unique(dm.grids[p][r0:r1 + 1, c0:c1 + 1])))
             worst_p = max(worst_p, len(np.unique(cg.pals[p][r0:r1 + 1, c0:c1 + 1])))

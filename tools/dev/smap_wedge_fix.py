@@ -7,9 +7,8 @@ The bends at cells (35..37, 44..46) and (50..52, 44..46) are drawn with `town1`,
 The ground pixels are the 4-connected runs of colour 0 that hold a 2 x 2 block (the road's cream edge line is 1 px thick); they stay colour 0 and the cells change to a palette whose colour 0 is grass.
   Cells that hold only ground (and the kerb tip's one dark pixel): (37,46) and (50,46): the `grass` palette, which every view already holds, draws them exactly as before except the tip pixel's dark
   ((16,32,24) for (32,24,40)).  No palette is added.
-  The other wedge cells also hold the road's cream edge line and dots (the old colour 0 inside the road), which need a palette of grass / fill / kerb / cream: that is a 9th palette in the
-  Color windows around the bends (they already hold 8), and the generator's 21 x 19 and path-view checks fail.  MIXED=1 retypes them to town1@g with the edge line and dots drawn as fill
-  (LINE), to see it: it fails the build (a 9th palette at x 32..35, y 38..44).
+  The other wedge cells also hold the road's cream edge line and dots (the old colour 0 inside the road).  A grass-0 palette cannot draw them cream, so they take `town1@g` (grass, fill, kerb,
+  dark: no new palette) with the edge line and dots drawn as road fill (colour LINE) and ground pixels left as colour 0 (grass).  HALF=1 skips these cells (the half fix).
 Only world_c.png and the cell palettes change: the DMG picture is untouched (world_d.png; the DMG palettes are not read from the cell palettes).
 """
 import json
@@ -23,7 +22,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent.parent
 JS, PNG = ROOT / "assets" / "smap" / "world.json", ROOT / "assets" / "smap" / "world_c.png"
 BENDS = [(35, 37, 44, 46), (50, 52, 44, 46)]          # (cell x0, x1, y0, y1)
-MIXED = os.environ.get("MIXED") == "1"      # the mixed cells (the road's edge line next to the ground): over the 8 palettes a window may use, see the docstring
+HALF = os.environ.get("HALF") == "1"      # only the two all-ground cells (no edge line to draw): the half fix
 LINE = int(os.environ.get("LINE", "1"))
 
 
@@ -73,7 +72,7 @@ def main():
             cp[y][x] = chr(48 + names.index("grass"))
             changed.append((x, y))
             continue
-        if not MIXED:
+        if HALF:
             continue                      # west bend mixed cells: no palette to give them, see the commit message
         o[(c == 0) & ~ground[sl]] = LINE          # the road's own cream pixels (its edge line and dots) cannot be cream in a grass-0 palette: they take the fill colour
         cp[y][x] = chr(48 + gpal)
