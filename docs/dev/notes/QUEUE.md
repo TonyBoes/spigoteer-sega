@@ -938,3 +938,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
   2. Reconcile ROM0 free space: this report says 477 B, CLAUDE.md says ~745 B. Find which is right and how each was measured, then fix CLAUDE.md.
   3. Prove tests' BUILD= builds use OBJ=1 (per-object dir exists under out/b_showcgb after a run).
   Then update the instruction lines you listed (times measured), merge, and reply with the merge commit and a 3-line summary."
+- 11-09 batch 3 D1-D5 done (9930ca3f OBJ=1 default, 69ebd684 FULL=1 oneshot hash compare, 2ccc441d CLAUDE.md ROM0 477 B for build/game.gb via tools/rom0free.py (745 B had no source; romusage overstates), 669b9d48 times + D4 proof: out/b_showcgb/obj/game/o 120 objects). FULL=1 verify by gb-runner running before merge (default switch + real D2 stage).
