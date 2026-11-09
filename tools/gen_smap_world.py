@@ -56,7 +56,8 @@ assert [VENUE_IDS[v] for v in _ord] == W.ORDER, ("src/order.h ven_at is not the 
 # The resting view at each stop (owner Q121, 11-07): where the camera stands while Sal does: (x, y, side). x, y: the screen's top-left in the world, None = Sal at the centre as
 # when he walks (clamped to the world). side: where the name tag and the venue panel go there (1 the bottom, 0 the top): away from the venue's art.
 # Stadium: the floodlights and the flag; space: the UFO and the peak. The other stops show their whole venue with the camera on Sal.
-STOP_VIEW = {"stadium": (None, 0, 1), "space": (80, 262, 1)}
+SAL_Y = 110                      # Sal's feet on the screen (owner Q9 11-08: low, so the top rows show on the top road); x stays at 80
+STOP_VIEW = {"space": (80, None, 1)}
 
 
 def view_bytes(name):
@@ -437,7 +438,7 @@ def path_windows(stops, legs, pad=1):
     """The cell windows the region can hold while Sal walks: for every pixel of every leg (and every stop) the camera's view (Sal's feet at the screen's
     centre, clamped to the world) in cells, padded by pad cells on every side (the line ahead, the one the drop has not yet taken)."""
     def cam(fx, fy):
-        return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - 84, 0), CH * 8 - 144)
+        return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - SAL_Y, 0), CH * 8 - 144)
     wins = set()
 
     def add(fx, fy):
@@ -449,7 +450,7 @@ def path_windows(stops, legs, pad=1):
         vx, vy, _ = STOP_VIEW.get(n, (None, None, 1))
         if vx is not None or vy is not None:
             for i in range(33):                          # (and the glide between the view and Sal's follow spot: the camera crosses these windows, in steps of 2 px)
-                add(sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32, sy if vy is None else vy + 84 + (sy - 84 - vy) * i // 32)
+                add(sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32, sy if vy is None else vy + SAL_Y + (sy - SAL_Y - vy) * i // 32)
     for a, b, pts in legs:
         for k in range(len(pts) - 1):
             (x0, y0), (x1, y1) = pts[k], pts[k + 1]
@@ -457,6 +458,18 @@ def path_windows(stops, legs, pad=1):
             for i in range(n + 1):
                 add(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n)
     return sorted(wins)
+
+
+def path_max(m, wins, grids):
+    """the most distinct values (tile ids, or palettes) any window of wins holds in any unlock state: (n, (state, window))"""
+    best, at = 0, None
+    for p in m.ustates:
+        gr = grids[p]
+        for w in wins:
+            n = len(np.unique(gr[w[2]:w[3] + 1, w[0]:w[1] + 1]))
+            if n > best:
+                best, at = n, (p, w)
+    return best, at
 
 
 def path_hints(dm, wins, k):
@@ -499,13 +512,26 @@ def geometry():
         legs.append((a, b, pts))
     exits = [[255] * 4 for _ in stops]               # U, D, L, R: the neighbour stop
     exit_leg = [[255] * 4 for _ in stops]            # leg index | 0x80 when the leg runs b to a
+    def leaving(s, pts):                             # the side the road leaves stop s: the first point 16 px or more away, dominant axis (owner 11-08)
+        sx, sy = stops[s]
+        for (x, y) in pts:
+            dx, dy = x - sx, y - sy
+            if max(abs(dx), abs(dy)) >= 16:
+                return ((3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0))
+        raise AssertionError(f"leg of stop {s} never leaves it")
+    old = []                                         # the old button, the straight line to the destination: it stays where no road leaves that side (bit 6 of exit_leg: no arrow)
     for li, (a, b, pts) in enumerate(legs):
         for (s, t, rev) in ((a, b, 0), (b, a, 1)):
-            dx, dy = stops[t][0] - stops[s][0], stops[t][1] - stops[s][1]
-            d = (3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0)
+            d = leaving(s, pts[::-1] if rev else pts)
             assert exits[s][d] == 255, f"two exits of stop {s} lie to the same side"
             exits[s][d] = t
             exit_leg[s][d] = li | (0x80 if rev else 0)
+            dx, dy = stops[t][0] - stops[s][0], stops[t][1] - stops[s][1]
+            old.append((s, t, li, rev, (3 if dx > 0 else 2) if abs(dx) >= abs(dy) else (1 if dy > 0 else 0)))
+    for (s, t, li, rev, d) in old:
+        if exits[s][d] == 255:
+            exits[s][d] = t
+            exit_leg[s][d] = li | (0x80 if rev else 0) | 0x40
     return stops, legs, exits, exit_leg
 
 
@@ -911,7 +937,14 @@ def main(build, preview):
         cg.pal_words += [rgb555(c) for c in cols]
     # the DMG hints: a min-conflict colouring of the DMG tiles in 176 slots (the allocator takes a tile's hint slot when it is free)
     stops, legs, exits, exit_leg = geometry()
-    col_d, bad_d = path_hints(dm, path_windows(stops, legs), POOL)
+    pw = path_windows(stops, legs)
+    wd, wp = path_max(dm, pw, dm.grids), path_max(cg, path_windows(stops, legs, 0), cg.pals)       # the windows the camera can hold on the walk and at the stops
+    print(f"smap world path windows: DMG worst padded {wd[0]} of {POOL} at {wd[1]}, Color worst view palettes {wp[0]} of 8 at {wp[1]}")
+    if wd[0] > POOL:
+        fail.append(f"DMG: a padded path window holds {wd[0]} tiles at {wd[1]}, the pool is {POOL}")
+    if wp[0] > 8:
+        fail.append(f"Color: a path view needs {wp[0]} palettes at {wp[1]}")
+    col_d, bad_d = path_hints(dm, pw, POOL)
     dm.hint = [int(c) for c in col_d]
     if fail:
         print("gen_smap_world: BUDGET FAILURES\n  " + "\n  ".join(fail), file=sys.stderr)
@@ -942,7 +975,7 @@ def main(build, preview):
     for s in range(11):
         h.append("    { " + ", ".join(str(v) for v in exits[s]) + " },")
     h.append("};")
-    h.append("static const uint8_t smapw_exit_leg[11][4] = {   // the leg of that exit, bit 7 set when it is walked backwards")
+    h.append("static const uint8_t smapw_exit_leg[11][4] = {   // the leg of that exit, bit 7 set when it is walked backwards, bit 6 a button with no arrow (the old direction to the stop)")
     for s in range(11):
         h.append("    { " + ", ".join(str(v) for v in exit_leg[s]) + " },")
     h.append("};")

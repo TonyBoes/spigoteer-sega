@@ -11,7 +11,7 @@ for n,(sx,sy) in zip(st.order,st.stops):
     if vx is not None or vy is not None:
         for i in range(33):
             fx= sx if vx is None else vx+80+(sx-80-vx)*i//32
-            fy= sy if vy is None else vy+84+(sy-84-vy)*i//32
+            fy= sy if vy is None else vy+G.SAL_Y+(sy-G.SAL_Y-vy)*i//32
             views.append(st.view(*S.cam(fx,fy)))
 for v in views:
     c0,c1,r0,r1=v["view"]; vis[r0:r1+1,c0:c1+1]=True

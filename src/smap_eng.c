@@ -1009,13 +1009,13 @@ static void drop_run(uint8_t cap) {
     if (pos >= n) V(V_DK) = J_NONE;
 }
 
-// Walking, the camera follows Sal (feet at 80, 84 on the screen); standing at a stop it rests at the stop's own view (smapw_view: the whole venue and Sal on the screen);
+// Walking, the camera follows Sal (feet at 80, 110 on the screen: low, so that the sky and the peaks above the road show: owner Q9 11-08); standing at a stop it rests at the stop's own view (smapw_view: the whole venue and Sal on the screen);
 // the same camera step glides it there and back. A walk that is set off from a resting view waits (V_DONE: its direction + 1, smap.c) until the camera has come to Sal's spot:
 // the walk then runs as it always did.
 uint8_t smap_stop_side(uint8_t s) BANKED { return smapw_view[s][2] | (smapw_view[s][0] != 255 || smapw_view[s][1] != 255 ? 2 : 0); }   // bit 0: the side of the name tag and the venue panel at stop s (1 the bottom, 0 the top: away from the art); bit 1: the stop has a resting view
 
 void smap_cam_target(int16_t *tx, int16_t *ty) BANKED {
-    int16_t x = (int16_t)g16(V_FX) - 80, y = (int16_t)g16(V_FY) - 84;
+    int16_t x = (int16_t)g16(V_FX) - 80, y = (int16_t)g16(V_FY) - 110;
     if (!V(V_WALK) && !V(V_DONE) && smap_stop < NSTOPS) {
         if (smapw_view[smap_stop][0] != 255) x = (int16_t)smapw_view[smap_stop][0] << 1;
         if (smapw_view[smap_stop][1] != 255) y = (int16_t)smapw_view[smap_stop][1] << 1;
@@ -1028,13 +1028,13 @@ static uint8_t cov_x(int16_t x) { return (uint8_t)(x >> 3) >= V(V_C0) && (uint8_
 static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_t)((y + 143) >> 3) <= V(V_R1); }
 
 // How many px Sal may walk on, along x (horiz) or y, toward larger (up) or smaller coordinates, before the camera that follows him would show a cell the region does not hold
-// (255: as far as you like). fx or fy: his feet's coordinate on that axis. The camera follows him step for step (80 and 84: the feet's place on the screen), clamped to the world.
+// (255: as far as you like). fx or fy: his feet's coordinate on that axis. The camera follows him step for step (80 and 110: the feet's place on the screen), clamped to the world.
 uint8_t smap_room(uint8_t horiz, uint8_t up, uint16_t f) BANKED {
     uint8_t lo = horiz ? V(V_C0) : V(V_R0), hi = horiz ? V(V_C1) : V(V_R1);
     int16_t lim;
     if (up ? hi >= (horiz ? 63 : SMAPW_CH - 1) : !lo) return 255;
-    if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 60) - (int16_t)f;
-    else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 84);
+    if (up) lim = (int16_t)((hi + 1) << 3) - (horiz ? 80 : 34) - (int16_t)f;
+    else lim = (int16_t)f - (int16_t)(lo << 3) - (horiz ? 80 : 110);
     return lim < 0 ? 0 : lim > 255 ? 255 : (uint8_t)lim;
 }
 
