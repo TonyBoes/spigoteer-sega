@@ -867,3 +867,4 @@ The grass dithering patchiness looks better now."
   -> 11-08 found: thirst multiplier removed 10-13 (49934d77, fixed push 32/24 px); early drinkers ~21% at Space push 6-12 px and drink at once. Agent briefed: push grows per mug (24,36,48,60 at Space), short push on first mug only; Space test ROM.
 - 11-08 Q9/Sal-low branch done (d19fba22): feet y110 everywhere, top rows seen, DMG 173/176, guards ok; 22 goldens to replace after the arrows merge.
 - 11-08 OWNER: "The ufo can be lower on the mountain and closer to the airbase."
+- 11-08 thirst branch 278cd0e7 (Story/Arcade; Classic + bosses flat): mugs to serve L10 5.61 -> 3.21, short pushes 21% -> 6.6%. Pocket Player v81 has "Thirst push (test)" (debug menu, Space). Waiting on owner feel test.
