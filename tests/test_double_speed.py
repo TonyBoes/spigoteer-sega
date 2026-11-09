@@ -265,7 +265,9 @@ def test_milk_runs_hud_row_ends_on_line_7_in_double_speed():
         rom.write_bytes(bytes(b))
         subprocess.run(["sameboy_tester", f"--{model}", "--length", "12", str(rom)], capture_output=True, timeout=600)
         shots[tag] = np.array(Image.open(rom.with_suffix(".bmp")).convert("RGB")).astype(int)
-    assert (shots["ds"][:8] == shots["ns"][:8]).all(), "the HUD row's eight lines: the same in double speed and at normal speed"
+    # (x < 136: the hourglass and the seconds are left out: the scene-change fade's length in frames differs a little between the two speeds, so
+    # the 12-second still can fall either side of a clock tick, 67 against 68; the score, lives and bar, and every line of them, still compare.)
+    assert (shots["ds"][:8, :136] == shots["ns"][:8, :136]).all(), "the HUD row's eight lines: the same in double speed and at normal speed"
     street = shots["ds"][8:16]
     assert (street != shots["ds"][7]).any(), "line 8 is the street, not a repeat of line 7"
     assert shots["ds"][:8].std() > 0 and (shots["dmg"][:8] != shots["dmg"][8]).any()
