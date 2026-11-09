@@ -64,7 +64,7 @@ everything you need is local. The owner pushes to GitHub himself.
     make cfall      # the C reference build of every asm routine
 
 Full branch verification, run only by a `gb-runner` agent: `tools/dev/verify.sh <worktree> <name>` (default stages
-about 5 min: plain `make` (`make -B` when the branch changes the Makefile or a generator), then pytest, `make cfall` and the double speed / half rate tests side by side, `make check`; `FULL=1` uses `make -B`, adds the slow fade stage and the release-only tests, `CBUILD=1` adds the C-build pytest).
+about 3 min: plain `make` (`make -B` when the branch changes the Makefile or a generator) with `make release` and `make cfall` beside it, `make check`, then pytest and the double speed / half rate tests side by side; `FULL=1` uses `make -B`, adds the slow fade stage and the release-only tests, `CBUILD=1` adds the C-build pytest).
 
 Test and build commands (`make`, `make test`, `make check`, `pytest`) pass through a hook: if the output is long you
 see the failures, errors and the last lines, plus the path of the full log. Open the full log only when that is not

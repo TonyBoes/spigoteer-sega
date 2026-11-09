@@ -286,6 +286,12 @@ $(BUILD)/$(1).flags: FORCE | $(BUILD)
 endef
 
 # $(call rom_rule,variant,rom,flags,extra check line or empty): one lcc invocation, log in build/<variant>_link.log
+# prep: everything every ROM variant needs except the lcc/link step (generated sources, headers, hUGEDriver object, the game and
+# release flags stamps). tools/dev/verify.sh runs it first and once, so `make` and `make release` can then run at the same time:
+# both find all their prerequisites current and write only their own build/<variant>.* files and build/obj/<variant>/.
+.PHONY: prep
+prep: $(ROM_DEPS) $(BUILD)/game.flags $(BUILD)/release.flags
+
 define rom_rule
 $(call flags_stamp,$(1),$(3))
 $(2): $(ROM_DEPS) $(BUILD)/$(1).flags
