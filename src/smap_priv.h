@@ -38,8 +38,8 @@ extern uint8_t smap_flags;
 #define T_IDS        32
 #define T_CAM        54
 #define V(n)         (story_scratch[S_V + (n)])
-#define PEND         (story_scratch[A_PEND])
-#define PLN          (story_scratch[A_PEND + 1])
+#define PEND         SC(A_PEND)[0]
+#define PLN          SC(A_PEND)[1]
 enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
        V_CAMX = 12, V_CAMY = 14, V_FX = 16, V_FY = 18,                         // the camera's and Sal's feet's pixel positions in the world (16 bit each)
        V_WALK = 20, V_LEG, V_REV, V_WK, V_DEST, V_TICK,                        // the walk: on, the leg, walked backwards, the waypoint heading for, the stop heading for
@@ -48,7 +48,7 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH
        V_DK, V_DI, V_DA, V_DN, V_DP,                                           // the drop job: the same
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
        V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
-typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_XSTG && A_XSTG + 80 <= A_PSTG && A_PSTG + 9 <= S_V && A_XSTG + 15 + 80 <= S_V
+typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PEND && A_PEND + 2 <= A_XSTG && A_XSTG + 80 <= A_PSTG && A_PSTG + 9 <= S_V && A_XSTG + 15 + 80 <= S_V
                                 && A_ATTR_UI + 20 <= A_IDA && A_PUSE + 8 <= A_ATTR_UI && A_PCNT + 2 * 23 <= A_PSLOT && A_PSLOT + 23 <= A_PUSE && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
 #define J_NONE       0

@@ -63,7 +63,7 @@ USERS = {
     "ol.STATE": (H["SCR_OL_AT"], H["SCR_OL_AT"] + H["SCR_OL_N"], "oneline.h struct ol_state: the arrows' bob and the key repeat (SOUNDTRACK, MINI GAMES, the Boss Rush list)"),
     # the story map
     # (the scrolling map owns the whole of it: smap_priv.h lays it out)
-    "smap.TABLES": (0, 396, "smap_priv.h A_*: the tile allocator's tables (DMG 176 slots + counts; Color nibbles), the palettes' counts and slots, the window layer's attribute row, the cells' attributes, the palette write"),
+    "smap.TABLES": (0, 396, "smap_priv.h A_*: the tile allocator's tables (DMG 176 slots + counts; Color nibbles), the palettes' counts and slots, the window layer's attribute row, the cells' attributes, the palette hand-over's two bytes (A_PEND 295-296: Color only, between the attribute bytes and the staging; on DMG the use counts A_CNT 220-395 lie over them and nothing reads them), the palette write"),
     "smap.V": (396, 464, "smap_priv.h V(n): the variables (camera, Sal, region, add and drop jobs)"),
     "smap.STAGE": (464, 520, "smap_priv.h S_T: the tile staging, the line's tile ids, the scroll bytes; the panel's two rolling rows and the name tag's row lie over the first 40"),
     # the Practice list
@@ -249,3 +249,20 @@ def test_the_color_tile_staging_is_on_a_16_byte_boundary_at_its_offset():
     adr = int(re.search(r"DEF _story_scratch 0x([0-9A-Fa-f]+)", noi.read_text()).group(1), 16)
     assert (adr + xstg) % 16 == 0, f"story_scratch is at {adr:#x}: A_XSTG {xstg} is no longer on a 16-byte boundary (A_PSTG {pstg} follows the staging's 80 bytes)"
     assert xstg + 80 <= pstg
+
+
+def test_the_palette_hand_over_bytes_are_free_on_color_and_the_dmgs_use_counts_lie_over_them():
+    """src/smap_priv.h A_PEND (the Color palette hand-over: the borrowing palette and the borrowed line): 2 bytes after the cells' attribute bytes and before the staging, inside the
+    smap.TABLES range, clear of every other Color table; the DMG's use counts (A_CNT, 176 bytes) are the documented share, and smap_eng.c reads the bytes only behind is_cgb."""
+    h = (SRC / "smap_priv.h").read_text()
+    a = {k: int(v) for k, v in re.findall(r"#define (A_\w+)\s+(\d+)", h)}
+    lo, hi = a["A_PEND"], a["A_PEND"] + 2
+    lo_t, hi_t, _ = USERS["smap.TABLES"]
+    assert lo_t <= lo and hi <= hi_t
+    colour = {"A_NIB": 176, "A_PCNT": 46, "A_PSLOT": 23, "A_PUSE": 8, "A_ATTR_UI": 20, "A_IDA": 22, "A_XSTG": 95, "A_PSTG": 9}
+    for name, n in colour.items():
+        assert hi <= a[name] or a[name] + n <= lo, f"A_PEND [{lo},{hi}) shares bytes with {name}"
+    assert a["A_CNT"] <= lo and hi <= a["A_CNT"] + 176, "the DMG use counts lie over A_PEND (the documented share)"
+    eng = code("src/smap_eng.c")
+    for pat in (r"is_cgb && PEND != NIL && \(\(n", r"!is_cgb \|\| PEND == NIL", r"is_cgb && PEND != NIL\) pal_hand"):
+        assert re.search(pat, eng), f"smap_eng.c no longer guards PEND with is_cgb: {pat}"
