@@ -23,10 +23,29 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 JS, PNG = ROOT / "assets" / "smap" / "world.json", ROOT / "assets" / "smap" / "world_c.png"
 ORIG = "ed4b66c0:assets/smap/world_c.png"          # the picture before smap_wedge_fix.py drew the road's cream pixels as fill
 BEND_CELLS = [(37, 44), (37, 45), (36, 46), (35, 46), (50, 44), (50, 45), (51, 46), (52, 46)]
-STAY = {(37, 44)}                                   # keeps town1@g (see above)
+STAY = {(37, 44), (0, 27), (0, 28), (0, 29), (1, 29), (2, 29)}      # (37,44) see above; the five at the west edge keep town1@g so it is resident when a walk leaves the town front westward (no palette write there)
+
+
+def erase_dots():
+    """Owner 11-09: the one near-black pixel in the corner of (37,46) and (50,46) (plain grass cells, a leftover of the old square corner) is erased, in the Color and the DMG picture."""
+    # DMG: only (50,46).  Erasing (37,46)'s makes the blank tile fill 240 cells of the 22 x 20 window at (22..43, 32..51) (the cap is 239: the engine keeps 0xF0.. of a use count free).
+    for f, cells in ((PNG, ((37, 46), (50, 46))), (PNG.with_name("world_d.png"), ((50, 46),))):
+        im = Image.open(f)
+        a = np.array(im)
+        n = 0
+        for (x, y) in cells:
+            c = a[y * 8:y * 8 + 8, x * 8:x * 8 + 8]
+            n += int((c == 3).sum())
+            c[c == 3] = 0
+        if n:
+            o = Image.fromarray(a, "P")
+            o.putpalette(im.getpalette())
+            o.save(f)
+        print(f.name, "dot pixels erased:", n)
 
 
 def main():
+    erase_dots()
     js = json.loads(JS.read_text())
     names = js["pal_names"]
     if "town1@w" in names:
