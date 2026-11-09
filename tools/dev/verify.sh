@@ -4,12 +4,17 @@
 #   tools/dev/verify.sh <worktree> <name>
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
-#   QUICK=1 tools/dev/verify.sh <worktree> <name>
-#     the quick check for map and art branches (owner Q11, 2026-11-08): builds, the game tests, make check and the double speed /
-#     half rate tests, about 7 min; it skips the slow fade tests and the C-build tests. Engine, fade or timing changes and releases
-#     get the full run.
+#   Default stages (owner, test batch 1, 2026-11-09; about 7 min): make -B, make cfall, pytest on the asm build, make check,
+#     and the RUN_SLOW double speed / half rate tests.
+#   FULL=1 tools/dev/verify.sh <worktree> <name>
+#     adds the slow fade stage (RUN_SLOW=1 tests/test_fade_hw.py, about 7 min). Use it for engine, fade, timing or music
+#     changes, and before any release.
+#   CBUILD=1 tools/dev/verify.sh <worktree> <name>
+#     adds the pytest run on the C build (GB_ROM=build/game-c.gb, about 5 min). Only before a porting release, while C tests
+#     are on hold. FULL=1 CBUILD=1 together is the old full run (about 20 min).
+#   QUICK=1 is accepted and does nothing (it was the default's old name), so old briefs keep working.
 #
-# Log: /workspace/out/verify/<name>.log (out/ is never committed). Run it in the background; it takes about 20 min.
+# Log: /workspace/out/verify/<name>.log (out/ is never committed). Run it in the background.
 # The last two lines are always "RESULT: PASS" or "RESULT: FAIL (...)" and "END", so wait on the END marker.
 # The log is short by design; read it whole.
 
@@ -28,7 +33,7 @@ PYTEST="python3 -m pytest -q -p no:cacheprovider"
 PTEST="python3 tools/dev/ptest.py -j ${JOBS:-8}"
 step() { echo "== $1 ($(date +%H:%M:%S))" >> "$L"; }
 
-echo "worktree $WT${QUICK:+ (QUICK)}" >> "$L"
+echo "worktree $WT${FULL:+ (FULL)}${CBUILD:+ (CBUILD)}" >> "$L"
 echo "commit $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)" >> "$L"
 
 step "make -B"
@@ -44,10 +49,12 @@ $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
 step "make check"
 make check 2>&1 | grep -E "\[(dmg|cgb)\]" >> "$L"
 
-if [ -z "${QUICK:-}" ]; then
+if [ -n "${FULL:-}" ]; then
 step "slow: fade"
 RUN_SLOW=1 $PYTEST tests/test_fade_hw.py 2>&1 | tail -1 >> "$L"
+fi
 
+if [ -n "${CBUILD:-}" ]; then
 step "pytest (C build)"
 GB_ROM=build/game-c.gb $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
 fi
@@ -60,14 +67,14 @@ RUN_SLOW=1 $PYTEST tests/test_double_speed.py tests/test_half_rate.py 2>&1 | tai
 #  - pytest short-summary lines that start with FAILED or ERROR
 #  - pytest totals with "N failed" or "N error(s)" as whole words (not "xfailed")
 #  - make check lines whose verdict word is FAIL, FAILED, CRASH or HANG
-#  - all four pytest steps must have printed a total with "passed" (a missing total = pytest died)
+#  - every pytest step that ran (2 by default, +1 for FULL=1, +1 for CBUILD=1) must have printed a total with "passed" (a missing total = pytest died)
 #  - make check must print both "[dmg] OK" and "[cgb] OK" (gbtools/check.py prints exactly "[model] OK" or "[model] FAIL";
 #    a missing line = gbcheck died)
 FLAGS=$(grep -nE '^(BUILD_FAIL|CFALL_FAIL)$|^(FAILED|ERROR) |(^|[^a-z])[0-9]+ (failed|errors?)([^a-z]|$)' "$L")
 FLAGS="$FLAGS
 $(grep -niE '^\[(dmg|cgb)\].*(^|[^a-z])(fail|failed|crash|hang)([^a-z]|$)' "$L")"
 SUITES=$(grep -cE '(^|[^a-z])[0-9]+ passed' "$L")
-NSUITES=4; [ -n "${QUICK:-}" ] && NSUITES=2
+NSUITES=2; [ -n "${FULL:-}" ] && NSUITES=$((NSUITES+1)); [ -n "${CBUILD:-}" ] && NSUITES=$((NSUITES+1))
 CHECKS=$(grep -cE '^\[(dmg|cgb)\] OK$' "$L")
 FLAGS=$(printf '%s\n' "$FLAGS" | grep .)
 if [ -n "$FLAGS" ] || [ "$SUITES" -lt $NSUITES ] || [ "$CHECKS" -lt 2 ]; then
