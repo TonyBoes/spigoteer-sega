@@ -203,6 +203,16 @@ BONUS_H  += $(BUILD)/smap_world.h
 $(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_world.py $(wildcard tools/smap_gear.json) $(wildcard tools/smap_world/world_snap.py) $(wildcard assets/smap/*) $(wildcard assets/story_map/world/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_smap_world.py $(BUILD) $(OUT)/preview
 
+# Prerequisites the generators read that their rules above do not list (test batch 2, B3: found by logging every file each generator opens during
+# `make -B` and comparing with the rules). Without them an incremental `make` kept stale generated files after editing one of these.
+$(BUILD)/art.c: assets/tiles/story.txt src/layout.h tools/artifacts/palette_plan/plan_slots.json
+$(BUILD)/boss_art.h: $(wildcard assets/approved/venues/*_tilt.txt)
+$(BUILD)/credits_text.c: $(wildcard assets/approved/venues/*_pal.json) $(wildcard assets/art/patrons/*_x.txt) $(wildcard tools/artifacts/palette_plan/*.py) tools/artifacts/palette_plan/plan_slots.json
+$(BUILD)/looks.c: src/game.h tools/artifacts/palette_plan/plan_slots.json
+$(BUILD)/smap_world.h: src/order.h
+$(BUILD)/story_data.c: assets/tiles/bar.txt src/level.c
+$(BUILD)/music_data.c: tools/harmony.py
+
 preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 
 # The boss engine (src/boss.c): each boss's body poses (and extra poses), held empties, topper and HUD face, and the HUD
