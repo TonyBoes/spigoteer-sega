@@ -22,12 +22,12 @@ extern uint8_t smap_flags;
 #define A_TBL        0       // DMG: 220 bytes: 176 low bytes of the tile id in each slot, then 44 bytes of the 2-bit highs (0x3FF: free)
 #define A_CNT        220     // DMG: 176 use counts (cells of the region that show the slot's tile)
 #define A_NIB        0       // Color: 176 bytes: the variant resident in each of the 352 slots, a nibble each (15: none)
-#define A_PCNT       176     // Color: 23 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 23 palettes: ZOOGATE is the 23rd; the layout has room for 25)
-#define A_PSLOT      222     // Color: 23 bytes: the hardware slot of each palette (255: none)
-#define A_PUSE       245     // Color: 8 bytes: the palette in each hardware slot (255: free)
-#define A_ATTR_UI    253     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
-#define A_IDA        273     // Color: 22 bytes: the attribute bytes of the cells being written
-#define A_PEND       295     // Color: 2 bytes (free between the attribute bytes and the staging): the palette hand-over's borrower (NIL: none; bit 5: the lender's cells have left, the hand-over is due), the borrowed line (bit 7: a column)
+#define A_PCNT       176     // Color: 24 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 24 palettes: TOWN1@W is the 24th; the layout is full: 24 u16 + 24 bytes + 8 bytes)
+#define A_PSLOT      224     // Color: 24 bytes: the hardware slot of each palette (255: none)
+#define A_PUSE       248     // Color: 8 bytes: the palette in each hardware slot (255: free)
+#define A_ATTR_UI    256     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
+#define A_IDA        276     // Color: 22 bytes: the attribute bytes of the cells being written
+#define A_PEND       298     // Color: 2 bytes (free between the attribute bytes and the staging): the palette hand-over's borrower (NIL: none; bit 5: the lender's cells have left, the hand-over is due), the borrowed line (bit 7: a column)
 #define A_XSTG       301     // Color: 5 tiles of staging (80 bytes, on the first 16-byte boundary at or after this; DMA reads them; the DMG's tables lie here). story_scratch is at 0xD373, so 301 is
                              //   already on a boundary and the staging is 301..381 (tests/test_scratch_map.py checks that); the worst case, a staging moved up by 15, still ends at S_V
 #define A_PSTG       381     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes), after the staging (23 palettes left no room for it before the staging: 301 stays aligned)
