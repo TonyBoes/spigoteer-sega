@@ -869,8 +869,8 @@ for _s, _v in enumerate(_VIEWS):
 
 def test_the_resting_views_are_the_ones_the_map_was_measured_for():
     assert REST[1] == (0, 0), "the stadium: the floodlights and the flag (Sal low on the screen: the follow view is the top of the world, owner Q9)"
-    assert REST[9] == (80, 262), "the space lounge: the UFO low on the left of the mountain, toward the air base"
-    assert [s for s, v in enumerate(_VIEWS) if v[0] != 255 or v[1] != 255] == [9], "every other stop shows its venue with the camera on Sal"
+    assert REST[9] == (0, 262), "the space lounge: Sal stops by the air base (owner 11-08), the camera on him: the far-left edge of the world, his feet at 110"
+    assert [s for s, v in enumerate(_VIEWS) if v[0] != 255 or v[1] != 255] == [], "every other stop shows its venue with the camera on Sal"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

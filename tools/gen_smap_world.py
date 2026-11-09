@@ -57,7 +57,7 @@ assert [VENUE_IDS[v] for v in _ord] == W.ORDER, ("src/order.h ven_at is not the 
 # when he walks (clamped to the world). side: where the name tag and the venue panel go there (1 the bottom, 0 the top): away from the venue's art.
 # Stadium: the floodlights and the flag; space: the UFO and the peak. The other stops show their whole venue with the camera on Sal.
 SAL_Y = 110                      # Sal's feet on the screen (owner Q9 11-08: low, so the top rows show on the top road); x stays at 80
-STOP_VIEW = {"space": (80, None, 1)}
+STOP_VIEW = {}
 
 
 def view_bytes(name):

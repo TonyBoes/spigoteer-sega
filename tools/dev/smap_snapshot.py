@@ -61,11 +61,18 @@ def dump(path, broken):
     # The walk's lookahead then loads the lead column 25 at the corner (the camera's first column is 26 all the way up) instead of column 26, the town hall's side with six tile uploads: the Color walk
     # frame that cost 147 lines is gone (the guard is 145).
     W.LEGS[("space", "town")] = [(295 if x == 296 else x, y) for (x, y) in W.LEGS[("space", "town")]]
+    # The space stop stands at the air base (owner 11-08: "Sal should stop closer to the military base"): x 56 on the south road, not 168 under the mountain; the road art is unchanged.
+    W.STOPS["space"] = (56, W.STOPS["space"][1])
+    W.LEGS[("zoo", "space")] = [(56 if x == 168 else x, y) for (x, y) in W.LEGS[("zoo", "space")]]
+    W.LEGS[("space", "town")] = [(56 if x == 168 else x, y) for (x, y) in W.LEGS[("space", "town")]]
     merge = getattr(W, "MERGE", {})
 
     def grid(w):
         return [list(r) for r in w.px], [[merge.get(w.pal[y][x], w.pal[y][x]) for x in range(cw)] for y in range(ch)]
     pc, palc = grid(W.WORLD)
+    # Color: cell (2, 61), the zoo road's bend, takes the zoo palette (its ground colour is the same, only its ten curb pixels go from lilac to dark green) instead of town1@z: walking up the far-left road
+    # (zoo <-> space) the window held 9 BG palettes for a px (the runway's one at row 42 coming in, this cell's last at row 61 not yet dropped): a 2 frame hold on Color (owner 11-08, the hitch).
+    palc[61][2] = "zoo"
     pd, pald = grid(W.WORLD_DMG)
     names = sorted({n for r in palc for n in r})
     rgb = {n: [list(c) for c in M.PAL.get(n)] for n in names}
