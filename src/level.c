@@ -142,8 +142,8 @@ const uint8_t almost_one_in[5][4] = {
     { ALMOST_N, ALMOST_N, ALMOST_N, ALMOST_N },   // the LEVEL harness (the debug select, the tests)
     { ALMOST_N, ALMOST_N, ALMOST_N, ALMOST_N },   // BOSS RUSH
 };
-// The push a mug gives patron p (the arcade's rule: the same for every mug, no thirst multiplier): pushback_px, the row
-// class's constant. He is SERVED (Option C) when it reaches the left-edge stop, d >= x - ENTRY_X: he does not stop
+// The push a mug gives patron p: pushback_px, the row class's constant, for his first mug; every mug he has had grows it (owner 2026-11-08:
+// the more drinks, the easier to push out; mug n pushes pushback_px * (n + 1) / 2). CLASSIC and the boss fights keep the flat push. He is SERVED (Option C) when it reaches the left-edge stop, d >= x - ENTRY_X: he does not stop
 // to drink but slides on and off the screen (the push returned is x + PATRON_W, all of him past the edge); one at or
 // left of ENTRY_X is always served. Otherwise he is pushed d px and drinks (never left of ENTRY_X, where the BG
 // patrons end), and some patrons ((level - 1) * EARLY_PER_LEVEL, of 256; none on level 1)
@@ -153,7 +153,12 @@ static uint8_t push_calc(uint8_t p) {
     uint16_t c;
     if (x <= ENTRY_X) return x + PATRON_W;                    // (at the old door: always served; else a 24 px push could never serve one)
     c = (uint16_t)(level - 1) * EARLY_PER_LEVEL;                // (level 1: nobody drinks early)
-    if (level > 1 && next_rand() < (c > EARLY_MAX ? EARLY_MAX : c)) d = next_rand() & 1 ? d >> 2 : d >> 1;
+    if (play_mode == MODE_CLASSIC || boss_on || !patron_drinks[p]) {   // (CLASSIC and the boss fights keep the old rule: early drinkers on any mug, a flat push)
+        if (level > 1 && next_rand() < (c > EARLY_MAX ? EARLY_MAX : c)) d = next_rand() & 1 ? d >> 2 : d >> 1;   // thirst: else only a FIRST mug can be a short push
+    } else {                                                    // thirst: mug n pushes pushback_px * (n + 1) / 2 (patron_drinks counts the mugs before this one)
+        c = ((uint16_t)d * (patron_drinks[p] + 2)) >> 1;
+        d = c > 255 ? 255 : (uint8_t)c;
+    }
     m = x - ENTRY_X;
     if (d >= m) {                                              // (Option C: a push that reaches the left-edge stop serves him: he slides on and off)
         if (!patron_drinks[p] && (c = almost_one_in[play_mode][RUN_DIFF & 3]) && next_rand() % (uint8_t)c == 0) return m;   // almost out: stops at ENTRY_X
