@@ -17,6 +17,7 @@
 #     are on hold. FULL=1 CBUILD=1 together is the old full run.
 #   QUICK=1 is accepted and does nothing (it was the default's old name), so old briefs keep working.
 #
+# Skips (batch 3, S2): tools/dev/skip_baseline.txt (the supervisor's file) holds the expected asm pytest skips (56); more skips, or a skipped ID not listed, adds "(skips 58 > 56)" after RESULT and lists the IDs in a "skipped tests" section. Never a failure.
 # Log: $VERIFY_LOGDIR/<name>.log (default /workspace/out/verify; out/ is never committed). Run it in the background.
 # Each stage has its own section and a "RESULT <stage>: PASS" or "RESULT <stage>: FAIL" line; the stages that run side by
 # side are written out in the fixed order below when they have all finished. The last two lines are always "RESULT: PASS"
@@ -161,6 +162,21 @@ section release "make release" release_ok
 section pytest "pytest (asm build)" stage_pytest_ok
 section cfall "make cfall" cfall_ok
 section check "make check" stage_check_ok
+# Test batch 3, S2: the skip baseline (tools/dev/skip_baseline.txt, owned by the supervisor). More skips than it, or a skipped ID it does not list,
+# never fails the run: it goes after "RESULT: PASS" and the newly skipped IDs are listed in their own section.
+SKIP_NOTE=""
+skip_rp=$(sed -n 's/.*; results \([^ ]*\)$/\1/p' "$P/pytest.out" 2> /dev/null | tail -1)   # ptest's last line ends "; results <path>"
+if [ -n "$skip_rp" ] && [ -f "$skip_rp" ]; then
+  python3 tools/dev/skipcheck.py "$skip_rp" > "$P/skips.out" 2>&1 || echo "SKIPS: skipcheck failed" >> "$P/skips.out"
+else
+  echo "SKIPS: no results file in the pytest output, skip baseline not checked" > "$P/skips.out"
+fi
+echo "== skipped tests vs tools/dev/skip_baseline.txt" >> "$L"; cat "$P/skips.out" >> "$L"
+skip_head=$(grep -m1 "^SKIPS" "$P/skips.out")
+case "$skip_head" in
+  *">"*|*"new IDs"*) SKIP_NOTE=" (${skip_head/SKIPS/skips})" ;;   # more skips than the baseline, or an unlisted ID
+  "SKIPS: "*) SKIP_NOTE=" (skip baseline not checked)" ;;
+esac                                                              # equal, or fewer without a new ID: only the section line
 
 # ---- stages that follow the three above ----
 if [ -n "${FULL:-}" ]; then
@@ -180,9 +196,9 @@ section slow "slow: double speed + half rate" stage_pytest_ok
 # Verdict: every stage must have said PASS (the stage checks above are the old precise patterns: pytest prints "N xfailed" /
 # "N xpassed" on green runs, so a bare FAIL match is wrong).
 if [ -n "$FAILED_STAGES" ]; then
-  echo "RESULT: FAIL (failed stages:$FAILED_STAGES)" >> "$L"
+  echo "RESULT: FAIL (failed stages:$FAILED_STAGES)$SKIP_NOTE" >> "$L"
 else
-  echo "RESULT: PASS" >> "$L"
+  echo "RESULT: PASS$SKIP_NOTE" >> "$L"
 fi
 echo END >> "$L"
 rm -rf "$P"
