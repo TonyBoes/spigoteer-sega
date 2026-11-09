@@ -888,3 +888,4 @@ The grass dithering patchiness looks better now."
 
 On the bend fixes—I just played the latest main ROM. They are not in it."
   -> Q13 = YES: runway lights that fade slowly on and off (no flashing), built with the stage 3 map animations.
+  -> bend fixes: confirmed NOT in main (Color: town1 road cells show cream colour 0 as a tan wedge on the grass at the bends; e.g. cells (36..37,45..46)). Never built: I had only promised a mockup. gb-worker briefed to build it (retype wedge cells to the land road palette, redraw the cream edge pixels, road + DMG unchanged). Q13 card removed.
