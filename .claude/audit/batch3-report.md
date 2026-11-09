@@ -48,7 +48,7 @@ The header and Makefile hashes equal batch 2's one-shot hashes for the same edit
 | incremental, widely included header (src/layout.h, 105 of 120 objects) | 74.4 s | 12.4 s | 2.5 / 2.2 |
 | three clean builds at once (make, release, cfall), OBJ=1 | about 76 s each (about 80 s measured in batch 2) | 20.6 s | 2.8 |
 | test variant builds (show_ext, practice_art, dsmr) | 76 to 77 s each | 14 to 15 s each | 2 to 4 |
-| one default verify run | 3 min 15 s (owner's number) | **PLACEHOLDER: gb-runner, `OBJ=1 tools/dev/verify.sh <worktree> b3-obj`** | |
+| one default verify run (make -B mode) | 3 min 15 s (batch 2 C2b, load 3.3 -> 5.9) | **2 min 29 s** (gb-runner, 28cc8a7d, load 3.6 -> 8.2): build 26 s, release 19 s, cfall 19 s beside it, check 1 s, pytest 122 s, slow 38 s beside pytest; 6574 passed / 56 skipped (skip check 56 vs 56 OK), RESULT: PASS | pytest is now the floor |
 The single lcc call is 120 compiles in series (0.6 s each); OBJ=1 runs them 8 at a time (CPU time is the same, about 77 s). Disk: build/obj/<variant>/o is 28 MB per variant (lcc's .asm/.lst/.sym are deleted).
 
 ## Part B
@@ -56,4 +56,4 @@ Not needed (byte-identical).
 
 ## Recommendation
 Switch the default to OBJ=1 once gb-runner's `OBJ=1` verify run (default stages) passes and its time is in the table above; the evidence is hash identity for all three ROMs and three variants, five incremental proofs, and 5x to 250x faster builds. To switch: in the Makefile make `OBJ ?= 1` (and keep `OBJ=0` for the one-shot as the reference); in CLAUDE.md "The loop" note that `make` is per-object (8 jobs, own object dirs under build/obj/) and `make OBJ=0` is the old one-shot; update the verify timing in CLAUDE.md, SUPERVISOR.md, LESSONS.md, gb-runner.md and the memory snapshot once measured; add to gb-toolchain a line that tests' `make BUILD=...` builds follow `OBJ`. Risks: under verify three builds at 8 jobs each is up to 24 jobs on a 24-core shared machine (lower `OBJJOBS` if other agents suffer); a header deleted after a .d file named it is handled by an empty `%.h` rule; `make clean` removes the objects with build/.
-Doubts: the .c-edit time (0.3 s) is a single run; the verify-time gain is not measured yet (placeholder); I did not run the full pytest with OBJ=1 (gb-runner's verify does).
+Doubts: the .c-edit time (0.3 s) is a single run; the verify gain is measured (2 min 29 s vs 3 min 15 s, 46 s; pytest 122 s is now the floor; the test_show_ext variant build took 22 s in that run, consistent with OBJ=1 passing through to tests' builds, not proven by the log); I did not run the full pytest with OBJ=1 (gb-runner's verify does).
