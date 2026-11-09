@@ -339,6 +339,7 @@ static void draw(void) {
     ay = sy + 16;
     SPR(OAM_SAL + 2, sx, ay, t + 4, OBJPAL_BARTENDER, 0, 8);
     SPR(OAM_SAL + 3, sx + 8, ay, t + 6, OBJPAL_BARTENDER, 0, 8);
+    if (panel && wh) for (d = 0; d < 4; d++) shadow_OAM[OAM_SAL + d].y = 0;   // (a panel's window is up: it may cover Sal's place, so he is not drawn: the same frame it comes and goes)
     V(V_FULL) = 0;
     if (V(V_DOTS) || wh) draw_still(wh, wy, wend);
     if (panel && V(V_DONE) && panel != P_NUDGE) {  // the selection arrow, at the selected line's left
