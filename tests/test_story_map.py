@@ -867,7 +867,7 @@ for _s, _v in enumerate(_VIEWS):
 
 def test_the_resting_views_are_the_ones_the_map_was_measured_for():
     assert REST[1] == (0, 0), "the stadium: the floodlights and the flag (the follow view cut them at y 16)"
-    assert REST[9] == (80, 262), "the space lounge: the UFO over the peak"
+    assert REST[9] == (80, 262), "the space lounge: the UFO low on the left of the mountain, toward the air base"
     assert [s for s, v in enumerate(_VIEWS) if v[0] != 255 or v[1] != 255] == [1, 9], "every other stop shows its venue with the camera on Sal"
 
 
