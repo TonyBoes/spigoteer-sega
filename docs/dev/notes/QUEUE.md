@@ -904,3 +904,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-09 bend dots back (worktree-agent-a6d1859e5b0b8b426 b1f580a1): new 24th palette town1@w [grass,peach,lilac,cream], 61 cells moved, 7 of 8 bend cells get dots ((37,44) stays: two-victim hand-over needed), 6 border tip pixels near-black->lilac; story_scratch palette table 77->80 B (layout +3, A_PEND 298), ROM_1 25->7 B free. Goldens: mid.cgb, scroll_saloon.cgb (1 px), scroll_walking.cgb (3 px timing shift, cause unknown) -> sent back to find the cause before merge.
 - 11-09 OWNER: "What is the little black dot in those pictures?"
   -> answer: a stray leftover pixel: cells (37,46) and (50,46) are plain grass except ONE dark pixel in their top corner (index 3), left from the old square road corner when the bends were rounded; on DMG too. Plan: remove it (both DMG and Color) with the dots merge.
+- 11-09 OWNER: "Still running the testing review?"
