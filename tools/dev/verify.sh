@@ -26,7 +26,9 @@
 # Why the three side-by-side stages do not clash (test batch 2, A4): after make -B every generated file is up to date, so
 # make cfall only writes build/game-c.*, build/obj/game-c/ and its flags stamp; the double speed stage builds its own ROM
 # in out/dsmr/ and only reads build/game.gb (the patched copies in out/dsoff/ are written by rename, same bytes);
-# ptest's own `make release` writes build/release.*. Nothing shares a file, a folder or a port.
+# ptest's own `make release` is a no-op by then (verify built build/release.gb beside make, see C2 below). Nothing shares a file, a folder or a port.
+# C2: `make prep` first, then `make` and `make release` at the same time: both only read the generated files and write their own
+# build/<variant>.* and build/obj/<variant>/ (own hUGEDriver.o copy, own lcc tempdir, own flags stamp, own link log).
 
 set -u
 WT=${1:?usage: verify.sh <worktree> <name>}
@@ -51,7 +53,6 @@ P=$LOGDIR/$NAME.parts
 rm -rf "$P"; mkdir -p "$P"
 FAILED_STAGES=""
 BG_PIDS=""
-cleanup() { for p in $BG_PIDS; do kill "$p" 2>/dev/null; done; }
 trap 'cleanup; exit 130' INT TERM
 
 # stage_pytest_ok <file>: no FAILED/ERROR line, no "N failed" / "N error(s)" (whole words: "xfailed" is fine), and a total with "N passed"
@@ -103,12 +104,28 @@ MODE=$(build_mode)
 BUILD_CMD=${MODE%%|*}
 if [ -n "${VERIFY_MODE_ONLY:-}" ]; then echo "$MODE"; exit 0; fi
 echo "build mode: $BUILD_CMD (${MODE#*|})" >> "$L"
+# Test batch 2 follow-up, C2: `make release` (ptest's prebuild, about 75 s) runs beside `make` instead of after it. Both need the same generated
+# sources, so `make prep` (the Makefile target: every prerequisite of every ROM except the lcc step) runs first and once, with -B when the
+# mode says so; then the ROMs are rebuilt at the same time by two plain makes that find everything current and write only their own files
+# (build/game.*, build/obj/game/ against build/release.*, build/obj/release/). Under -B the two ROMs are removed first, so lcc really reruns.
+kill_tree() {  # kill_tree <pid>: the process and everything below it
+  local c; for c in $(pgrep -P "$1" 2> /dev/null); do kill_tree "$c"; done
+  kill "$1" 2> /dev/null
+}
+cleanup() { for p in $BG_PIDS $REL_PID; do kill_tree "$p"; done; }
+REL_PID=""
+build_fail() { { echo "== $BUILD_CMD ($a-$(now))"; echo BUILD_FAIL; echo "RESULT build: FAIL"; echo "RESULT: FAIL (build)"; echo END; } >> "$L"; cleanup; rm -rf "$P"; exit 1; }
 a=$(now)
-if $BUILD_CMD > /dev/null 2>&1; then
+PREP_CMD="make prep"; [ "$BUILD_CMD" = "make -B" ] && PREP_CMD="make -B prep"
+$PREP_CMD > /dev/null 2>&1 || build_fail
+[ "$BUILD_CMD" = "make -B" ] && rm -f build/game.gb build/release.gb
+release_stage() { make release 2>&1 | tail -15; [ "${PIPESTATUS[0]}" -eq 0 ] && echo RELEASE_OK || echo RELEASE_FAIL; }
+timed release release_stage &
+REL_PID=$!
+if make > /dev/null 2>&1; then
   { echo "== $BUILD_CMD ($a-$(now))"; echo BUILD_OK; echo "RESULT build: PASS"; } >> "$L"
 else
-  { echo "== $BUILD_CMD ($a-$(now))"; echo BUILD_FAIL; echo "RESULT build: FAIL"; echo "RESULT: FAIL (build)"; echo END; } >> "$L"
-  rm -rf "$P"; exit 1
+  build_fail
 fi
 
 # ---- make check: about 1 s, before the long stages start ----
@@ -123,11 +140,19 @@ timed cfall cfall_stage &
 BG_PIDS="$!"
 timed slow slow_stage &
 BG_PIDS="$BG_PIDS $!"
+wait "$REL_PID"; REL_PID=""      # the release build (started beside make) must be finished: pytest reads build/release.gb
+release_ok() { grep -qx RELEASE_OK "$1" && ! grep -qx RELEASE_FAIL "$1"; }
+if ! release_ok "$P/release.out"; then
+  section release "make release" release_ok
+  echo "RESULT: FAIL (failed stages: release)" >> "$L"; echo END >> "$L"
+  cleanup; rm -rf "$P"; exit 1
+fi
 timed pytest pytest_stage      # the longest one, in the foreground
 for p in $BG_PIDS; do wait "$p"; done
 BG_PIDS=""
 
 cfall_ok() { grep -qx CFALL_OK "$1" && ! grep -qx CFALL_FAIL "$1"; }
+section release "make release" release_ok
 section pytest "pytest (asm build)" stage_pytest_ok
 section cfall "make cfall" cfall_ok
 section check "make check" stage_check_ok
