@@ -9,6 +9,7 @@
 #     Makefile or a generator under tools/, see build_mode below; the log has a "build mode:" line with the reason), then make release and make cfall beside make, then side by side pytest on the asm build and the RUN_SLOW double speed / half
 #     rate tests; make check runs right after the build (about 1 s).
 #   FULL=1 tools/dev/verify.sh <worktree> <name>
+#     (D2: also builds game, release and game-c with OBJ=0 in out/oneshot and fails if any sha1 differs from the per-object ROM)
 #     adds the slow fade stage (RUN_SLOW=1 tests/test_fade_hw.py, about 7 min) and the release-only tests (FULL=1 is
 #     visible to pytest: tests marked release_only, now test_release.py::test_make_dist, run only then). Use it for engine,
 #     fade, timing or music changes, and before any release.
@@ -148,6 +149,29 @@ slow_stage() { RUN_SLOW=1 $PYTEST tests/test_double_speed.py tests/test_half_rat
 pytest_stage() { $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed"; }
 timed slow slow_stage &
 BG_PIDS="$!"
+# Test batch 3, D2: with FULL=1 the three ROMs are also built the old way (OBJ=0, the one-shot lcc call) in their own BUILD dir (out/oneshot: nothing is
+# shared with build/) and their sha1 must equal the per-object ROMs'. Any mismatch fails the run and names the ROM in the RESULT line. Skipped when OBJ=0.
+oneshot_stage() {
+  local B=out/oneshot O=out/oneshot_out r
+  rm -rf $B $O
+  OBJ=0 make BUILD=$B OUT=$O prep > /dev/null 2>&1 || { echo "ONESHOT_BUILD_FAIL"; return; }
+  OBJ=0 make BUILD=$B OUT=$O $B/game.gb > $P/os_game.log 2>&1 &
+  local p1=$!
+  OBJ=0 make BUILD=$B OUT=$O release > $P/os_release.log 2>&1 &
+  local p2=$!
+  OBJ=0 make BUILD=$B OUT=$O cfall > $P/os_cfall.log 2>&1 &
+  local p3=$!
+  wait $p1 $p2 $p3
+  for r in game release game-c; do
+    if [ -f build/$r.gb ] && [ -f $B/$r.gb ] && [ "$(sha1sum < build/$r.gb)" = "$(sha1sum < $B/$r.gb)" ]; then
+      echo "MATCH $r.gb $(sha1sum < build/$r.gb | cut -c1-12)"
+    else
+      echo "MISMATCH $r.gb per-object $(sha1sum < build/$r.gb 2> /dev/null | cut -c1-12) one-shot $(sha1sum < $B/$r.gb 2> /dev/null | cut -c1-12)"
+    fi
+  done
+}
+oneshot_ok() { [ "$(grep -c '^MATCH ' "$1")" -eq 3 ] && ! grep -qE '^(MISMATCH|ONESHOT_BUILD_FAIL)' "$1"; }
+if [ -n "${FULL:-}" ] && [ "${OBJ:-1}" != 0 ]; then timed oneshot oneshot_stage & BG_PIDS="$BG_PIDS $!"; fi
 wait "$REL_PID"; REL_PID=""      # the release and C builds (started beside make) must be finished: pytest reads build/release.gb and build/game-c.gb
 wait "$CF_PID"; CF_PID=""
 release_ok() { grep -qx RELEASE_OK "$1" && ! grep -qx RELEASE_FAIL "$1"; }
@@ -196,6 +220,11 @@ if [ -n "${CBUILD:-}" ]; then
 fi
 
 section slow "slow: double speed + half rate" stage_pytest_ok
+if [ -n "${FULL:-}" ] && [ "${OBJ:-1}" != 0 ]; then
+  section oneshot "one-shot (OBJ=0) ROMs equal the per-object ROMs" oneshot_ok
+  bad=$(grep -E '^MISMATCH|^ONESHOT_BUILD_FAIL' "$P/oneshot.out" | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
+  [ -n "$bad" ] && FAILED_STAGES="${FAILED_STAGES% oneshot} oneshot(ROM differs: $bad)"
+fi
 
 # Verdict: every stage must have said PASS (the stage checks above are the old precise patterns: pytest prints "N xfailed" /
 # "N xpassed" on green runs, so a bare FAIL match is wrong).
