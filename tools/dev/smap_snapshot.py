@@ -70,9 +70,6 @@ def dump(path, broken):
     def grid(w):
         return [list(r) for r in w.px], [[merge.get(w.pal[y][x], w.pal[y][x]) for x in range(cw)] for y in range(ch)]
     pc, palc = grid(W.WORLD)
-    # Color: cell (2, 61), the zoo road's bend, takes the zoo palette (its ground colour is the same, only its ten curb pixels go from lilac to dark green) instead of town1@z: walking up the far-left road
-    # (zoo <-> space) the window held 9 BG palettes for a px (the runway's one at row 42 coming in, this cell's last at row 61 not yet dropped): a 2 frame hold on Color (owner 11-08, the hitch).
-    palc[61][2] = "zoo"
     pd, pald = grid(W.WORLD_DMG)
     names = sorted({n for r in palc for n in r})
     rgb = {n: [list(c) for c in M.PAL.get(n)] for n in names}

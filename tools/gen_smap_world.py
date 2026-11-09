@@ -66,7 +66,11 @@ def view_bytes(name):
     return (255 if x is None else x // 2, 255 if y is None else y // 2, side)
 
 
-WIN_C = (22, 20)               # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
+# Padded path windows (c0, c1, r0, r1) that need a 9th BG palette: the walk holds there on Color while the lead row waits for a slot (zoo <-> space, feet 8,454; no art swap fixes it without a
+# pixel change: tools/dev notes in the commit).  Awaiting the owner's decision; dropping known_pal9 makes the build fail on it.  Any other window over 8 fails the build.
+def known_pal9(w):                  # the far-left stretch of the south road: cells 0..20, rows 41..62
+    return w[0] == 0 and w[1] <= 21 and 41 <= w[2] <= 42 and 61 <= w[3] <= 62
+WIN_C = (22, 20)              # the loaded region: the 21 x 19 cells a view can show, plus one line ahead on each axis
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)
 TILE_MAX = 1024                  # a cell word holds a 10-bit tile id, a 5-bit palette and (Color) the alternate-flip bit 15
@@ -457,6 +461,29 @@ def path_windows(stops, legs, pad=1):
             n = max(abs(x1 - x0), abs(y1 - y0), 1)
             for i in range(n + 1):
                 add(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n)
+    return sorted(wins)
+
+
+def path_windows_lead(legs, ahead=24):
+    """The windows the REGION holds while Sal walks (smap_region_work): the camera's view plus one line ahead on the axis of travel, in the direction of travel; within `ahead` px of a corner
+    the next stretch's line too (WALK_AHEAD).  Every leg both ways.  (path_windows pads every side, which the engine never holds.)"""
+    def cam(fx, fy):
+        return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - SAL_Y, 0), CH * 8 - 144)
+    sg = lambda v: (v > 0) - (v < 0)
+    wins = set()
+    for a, b, pts0 in legs:
+        for pts in (pts0, pts0[::-1]):
+            for k in range(len(pts) - 1):
+                (x0, y0), (x1, y1) = pts[k], pts[k + 1]
+                n = max(abs(x1 - x0), abs(y1 - y0), 1)
+                leads = [(sg(x1 - x0), sg(y1 - y0))]
+                nxt = (sg(pts[k + 2][0] - x1), sg(pts[k + 2][1] - y1)) if k + 2 < len(pts) else None
+                for i in range(n + 1):
+                    cx, cy = cam(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n)
+                    c0, c1, r0, r1 = cx >> 3, (cx + 159) >> 3, cy >> 3, (cy + 143) >> 3
+                    for dx, dy in leads + ([nxt] if nxt and n - i <= ahead else []):
+                        c0 -= dx < 0; c1 += dx > 0; r0 -= dy < 0; r1 += dy > 0
+                    wins.add((max(c0, 0), min(c1, CW - 1), max(r0, 0), min(r1, CH - 1)))
     return sorted(wins)
 
 
@@ -940,10 +967,18 @@ def main(build, preview):
     pw = path_windows(stops, legs)
     wd, wp = path_max(dm, pw, dm.grids), path_max(cg, path_windows(stops, legs, 0), cg.pals)       # the windows the camera can hold on the walk and at the stops
     print(f"smap world path windows: DMG worst padded {wd[0]} of {POOL} at {wd[1]}, Color worst view palettes {wp[0]} of 8 at {wp[1]}")
+    # (the region holds the view, a line ahead and the line the drop has not taken yet: the padded windows; the plain views hid a 9th palette at the zoo <-> space bend, a hold on Color)
+    pwl = path_windows_lead(legs)
+    wpp = path_max(cg, pwl, cg.pals)
+    print(f"smap world path windows: Color worst padded palettes {wpp[0]} of 8 at {wpp[1]}")
+    if wpp[0] > 8 and known_pal9(wpp[1][1]):
+        wpp = path_max(cg, [w for w in pwl if not known_pal9(w)], cg.pals)         # (the known one is known_pal9; anything else over 8 fails)
     if wd[0] > POOL:
         fail.append(f"DMG: a padded path window holds {wd[0]} tiles at {wd[1]}, the pool is {POOL}")
     if wp[0] > 8:
         fail.append(f"Color: a path view needs {wp[0]} palettes at {wp[1]}")
+    if wpp[0] > 8:
+        fail.append(f"Color: a padded path window (the view, a line ahead, the line the drop has not taken) needs {wpp[0]} palettes at {wpp[1]}: the walk holds for a palette slot")
     col_d, bad_d = path_hints(dm, pw, POOL)
     dm.hint = [int(c) for c in col_d]
     if fail:
