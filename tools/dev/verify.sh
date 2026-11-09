@@ -15,9 +15,9 @@
 #   CBUILD=1 tools/dev/verify.sh <worktree> <name>
 #     adds the pytest run on the C build (GB_ROM=build/game-c.gb, about 5 min). Only before a porting release, while C tests
 #     are on hold. FULL=1 CBUILD=1 together is the old full run.
-#   OBJ=1 tools/dev/verify.sh <worktree> <name>
-#     (test batch 3, opt-in) every build in the run, including the tests' own variant builds, is the per-object build (make OBJ=1: 8 jobs per build,
-#     byte-identical ROMs; see .claude/audit/batch3-report.md). The log header says (OBJ=1).
+#   OBJ=0 tools/dev/verify.sh <worktree> <name>
+#     builds everything with the old one-shot lcc call (the reference). The default is the per-object build (make OBJ=1: 8 jobs per build, byte-identical
+#     ROMs; test batch 3, .claude/audit/batch3-report.md), also for the tests' own variant builds. The log header says (OBJ=<value>).
 #   QUICK=1 is accepted and does nothing (it was the default's old name), so old briefs keep working.
 #
 # Skips (batch 3, S2): tools/dev/skip_baseline.txt (the supervisor's file) holds the expected asm pytest skips (56); more skips, or a skipped ID not listed, adds "(skips 58 > 56)" after RESULT and lists the IDs in a "skipped tests" section. Never a failure.
@@ -49,7 +49,7 @@ PYTEST="python3 -m pytest -q -p no:cacheprovider"
 PTEST="python3 tools/dev/ptest.py -j ${JOBS:-8}"
 now() { date +%H:%M:%S; }
 
-echo "worktree $WT${FULL:+ (FULL)}${CBUILD:+ (CBUILD)}${OBJ:+ (OBJ=$OBJ)}" >> "$L"
+echo "worktree $WT${FULL:+ (FULL)}${CBUILD:+ (CBUILD)} (OBJ=${OBJ:-1})" >> "$L"
 echo "commit $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)" >> "$L"
 
 # Per-stage output goes to $P/<stage>.out; start/end times to $P/<stage>.t; "section" copies it into the log.
@@ -123,7 +123,7 @@ a=$(now)
 PREP_CMD="make prep"; [ "$BUILD_CMD" = "make -B" ] && PREP_CMD="make -B prep"
 $PREP_CMD > /dev/null 2>&1 || build_fail
 [ "$BUILD_CMD" = "make -B" ] && rm -f build/game.gb build/release.gb build/game-c.gb
-[ "$BUILD_CMD" = "make -B" ] && [ "${OBJ:-}" = 1 ] && rm -rf build/obj/*/o   # OBJ=1: make -B also recompiles every object (the per-object build keeps them between runs)
+[ "$BUILD_CMD" = "make -B" ] && [ "${OBJ:-1}" = 1 ] && rm -rf build/obj/*/o   # per-object build (the default): make -B also recompiles every object (the per-object build keeps them between runs)
 release_stage() { make release 2>&1 | tail -15; [ "${PIPESTATUS[0]}" -eq 0 ] && echo RELEASE_OK || echo RELEASE_FAIL; }
 timed release release_stage &
 REL_PID=$!

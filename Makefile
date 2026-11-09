@@ -304,14 +304,14 @@ $(2): $(ROM_DEPS) $(BUILD)/$(1).flags
 	@python3 tools/rom0free.py $(basename $(2)).map
 endef
 
-# ---- the opt-in per-object build (test batch 3, A1): `make OBJ=1` (also in the environment, so tests' `make BUILD=...` variant builds follow) ----
-# The default stays the one-shot lcc call above. With OBJ=1 each C file is compiled to its own object by tools/dev/objs.mk (OBJJOBS jobs at a time,
+# ---- the per-object build, the DEFAULT since test batch 3 (D1; owner): `make OBJ=0` selects the old one-shot lcc call (the reference). OBJ is exported, so the tests' `make BUILD=...` variant builds follow ----
+# With OBJ=1 (the default) each C file is compiled to its own object by tools/dev/objs.mk (OBJJOBS jobs at a time,
 # 8 by default, per build; sdcc's -MMD header dependencies, so a header edit recompiles only its includers), then ONE lcc link step links the
 # objects in the one-shot call's order (SRC, then GEN, then the hUGEDriver object: a fixed list, never the order the jobs finish in). The objects
 # are copied to build/obj/<variant>/link/ first: bankpack rewrites its input objects in place (the a0e50dc0 lesson), and the compile objects
 # in build/obj/<variant>/o/ must stay pristine for the next incremental build. Every variant in every BUILD directory has its own object
 # directory; no object is shared between builds. The ROM is byte-identical to the one-shot ROM (batch 3 report, A3).
-OBJ     ?=
+OBJ     ?= 1
 OBJJOBS ?= 8
 export OBJ
 define rom_rule_obj
