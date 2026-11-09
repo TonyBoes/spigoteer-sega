@@ -861,3 +861,5 @@ The grass dithering patchiness looks better now."
 - 11-08 OWNER: "The arrows on the map for movement need to change. they should map the road direction so that they are intuitive for the user."
 - 11-08 OWNER: "How many times are the tests run on an average request. It seems to me that you are getting slower and slower and slower as this project prgresses." -> answered: 4-6 full runs per change; asked Q12 (one full run per change).
 - 11-08 OWNER: "q12) yes" -> one full test run per change (SUPERVISOR.md 6-7, memory one-full-test-run).
+- 11-08 OWNER: "On the view, it should generally put Sal toward the bottom of the screen. Instead of needing to shift up for certain venues, the window should always be that high."
+  -> rule: feet always at screen y=110 (was 84; Space view height), no per-venue vertical shifts; also covers Q9 top rows. Sent to the Q9 camera agent.
