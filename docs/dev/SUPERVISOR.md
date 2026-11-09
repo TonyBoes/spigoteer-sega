@@ -66,6 +66,8 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
 6. **Merge main into the branch, then verify.** Brief `gb-runner`: `tools/dev/verify.sh <worktree> <name>` (about
    20 min). It runs `make -B`, `make cfall`, the full pytest, `make check`, the `RUN_SLOW=1` fade tests, the full
    pytest on `build/game-c.gb`, and the `RUN_SLOW` double-speed and half-rate tests, and ends with a RESULT line.
+   Map and art branches use `QUICK=1` (owner Q11, 2026-11-08: about 7 min, no slow fade and no C-build tests); engine,
+   fade or timing changes and releases get the full run.
 7. **Fast-forward main.** Then, through `gb-runner` where possible:
    - refresh Pocket Player's ROMs and republish;
    - `make atlas`, rebuild the Graphics Atlas (palette_plan/build.py) and republish after art changes;

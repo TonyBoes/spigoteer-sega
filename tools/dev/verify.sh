@@ -4,6 +4,10 @@
 #   tools/dev/verify.sh <worktree> <name>
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
+#   QUICK=1 tools/dev/verify.sh <worktree> <name>
+#     the quick check for map and art branches (owner Q11, 2026-11-08): builds, the game tests, make check and the double speed /
+#     half rate tests, about 7 min; it skips the slow fade tests and the C-build tests. Engine, fade or timing changes and releases
+#     get the full run.
 #
 # Log: /workspace/out/verify/<name>.log (out/ is never committed). Run it in the background; it takes about 20 min.
 # The last two lines are always "RESULT: PASS" or "RESULT: FAIL (...)" and "END", so wait on the END marker.
@@ -24,7 +28,7 @@ PYTEST="python3 -m pytest -q -p no:cacheprovider"
 PTEST="python3 tools/dev/ptest.py -j ${JOBS:-8}"
 step() { echo "== $1 ($(date +%H:%M:%S))" >> "$L"; }
 
-echo "worktree $WT" >> "$L"
+echo "worktree $WT${QUICK:+ (QUICK)}" >> "$L"
 echo "commit $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)" >> "$L"
 
 step "make -B"
@@ -40,11 +44,13 @@ $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
 step "make check"
 make check 2>&1 | grep -E "\[(dmg|cgb)\]" >> "$L"
 
+if [ -z "${QUICK:-}" ]; then
 step "slow: fade"
 RUN_SLOW=1 $PYTEST tests/test_fade_hw.py 2>&1 | tail -1 >> "$L"
 
 step "pytest (C build)"
 GB_ROM=build/game-c.gb $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
+fi
 
 step "slow: double speed + half rate"
 RUN_SLOW=1 $PYTEST tests/test_double_speed.py tests/test_half_rate.py 2>&1 | tail -1 >> "$L"
@@ -61,11 +67,12 @@ FLAGS=$(grep -nE '^(BUILD_FAIL|CFALL_FAIL)$|^(FAILED|ERROR) |(^|[^a-z])[0-9]+ (f
 FLAGS="$FLAGS
 $(grep -niE '^\[(dmg|cgb)\].*(^|[^a-z])(fail|failed|crash|hang)([^a-z]|$)' "$L")"
 SUITES=$(grep -cE '(^|[^a-z])[0-9]+ passed' "$L")
+NSUITES=4; [ -n "${QUICK:-}" ] && NSUITES=2
 CHECKS=$(grep -cE '^\[(dmg|cgb)\] OK$' "$L")
 FLAGS=$(printf '%s\n' "$FLAGS" | grep .)
-if [ -n "$FLAGS" ] || [ "$SUITES" -lt 4 ] || [ "$CHECKS" -lt 2 ]; then
+if [ -n "$FLAGS" ] || [ "$SUITES" -lt $NSUITES ] || [ "$CHECKS" -lt 2 ]; then
   N=$(printf '%s\n' "$FLAGS" | grep -c .)
-  echo "RESULT: FAIL ($N flagged lines; $SUITES of 4 pytest totals; $CHECKS of 2 make check OKs)" >> "$L"
+  echo "RESULT: FAIL ($N flagged lines; $SUITES of $NSUITES pytest totals; $CHECKS of 2 make check OKs)" >> "$L"
 else
   echo "RESULT: PASS" >> "$L"
 fi

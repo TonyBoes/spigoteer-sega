@@ -53,3 +53,4 @@
 - [Sheet labels readable](sheet-labels-readable.md) — owner can't read tiny sheet labels on his phone; big labels, few columns, order in the card heading
 - [Map Atlas artifact](map-atlas-artifact.md) — story map tiles/palettes/walk load page; make map-atlas + republish after map merges
 - [Open Questions plain layout](open-questions-plain-layout.md) — one plain question per card, choices by name, picture under each choice, answer line; no letters/codes
+- [Quick verify for map/art](verify-quick-for-map-art.md) — QUICK=1 verify.sh (~7 min) for map/art branches; full 20 min for engine/fade/timing + releases
