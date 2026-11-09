@@ -607,8 +607,8 @@ void walk_step(void) {
     rem = V(V_JK) ? V(V_JN) - V(V_JP) : 0;           // (the job's cells left: a line of the other axis, loaded for the next stretch, goes first and then the line this stretch wants:)
     if (V(V_JK) != (hz ? J_COL : J_ROW) ? r < 8 : 0) rem += WALK_LINE;
     else if (!V(V_JK) && r < 8) rem = WALK_LINE;
-    if (rem) {
-        kr = V(V_RATE) ? V(V_RATE) : 1;
+    if (rem && !(is_cgb && PEND != NIL)) {         // (a pending hand-over: the room is exact, smap_room, and the pacing would only stall Sal at its edge)
+        kr =V(V_RATE) ? V(V_RATE) : 1;
         w = (uint16_t)r * kr;
         sl = (uint16_t)kr * (is_cgb ? WALK_SC : WALK_S);
         if (n > 1 && w < ((uint16_t)rem << 1) + (sl << 1)) n = 1;
