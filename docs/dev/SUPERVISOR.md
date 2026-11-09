@@ -64,8 +64,8 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
    - Then copy each file by hand. Never use bulk `GB_UPDATE_GOLDEN=1`.
    - Name every replaced golden and the reason in the commit.
 6. **Merge main into the branch, then verify.** Brief `gb-runner`: `tools/dev/verify.sh <worktree> <name>` (about
-   3 min). The default stages are plain `make` (incremental; `make -B` when the branch changes the Makefile or a generator) with `make release` and `make cfall`
-   beside it, `make check`, then the full pytest and the `RUN_SLOW` double-speed and half-rate tests side by side, each with a `RESULT <stage>` line, ending with the overall RESULT line. `FULL=1` uses `make -B`, adds the release-only tests
+   2.5 min, 2 min 29 s measured). The default stages are plain `make` (incremental; `make -B` when the branch changes the Makefile or a generator) with `make release` and `make cfall`
+   beside it, `make check`, then the full pytest and the `RUN_SLOW` double-speed and half-rate tests side by side, each with a `RESULT <stage>` line, ending with the overall RESULT line. `FULL=1` uses `make -B`, also builds the three ROMs with `OBJ=0` (the one-shot lcc call) and fails on any sha1 difference, adds the release-only tests
    (`test_make_dist`) and the `RUN_SLOW=1` fade tests (engine, fade, timing or music changes, and before any release). `CBUILD=1` adds the full pytest on `build/game-c.gb` (only before
    a porting release, while C tests are on hold). `QUICK=1` is accepted and does nothing.
    **One full run per change (owner Q12, 2026-11-08):** the verify run is the only full test run. Briefs tell agents
@@ -81,6 +81,9 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
    - update the Open Questions page;
    - sync `docs/dev/`;
    - add any lesson to `LESSONS.md`.
+   **Merge before review (owner, test batch 3, 2026-11-09):** only a fix for a problem already on main may merge before
+   the owner's review, and only if the report's first line says so, with the reason. Everything else waits for his
+   review. Before any merge of owner-reviewed work, ask: is this fixing something already broken on main?
 8. **Tell the owner** what changed, in plain words, that he can `git push`, and whether it is a good point to
    `/clear` or `/compact` (see above).
 

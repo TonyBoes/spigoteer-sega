@@ -51,7 +51,7 @@ ifeq ($(CREDITS),SCROLL)
 LCCFLAGS += -DCREDITS_SCROLL
 endif
 
-SRC      := $(wildcard src/*.c)
+SRC      := $(sort $(wildcard src/*.c))
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patrons_robots_x.c $(BUILD)/patrons_divers_x.c $(BUILD)/patrons_punks_x.c $(BUILD)/patrons_ninjas_x.c $(BUILD)/patron_load.c
 PATRON_C += $(foreach v,sports lumberjacks chefs zoo aliens,$(BUILD)/patrons_$(v)_x.c)   # (the Atlas extras of the Stadium, the Lodge and the Bistro: assets/art/patrons/<venue>_x.txt)
@@ -304,24 +304,50 @@ $(2): $(ROM_DEPS) $(BUILD)/$(1).flags
 	@python3 tools/rom0free.py $(basename $(2)).map
 endef
 
-$(eval $(call rom_rule,game,$(ROM),$(LCCFLAGS),@true))
+# ---- the per-object build, the DEFAULT since test batch 3 (D1; owner): `make OBJ=0` selects the old one-shot lcc call (the reference). OBJ is exported, so the tests' `make BUILD=...` variant builds follow ----
+# With OBJ=1 (the default) each C file is compiled to its own object by tools/dev/objs.mk (OBJJOBS jobs at a time,
+# 8 by default, per build; sdcc's -MMD header dependencies, so a header edit recompiles only its includers), then ONE lcc link step links the
+# objects in the one-shot call's order (SRC, then GEN, then the hUGEDriver object: a fixed list, never the order the jobs finish in). The objects
+# are copied to build/obj/<variant>/link/ first: bankpack rewrites its input objects in place (the a0e50dc0 lesson), and the compile objects
+# in build/obj/<variant>/o/ must stay pristine for the next incremental build. Every variant in every BUILD directory has its own object
+# directory; no object is shared between builds. The ROM is byte-identical to the one-shot ROM (batch 3 report, A3).
+OBJ     ?= 1
+OBJJOBS ?= 8
+export OBJ
+define rom_rule_obj
+$(call flags_stamp,$(1),$(3))
+$(2): $(ROM_DEPS) $(BUILD)/$(1).flags
+	mkdir -p $(BUILD)/obj/$(1)/o
+	$(MAKE) -f tools/dev/objs.mk -j$(OBJJOBS) --no-print-directory OBJD=$(BUILD)/obj/$(1)/o STAMP=$(BUILD)/$(1).flags BUILD=$(BUILD) LCC=$(LCC) FLAGS='$(3)' SRCS='$(SRC) $(GEN)'
+	rm -rf $(BUILD)/obj/$(1)/link
+	mkdir -p $(BUILD)/obj/$(1)/link
+	cp $(foreach s,$(SRC) $(GEN),$(BUILD)/obj/$(1)/o/$(basename $(notdir $(s))).o) $(HUGE_OBJ) $(BUILD)/obj/$(1)/link/
+	$(LCC) $(3) -tempdir=$(BUILD)/obj/$(1)/link -I$(BUILD) -Isrc -I$(HUGE)/include -o $$@ $(foreach s,$(SRC) $(GEN),$(BUILD)/obj/$(1)/link/$(basename $(notdir $(s))).o) $(BUILD)/obj/$(1)/link/hUGEDriver.o > $(BUILD)/$(1)_link.log 2>&1; rc=$$$$?; cat $(BUILD)/$(1)_link.log; test $$$$rc -eq 0 || { rm -f $$@; false; }
+	@! grep -q "overflow from Bank 0" $(BUILD)/$(1)_link.log || { rm -f $$@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
+	$(4)
+	@romusage $(basename $(2)).noi 2>/dev/null | head -12 || true
+	@python3 tools/rom0free.py $(basename $(2)).map
+endef
+ROM_RULE := $(if $(filter 1,$(OBJ)),rom_rule_obj,rom_rule)
+
+$(eval $(call $(ROM_RULE),game,$(ROM),$(LCCFLAGS),@true))
 
 # build/release.gb: the same flags without the debug menu (build/release.noi must not name its symbols)
 RELEASE  := $(BUILD)/release.gb
 release: $(RELEASE)
-$(eval $(call rom_rule,release,$(RELEASE),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)),@grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build lost the debug menu (it ships locked: src/debug.c)"; false; }))
+$(eval $(call $(ROM_RULE),release,$(RELEASE),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)),@grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build lost the debug menu (it ships locked: src/debug.c)"; false; }))
 
 # build/game-unlocked.gb: the playtest build with the debug menu always unlocked (for a flash cart); build/game.gb is untouched
 UNLOCKED := $(BUILD)/$(NAME)-unlocked.gb
 unlocked: $(UNLOCKED)
 
-$(eval $(call rom_rule,$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -DDEBUG_MENU -DDEBUG_UNLOCKED,@true))
+$(eval $(call $(ROM_RULE),$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -DDEBUG_MENU -DDEBUG_UNLOCKED,@true))
 
 # build/game-c.gb: the same ROM as build/game.gb with every asm candidate built from its C version (-DASM_PASS=0, src/asm_cfg.h).
 # The C is the reference the owner may port; `GB_ROM=build/game-c.gb python3 -m pytest -q tests` runs the whole suite on it.
 CFALL := $(BUILD)/$(NAME)-c.gb
 cfall: $(CFALL)
-$(eval $(call rom_rule,$(NAME)-c,$(CFALL),$(LCCFLAGS) -DASM_PASS=0,@true))
+$(eval $(call $(ROM_RULE),$(NAME)-c,$(CFALL),$(LCCFLAGS) -DASM_PASS=0,@true))
 
 # The default build as a debug ROM for review (the bosses' capacity mug row above and to the right, the hand mugs, the Mothership's beam):
 # out/test_roms/spigoteer-bosscap-unlocked.gb with its .noi beside it (tests/test_boss_cap_ui.py needs no ROM of its own).
