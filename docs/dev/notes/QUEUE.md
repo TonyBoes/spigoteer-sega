@@ -844,3 +844,4 @@ The grass dithering patchiness looks better now."
 - 11-08 owner Q10: "Let's see what A-D would do."
   Plan: the reuse agent renders A+B+C+D applied together (and each alone) as before|after pictures, DMG + Color, with numbers; nothing imported.
 - 11-08 A-D views back (a7fd334, 6229101f; on 23869919): corrected numbers: C trees DMG 955->943, Color 908->885; D twins<=2px DMG 913, Color 844, windows 174/176 -> 169/169; all A-D DMG 897, Color 818, 8/8 windows 397->82. Seen: A puts a green grass square under each cactus in the sand; B makes cream pads on snow/grass (the pads the owner rejected in Q94) - simple merges don't work because index 0 is each palette's ground. D is near-invisible except the water loses some sparkle dots. Revised Q10: C + D, skip A + B. Sheets on the Q10 card.
+- 11-08 owner: "Show me a complete list of all of the palettes used on the map."
