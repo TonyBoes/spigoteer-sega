@@ -50,64 +50,69 @@ audio { width: 100%; max-width: 420px; }
 .files { font-family: var(--mono); font-size: 13px; color: var(--muted); }
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+.opt { border-top: 1px solid var(--rule); padding-top: 12px; display: grid; gap: 8px; }
+.opt h3 { margin: 0; font-size: 17px; }
+.rec { font-family: var(--display); font-size: 12px; letter-spacing: .06em; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--amber); color: var(--amber); margin-left: 6px; vertical-align: 2px; }
+.how { font-family: var(--mono); font-size: 14px; background: var(--ask); border-radius: 8px; padding: 8px 12px; margin: 0; }
+.section-title { font-family: var(--display); font-size: 16px; color: var(--muted); margin: 12px 0 0; letter-spacing: .06em; }
 </style>
 
 <div class="wrap">
   <header>
     <h1>Open questions</h1>
-    <p class="lede">Every question waiting on your answer, with its pictures. Answered questions come off this list. Reply in chat with the number, e.g. "Q12: shared".</p>
-    <p class="stamp">2 open · updated 2026-11-08</p>
+    <p class="lede">One question per card. Each choice has its picture right under it.</p>
+    <p class="stamp">1 open · updated 2026-11-08</p>
   </header>
 
-  <nav><ol>
-    <li><a href="#q8"><span class="n">Q8</span><span>Tea house recolour or leave the patches?</span></a></li>
-    <li><a href="#q10"><span class="n">Q10</span><span>Map savings: C and D?</span></a></li>
-    <li><a href="#palettes"><span class="n">Ref</span><span>Map palettes</span></a></li>
-    <li><a href="#dancers"><span class="n">Ref</span><span>Dancers before | after</span></a></li>
-  </ol></nav>
-  <section class="card" id="q8">
-    <div class="tag">Q8</div>
-    <h2>Tea house recolour or leave the patches?</h2>
-    <p class="ask">On hold: the Map Atlas page comes first, so you can see where the palettes go.</p>
-    <ul>
-      <li>Color only; milk bar untouched</li>
-      <li>C fixes both bends, but the house turns peach and lilac</li>
-      <li>C3 fixes the east bend only; a lilac strip on the house's right end</li>
-      <li>Dropping 2 cacti alone does not free a palette</li>
-      <li>I recommend leaving the patches</li>
-    </ul>
-    <div class="media"><img src="media/q8_tea_house.png" alt="Tea house now, C, C3, and the bends"></div>
-  </section>
   <section class="card" id="q10">
     <div class="tag">Q10</div>
-    <h2>Map savings: which to do?</h2>
-    <p class="ask">Do C and D? Skip A and B?</p>
-    <ul>
-      <li>A cactus: each cactus gets a green square in the sand. Color</li>
-      <li>B town sets: cream pads on snow and grass. Color</li>
-      <li>C trees moved up to 4 px: DMG 12, Color 23 tiles</li>
-      <li>D 1-2 px fixes: DMG 42, Color 64 tiles; tightest DMG screens 176 to 169. Loses some water sparkle dots</li>
-      <li>I recommend C and D, skip A and B</li>
-    </ul>
-    <h2>A and B</h2>
-    <div class="media"><img src="media/q10_A_B.png" alt="A and B before and after"></div>
-    <h2>C</h2>
-    <div class="media"><img src="media/q10_C.png" alt="C before and after"></div>
-    <h2>D</h2>
-    <div class="media"><img src="media/q10_D.png" alt="D before, after, changed"></div>
-    <h2>Whole map</h2>
-    <div class="media"><img src="media/q10_all.png" alt="Whole map before and after"></div>
+    <h2>Which map savings should I make?</h2>
+    <p class="ask">Say yes or no to each of the three changes below.</p>
+
+    <div class="opt">
+      <h3>1. Trees: fewer positions <span class="rec">I say yes</span></h3>
+      <ul>
+        <li>22 trees shift by up to 4 pixels</li>
+        <li>Saves DMG 12 tiles, Color 23</li>
+      </ul>
+      <div class="media"><img src="media/q10_C.png" alt="Trees before and after"></div>
+    </div>
+
+    <div class="opt">
+      <h3>2. Tiny pixel differences <span class="rec">I say yes</span></h3>
+      <ul>
+        <li>1 or 2 pixels change in a tile, mostly mountain, road and river edges</li>
+        <li>The river loses some sparkle dots</li>
+        <li>Saves DMG 42 tiles, Color 64; tightest DMG screens 176 to 169 of 176</li>
+        <li>Picture: before, after, changed pixels marked</li>
+      </ul>
+      <div class="media"><img src="media/q10_D.png" alt="Pixel changes before, after, marked"></div>
+    </div>
+
+    <div class="opt">
+      <h3>3. Merge small colour sets <span class="rec">I say no</span></h3>
+      <ul>
+        <li>Color only</li>
+        <li>Cacti get a green square in the sand</li>
+        <li>Cream pads appear on snow and grass by the town and bistro</li>
+        <li>Saves no tiles; frees colour slots</li>
+      </ul>
+      <div class="media"><img src="media/q10_A_B.png" alt="Colour set merges before and after"></div>
+    </div>
+
+    <p class="how">Answer like: Q10 trees yes, pixels yes, colours no</p>
   </section>
+
+  <p class="section-title">FOR REFERENCE (nothing to answer)</p>
+
   <section class="card" id="palettes">
-    <div class="tag">For reference</div>
-    <h2>Map palettes</h2>
+    <h2>Map colour sets</h2>
     <div class="media"><img src="media/map_palettes.png" alt="All 23 map palettes with swatches and where each is used"></div>
-    <h2>Road palettes</h2>
+    <h2>Road colour sets</h2>
     <div class="media"><img src="media/road_palettes.png" alt="Road cells boxed by palette, three bends close up"></div>
   </section>
+
   <section class="card" id="dancers">
-    <div class="tag">For reference</div>
-    <h2>Dancers: before | after</h2>
     <h2>Saloon dancer</h2>
     <div class="media"><img src="media/ba_saloon.gif" alt="Saloon dancer before and after"></div>
     <h2>Cheerleader</h2>
