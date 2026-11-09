@@ -8,7 +8,7 @@
 - [Three modes decisions](three-modes-decisions.md) — owner answers for STORY/ARCADE/CLASSIC (lives, scores, DMG steps, slanted bars)
 - [Owner tests judgement only](owner-testing-judgement-only.md) — test lists hold look/sound/feel calls only; verify mechanics ourselves
 - [Agents: reversible actions only](agents-reversible-actions.md) — new commits/branches only; no amend/rebase/reset by agents
-- [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-11-01, after Q93); batch them, images under each
+- [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-11-07, after Q121); batch them, images under each
 - [PyBoy audio stale row](pyboy-audio-stale-row.md) — slice ndarray[:raw_buffer_head//2] per frame or mp3s crackle; rebuild after merges
 - [PyBoy zeroed RAM](pyboy-zeroed-ram.md) — real hardware leaves HRAM junk; clear hand-placed bytes in main(), test with a junk poke
 - [Goldens: supervisor only](goldens-supervisor-only.md) — I replace goldens one by one; gb-golden-check's verdict table first, pictures for UNEXPECTED/UNSURE rows
@@ -50,3 +50,5 @@
 - [Art: consistency, only flagged changes](art-consistency-only-flagged.md) — change only what the owner flagged (tower, not tavern roof, 11-04); same buildings/props/texture at every time of day
 - [No music changes without OK](no-music-changes-without-ok.md) — never repeat/stretch/cut a song to fit timing without the owner's OK; let the music run out (owner 11-05)
 - [Map buildings keep character](map-buildings-unique-character.md) — DMG map tile savings: smaller buildings or combinable parts OK, never one building with swapped signs (owner 11-06)
+- [Sheet labels readable](sheet-labels-readable.md) — owner can't read tiny sheet labels on his phone; big labels, few columns, order in the card heading
+- [Map Atlas artifact](map-atlas-artifact.md) — story map tiles/palettes/walk load page; make map-atlas + republish after map merges
