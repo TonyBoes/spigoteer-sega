@@ -48,8 +48,8 @@ everything you need is local. The owner pushes to GitHub himself.
 - **Commits:** `git add <files>` (never `-a`); write the message to a file and use `git commit -F`. It must end with
   the attribution lines the session gives (`Co-Authored-By: ...` and `Claude-Session: <this session's URL>`; the
   URL changes per session, so the supervisor puts the current lines in each brief).
-- **Done** means committed, with your targeted tests and `make check` green on DMG and CGB (verify runs the full
-  suite). Report the commits, the goldens, the budget numbers, the preview
+- **Your part is done** when it is committed, with your targeted tests and `make check` green on DMG and CGB; the
+  branch is done per rule 1. Report the commits, the goldens, the budget numbers, the preview
   paths and anything you are unsure about.
 - **Owner decisions:** When the owner gives a rule, decision or plan, save it to its file in the same turn (memory note
   for standing rules, QUEUE for plans) before replying, and say where it was saved. Conversation is not storage.
@@ -64,11 +64,11 @@ everything you need is local. The owner pushes to GitHub himself.
     make cfall      # the C reference build of every asm routine
 
 Full branch verification, run only by a `gb-runner` agent: `tools/dev/verify.sh <worktree> <name>` (default stages
-about 7 min; `FULL=1` adds the slow fade stage, `CBUILD=1` adds the C-build pytest).
+about 8 min; `FULL=1` adds the slow fade stage, `CBUILD=1` adds the C-build pytest).
 
 Test and build commands (`make`, `make test`, `make check`, `pytest`) pass through a hook: if the output is long you
 see the failures, errors and the last lines, plus the path of the full log. Open the full log only when that is not
-enough.
+enough. Don't pipe test commands through `tail` or `head`: the hook already trims the output.
 
 ## Gotchas that have bitten this project
 

@@ -4,7 +4,7 @@
 #   tools/dev/verify.sh <worktree> <name>
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
-#   Default stages (owner, test batch 1, 2026-11-09; about 7 min): make -B, make cfall, pytest on the asm build, make check,
+#   Default stages (owner, test batch 1, 2026-11-09; about 8 min): make -B, make cfall, pytest on the asm build, make check,
 #     and the RUN_SLOW double speed / half rate tests.
 #   FULL=1 tools/dev/verify.sh <worktree> <name>
 #     adds the slow fade stage (RUN_SLOW=1 tests/test_fade_hw.py, about 7 min). Use it for engine, fade, timing or music

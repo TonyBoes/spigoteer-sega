@@ -64,7 +64,7 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
    - Then copy each file by hand. Never use bulk `GB_UPDATE_GOLDEN=1`.
    - Name every replaced golden and the reason in the commit.
 6. **Merge main into the branch, then verify.** Brief `gb-runner`: `tools/dev/verify.sh <worktree> <name>` (about
-   7 min). The default stages are `make -B`, `make cfall`, the full pytest, `make check`, and the `RUN_SLOW`
+   8 min). The default stages are `make -B`, `make cfall`, the full pytest, `make check`, and the `RUN_SLOW`
    double-speed and half-rate tests, ending with a RESULT line. `FULL=1` adds the `RUN_SLOW=1` fade tests (engine, fade,
    timing or music changes, and before any release). `CBUILD=1` adds the full pytest on `build/game-c.gb` (only before
    a porting release, while C tests are on hold). `QUICK=1` is accepted and does nothing.
