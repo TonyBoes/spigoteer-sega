@@ -1,3 +1,5 @@
+SUPERSEDED (2026-11-09): historical template. The current rules are in /workspace/CLAUDE.md (testing: targeted tests while working, verify is the one full run; goldens: add new freely, only the supervisor replaces). Lines below that say to run the full make test, or to regenerate goldens, no longer apply.
+
 Batch B, owner-approved 2026-10-13 (all decisions final; difficulty BALANCING is deliberately deferred to a later pass, so pick sensible values, make them easy to tune (named constants), and don't chase balance):
 - Goldens: these rule changes move patrons, so many goldens will change. Regenerate ONLY goldens whose test fails because of your change, look at a sample of each kind, and name every replaced golden in the commit message with the reason. If a golden update or bulk copy is denied, stop and report; do not work around it.
 - Tests that encode the old rules (push distances, the x=16 serve line, spawn x, etc.) must be rewritten to assert the NEW rules, not loosened.
