@@ -5,7 +5,7 @@
 #     <worktree>  path to the worktree (absolute, or relative to /workspace), e.g. .claude/worktrees/agent-a85f9c7ee230bc121
 #     <name>      short label for the log, e.g. q49
 #   Default stages (owner, test batches 1 and 2, 2026-11-09; about N min (pending, test batch 2)):
-#     make -B, then three stages side by side: pytest on the asm build, make cfall, and the RUN_SLOW double speed / half
+#     plain make (incremental, up to date when this worktree's build/ is current; FULL=1 uses make -B, a full rebuild), then three stages side by side: pytest on the asm build, make cfall, and the RUN_SLOW double speed / half
 #     rate tests; make check runs right after the build (about 1 s).
 #   FULL=1 tools/dev/verify.sh <worktree> <name>
 #     adds the slow fade stage (RUN_SLOW=1 tests/test_fade_hw.py, about 7 min) and the release-only tests (FULL=1 is
@@ -79,12 +79,13 @@ timed() {
   echo "$a-$(now)" > "$P/$s.t"
 }
 
-# ---- make -B ----
+# ---- the build: plain make (test batch 2, B3: proven equal to a clean build, with the Makefile's missing prerequisites added); FULL=1 forces make -B ----
+BUILD_CMD="make"; [ -n "${FULL:-}" ] && BUILD_CMD="make -B"
 a=$(now)
-if make -B > /dev/null 2>&1; then
-  { echo "== make -B ($a-$(now))"; echo BUILD_OK; echo "RESULT build: PASS"; } >> "$L"
+if $BUILD_CMD > /dev/null 2>&1; then
+  { echo "== $BUILD_CMD ($a-$(now))"; echo BUILD_OK; echo "RESULT build: PASS"; } >> "$L"
 else
-  { echo "== make -B ($a-$(now))"; echo BUILD_FAIL; echo "RESULT build: FAIL"; echo "RESULT: FAIL (build)"; echo END; } >> "$L"
+  { echo "== $BUILD_CMD ($a-$(now))"; echo BUILD_FAIL; echo "RESULT build: FAIL"; echo "RESULT: FAIL (build)"; echo END; } >> "$L"
   rm -rf "$P"; exit 1
 fi
 
