@@ -868,3 +868,5 @@ The grass dithering patchiness looks better now."
 - 11-08 Q9/Sal-low branch done (d19fba22): feet y110 everywhere, top rows seen, DMG 173/176, guards ok; 22 goldens to replace after the arrows merge.
 - 11-08 OWNER: "The ufo can be lower on the mountain and closer to the airbase."
 - 11-08 thirst branch 278cd0e7 (Story/Arcade; Classic + bosses flat): mugs to serve L10 5.61 -> 3.21, short pushes 21% -> 6.6%. Pocket Player v81 has "Thirst push (test)" (debug menu, Space). Waiting on owner feel test.
+- 11-08 arrows MERGED (6fe66312, 10 goldens replaced). UFO branch 07994079: offset (62,6)->(8,34), option B (lower-left toward the air base, left of the mountain); sheet sent; A=(20,18) alternative. 4 goldens to replace at merge.
+- 11-08 OWNER: "I still don't think all of the venues are getting all of the colour looks that I asked for for the patrons. For example, in the stadium, the hotdog vendor only ever showed up in the flesh-colored sal pallet."
