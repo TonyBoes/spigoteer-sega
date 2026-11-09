@@ -23,22 +23,22 @@ Columns: DMG = DMG tiles saved, Color = Color ids saved; tight = effect on the w
 
 | # | Opportunity | DMG | Color | Tight windows | Visual cost | Effort |
 |---|---|---|---|---|---|---|
-| 1 | Redraw near twins, all places, up to 4 px | 147 | 161 | path 174 to 156, 21x19 176 to 157 | 386 DMG cells / 1187 px and 2114 Color cells / 6202 px change (Color count is mostly 1 px on road cells); every cell keeps its look except a few pixels | high: per-tile hand pass; 148 DMG redraws |
-| 1a | ...up to 2 px only | 45 | 69 | path 167, 21x19 167 | 107 DMG cells / 157 px; Color 1792 cells / 3459 px | medium |
-| 1b | ...up to 1 px only | 23 | 36 | path 172, 21x19 172 | 59 DMG cells, 1 px each | low |
-| 2 | Near twins inside the venue pictures (<= 4 px) | 53 | 80 | path 172, 21x19 176 to 168 | 71 DMG cells / 225 px, 114 Color cells: small drawing details inside buildings | medium |
-| 3 | River edge twins (<= 4 px) | 13 | 4 | path 174 to 170 (the top-right worst window holds 25 water tiles) | 55 DMG cells / 194 px: the water's edge shape gets a little less varied | low-medium |
-| 4 | Mountain range and mesa twins (<= 4 px) ("other scenery") | 14 | 17 | path 170, 21x19 174 | 32 DMG cells / 98 px | medium |
-| 5 | Road twins (<= 4 px) | 16 | 14 | path 172 | 39 DMG cells / 142 px; Color 129 cells (road speckle) | low |
+| 1 | Redraw near twins, all places, up to 4 px (rare tiles folded into common ones) | 134 | 154 | path 174 to 157, 21x19 176 to 157 | 295 DMG cells / 863 px and 422 Color cells / 1178 px change; every cell keeps its look except a few pixels | high: per-tile hand pass; about 134 DMG redraws |
+| 1a | ...up to 2 px only | 42 | 64 | path 169, 21x19 169 | 100 DMG cells / 149 px; Color 159 cells / 232 px | medium |
+| 1b | ...up to 1 px only | 20 | 35 | path 173, 21x19 171 | 53 DMG cells, 1 px each; Color 93 cells | low |
+| 2 | Near twins inside the venue pictures (<= 4 px) | 49 | 77 | path 172, 21x19 176 to 169 | 53 DMG cells / 172 px, 93 Color cells: small drawing details inside buildings | medium |
+| 3 | River edge twins (<= 4 px) | 13 | 4 | path 174 to 170 (the top-right worst window holds 25 water tiles) | 53 DMG cells / 188 px: the water's edge shape gets a little less varied | low-medium |
+| 4 | Mountain range and mesa twins (<= 4 px) ("other scenery") | 14 | 17 | path 170, 21x19 174 | 14 DMG cells / 44 px | medium |
+| 5 | Road twins (<= 4 px) | 16 | 13 | path 172 | 25 DMG cells / 86 px; Color 106 cells (road speckle) | low |
 | 6 | Fold stray-pixel tiles into the flat ground tile (<= 2 px) | 16 | 10 | 21x19 176 to 172, path unchanged | 32 DMG cells lose a dot: mostly the dots that round the road bends and cut tree tips at the map edge | low |
-| 7 | Snap round trees to one pixel offset (4 offsets today, 17 trees) | 20 | 20 | none | 16 trees move up to 4 px | low |
-| 8 | Snap pines to one offset (6 offsets, 29 pines) | 8 | 19 | none | 4 to 6 pines move up to 4 px | low |
-| 9 | Pines and round trees together (7 + 8, measured together) | 28 | 39 | none | as above | low |
-| 10 | Everything realistic at once: 9 + 1a | 72 | 106 | path 167, 21x19 167 | as 1a and 9 | medium |
-| 11 | Palette merge cactus into grass | 0 | 0 | 8/8 windows 397 to 240 | cactus cells show the grass greens on sand; colour distance 26 of 765 per colour (very close; see sheet panel 5) | trivial |
+| 7 | Snap round trees to one pixel offset (4 offsets today, 17 trees) | 13 | 13 | none | 16 trees move up to 4 px | low |
+| 8 | Snap pines to one offset (6 offsets, 29 pines; overlapping copies stay) | 0 | 10 | none | 6 pines move up to 4 px | low |
+| 9 | Pines and round trees together (7 + 8, measured together) | 12 | 23 | none | as above | low |
+| 10 | Everything realistic at once: 9 + 1a | 58 | 90 | path 169, 21x19 169 | as 1a and 9 | medium |
+| 11 | Palette merge cactus into grass | 0 | 0 | 8/8 windows 397 to 240 | cactus cells show the grass greens on sand; colour distance 26 per colour, but index 0 is the ground: each cactus cell shows a grass-green square on the sand (sheet_A_B panels 5-11) | trivial, visible |
 | 12 | Merge town4 and town5 into town1 | 0 | 0 | 8/8 397 to 260 | colour distance 48 and 58: the two small town awnings take the town palette's colours | low |
 | 13 | Merge bistro@g into bistro | 0 | 0 | 8/8 397 to 281 | distance 44: 11 cells of plaza ground colour | low |
-| 14 | Merge town1@z and town1@n into town1 | 0 | 0 | 8/8 397 to 394 | distance 12 and 24: almost identical colours | trivial, but saves almost nothing |
+| 14 | Merge town1@z and town1@n into town1 | 0 | 0 | 8/8 397 to 394 | distance 12 and 24, but the ground colour at those cells changes (a pale yellow block, sheet_A_B panels 1 and 12) | trivial, but saves almost nothing |
 | 15 | All six small palettes merged (11 + 12 + 13 + 14) | 0 | 0 | 8/8 397 to 82 | the sum of the above | low |
 | 16 | Merge factory into grass | 0 | 0 | clears all 82 east-wedge windows | the factory yard turns green (sheet panel 6); distance 54 | low, but visible |
 | 17 | Reorder cow, tea@g, water palette colours (relabel) | 0 | 3 | none | none (the pixel indices change, the picture does not) | low; town1 cannot be reordered |
@@ -53,8 +53,8 @@ because the window and overlay text is drawn with its slot (`src/smap.c ui_attr`
 Ceiling if every block could take its own palette order (not possible, a palette is per cell): Color 1002 distinct blocks fall to 856 shape classes (colour order and flips ignored). On DMG a relabel is a shade change:
 948 blocks fall to 929 classes with any shade permutation, 936 keeping shade 0, 943 swapping only two shades. So DMG gains at most 19 tiles and they would look different. Not worth it.
 
-**2. Near reuse.** Number of tiles one redraw pass could drop (greedy stars, no chains), upper bound: DMG, same shades: 23 / 45 / 84 / 146 at 1 / 2 / 3 / 4 px. Color, same colours with flips: 54 / 103 / 146 / 218.
-Color with colour order free (needs palette reordering): 83 / 140 / 181 / 254. DMG with shades free: 33 / 67 / 117 / 171. The table rows 1 to 6 are the simulated version (blocks actually replaced, the Models rebuilt), which is lower
+**2. Near reuse.** Number of tiles one redraw pass could drop (greedy stars, no chains, a rare tile is folded into a commoner one), upper bound: DMG, same shades: 20 / 42 / 82 / 134 at 1 / 2 / 3 / 4 px. Color, same colours with flips: 53 / 94 / 134 / 200.
+Color with colour order free (needs palette reordering): 69 / 116 / 170 / 227. DMG with shades free: 29 / 57 / 108 / 158. The table rows 1 to 6 are the simulated version (blocks actually replaced, the Models rebuilt), which is lower
 because a tile can be a star member only once. Where the savings are (DMG, 4 px): stars centred on a ground tile 44 (the flat tile absorbing stray-pixel fringes, row 6), other scenery 22, venue pictures 53 (Stadium 13, Space 9, Tea 7, Bistro 5, Igloo 5), road 16, water 13.
 Tiles inside a venue picture are the most numerous but each saving changes about 1.3 cells, so the visual cost per tile is small but the work is spread over 11 pictures.
 
@@ -91,9 +91,28 @@ Windows that reach 8 only because of tiny palettes (cactus 157, town5 120, town4
 The worst 21x19 window (176) holds: space lounge 63, saloon 34, other scenery 41 (desert peaks, mesa, airbase mountain), peaks 16, town 10, round trees 6, cactus 4. Only near-twin redraws touch these; palette merges and phase snaps change neither.
 Best per area for the top-right window: river edge (174 to 170), mountain range (170), road (172), igloo picture (173). Best for the 21x19 worst: venue Space (170), mountain/mesa (174).
 
+Correction (second pass): the first pass let the greedy star choose its centre by neighbour count, which could fold the flat ground tile into a dotted one (ground dots over the whole map). Centres are now the most-used tiles and only less-used tiles are folded in. All near-twin, phase-snap and combined numbers in this report are the corrected ones. The phase snap now removes and re-places only the piece's own pixels and leaves copies that overlap each other where they are.
+
 ## What I am unsure of
 
 - The simulation moves trees by up to 4 px and merges blocks by pixel edit; a real redraw by hand could pick better stars (the greedy star count is conservative) or do worse than "center wins" at the eye level.
 - Color near-merges here keep each cell's palette and only change index pixels; a 1-px index change shows as a different colour pixel, which can be more visible than on DMG. The 1-px Color count (36 ids, 1583 cells) is dominated by road cells; look before taking it.
 - Category boxes (venue, decor) use the venue picture sizes in `VENUE_PX` and template matching; objects outside the 8 templates (fences, barn, hay, zoo gate) are counted as "other scenery" or venue.
 - Window effects after a merge are exact for DMG tile counts and Color palette counts; the real allocator (hints, colouring) may behave differently once the tiles change, so the 174 and 176 numbers are what the generator's limit checks would see, not a build result.
+
+## A to D, the four options the owner asked to see (11-08)
+
+Built by `tools/artifacts/map_atlas/reuse_views.py` (edited map data, real palettes for Color, DMG shades for DMG). A = cactus palette onto grass; B = town4, town5, town1@z, town1@n into town1 and bistro@g into bistro;
+C = pines, round trees and bushes at one pixel offset; D = near twins up to 2 px folded together. Pictures: `out/sheet_A_B.png`, `out/sheet_C.png`, `out/sheet_D.png`, `out/sheet_all.png` (not committed; rerun the script).
+
+| Option | DMG tiles | Color ids | Worst padded path window | Worst 21x19 | Color 8/8 windows |
+|---|---|---|---|---|---|
+| now | 955 | 908 | 174 | 176 | 397 |
+| A cactus | 955 | 908 | 174 | 176 | 240 |
+| B small town | 955 | 908 | 174 | 176 | 221 |
+| C trees | 943 | 885 | 174 | 176 | 397 |
+| D twins up to 2 px | 913 | 844 | 169 | 169 | 397 |
+| A+B+C+D | 897 | 818 | 169 | 169 | 82 |
+
+What the pictures show: A turns the cactus cells' ground from sand to grass green, so each cactus stands on a green square. B changes the ground colour of the cells it merges (bistro@g cells go from green to the bistro's cream; the two small town awnings and the pale town1@z/@n bend cells take the town palette).
+C moves trees up to 4 px; overlapping copies stay put so no tree is cut. D changes only a few pixels per spot (see the highlighted third column); most are mountain edges, road and river edges and building details.

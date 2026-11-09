@@ -259,8 +259,9 @@ class Near:
         im = np.array(PERMS[pi], dtype=np.uint8)[self.arr[j]]
         return flips(im[None, :])[fi][0]
 
-    def stars(self, d, skip=(), allowed=None, centers=None):
-        """greedy stars at distance <= d: [(centre, [members])]; a member is absorbed once, a centre never absorbed (so no chain)"""
+    def stars(self, d, skip=(), allowed=None, centers=None, use=None):
+        """greedy stars at distance <= d: [(centre, [members])]; a member is absorbed once, a centre never absorbed (so no chain).  With `use` (cells per block) the commonest tiles
+        are centres and only tiles used less than the centre are absorbed, so a rare tile is redrawn into a common one and never the other way round"""
         n = len(self.blocks)
         near = (self.D <= d) & (self.D > 0)
         np.fill_diagonal(near, False)
@@ -269,9 +270,13 @@ class Near:
             skip |= set(range(n)) - set(allowed)
         for i in skip:
             near[i, :] = near[:, i] = False
+        if use is not None:
+            for i in range(n):
+                near[i, :] &= (use < use[i]) | ((use == use[i]) & (np.arange(n) > i))
         deg = near.sum(axis=1)
         gone, out = set(), []
-        for i in np.argsort(-deg, kind="stable"):
+        order = np.argsort(-deg, kind="stable") if use is None else np.lexsort((-deg, -np.asarray(use)))
+        for i in order:
             i = int(i)
             if i in gone or deg[i] == 0 or (centers is not None and i not in centers):
                 continue
@@ -303,7 +308,7 @@ def near_simulate(e, which, d, use_flips, use_perm=False, cat=None, only=None, c
     allowed = None
     if only is not None:                                                  # only blocks all of whose cells lie in categories accepted by `only`
         allowed = {i for i, b in enumerate(blocks) if all(only(str(cat[y, x])) for (x, y) in seen[b])}
-    gr = nr.stars(d, skip=anim, allowed=allowed, centers=None if centre is None else {blocks.index(centre)})
+    gr = nr.stars(d, skip=anim, allowed=allowed, centers=None if centre is None else {blocks.index(centre)}, use=np.array([len(seen[b]) for b in blocks]))
     e2 = e.clone()
     img2 = e2.C if which == "C" else e2.D
     cells = px = 0
@@ -369,18 +374,26 @@ def cells_of(x, y, w, h):
 
 
 def snap_family(e, fam_rows, inst, phase, which):
-    """a copy of e in which every instance of the family stands at the pixel phase (px, py) mod 8 (the nearest one: at most 4 px away); returns (edit, moved, blocked)"""
+    """a copy of e in which every instance of the family stands at the pixel phase (px, py) mod 8 (the nearest one: at most 4 px away); returns (edit, moved, blocked).
+    Only the piece's own pixels are taken away and put back (so a neighbouring object that overlaps its cells is left whole); the cells it moves into must be plain ground of its palette."""
     e2 = e.clone()
     img = e2.C if which == "C" else e2.D
+    orig = img.copy()
     m = np.array([[-1 if c == "." else int(c) for c in r] for r in fam_rows])
+    sel = m >= 0
     h, w = m.shape
-    moved = blocked = 0
+    plans, blocked = [], 0
+
+    def near(v, ph):
+        cand = [v - ((v - ph) % 8), v - ((v - ph) % 8) + 8]
+        return min(cand, key=lambda c: abs(c - v))
+    claimed = set()
     for (x, y, _, _, p) in sorted(inst, key=lambda t: (t[1], t[0])):
-        def near(v, ph):
-            cand = [v - ((v - ph) % 8), v - ((v - ph) % 8) + 8]
-            return min(cand, key=lambda c: abs(c - v))
         nx, ny = near(x, phase[0]), near(y, phase[1])
         if (nx, ny) == (x, y):
+            continue
+        if any((a, b) != (x, y) and abs(a - x) < w and abs(b - y) < h for (a, b, *_) in inst):          # copies that overlap each other stay where they are
+            blocked += 1
             continue
         oc, nc = cells_of(x, y, w, h), cells_of(nx, ny, w, h)
         ok = 0 <= nx and nx + w <= CW * 8 and 0 <= ny and ny + h <= CH * 8
@@ -388,23 +401,27 @@ def snap_family(e, fam_rows, inst, phase, which):
             for (cx, cy) in nc:
                 if (cx, cy) in oc:
                     continue
-                blk = img[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8]
-                if e2.P[cy, cx] != p or not (blk <= 1).all() or (blk > 0).sum() > 8:       # plain ground of the same palette only (flat or one tuft)
+                blk = orig[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8]
+                if e.P[cy, cx] != p or (cx, cy) in claimed or not (blk <= 1).all() or (blk > 0).sum() > 8:       # plain ground of the same palette only (flat or one tuft)
                     ok = False
                     break
         if not ok:
             blocked += 1
             continue
-        for (cx, cy) in oc:
-            img[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8] = 0
+        claimed.update(nc)
+        plans.append((x, y, nx, ny, p, oc, nc))
+    for (x, y, nx, ny, p, oc, nc) in plans:                                   # take the old pixels away (only where the picture still shows the piece)
+        sub = img[y:y + h, x:x + w]
+        gone = sel & (sub == m)
+        sub[gone] = 0
+    for (x, y, nx, ny, p, oc, nc) in plans:
         for (cx, cy) in nc:
-            img[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8] = 0
+            if (cx, cy) not in oc:
+                img[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8] = 0
             e2.P[cy, cx] = p
-        sel = m >= 0
         sub = img[ny:ny + h, nx:nx + w]
         sub[sel] = m[sel]
-        moved += 1
-    return e2, moved, blocked
+    return e2, len(plans), blocked
 
 
 def swap_family(e, which, from_rows, from_inst, to_rows):
@@ -612,8 +629,10 @@ def main():
     for label, which, uf, up in (("Color same colours + flips", "C", True, False), ("Color any colour order + flips", "C", True, True), ("DMG same shades", "D", False, False),
                                  ("DMG any shade order", "D", False, True)):
         blk = cell_blocks(e0.C if which == "C" else e0.D)
-        nr = Near(list({blk[y, x].tobytes() for y in range(CH) for x in range(CW)}), uf, up)
-        near[label] = {d: sum(len(m) for _, m in nr.stars(d)) for d in (1, 2, 3, 4)}
+        cnt_ = Counter(blk[y, x].tobytes() for y in range(CH) for x in range(CW))
+        bl_ = list(cnt_)
+        nr = Near(bl_, uf, up)
+        near[label] = {d: sum(len(m) for _, m in nr.stars(d, use=np.array([cnt_[b] for b in bl_]))) for d in (1, 2, 3, 4)}
         print("NEAR (blocks; upper bound)", label, near[label])
     R["near_bound"] = near
     sim = {}
