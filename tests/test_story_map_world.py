@@ -288,3 +288,14 @@ def test_sal_walks_without_waiting_and_the_camera_moves_with_him(model):
     assert frames > (3000 if model == "dmg" else 2000), frames                                   # (every leg both ways was walked)
     assert holds <= b["holds"] * frames, (holds, frames)
     assert late <= b["late"] * frames, (late, frames)
+
+
+# ---- the pace -------------------------------------------------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("stop,d", [(8, 0), (9, 1)], ids=["zoo-up-to-space", "space-down-to-zoo"])
+def test_color_walk_between_zoo_and_space_never_stands_still(stop, d):
+    """The palette hand-over on this road (smapw_ret) once stopped Sal for 3 frames (the walk's pacing, smap.c walk_step, read the hand-over's missing line as a line
+    still loading): no 0 px frame between his first and last step (a lone 1 is fine). tools/dev/smap_motion_check.py."""
+    sys.path.insert(0, str(ROOT / "tools" / "dev"))
+    import smap_motion_check as mc
+    steps = mc.walk_steps("cgb", stop, d)
+    assert steps and not mc.mid_walk_stops(steps), "".join(str(min(x, 9)) for x in steps)
