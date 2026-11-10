@@ -643,9 +643,16 @@ static void isr_on(void) {
 }
 
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
+static void cloud_gone(void) {                      // the map is left: no cloud entry stays in the shadow OAM for the next screen (tiles 74-89, OBJ palette 1 / OBP1), nor the clouds' spare bytes
+    uint8_t i;
+    for (i = OAM_CLOUDS; i < OAM_CLOUDS + 15; i++) shadow_OAM[i].y = 0;
+    CL_ON = 0; shadow_OAM[36].tile = 0;
+    if (!is_cgb && (HALF & HALF_CLOUDS)) OBP1_REG = OBP1_PLAY;
+}
+
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
     win_hide();
-    if (CLOUDS_ON && !is_cgb) OBP1_REG = OBP1_PLAY;  // (the clouds' 0x90 is the map's)
+    if (CL_ON) cloud_gone();
     if (TRANS & TR_OFF) { SCX_REG = 0; SCY_REG = 0; }   // (else the scene change's cover shows the map as it stands and the scroll goes home once the LCD is off: src/trans.c)
     sm_put(smap_stop, smap_flags & F_SAVED);
 }
@@ -1039,6 +1046,7 @@ uint8_t smap_po_lives(void) BANKED {
 
 // the screens after the map, LCD off: the HUD palette (BG 1, which the world borrowed) as the game keeps it, tinted as the run's difficulty tints it (main_cold.c)
 void smap_pal_back(void) BANKED {
+    if (CL_ON) cloud_gone();                       // (every screen after the map, LCD off, comes through here or leave())
     uint16_t p[4];
     if (!(smap_flags & F_PALS)) return;
     smap_flags &= ~F_PALS;

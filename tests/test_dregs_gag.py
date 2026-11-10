@@ -179,7 +179,7 @@ def test_no_gag_on_the_other_pages_and_start_skips_one_cleanly(model, c):
             gb2.press("start", 2)
             run_until(gb2, lambda: gb2.mem("story_phase") == 9, 80)      # (the story map follows a POST scene)
             settle(gb2)
-            assert gag_state(gb2) == 0 and [o for o in gb2.oam()[23:] if o["y"]] == []      # (the story map's own sprites are OAM 0..22)
+            assert gag_state(gb2) == 0 and [o for o in gb2.oam()[23:] if o["y"] and not 74 <= o["tile"] <= 89] == []      # (the story map's own sprites are OAM 0..22, its clouds 23-35: tiles 74-89)
 
 
 # the key moment of each gag, a frame after the page begins: new goldens (dmg + cgb)

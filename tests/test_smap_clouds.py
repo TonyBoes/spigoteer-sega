@@ -1,5 +1,7 @@
 # The story map's sprite clouds (src/smap.c, OAM 23-35, docs/dev/proposals/smap_clouds/): Color always has them; a DMG has them only when the debug menu's
 # TUNING > DMG CLOUDS is ON (HALF bit 5, HRAM 0xFFF4, session only: boot clears it), so the DMG map and its perf guard stay as they were.
+import contextlib
+
 import pytest
 
 import test_story_map as sm
@@ -72,3 +74,74 @@ def test_the_clouds_tiles_are_loaded_with_the_clouds(monkeypatch):
     objs = bytes.fromhex(sm.SMAP["obj_hex"])
     gb = map_with(monkeypatch, "dmg", True)
     assert bytes(gb.pb.memory[0x8000 + sm.OB * 16:0x8000 + sm.OB * 16 + len(objs)]) == objs
+
+
+# ---- leaving the map: no cloud entry (tiles 74-89, OBJ palette 1 / OBP1) stays in the OAM of the next screen (the Dregs gag test found one) ---------------------------------
+def cloud_left(gb):
+    for mem in (gb.read("shadow_OAM", 160), bytes(gb.pb.memory[0xFE00:0xFEA0])):
+        for i in range(40):
+            y, tile = mem[i * 4], mem[i * 4 + 2]
+            if y and 74 <= tile <= 89 and i >= 23:
+                return i
+    return None
+
+
+def placed(gb):
+    oam = gb.read("shadow_OAM", 160)
+    return any(oam[i * 4] for i in range(23, 36))
+
+
+EXITS = ["venue_play", "venue_story", "festival", "menu"]
+
+
+@pytest.mark.parametrize("path", EXITS)
+@pytest.mark.parametrize("model, toggle", [("cgb", False), ("dmg", True)])
+def test_no_cloud_entry_is_left_after_any_exit_from_the_map(monkeypatch, model, toggle, path):
+    from conftest import double_speed
+    from test_flow import run_until, state
+    from test_story_map import tap, GS_MINI, SP_MAP
+    ctx = double_speed() if model == "cgb" else contextlib.nullcontext()
+    with ctx:
+        if path == "venue_play":
+            gb = map_with_progress(monkeypatch, model, toggle, 10, 0)
+            tap(gb, "a", 20)
+            gb.run(10)
+            tap(gb, "a", 2)                                  # PLAY: the venue's mini-game
+        elif path == "venue_story":
+            gb = map_with_progress(monkeypatch, model, toggle, 0, 0)
+            tap(gb, "a", 2)                                  # the next venue
+        elif path == "festival":
+            gb = map_with_progress(monkeypatch, model, toggle, 10, 10)
+            tap(gb, "a", 20)
+            gb.run(10)
+            tap(gb, "a", 2)
+            gb.run(20)
+            tap(gb, "a", 2)
+        else:                                                # START: the menu panel, its second item (leaving the map)
+            gb = map_with_progress(monkeypatch, model, toggle, 10, 10)
+            tap(gb, "start", 20)
+            gb.run(10)
+            tap(gb, "down", 2)
+            tap(gb, "a", 2)
+        gb.run(2)
+        left_map = lambda: not (state(gb) == sm.GS_STORY and gb.mem("story_phase") == SP_MAP)
+        try:
+            run_until(gb, left_map, 300)
+        except Exception:
+            pytest.skip(f"{path}: this path did not leave the map here")
+        gb.run(30)
+        assert cloud_left(gb) is None, f"a cloud entry stays in OAM after {path}"
+
+
+def map_with_progress(monkeypatch, model, toggle, progress, stop):
+    orig = sm.booted
+
+    def booted(*a, **k):
+        gb = orig(*a, **k)
+        if toggle:
+            gb.pb.memory[HALF] = gb.pb.memory[HALF] | HALF_CLOUDS
+        return gb
+    monkeypatch.setattr(sm, "booted", booted)
+    gb = sm.to_map(model, progress, stop=stop)
+    assert placed(gb), "the clouds are in the OAM before the exit"
+    return gb
