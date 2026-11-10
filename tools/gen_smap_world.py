@@ -35,6 +35,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT / "tools" / "smap_world"))
 import world_snap as W  # noqa: E402  (the frozen integrated map, assets/smap/: tools/dev/smap_snapshot.py writes it)
+import anims as AN  # noqa: E402  (stage 3: the tile animations, tools/smap_world/anims.py)
 PAL = W  # noqa: E402  (W.get(name): a palette's four colours, W.DMG_SHADE)
 
 CW, CH = W.CW, W.CH
@@ -70,6 +71,7 @@ WIN_C = (22, 20)              # the loaded region: the 21 x 19 cells a view can 
 WIN_V = (21, 19)
 MAX_CELLS_IN_WIN = 239           # a DMG slot's use count is a byte (the engine keeps 0xF0.. free)
 TILE_MAX = 1024                  # a cell word holds a 10-bit tile id, a 5-bit palette and (Color) the alternate-flip bit 15
+ANIMS = AN.build(W.WORLD, W.WORLD_DMG)       # the tile animation groups (cells, frame images, 256-tick schedule): tools/smap_world/anims.py
 FLIP_MERGE = True                # Color: mirror-image blocks share one tile id (see Model.merge_flips)
 
 
@@ -109,7 +111,14 @@ class Model:
         self.cgb = cgb
         world = W.WORLD if cgb else W.WORLD_DMG
         self.world = world
-        self.ids = {}                                # pixel block -> distinct block index (first-use order over the states)
+        self.ids = {}                                # pixel block (or, for an animated group's cells, (block, group)) -> distinct block index (first-use order over the states)
+        self.gkey = {}                               # an animated group's cells: cell -> (group, its image 0): the group's tile gets an id of its own (the animation rewrites the one tile)
+        for gi, g in enumerate(ANIMS):
+            if not cgb and g.still("d"):
+                continue                             # (a DMG cell the animation never changes: an ordinary tile)
+            for c in g.cells:
+                assert c not in self.gkey, ("a cell in two animation groups", c)
+                self.gkey[c] = (gi, bytes(g.imgs["c" if cgb else "d"][0]))
         self.sigs = []                               # the distinct pixel blocks
         self.grids = {}                              # p -> (CH, CW) distinct block index; Color: replaced below by the tile id (see merge_flips)
         self.pals = {}                               # p -> (CH, CW) palette indices (Color)
@@ -127,9 +136,11 @@ class Model:
             for y in range(CH):
                 for x in range(CW):
                     s = sig_of(v, x, y)
-                    t = self.ids.get(s)
+                    gk = self.gkey.get((x, y))
+                    k = (s, gk[0]) if gk is not None and gk[1] == s else s            # (the fountain's cells in the broken state are no animation: their block is an ordinary one)
+                    t = self.ids.get(k)
                     if t is None:
-                        t = self.ids[s] = len(self.sigs)
+                        t = self.ids[k] = len(self.sigs)
                         self.sigs.append(s)
                     g[y, x] = t
                     name = v.pal[y][x]
@@ -160,7 +171,7 @@ class Model:
         it is.  A tile id has at most one alternate, so a family of four distinct mirror images takes two ids.  A block shown in an animated cell is pinned (its own id, nothing merged into
         it: the animation rewrites the one tile, every cell of the id would play it)."""
         sigs = self.sigs
-        pinned = set()
+        pinned = {i for k, i in self.ids.items() if isinstance(k, tuple)}          # (every animation group's tile: its own id)
         for (cx, cy) in getattr(W, "ANIM_CELLS", ()):
             for p in STATES:
                 pinned.add(int(self.sg[p][cy, cx]))
@@ -954,6 +965,89 @@ def emit_tiles(m, tag):
     return "\n".join(L), data
 
 
+# ---- the tile animations (stage 3): the engine's tables ----------------------------------------------------------------------------------------------
+def anim_tables(cg, dm):
+    """The groups' tile ids and allocator words per data set, the image tables, and the event list: one event per image change of a group, sorted by tick (the schedule is the same in both
+    data sets; a group that is still in the DMG set has image 255 there).  Returns a dict of the lists emit_anim writes."""
+    gi_t = {"c": [], "d": []}
+    gi_a = {"c": [], "d": []}
+    for g in ANIMS:
+        for m, model in (("c", cg), ("d", dm)):
+            if m == "d" and g.still("d"):
+                gi_t[m].append(0)
+                gi_a[m].append(0)
+                continue
+            cx, cy = g.cells[0]
+            t = int(model.grids[NSTATE][cy, cx])
+            for (x, y) in g.cells:
+                assert int(model.grids[NSTATE][y, x]) == t and int(model.alt[NSTATE][y, x]) == 0, ("an animation group's cells do not share one plain tile id", g.name, m, (x, y))
+            assert model.sigs[t] == bytes(g.imgs[m][0]), (g.name, m)
+            gi_t[m].append(t)
+            if m == "c":
+                assert not model.altflip[t], g.name
+                gi_a[m].append(model.slotvar[t] & 0x7FF)
+            else:
+                gi_a[m].append(model.hint[t])
+    imgs = {"c": [], "d": []}
+    imap = {"c": {}, "d": {}}
+
+    def img_ix(m, im):
+        b = bytes(im)
+        if b not in imap[m]:
+            imap[m][b] = len(imgs[m])
+            imgs[m].append(enc(b))
+        return imap[m][b]
+    ev = []                                          # (tick, group, image c, image d)
+    for gi, g in enumerate(ANIMS):
+        for (t, k) in g.events():
+            ev.append((t, gi, img_ix("c", g.imgs["c"][k]), 255 if g.still("d") else img_ix("d", g.imgs["d"][k])))
+    ev.sort()
+    assert len(imgs["c"]) < 255 and len(imgs["d"]) < 255, (len(imgs["c"]), len(imgs["d"]))
+    idx = [sum(1 for e in ev if e[0] < t) for t in range(AN.LOOP + 1)]
+    per_tick = Counter(e[0] for e in ev)
+    box = [[min(c[0] for c in g.cells) for g in ANIMS], [max(c[0] for c in g.cells) for g in ANIMS], [min(c[1] for c in g.cells) for g in ANIMS], [max(c[1] for c in g.cells) for g in ANIMS]]
+    return {"box": box, "gt": gi_t, "ga": gi_a, "imgs": imgs, "ev": ev, "idx": idx, "bits": [sum(1 << b for b in range(8) if per_tick.get(i * 8 + b)) for i in range(AN.LOOP // 8)],
+            "max_ev": max(per_tick.values())}
+
+
+def emit_anim(a):
+    n, ng = len(a["ev"]), len(ANIMS)
+    flat = lambda m: [b for im in a["imgs"][m] for b in im]
+    L = ["// generated by tools/gen_smap_world.py -- do not edit (the story map's tile animations: the schedule, the groups' tiles and the frame images of both data sets)",
+         "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "smap_world.h"', "", "BANKREF(smap_an)",
+         f"// {n} events in the 256-tick loop, {ng} groups; {len(a['imgs']['c'])} Color and {len(a['imgs']['d'])} DMG images",
+         carr("uint16_t", "an_idx", a["idx"], 16, 4),
+         carr("uint8_t", "an_g", [e[1] for e in a["ev"]], 24),
+         carr("uint8_t", "an_ic", [e[2] for e in a["ev"]], 24),
+         carr("uint8_t", "an_id", [e[3] for e in a["ev"]], 24),
+         carr("uint8_t", "an_x0", a["box"][0], 24), carr("uint8_t", "an_x1", a["box"][1], 24), carr("uint8_t", "an_y0", a["box"][2], 24), carr("uint8_t", "an_y1", a["box"][3], 24),
+         carr("uint16_t", "an_tc", a["gt"]["c"], 12, 4), carr("uint16_t", "an_ac", a["ga"]["c"], 12, 4),
+         carr("uint16_t", "an_td", a["gt"]["d"], 12, 4), carr("uint16_t", "an_ad", a["ga"]["d"], 12, 4),
+         carr("uint8_t", "an_imc", flat("c"), 16, 2), carr("uint8_t", "an_imd", flat("d"), 16, 2),
+         "// the events due at a tick, up to SMAPW_AN_MAX of them: per event the tile id (2 bytes), the allocator word (2: Color slot | variant << 9, DMG the hint slot) and the image. Returns the count.",
+         "uint8_t smap_an_due(uint8_t tick, uint8_t cgb, uint8_t *out, const uint8_t *reg) BANKED {",
+         "    uint16_t i = an_idx[tick], e = an_idx[tick + 1];",
+         "    uint8_t n = 0, g, im;",
+         "    for (; i < e && n < SMAPW_AN_MAX; i++) {",
+         "        g = an_g[i];",
+         "        im = cgb ? an_ic[i] : an_id[i];",
+         "        if (im == 255 || an_x1[g] < reg[0] || an_x0[g] > reg[1] || an_y1[g] < reg[2] || an_y0[g] > reg[3]) continue;",
+         "        *out++ = (uint8_t)(cgb ? an_tc[g] : an_td[g]); *out++ = (uint8_t)((cgb ? an_tc[g] : an_td[g]) >> 8);",
+         "        *out++ = (uint8_t)(cgb ? an_ac[g] : an_ad[g]); *out++ = (uint8_t)((cgb ? an_ac[g] : an_ad[g]) >> 8);",
+         "        *out++ = im;",
+         "        n++;",
+         "    }",
+         "    return n;",
+         "}",
+         "// frame image im of the data set to dst (the engine stages it in WRAM: the copy list reads WRAM only)",
+         "void smap_an_img(uint8_t cgb, uint8_t im, uint8_t *dst) BANKED {",
+         "    const uint8_t *s = (cgb ? an_imc : an_imd) + ((uint16_t)im << 4);",
+         "    uint8_t k;",
+         "    for (k = 0; k < 16; k++) dst[k] = s[k];",
+         "}", ""]
+    return "\n".join(L)
+
+
 def main(build, preview):
     build, preview = Path(build), Path(preview)
     build.mkdir(parents=True, exist_ok=True)
@@ -1017,6 +1111,8 @@ def main(build, preview):
         fail.append(f"Color: a lead window needs more palettes than the hand-over can give (the walk holds for a slot): {pbad[:3]}")
     col_d, bad_d = path_hints(dm, pw, POOL)
     dm.hint = [int(c) for c in col_d]
+    at = anim_tables(cg, dm)
+    print(f"smap world animations: {len(ANIMS)} groups, {len(at['ev'])} events in {AN.LOOP} ticks (at most {at['max_ev']} at one tick), {len(at['imgs']['c'])} Color / {len(at['imgs']['d'])} DMG images")
     if fail:
         print("gen_smap_world: BUDGET FAILURES\n  " + "\n  ".join(fail), file=sys.stderr)
         sys.exit(1)
@@ -1035,10 +1131,14 @@ def main(build, preview):
          "void smap_c_tile(uint16_t t, uint8_t *dst) BANKED;",
          "void smap_d_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED;",
          "void smap_d_tile(uint16_t t, uint8_t *dst) BANKED;",
-         "uint8_t smap_d_hintof(uint16_t t) BANKED;", "",
+         "uint8_t smap_d_hintof(uint16_t t) BANKED;",
+         f"#define SMAPW_AN_MAX {min(at['max_ev'], 8)}       // the most events one tick of the animation loop holds (src/smap_eng.c anim_step)",
+         "uint8_t smap_an_due(uint8_t tick, uint8_t cgb, uint8_t *out, const uint8_t *reg) BANKED;     // the tile animations' events due at a tick whose group lies in the region reg[0..3] = c0, c1, r0, r1 (build/smap_an.c)",
+         "void smap_an_img(uint8_t cgb, uint8_t im, uint8_t *dst) BANKED;", "",
          "#ifdef SMAPW_VIEWS      // (src/smap_eng.c alone) each stop's resting view: camera x / 2, y / 2 (255: follow Sal), the side of the tag and the panel (1 the bottom)",
          "static const uint8_t smapw_view[11][3] = { " + ", ".join("{ %d, %d, %d }" % view_bytes(n) for n in STOP_ORDER) + " };",
          "static const uint8_t smapw_ret[%d] = { " % len(PAL_NAMES) + ", ".join(str(handover.get(i, 255)) for i in range(len(PAL_NAMES))) + " };   // the palette hand-over: the palette whose hardware slot palette i may borrow for a line the camera cannot show yet (255: none)",
+         "static const uint8_t smapw_anbits[32] = { " + ", ".join(str(b) for b in at["bits"]) + " };   // bit t of the 256 ticks: some animation tile changes then (the engine calls smap_an_due only on those)",
          "#endif",
          "#ifdef SMAPW_GEOMETRY   // (src/smap.c alone)",
          f"static const uint16_t smapw_stop[11][2] = {{ " + ", ".join("{ %d, %d }" % s for s in stops) + " };",
@@ -1066,6 +1166,7 @@ def main(build, preview):
     td, dd = emit_tiles(dm, "smap_d")
     (build / "smap_wc_t.c").write_text(tc)
     (build / "smap_wd_t.c").write_text(td)
+    (build / "smap_an.c").write_text(emit_anim(at))
     pal_cols = [[rgb555(c) for c in PAL.get(n)] for n in PAL_NAMES]
     info = {
         "stops": stops, "stop_order": STOP_ORDER, "legs": [[a, b, [list(q) for q in p]] for a, b, p in legs], "exits": exits, "exit_leg": exit_leg,
@@ -1075,6 +1176,9 @@ def main(build, preview):
         "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "hint_d": dm.hint,
         "fog_c": [cg.fog_off, cg.fog_cell, cg.fog_word], "fog_d": [dm.fog_off, dm.fog_cell, dm.fog_word], "inner_c": cg.inner, "fogint_c": cg.fogint, "fogint_d": dm.fogint,
         "zone": cg.zone, "cell_c": cg.cell, "cell_d": dm.cell,
+        "anim": {"loop": AN.LOOP, "groups": [{"item": g.item, "name": g.name, "cells": g.cells, "tile_c": at["gt"]["c"][i], "tile_d": None if g.still("d") else at["gt"]["d"][i], "key": g.key,
+                                              "imgs_c": [bytes(enc(bytes(im))).hex() for im in g.imgs["c"]], "imgs_d": [bytes(enc(bytes(im))).hex() for im in g.imgs["d"]]} for i, g in enumerate(ANIMS)],
+                 "max_events_per_tick": at["max_ev"]},
         "disp_c": [[cg.disp(c, p) for c in range(CW * CH)] for p in STATES], "disp_d": [[dm.disp(c, p) for c in range(CW * CH)] for p in STATES],   # the world shown in unlock state p (the tests expected pictures)
     }
     (build / "smap_world.json").write_text(json.dumps(info, default=int))

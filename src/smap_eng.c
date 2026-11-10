@@ -1105,7 +1105,7 @@ uint8_t smap_camera_step(void) BANKED {
 
 // the region follows the camera: the lines it has left drop (a few cells a frame), the lines the camera will want next (one ahead on each axis in the direction of
 // travel) load (a few cells a frame): one job of each kind at a time
-void smap_region_work(void) BANKED {
+static void region_work(void) {
     uint16_t cx = g16(V_CAMX), cy = g16(V_CAMY);
     uint8_t nc0 = (uint8_t)(cx >> 3), nc1 = (uint8_t)((cx + 159) >> 3), nr0 = (uint8_t)(cy >> 3), nr1 = (uint8_t)((cy + 143) >> 3);
     uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX) & 3, dy = V(V_DIRY) & 3, rows1st = V(V_DIRY) & 4, kind = V(V_JK), i, dk, di = 0, *eg = 0;
@@ -1154,6 +1154,41 @@ void smap_region_work(void) BANKED {
         else { if (V(V_JI) < V(V_R0)) V(V_R0) = V(V_JI); else V(V_R1) = V(V_JI); }
         V(V_JK) = J_NONE;
     }
+}
+
+// THE TILE ANIMATIONS (stage 3, build/smap_an.c, tools/smap_world/anims.py): a group of map cells shows one tile (its own id); its picture changes at ticks of a 256-frame loop (V_TICK, the
+// map's frame counter: no state of its own). An event rewrites the tile's 16 bytes in VRAM from the group's frame image, in VBlank through the copy list, only when the tile is resident (Color:
+// its slot holds its variant; DMG: the allocator has it). A tile that is not there is not drawn: when it comes into the region it loads as the map holds it (image 0) and takes the next
+// change. The writes use what the cell loads left over (the staging, the room in the list), after them: a frame with none left skips the event and the next change sets the picture right.
+#define AN_COST (is_cgb ? 9 : 19)
+#define AN_LY   (is_cgb ? 90 : 30)
+static void anim_step(void) {
+    uint8_t t = V(V_TICK), n, i, bank, id, ev[5 * SMAPW_AN_MAX], *p, *d;
+    uint16_t tile, aux;
+    if (!(smapw_anbits[t >> 3] & (1 << (t & 7))) || V(V_DIRECT)) return;
+    n = smap_an_due(t, is_cgb, ev, &V(V_C0));
+    for (i = 0, p = ev; i < n; i++, p += 5) {
+        tile = p[0] | ((uint16_t)p[1] << 8); aux = p[2] | ((uint16_t)p[3] << 8);
+        if (is_cgb) {
+            if (nib_get(aux & 0x1FF) != ((aux >> 9) & 3)) continue;                        // (not resident)
+            bank = (aux & 0x1FF) >= SMAPW_POOL;
+            id = pool_id(bank ? (uint8_t)((aux & 0x1FF) - SMAPW_POOL) : (uint8_t)(aux & 0x1FF));
+        } else {
+            id = tbl_find(tile, (uint8_t)aux);
+            if (id == NIL) continue;
+            id = pool_id(id); bank = 0;
+        }
+        if (V(V_NSTG) >= NSTG_MAX || room() < (uint8_t)(AN_COST + (bank << 1) + V(V_RES)) || (uint8_t)(vq_count + 1 + V(V_RESE)) > VQ_USE) return;
+        d = is_cgb ? (uint8_t *)(((uint16_t)SC(A_XSTG) + 15) & 0xFFF0) + (V(V_NSTG) << 4) : SC(S_T + T_TILES + (V(V_NSTG) << 4));
+        smap_an_img(is_cgb, p[4], d);
+        if (is_cgb) qsp(bank, d, tile_addr(id), 2); else qraw(0, d, tile_addr(id), 16);
+        V(V_NSTG)++;
+    }
+}
+
+void smap_region_work(void) BANKED {
+    region_work();
+    if (LY_REG < AN_LY || LY_REG >= 144) anim_step();                      // (only on a frame with lines to spare: the walk's worst frames end right at the cliff, a few lines more and the frame is missed)
 }
 
 // LCD off (smap_enter): the columns c0..c1 of the view into the map, one add job each; the region is then [c0, c1] x the view's rows

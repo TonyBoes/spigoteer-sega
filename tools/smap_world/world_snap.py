@@ -7,7 +7,7 @@ proposal pipeline), in the shape tools/gen_smap_world.py expects of a world modu
     ZONE           the zone of each cell: "town" (always shown) or "repair" (the fountain's broken cells: shown broken until the story repairs it, unlock state 11)
     PAL_NAMES, RGB, DMG_SHADE     the 23 BG palettes the map uses and their colours
     with_fog(world, revealed)     the world as an unlock state shows it: the cloud is cut (owner 11-06), so the only cells that change are the REPAIR cells (the broken fountain)
-    ANIM_CELLS     cells whose tile an animation rewrites (the flip-merge never merges those: none until the tile animation, stage 3)
+    ANIM_CELLS     cells whose tile an animation rewrites and the flip-merge never merges (falls A cascade; the animations proper are tools/smap_world/anims.py, whose groups get ids of their own and are pinned too)
 """
 import copy
 import json
