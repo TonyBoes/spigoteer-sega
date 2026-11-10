@@ -22,22 +22,23 @@ def test_color_walk_has_no_standing_frame_between_the_first_and_last_step(s, d):
     assert not stops, f"stop {s} {sm.DIRS[d]}: Sal moved 0 px on frames {stops}: {''.join(str(min(x, 9)) for x in steps)}"
 
 
-def _dot_places(stop, d, speed):
-    """(SCX + dot x, SCY + dot y) of the stop dot (OAM 8, tile 62) on every frame of a walk, as the hardware has them after the frame."""
+def _dot_places(stop, d, speed, golden=False):
+    """(SCX + dot x, SCY + dot y) of the stop dot (OAM 8, tile 62) for every picture of a walk: read at the end of each emulated frame, after its VBlank interrupts, when the
+    registers and the OAM are what the next picture is drawn with. `golden`: the way test_golden_scroll_map_halfway_on_a_leg sets the walk off."""
     if speed:
         with double_speed():
-            gb = sm.to_map("cgb", 10, stop=stop)
+            gb = sm.to_map("cgb", 10, step=1 if golden else 0, stop=stop)
     else:
-        gb = sm.to_map("cgb", 10, stop=stop)
-    gb.press(sm.DIRS[d], 6)
+        gb = sm.to_map("cgb", 10, step=1 if golden else 0, stop=stop)
+    gb.press(sm.DIRS[d], 4 if golden else 6)
     out, started = [], False
     for fr in range(1500):
         gb.run(1, True)
         walking = gb.read("story_scratch", 520)[SV + sm.V_WALK]
         started = started or walking
         if started:
-            y, x, t, _ = gb.read(0xFE00, 160)[32:36]
-            if y and t == 62 and not gb.mem("vq_ready"):          # (a frame sampled between the OAM DMA and the VBlank drain of the copy list, which sets the scroll, is skipped: the picture is drawn after both)
+            y, x, t, _a = gb.read(0xFE00, 160)[32:36]
+            if y and t == 62:
                 out.append(((gb.mem(0xFF43) + x) & 255, (gb.mem(0xFF42) + y) & 255))
         if fr > 4 and started and not walking:
             break
@@ -45,9 +46,9 @@ def _dot_places(stop, d, speed):
 
 
 @pytest.mark.parametrize("speed", [False, True], ids=["normal-speed", "double-speed"])
-@pytest.mark.parametrize("stop,d", [(0, 3), (0, 2), (1, 1)])
-def test_color_walk_the_stop_dot_stays_on_the_picture(stop, d, speed):
-    places = _dot_places(stop, d, speed)
+@pytest.mark.parametrize("stop,d,golden", [(0, 3, False), (0, 2, False), (1, 1, False), (0, 3, True)])
+def test_color_walk_the_stop_dot_stays_on_the_picture(stop, d, golden, speed):
+    places = _dot_places(stop, d, speed, golden)
     assert len(places) > 30
     off = sum(1 for p in places if p[0] != places[0][0])
     assert off == 0, f"stop {stop} {sm.DIRS[d]}: the dot was off the picture sideways on {off} of {len(places)} frames"

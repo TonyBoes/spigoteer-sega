@@ -888,6 +888,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     V(V_NSTG) = 0; V(V_PALQ) = 0; V(V_SLOW) = 0;
     V(V_TICK)++;
     if (V(V_PANEL)) {
+        if (is_cgb) ENABLE_OAM_DMA;                          // (a panel: the plain DMA every VBlank)
         panel_pump();
         panel_input(pressed);
         if (V(V_DONE) && (pressed & J_A) && panel_a()) return 1;
@@ -901,7 +902,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         if (CL_ON) cloud_tick();
         return 0;
     }
-    if (is_cgb) DISABLE_OAM_DMA;                             // (Color: the world-pinned sprites (the stop dot, the clouds) move in this frame's logic and the scroll register goes out in the frame's copy list, only when the frame is complete: a frame that runs past the start of VBlank showed the sprites 1-2 px ahead of the picture. The OAM DMA is off while the frame runs, as mg_update does: the last complete OAM stays up with the last complete picture)
+    if (is_cgb) DISABLE_OAM_DMA;       // (Color: the world-pinned sprites (the stop dot, the clouds) move in this frame's logic and the scroll register goes out in the frame's copy list, only once the frame is complete: a VBlank in the middle of the frame, or between its end and vq_frame_end, showed the sprites 1-2 px ahead of the picture. The OAM DMA is off while the frame runs, as mg_update does, and goes on in the same interrupts-off step that completes the list (below): the OAM and the scroll go out in the same VBlank)
     if (V(V_PREV)) { V(V_PREV) = 0; tag_show(); }
     tag_tick();
     if (!V(V_WALK) && !V(V_BEAM)) {
@@ -938,7 +939,10 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     if (V(V_WALK)) { d = V(V_WPH); V(V_WPH) = d >= ((WALK_STEP_FRAMES - 1) << 2) ? (d + 1) & 3 : d + 4; }   // (the walk cycle's clock, after the frame drawn)
     if (CL_ON) cloud_tick();
     d = V(V_BEAM) && beam_tick(pressed);
-    if (is_cgb) ENABLE_OAM_DMA;
+    if (is_cgb) {
+        if (qv_cost > VQ_DRAIN_BUDGET) ENABLE_OAM_DMA;       // (a list over the budget is cut by main's vq_frame_end: left to it)
+        else CRITICAL { vq_frame_end(); ENABLE_OAM_DMA; }      // (main's call again after this is harmless: the list is within budget, vq_ready is set again or the VBlank took it)
+    }
     return d;
 }
 
