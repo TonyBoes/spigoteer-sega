@@ -96,6 +96,18 @@ def world_image(model, state):
     return im
 
 
+def anim_mask():
+    """the cells a tile animation rewrites (stage 3, tools/smap_world/anims.py): the picture there is whichever frame the loop is at, so the comparison skips them (test_the_tile_animations_play checks them)"""
+    m = np.zeros((WORLD["ch"] * 8, 512), dtype=bool)
+    for g in WORLD["anim"]["groups"]:
+        for cx, cy in g["cells"]:
+            m[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8] = True
+    return m
+
+
+ANIM_MASK = anim_mask()
+
+
 def sprite_mask(oam, m):
     for o in oam:
         if o["y"]:
@@ -141,7 +153,7 @@ class Watch:
             for y in ys:
                 if x + 160 > 512 or y + 144 > WORLD["ch"] * 8:
                     continue
-                n = int((np.any(self.img[y:y + 144, x:x + 160] != scr, axis=2) & ~m).sum())
+                n = int((np.any(self.img[y:y + 144, x:x + 160] != scr, axis=2) & ~m & ~ANIM_MASK[y:y + 144, x:x + 160]).sum())
                 if best is None or n < best[0]:
                     best = (n, x, y)
         if (best is None or best[0]) and not (first and self.skip_first):      # (the press ran frames the sprites of which are not known)
