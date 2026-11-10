@@ -141,11 +141,11 @@ static uint8_t *blank_row(uint8_t *r) { fill(r, TILE_HUD_BLANK, 20); return r; }
 #define OAM_UFO    19      // 19-21
 #define OAM_CURSOR 22      // the panel's selection arrow
 #define OAM_CLOUDS 23      // 23-35: the five clouds (the beam's 23-31 while it plays: the clouds are hidden then)
-#define CLOUDS_ON  (is_cgb || (HALF & HALF_CLOUDS))   // Color: always; DMG: the debug menu's TUNING > DMG CLOUDS (default OFF: the DMG map is as it was)
+#define CLOUDS_ON  is_cgb      // Color only (owner 11-09): a DMG never loads the cloud tiles or touches OAM 23-39 for them
 #define CL_ON      (shadow_OAM[36].x)      // (non-zero: the clouds are on this visit: one byte to test per frame; smap_enter sets it, the beam clears it)
 #define CL_PX      (shadow_OAM[37].tile)   // (the camera's position last frame, low bytes: cloud_tick takes its step from it; spare OAM 37, y 0)
 #define CL_PY      (shadow_OAM[37].prop)
-#define PAL_CLOUD  1       // (Color OBJ palette 1; DMG: OBP1 0x90)
+#define PAL_CLOUD  1       // (Color OBJ palette 1)
 
 // px, py: the top-left of the 8-px column's art on screen (may be off the left / top edge); vh: its visible height (8 or 16). A sprite the window layer covers is not drawn.
 static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, uint8_t flip, uint8_t vh) {
@@ -645,11 +645,10 @@ static void isr_on(void) {
 }
 
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
-static void cloud_gone(void) {                      // the map is left: no cloud entry stays in the shadow OAM for the next screen (tiles 74-89, OBJ palette 1 / OBP1), nor the clouds' spare bytes
+static void cloud_gone(void) {                      // the map is left: no cloud entry stays in the shadow OAM for the next screen (tiles 74-89, OBJ palette 1), nor the clouds' spare bytes
     uint8_t i;
     for (i = OAM_CLOUDS; i < OAM_CLOUDS + 15; i++) shadow_OAM[i].y = 0;
     CL_ON = 0; shadow_OAM[36].tile = 0;
-    if (!is_cgb && (HALF & HALF_CLOUDS)) OBP1_REG = OBP1_PLAY;
 }
 
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
@@ -661,11 +660,11 @@ static void leave(void) {                          // before any other screen: t
 
 static void cloud_all(void);
 
-static void cloud_hide(void) {                      // the beam-up begins: the clouds go (23-31 are the beam's; OBP1 is the beam's 0xE4 again, DMG)
+static void cloud_hide(void) {                      // the beam-up begins: the clouds go (23-31 are the beam's; Color)
     uint8_t i;
+    if (!CL_ON) return;                             // (a DMG: no clouds, OAM 23-39 are the beam's)
     for (i = OAM_CLOUDS; i < OAM_CLOUDS + 13; i++) shadow_OAM[i].y = 0;
     shadow_OAM[36].tile = 0; CL_ON = 0;
-    if (CLOUDS_ON && !is_cgb) OBP1_REG = OBP1_PLAY;
 }
 
 static uint8_t press_a(void) {                     // A with no panel up. 1: the screen was left
@@ -767,7 +766,7 @@ static void cloud_init(void) {                     // (smap_enter: the entries' 
             o = shadow_OAM + clouds[c].oam + k;
             o->y = 0;
             o->tile = clouds[c].tile + ((clouds[c].flip ? clouds[c].n - 1 - k : k) << 1);
-            o->prop = (is_cgb ? PAL_CLOUD : S_PALETTE) | clouds[c].flip;
+            o->prop = PAL_CLOUD | clouds[c].flip;
         }
     shadow_OAM[36].y = 0; shadow_OAM[37].y = 0; CL_ON = 1; CL_PX = V(V_CAMX); CL_PY = V(V_CAMY);
     CL_MASK = 0;
@@ -995,7 +994,6 @@ void smap_enter(uint8_t quick) BANKED {
     } else {
         fill(SC(A_TBL), 0xFF, 220);                // (every slot free: tile 0x3FF)
         OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
-        if (CLOUDS_ON) OBP1_REG = 0x90;                           // (the clouds': white, light grey, mid grey; after cam_map_load's 0xE4, which the beam gets back: cloud_hide)
     }
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = map_progress() < NSTOPS - 1 ? map_progress() : TOWN;
     V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : map_progress() < 10 ? 10 : 11;     // (11: the story is done, the fountain repaired)

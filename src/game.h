@@ -708,7 +708,6 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define HALF       (*(volatile uint8_t *)0xFFF4)
 #define HALF_ON    1
 #define HALF_FORCE_SHIFT 1
-#define HALF_CLOUDS 0x20                                // the story map's sprite clouds on a DMG (debug menu, TUNING > DMG CLOUDS; session only, boot clears it: OFF; a Color always has them). Bits 3, 6, 7 are free
 #define HALF_OWED  0x10                                 // a VBlank was lost to a race at the wait: the next step starts without waiting (main.c)
 void half_decide(void) BANKED;                          // the level just loaded (or the debug menu's choice): is HALF_ON (never on a CGB)
 void half_step(void) BANKED;                            // a logic-only step: the drawing code's own timers and rules (the perfect pour, the cue)
