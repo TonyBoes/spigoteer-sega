@@ -963,3 +963,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-09 Pocket Player v87 + Map Atlas v8 (85c849f5, Color pause fix in).
 - 11-09 OWNER: "Talk clouds out of dmg." (= take clouds out of DMG) -> clouds Color only: remove the TUNING > DMG CLOUDS toggle (HALF bit 5 freed), DMG never draws or loads clouds; release unchanged. debug_tuning goldens go back to the pre-toggle picture.
 - 11-09 MERGED clouds Color only (toggle removed, HALF bit 5 free, debug_tuning goldens restored; DMG stop 4 walk 1 frame off main from a bank repack, accepted: DMG goldens + guard numbers equal). Verify clouds-cgb PASS 6648/56.
+- 11-09 Pocket Player v88 (6ba913c0, clouds Color only). Map Atlas v8 still current (clouds are sprites, not on the atlas).
