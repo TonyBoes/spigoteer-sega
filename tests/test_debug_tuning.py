@@ -57,7 +57,7 @@ def test_the_page_lists_its_knobs_with_the_defaults_and_nothing_starts(boot):
     open_tuning(boot)
     assert line(boot, 2) == ("MODE", "TUNING")
     assert line(boot, 4) == ("COINS", "1 IN 8") and line(boot, 6) == ("GUS ALWAYS", "ON")
-    assert row_text(boot, 8).strip() == "" and row_text(boot, 15).strip() == "THIS SESSION ONLY"
+    assert line(boot, 8) == ("DMG CLOUDS", "OFF") and row_text(boot, 15).strip() == "THIS SESSION ONLY"
     assert boot.mem("debug_from_title") & 0xF8 == 0, "the defaults are all zero bits: a power-on needs no setting"
     boot.press("a", 2)                                   # (A closes it: nothing to start)
     boot.run(30)

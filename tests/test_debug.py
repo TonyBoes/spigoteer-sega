@@ -293,7 +293,7 @@ def test_the_mode_line_switches_between_the_four_runs(boot):
     assert line(boot, 2)[1] == "STRESS" and [line(boot, y)[0] for y in (2, 4, 6, 8)] == ["MODE", "PEAK", "30 FPS", ""]
     tap(boot, "left")
     boot.run(6)
-    assert line(boot, 2)[1] == "TUNING" and [line(boot, y)[0] for y in (2, 4, 6, 8)] == ["MODE", "COINS", "GUS ALWAYS", ""]
+    assert line(boot, 2)[1] == "TUNING" and [line(boot, y)[0] for y in (2, 4, 6, 8)] == ["MODE", "COINS", "GUS ALWAYS", "DMG CLOUDS"]
     tap(boot, "left")
     boot.run(6)
     assert line(boot, 2)[1] == "CLASSIC" and [line(boot, y)[0] for y in (2, 4, 6, 8, 10)] == ["MODE", "LEVEL", "30 FPS", "MIXED", ""]

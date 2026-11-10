@@ -135,7 +135,7 @@ def test_the_map_is_up_with_its_stops_dots_and_sal(model):
 
 def test_the_sprite_tiles_are_loaded():
     gb = to_map("dmg", 10, step=1)
-    objs = bytes.fromhex(SMAP["obj_hex"])
+    objs = bytes.fromhex(SMAP["obj_hex"])[:-16 * 16]       # (a DMG without the clouds loads the map's tiles but not the clouds' 16: smap_enter; test_smap_clouds.py has them)
     assert bytes(gb.pb.memory[0x8000 + OB * 16:0x8000 + OB * 16 + len(objs)]) == objs
 
 
