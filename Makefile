@@ -197,10 +197,10 @@ $(BUILD)/smap_art.h: tools/gen_smap.py $(wildcard assets/story_map/*.png) | $(BU
 # The story map's scrolling world (owner 2026-11-04, Q76 / Q78): the concept's hand-typed 64 x 48 cell world (tools/smap_world/) -> four banked data files
 # (Color and DMG: cells, cloud, slot plan / allocator hints, tiles) with their accessors, build/smap_world.h (the stops, the legs), build/smap_world.json
 # (tests), out/preview/smap_world_*.png. The build fails when a window is over the tile or palette budget.
-SMAPW_C := $(BUILD)/smap_wc_a.c $(BUILD)/smap_wc_t.c $(BUILD)/smap_wd_a.c $(BUILD)/smap_wd_t.c
+SMAPW_C := $(BUILD)/smap_wc_a.c $(BUILD)/smap_wc_t.c $(BUILD)/smap_wd_a.c $(BUILD)/smap_wd_t.c $(BUILD)/smap_an.c
 GEN      += $(SMAPW_C)
 BONUS_H  += $(BUILD)/smap_world.h
-$(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_world.py $(wildcard tools/smap_gear.json) $(wildcard tools/smap_world/world_snap.py) $(wildcard assets/smap/*) $(wildcard assets/story_map/world/*.txt) | $(BUILD) $(OUT)/preview
+$(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_world.py $(wildcard tools/smap_gear.json) $(wildcard tools/smap_world/world_snap.py) $(wildcard tools/smap_world/anims.py) $(wildcard tools/smap_world/falls_cascade.json) $(wildcard assets/smap/*) $(wildcard assets/story_map/world/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_smap_world.py $(BUILD) $(OUT)/preview
 
 # Prerequisites the generators read that their rules above do not list (test batch 2, B3: found by logging every file each generator opens during
