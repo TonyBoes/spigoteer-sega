@@ -577,7 +577,7 @@ static void walk_dirs(void) {
         if (f & F_NHZ) V(V_DIRX) = f & F_NUP ? 2 : 1;      // (the lines of this stretch come first: a vertical one keeps its rows-first bit)
         else V(V_DIRY) = (V(V_DIRY) & 4) | (f & F_NUP ? 2 : 1);
     }
-    V(V_LAG) = (f & ~F_CROSS) | (((f & F_HZ ? V(V_CAMX) : V(V_CAMY)) & 6) == 6 ? F_CROSS : 0);   // (a camera 6 or 7 px into a cell may cross its line: the still sprites are all drawn again: ly_ok)
+    V(V_LAG) = (f & ~F_CROSS) | (((f & F_HZ ? V(V_CAMX) : V(V_CAMY)) & 6) == (is_cgb && !(f & F_UP) ? 0 : 6) ? F_CROSS : 0);   // (a camera 6 or 7 px into a cell may cross its line: the still sprites are all drawn again: ly_ok)
 }
 
 // A walk set off from a resting view waits for the camera (V_DONE: its direction + 1). With the camera at Sal's spot the first stretch's direction is set (as the walk would) so that
@@ -621,9 +621,11 @@ void walk_step(void) {
         w = (uint16_t)r * kr;
         sl = (uint16_t)kr * (is_cgb ? WALK_SC : WALK_S);
         if (n > 1 && w < ((uint16_t)rem << 1) + (sl << 1)) n = 1;
-        if (n == 1 && w < rem + sl && (V(V_TICK) & 1)) return;
-        if (n == 1 && w + w < rem + sl && (V(V_TICK) & 2)) return;
-        if (n == 1 && (w << 2) < rem + sl && (V(V_TICK) & 4)) return;
+        if (!is_cgb && n == 1) {                   // (DMG: a pause in 2, 3 or 4 frames. Color never stands still but on a hold: a frame that moved 1 px is better than one that did not, and the room is exact)
+            if (w < rem + sl && (V(V_TICK) & 1)) return;
+            if (w + w < rem + sl && (V(V_TICK) & 2)) return;
+            if ((w << 2) < rem + sl && (V(V_TICK) & 4)) return;
+        }
     }
     s16(hz ? V_FX : V_FY, f & F_UP ? pos + n : pos - n);
     V(V_WT) = wt + n;
@@ -899,6 +901,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         if (CL_ON) cloud_tick();
         return 0;
     }
+    if (is_cgb) DISABLE_OAM_DMA;                             // (Color: the world-pinned sprites (the stop dot, the clouds) move in this frame's logic and the scroll register goes out in the frame's copy list, only when the frame is complete: a frame that runs past the start of VBlank showed the sprites 1-2 px ahead of the picture. The OAM DMA is off while the frame runs, as mg_update does: the last complete OAM stays up with the last complete picture)
     if (V(V_PREV)) { V(V_PREV) = 0; tag_show(); }
     tag_tick();
     if (!V(V_WALK) && !V(V_BEAM)) {
@@ -914,7 +917,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
             if ((smap_stop_side(smap_stop) & 2) && smapw_exit[smap_stop][d] != NIL && open_stop(smapw_exit[smap_stop][d])) { V(V_DONE) = d + 1; if (V(V_TAG)) V(V_TAG) = 1; }    // (the name tag goes as the key is pressed, as it does when the walk sets off)
             else start_walk(d);
         }
-        else if ((pressed & J_A) && press_a()) return 1;
+        else if ((pressed & J_A) && press_a()) { if (is_cgb) ENABLE_OAM_DMA; return 1; }
         else if (pressed & J_START) panel_open(P_MENU, 0);
     }
     if (!V(V_PANEL) && !vq_held) {
@@ -934,7 +937,9 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
     if (V(V_WALK)) { d = V(V_WPH); V(V_WPH) = d >= ((WALK_STEP_FRAMES - 1) << 2) ? (d + 1) & 3 : d + 4; }   // (the walk cycle's clock, after the frame drawn)
     if (CL_ON) cloud_tick();
-    return V(V_BEAM) && beam_tick(pressed);
+    d = V(V_BEAM) && beam_tick(pressed);
+    if (is_cgb) ENABLE_OAM_DMA;
+    return d;
 }
 
 // the greyed letters: copies of the glyphs with the text colour (index 0) turned into colour 1 (lo plane all ones), LCD off

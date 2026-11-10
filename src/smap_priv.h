@@ -80,10 +80,11 @@ extern vq_entry_t vq[];
 #define LY_FIRST_C 100
 #define LY_DOTS  (is_cgb ? 12 : 24)
 #define LY_SLOWC 0
+#define LY_SLOWCC 8
 #define CAM_LAG  0                                    // Sal waits while the camera is behind him at all (px, both axes together): it never is, when the region keeps up
 // (the first slow job of a frame waits for the line LY_FIRST only while Sal walks with the camera in step: standing, or with the camera behind, it always runs: no deadlock)
 static uint8_t ly_ok(uint8_t slow) {      // slow: the cell that comes needs a lookup or a load (the C path: up to about 40 lines for one)
-    uint8_t l = LY_REG, lim = V(V_SLOW) ? (is_cgb ? LY_WORK_C : LY_WORK) : (!V(V_WALK) || (V(V_LAG) & 1)) ? 255 : (is_cgb ? LY_FIRST_C : LY_FIRST);
+    uint8_t l = LY_REG, lim = V(V_SLOW) ? (is_cgb ? LY_WORK_C - (slow && V(V_WALK) ? LY_SLOWCC : 0) : LY_WORK) : (!V(V_WALK) || (V(V_LAG) & 1)) ? 255 : (is_cgb ? LY_FIRST_C - (slow ? LY_SLOWCC : 0) : LY_FIRST);   // (Color: a cell that needs a load starts LY_SLOWCC lines earlier: it can take 15 lines or more, and a frame that ends past line 136 loses the next one)
     if (lim != 255 && (V(V_DOTS) || (V(V_LAG) & 2))) lim -= LY_DOTS;      // (the still sprites will be drawn in full this frame: that takes about 30 lines)
     if (lim != 255 && slow) lim -= LY_SLOWC;
     return (l >= 144 && l < 150) || l < lim;

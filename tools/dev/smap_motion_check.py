@@ -53,6 +53,8 @@ def mid_walk_stops(steps):
 
 def main(argv):
     bad = 0
+    if argv == ["--all"]:                          # every Color leg, both ways: the 11 stops' open exits
+        argv = [f"cgb:{s}:{d}" for s in range(11) for d in range(4) if sm.EXITS[s][d] != 255]
     for arg in argv:
         model, stop, d = arg.split(":")
         steps = walk_steps(model, int(stop), int(d))
