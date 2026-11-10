@@ -1,5 +1,5 @@
-# The story map's sprite clouds (src/smap.c, OAM 23-35, docs/dev/proposals/smap_clouds/): Color always has them; a DMG has them only when the debug menu's
-# TUNING > DMG CLOUDS is ON (HALF bit 5, HRAM 0xFFF4, session only: boot clears it), so the DMG map and its perf guard stay as they were.
+# The story map's sprite clouds (src/smap.c, OAM 23-35, docs/dev/proposals/smap_clouds/): Color only (owner 11-09): a DMG never loads their tiles,
+# writes OBP1 or touches OAM 23-39 for them, whatever HALF bit 5 (the old debug toggle, HRAM 0xFFF4) holds.
 import contextlib
 
 import pytest
@@ -7,7 +7,7 @@ import pytest
 import test_story_map as sm
 
 HALF = 0xFFF4
-HALF_CLOUDS = 0x20
+HALF_BIT5 = 0x20           # (the retired DMG CLOUDS toggle's bit: poking it must change nothing)
 CLOUD_COLOURS = [0x7FFF, 0x7B36, 0x664E]
 
 
@@ -17,7 +17,7 @@ def map_with(monkeypatch, model, clouds_bit):
     def booted(*a, **k):
         gb = orig(*a, **k)
         if clouds_bit:
-            gb.pb.memory[HALF] = gb.pb.memory[HALF] | HALF_CLOUDS
+            gb.pb.memory[HALF] = gb.pb.memory[HALF] | HALF_BIT5
         return gb
     monkeypatch.setattr(sm, "booted", booted)
     gb = sm.to_map(model, 10, stop=10)
@@ -35,18 +35,12 @@ def cloud_entries(gb, frames=80):
     return seen
 
 
-def test_dmg_clouds_are_off_by_default(monkeypatch):
-    gb = map_with(monkeypatch, "dmg", False)
-    assert gb.mem(HALF) & HALF_CLOUDS == 0
+@pytest.mark.parametrize("poke", [False, True])
+def test_dmg_has_no_clouds_ever(monkeypatch, poke):
+    gb = map_with(monkeypatch, "dmg", poke)
     assert gb.mem(0xFF49) != 0x90, "OBP1 is not the clouds'"
     assert cloud_entries(gb) == 0
     assert all(gb.read("shadow_OAM", 160)[i * 4] == 0 for i in range(23, 40))
-
-
-def test_dmg_clouds_come_with_the_debug_toggle(monkeypatch):
-    gb = map_with(monkeypatch, "dmg", True)
-    assert gb.mem(0xFF49) == 0x90, "OBP1: white, light grey, mid grey"
-    assert cloud_entries(gb) > 10
 
 
 def test_color_clouds_are_always_on_in_obj_palette_1(monkeypatch):
@@ -59,7 +53,7 @@ def test_color_clouds_are_always_on_in_obj_palette_1(monkeypatch):
 
 
 def test_the_release_build_has_no_dmg_clouds(monkeypatch, release_built):
-    """build/release.gb has no debug menu, so nothing can set HALF bit 5: a DMG map has no clouds; a Color map has them."""
+    """build/release.gb: a DMG map has no clouds; a Color map has them."""
     import test_sound
     from conftest import double_speed
     monkeypatch.setattr(test_sound, "ROM", release_built)
@@ -70,13 +64,16 @@ def test_the_release_build_has_no_dmg_clouds(monkeypatch, release_built):
     assert cloud_entries(gb) > 10
 
 
-def test_the_clouds_tiles_are_loaded_with_the_clouds(monkeypatch):
+def test_dmg_does_not_load_the_cloud_tiles(monkeypatch):
     objs = bytes.fromhex(sm.SMAP["obj_hex"])
     gb = map_with(monkeypatch, "dmg", True)
-    assert bytes(gb.pb.memory[0x8000 + sm.OB * 16:0x8000 + sm.OB * 16 + len(objs)]) == objs
+    ncl = 16                                         # (SMAP_CLOUD_TILES: the clouds tiles are the last ones)
+    base = 0x8000 + sm.OB * 16
+    assert bytes(gb.pb.memory[base:base + len(objs) - ncl * 16]) == objs[:len(objs) - ncl * 16]
+    assert bytes(gb.pb.memory[base + len(objs) - ncl * 16:base + len(objs)]) != objs[len(objs) - ncl * 16:], "the cloud tiles stay unloaded"
 
 
-# ---- leaving the map: no cloud entry (tiles 74-89, OBJ palette 1 / OBP1) stays in the OAM of the next screen (the Dregs gag test found one) ---------------------------------
+# ---- leaving the map: no cloud entry (tiles 74-89, OBJ palette 1) stays in the OAM of the next screen (the Dregs gag test found one) ---------------------------------
 def cloud_left(gb):
     for mem in (gb.read("shadow_OAM", 160), bytes(gb.pb.memory[0xFE00:0xFEA0])):
         for i in range(40):
@@ -95,7 +92,7 @@ EXITS = ["venue_play", "venue_story", "festival", "menu"]
 
 
 @pytest.mark.parametrize("path", EXITS)
-@pytest.mark.parametrize("model, toggle", [("cgb", False), ("dmg", True)])
+@pytest.mark.parametrize("model, toggle", [("cgb", False)])
 def test_no_cloud_entry_is_left_after_any_exit_from_the_map(monkeypatch, model, toggle, path):
     from conftest import double_speed
     from test_flow import run_until, state
@@ -139,7 +136,7 @@ def map_with_progress(monkeypatch, model, toggle, progress, stop):
     def booted(*a, **k):
         gb = orig(*a, **k)
         if toggle:
-            gb.pb.memory[HALF] = gb.pb.memory[HALF] | HALF_CLOUDS
+            gb.pb.memory[HALF] = gb.pb.memory[HALF] | HALF_BIT5
         return gb
     monkeypatch.setattr(sm, "booted", booted)
     gb = sm.to_map(model, progress, stop=stop)
