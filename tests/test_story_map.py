@@ -985,7 +985,8 @@ def test_a_at_the_space_lounge_beams_sal_up_on_the_map_and_then_the_pre_scene_st
     assert shown(gb, 0) and not shown(gb, 19), "the map's UFO is on its way over Sal"
     assert not any(shown(gb, i) for i in range(23, 32)), "no beam yet"
     run_until(gb, lambda: beam_t(gb) >= 60, 100)
-    assert sum(shown(gb, i) for i in range(23, 32)) == 9, "the beam, all three bands"
+    sh = gb.read("shadow_OAM", 160)                   # (the shadow, not the hardware OAM: a frame whose update runs past the VBlank hands over a half-written copy)
+    assert sum(sh[i * 4] != 0 for i in range(23, 32)) == 9, "the beam, all three bands"
     assert all(0 < oam(gb, OAM_SAL + i)["y"] < sal[i] for i in range(4)), "Sal rising"
     assert per_line_oam(gb) <= 10
     run_until(gb, lambda: beam_t(gb) >= 80, 100)

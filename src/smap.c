@@ -141,6 +141,7 @@ static uint8_t *blank_row(uint8_t *r) { fill(r, TILE_HUD_BLANK, 20); return r; }
 #define OAM_UFO    19      // 19-21
 #define OAM_CURSOR 22      // the panel's selection arrow
 #define OAM_CLOUDS 23      // 23-35: the five clouds (the beam's 23-31 while it plays: the clouds are hidden then)
+#define CLOUDS_ON  (is_cgb || (HALF & HALF_CLOUDS))   // Color: always; DMG: the debug menu's TUNING > DMG CLOUDS (default OFF: the DMG map is as it was)
 #define PAL_CLOUD  1       // (Color OBJ palette 1; DMG: OBP1 0x90)
 
 // px, py: the top-left of the 8-px column's art on screen (may be off the left / top edge); vh: its visible height (8 or 16). A sprite the window layer covers is not drawn.
@@ -384,7 +385,7 @@ static void win_hide(void) {
     WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;      // (the banner window's own place again)
     WX_REG = 7;
     V(V_WH) = 0; V(V_TAG) = 0; V(V_DOTS) = V(V_FULL) = 1;
-    if (!V(V_BEAM)) cloud_all();                   // (the clouds the window hid come back)
+    if (!V(V_BEAM) && CLOUDS_ON) cloud_all();      // (the clouds the window hid come back)
 }
 
 static uint8_t ui_attr(void) {                     // Color: the attribute of the window layer's cells: the town palette's hardware slot (held for as long as the map is up)
@@ -641,7 +642,7 @@ static void isr_on(void) {
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
     win_hide();
-    if (!is_cgb) OBP1_REG = OBP1_PLAY;              // (the clouds' 0x90 is the map's)
+    if (CLOUDS_ON && !is_cgb) OBP1_REG = OBP1_PLAY;  // (the clouds' 0x90 is the map's)
     if (TRANS & TR_OFF) { SCX_REG = 0; SCY_REG = 0; }   // (else the scene change's cover shows the map as it stands and the scroll goes home once the LCD is off: src/trans.c)
     sm_put(smap_stop, smap_flags & F_SAVED);
 }
@@ -652,7 +653,7 @@ static void cloud_hide(void) {                      // the beam-up begins: the c
     uint8_t i;
     for (i = OAM_CLOUDS; i < OAM_CLOUDS + 13; i++) shadow_OAM[i].y = 0;
     shadow_OAM[36].tile = 0;
-    if (!is_cgb) OBP1_REG = OBP1_PLAY;
+    if (CLOUDS_ON && !is_cgb) OBP1_REG = OBP1_PLAY;
 }
 
 static uint8_t press_a(void) {                     // A with no panel up. 1: the screen was left
@@ -884,7 +885,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
             else panel_close();
         }
         draw();
-        cloud_tick(0, 0);
+        if (CLOUDS_ON) cloud_tick(0, 0);
         return 0;
     }
     if (V(V_PREV)) { V(V_PREV) = 0; tag_show(); }
@@ -922,7 +923,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
     else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
     if (V(V_WALK)) { d = V(V_WPH); V(V_WPH) = d >= ((WALK_STEP_FRAMES - 1) << 2) ? (d + 1) & 3 : d + 4; }   // (the walk cycle's clock, after the frame drawn)
-    if (!V(V_BEAM)) cloud_tick(cdx, cdy);
+    if (!V(V_BEAM) && CLOUDS_ON) cloud_tick(cdx, cdy);
     return V(V_BEAM) && beam_tick(pressed);
 }
 
@@ -975,7 +976,7 @@ void smap_enter(uint8_t quick) BANKED {
     } else {
         fill(SC(A_TBL), 0xFF, 220);                // (every slot free: tile 0x3FF)
         OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
-        OBP1_REG = 0x90;                           // (the clouds': white, light grey, mid grey; after cam_map_load's 0xE4, which the beam gets back: cloud_hide)
+        if (CLOUDS_ON) OBP1_REG = 0x90;                           // (the clouds': white, light grey, mid grey; after cam_map_load's 0xE4, which the beam gets back: cloud_hide)
     }
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = map_progress() < NSTOPS - 1 ? map_progress() : TOWN;
     V(V_STATE) = map_progress() < 9 ? map_progress() + 1 : map_progress() < 10 ? 10 : 11;     // (11: the story is done, the fountain repaired)
@@ -989,7 +990,7 @@ void smap_enter(uint8_t quick) BANKED {
     isr_on();
     SCX_REG = (uint8_t)tx; SCY_REG = (uint8_t)ty;
     V(V_DOTS) = V(V_FULL) = 1;
-    cloud_init();
+    if (CLOUDS_ON) cloud_init();
     V(V_PREV) = 1;                                 // (the arrival tag is queued by the first frame: the transition's reveal has put the window rows back by then)
     story_phase = STORY_PHASE_MAP;
     game_state = GS_STORY;

@@ -138,10 +138,14 @@ static void coin_set(uint8_t i) {
 static uint8_t gus_get(void) { return debug_from_title >> 7; }                              // 0 ON (always tips), 1 OFF
 static void gus_set(uint8_t i) { debug_from_title = (debug_from_title & 0x7F) | (i << 7); }
 
+static const char *const cloud_label[2] = { "OFF", "ON" };
+static uint8_t cloud_get(void) { return (HALF & HALF_CLOUDS) != 0; }                       // DMG CLOUDS: HALF bit 5 (HRAM: no WRAM); smap.c reads it at the map's entry
+static void cloud_set(uint8_t i) { HALF = (HALF & ~HALF_CLOUDS) | (i ? HALF_CLOUDS : 0); }
 struct knob { const char *name; uint8_t n; const char *const *label; uint8_t (*get)(void); void (*set)(uint8_t); };
 static const struct knob tune_knob[] = {
     { "COINS",      COIN_N, coin_label,  coin_get, coin_set },
     { "GUS ALWAYS", 2,      onoff_label, gus_get,  gus_set },
+    { "DMG CLOUDS", 2,      cloud_label, cloud_get, cloud_set },
 };
 #define TUNE_N (sizeof tune_knob / sizeof tune_knob[0])
 
