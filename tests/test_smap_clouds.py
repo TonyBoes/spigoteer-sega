@@ -54,3 +54,21 @@ def test_color_clouds_are_always_on_in_obj_palette_1(monkeypatch):
         gb = map_with(monkeypatch, "cgb", False)
     assert list(cgb_obj_palette(gb, 1)[1:4]) == CLOUD_COLOURS
     assert cloud_entries(gb) > 10
+
+
+def test_the_release_build_has_no_dmg_clouds(monkeypatch, release_built):
+    """build/release.gb has no debug menu, so nothing can set HALF bit 5: a DMG map has no clouds; a Color map has them."""
+    import test_sound
+    from conftest import double_speed
+    monkeypatch.setattr(test_sound, "ROM", release_built)
+    gb = map_with(monkeypatch, "dmg", False)
+    assert gb.mem(0xFF49) != 0x90 and cloud_entries(gb) == 0
+    with double_speed():
+        gb = map_with(monkeypatch, "cgb", False)
+    assert cloud_entries(gb) > 10
+
+
+def test_the_clouds_tiles_are_loaded_with_the_clouds(monkeypatch):
+    objs = bytes.fromhex(sm.SMAP["obj_hex"])
+    gb = map_with(monkeypatch, "dmg", True)
+    assert bytes(gb.pb.memory[0x8000 + sm.OB * 16:0x8000 + sm.OB * 16 + len(objs)]) == objs

@@ -139,7 +139,7 @@ uint8_t cam_map_beam(uint8_t t, int16_t sx, int16_t sy, int16_t ax, int16_t ay) 
         if (rise >= 15) o->y = 0; else if (o->y) o->y -= rise;
     }
     figat(0, cf_ufo[0], cf_ufo + 1, x, y, is_cgb ? MAP_PAL_UFO : 0);
-    for (i = 23; i < 32; i++) shadow_OAM[i].y = 0;
-    figat(23, rows * 3, cf_beam + 1, x, y + 11, is_cgb ? MAP_PAL_UFO : S_PALETTE);   // the beam, band by band from the top (entries 0-2 band 0, 3-5 band 1, 6-8 band 2)
+    i = figat(23, rows * 3, cf_beam + 1, x, y + 11, is_cgb ? MAP_PAL_UFO : S_PALETTE);   // the beam, band by band from the top (entries 0-2 band 0, 3-5 band 1, 6-8 band 2); drawn first, the unused ones hidden after
+    for (; i < 32; i++) shadow_OAM[i].y = 0;
     return t >= 96 && y < -16;
 }

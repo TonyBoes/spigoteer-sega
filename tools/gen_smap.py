@@ -102,6 +102,7 @@ def main(build, preview):
     h.append(f"#define SMAP_DIM_BASE {DIM_BASE}   // BG ids of the greyed letters (smap.c), SMAP_DIM_N of them")
     h.append(f"#define SMAP_DIM_N {DIM_N}")
     h.append(f"#define SMAP_OBJ_TILES {len(obj) // 16}")
+    h.append(f"#define SMAP_CLOUD_TILES {2 * sum(1 for n in pid if n.startswith('cloud'))}   // the clouds' tiles are the last ones")
     for nm, v in pid.items():
         h.append(f"#define SOB_{nm.upper()} {v}")
     h.append("")
