@@ -54,9 +54,8 @@ void sec_mark(uint8_t i);
 #define SPAWN_X         0
 #define EMERGE_SPEED  128
 #define WALK_X          8   // where an entering patron slows to the level's walking pace (the old door, x 0-16; owner 2026-10-13)
-// Push rules (owner 2026-10-13): every mug pushes a patron pushback_px, the same for the 1st, 2nd, 3rd (level.c: PUSH_COLS_*
-// per row class); he is served only when it carries all of him off the screen. EARLY_*: the chance (of 256) that a
-// patron slides only a quarter or a half of it and drinks at once, (level - 1) * EARLY_PER_LEVEL, none on level 1, at most EARLY_MAX.
+// Push rules (owner 2026-11-08, thirst): mug n pushes a patron pushback_px * (n + 1) / 2 (level.c: PUSH_COLS_* per row class; CLASSIC and bosses flat); he is served only when it carries all of him off the screen. EARLY_*: the chance (of 256) that a
+// patron's FIRST mug (CLASSIC/bosses: any mug) slides only a quarter or a half of it and he drinks at once, (level - 1) * EARLY_PER_LEVEL, none on level 1, at most EARLY_MAX.
 #define EARLY_PER_LEVEL 6
 #define EARLY_MAX     110
 // An empty bar: the next patron is due in REFILL_FRAMES (after a pattern's breather, BREATHER_REFILL: 1.5 s, still never a long

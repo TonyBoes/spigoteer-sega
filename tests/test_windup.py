@@ -161,7 +161,7 @@ def test_a_waiting_patron_catches_a_new_mug_and_his_empty_slides_at_once(gb):
         if gb.read("patron_state", MAX_P)[p] == DRINKING:
             break
     assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_aux", MAX_P)[p] == DRINK_MIN
-    assert gb.read("patron_x", MAX_P)[p] == 96 - PX, "the 2nd drink pushes him back the same PX (no thirst)"
+    assert gb.read("patron_x", MAX_P)[p] == 96 - PX * 3 // 2, "the 2nd drink pushes him back 1.5 x PX (thirst, owner 11-08)"
     gb.run(20)
     assert score(gb) == s0 + 100, "the bartender caught the sent empty"
 
