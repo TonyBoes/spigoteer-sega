@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 1f365d81-9c39-4e65-b0fc-e3d166beadd7
-  modified: 2026-11-11T23:26:50.690Z
+  modified: 2026-11-11T23:27:08.355Z
 ---
 
 Owner, 2026-10-21: he wants a list I keep updated with every open question and its images and files. Each question stays concise but explains enough that he knows exactly what to answer.
@@ -19,7 +19,6 @@ The Open Questions page is at https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d.
 - Whenever I ask a new Qn or he answers one, update the page: add or remove the card, update the count and the stamp, and republish the same file path or URL.
 - Owner 2026-11-03: "The questions in the open questions artefact don't seem to be questions." Every card's highlighted ask is a full question ending in "?" that says what to answer (e.g. "Which peacock should get the next pass: A (side view) or B (facing you)?"), never a bare option list like "A side view · B facing you". The index line is phrased as the question too. Each option's meaning goes in the bullets in plain words.
 - In chat, still state new questions briefly and point to the page.
-- Owner 2026-11-11: "You need to follow my previous instructions and make sure you're putting open questions with examples in the open questions artifact." I had asked several questions in chat only (clouds A/B, boss tilt branch, Color route plan). EVERY question I ask, including small yes/no or "which one" asks at the end of a report, gets a numbered card with an example picture under each choice, published BEFORE I reply. No chat-only questions.
 - Source now lives in the repo: tools/artifacts/open_questions/ (index.html + media/).
 - The Review Board was deleted 2026-10-29: animations and large items for a question go on its card here.
 
