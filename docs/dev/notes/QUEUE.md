@@ -966,3 +966,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-09 Pocket Player v88 (6ba913c0, clouds Color only). Map Atlas v8 still current (clouds are sprites, not on the atlas).
 - 11-11 OWNER: "Probably more clouds on color. Pushback feels better than it did. Map reframing is good."
   -> (1) more Color clouds: "probably" = try it; gb-worker builds 2 denser options as Pocket Player test ROMs (OAM / 10-per-line / Color walk p90 121 of 123 measured), owner picks by feel. (2) Thirst push APPROVED (branch worktree-agent-a5c8e082aedc72077 278cd0e7): bring onto main, goldens, verify, merge. (3) Q3 map framing CLOSED: good.
+- 11-11 OWNER: "Don’t care about the round trees. The map is fine for now." -> round-tree / pine-cluster redesign DROPPED (Q10 item closed). Map art: no new map work unless the owner asks (current clouds-density test still runs, owner asked for it).
