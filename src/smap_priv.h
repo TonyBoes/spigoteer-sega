@@ -19,8 +19,8 @@ extern uint8_t smap_flags;
 // ---- story_scratch: the whole of it is the map's while the map is up -----------------------------------------------------------------------------------------
 #define SC(o)        (story_scratch + (o))
 // region A, 0..395: the tile tables (the two models lay theirs over each other)
-#define A_TBL        0       // DMG: 220 bytes: 176 low bytes of the tile id in each slot, then 44 bytes of the 2-bit highs (0x3FF: free)
-#define A_CNT        220     // DMG: 176 use counts (cells of the region that show the slot's tile)
+#define A_TBL        0       // DMG: 352 bytes: the tile id (16 bit, 0x3FF: free) resident in each of the 176 slots; the slot of every cell is planned at build time (tools/smap_world/route.py): no use counts
+#define A_TBLN       352     // (the DMG table's length: it lies over the Color's tables, A_PEND included)
 #define A_NIB        0       // Color: 176 bytes: the variant resident in each of the 352 slots, a nibble each (15: none)
 #define A_PCNT       176     // Color: 24 x u16: the cells of the region in each palette (the table: SMAPW_NPAL = 24 palettes: TOWN1@W is the 24th; the layout is full: 24 u16 + 24 bytes + 8 bytes)
 #define A_PSLOT      224     // Color: 24 bytes: the hardware slot of each palette (255: none)
@@ -49,7 +49,7 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
        V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
 typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PEND && A_PEND + 2 <= A_XSTG && A_XSTG + 80 <= A_PSTG && A_PSTG + 9 <= S_V && A_XSTG + 15 + 80 <= S_V
-                                && A_ATTR_UI + 20 <= A_IDA && A_PUSE + 8 <= A_ATTR_UI && A_PCNT + 2 * 23 <= A_PSLOT && A_PSLOT + 23 <= A_PUSE && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
+                                && A_ATTR_UI + 20 <= A_IDA && A_PUSE + 8 <= A_ATTR_UI && A_PCNT + 2 * 23 <= A_PSLOT && A_PSLOT + 23 <= A_PUSE && A_TBL + A_TBLN <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
 #define J_NONE       0
 #define J_COL        1
@@ -136,7 +136,7 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
 #define LEAD     1                                    // lines the region loads ahead of the view, in the direction of travel
-#define ADD_CAP  8
+#define ADD_CAP  12
 #define DROP_CAP 6
 
 // the engine (src/smap_eng.c)

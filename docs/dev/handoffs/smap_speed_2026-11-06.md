@@ -39,3 +39,17 @@ The map is not free roam: every walk follows a leg with fixed stretches (waypoin
   so the camera step finds everything resident.
 - Expected DMG gain: a load cell becomes about 5 lines (copy + queue), no scans; the worst frames (now up to 168) lose the 30-line scan and dadd's 8-13 lines, loads move to spare frames,
   so ADD_CAP 9-10 and 2 px steps could hold on the dense stretches. I expect 1.3 px/frame or more on the DMG (with walk_step and flush_line trimmed) and no late frames.
+
+# Round 6 (owner Q17, 2026-11-11): the DMG's route plan, built
+The design note above, as built (DMG first; Color below when done).
+- The slot of every CELL is planned at build time (tools/smap_world/route.py, called by tools/gen_smap_world.py): the windows the region can hold while Sal walks (every pixel of every leg
+  both ways, the stops, the glides between a resting view and Sal; each padded by one line) give a conflict graph over live ranges (a tile's cells that share a window share a node, an animated tile is
+  one node), DSATUR with a tabu search in 176 colours. `check_plan` is the build's proof: every window holds one tile a slot, and a replay of every walk (lines leave, lines enter and load their tiles
+  into their slots) finds every cell of every window resident. The build fails if either fails. 175 colours, the fullest window 173 of 176.
+- A line is a list of {tile, slot} from `smap_d_fetch` (the finished story's world; `smap_d_fix` patches the 12 fountain cells of states 1..10). The engine loads the tile when the slot holds
+  another one. Gone: the hint, home2, smap_freeslot, V_RR, V_NDISP, V_CS, the far-tile scan, tbl_find, the use counts (A_CNT), smap_dadd, the drop job (a DMG line that leaves costs nothing: region_work just
+  moves the extents; an add job that spans a line that left starts over). The slot table is 176 u16 (A_TBL, 352 bytes).
+- Asm: `smap_burst` (cells whose slot already holds their tile; C twin add_cell_d), `smap_d_fetch`. job_run is two functions (job_run_c the Color's, job_run_d the DMG's) so a change to one does not move a cycle of the other.
+- Not built (said): the spare-slot preload of the next lines (the dense stretches have 3 spare slots, not 20-30: the fullest padded window is 173 of 176), and plans for the camera jumps (they need none: the
+  map entry, the resting views and the glides are windows of the plan).
+- Tools: tools/dev/smap_walk_numbers.py (px/frame, holds, late, p90, worst over every leg both ways, GB_ROM / GB_NOI for main's ROM), tools/dev/smap_cmp_main.py (every frame against main's ROM).
