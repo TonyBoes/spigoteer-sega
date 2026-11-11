@@ -964,3 +964,5 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-09 OWNER: "Talk clouds out of dmg." (= take clouds out of DMG) -> clouds Color only: remove the TUNING > DMG CLOUDS toggle (HALF bit 5 freed), DMG never draws or loads clouds; release unchanged. debug_tuning goldens go back to the pre-toggle picture.
 - 11-09 MERGED clouds Color only (toggle removed, HALF bit 5 free, debug_tuning goldens restored; DMG stop 4 walk 1 frame off main from a bank repack, accepted: DMG goldens + guard numbers equal). Verify clouds-cgb PASS 6648/56.
 - 11-09 Pocket Player v88 (6ba913c0, clouds Color only). Map Atlas v8 still current (clouds are sprites, not on the atlas).
+- 11-11 OWNER: "Probably more clouds on color. Pushback feels better than it did. Map reframing is good."
+  -> (1) more Color clouds: "probably" = try it; gb-worker builds 2 denser options as Pocket Player test ROMs (OAM / 10-per-line / Color walk p90 121 of 123 measured), owner picks by feel. (2) Thirst push APPROVED (branch worktree-agent-a5c8e082aedc72077 278cd0e7): bring onto main, goldens, verify, merge. (3) Q3 map framing CLOSED: good.
