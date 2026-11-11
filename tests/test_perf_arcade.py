@@ -69,7 +69,7 @@ def one_run(model, target, wait):
     try:
         gb.write("intro_timer", 0)
         gb.write("tip_chance", 0)
-        rp = ph.RealisticPeak(gb, target)
+        rp = ph.RealisticPeak(gb, target + 2)   # (thirst: patrons are served sooner, so the scene tops the bars up two higher to keep the 8 and 10 patron crowds)
         rp.seed()
         gb.run(2 + wait)
         ph.perf_reset(gb)
