@@ -105,7 +105,7 @@ GROUPS = {
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
         "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
-        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6, "src/smap_eng.c": 69, "src/smap_priv.h": 3,
+        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6, "src/smap_eng.c": 6, "src/smap_priv.h": 3,
         "src/story.c": 23, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
@@ -113,7 +113,7 @@ SOURCE_HAS = {
     "src/story.c": [r"story_scratch\[0\]", r"story_scratch\[1\]", r"story_scratch \+ 2\)", r"story_scratch \+ 40\)", r"story_scratch\[168\]",
                     r"story_scratch \+ STORY_PIC_ROWS \* 20", r"#define PS_BURST 3", r"story_scratch \+ 40 \+ PS_BURST \* 16\)\)",
                     r"story_scratch \+ 40 \+ PS_BURST \* 16 \+ 40\)\)", r"story_scratch \+ SCR_HB_AT", r"#define PW_AT\s+300\b", r"story_scratch\[PW_AT\]", r"story_scratch \+ PW_AT \+ 3\)", r"#define PW_END\s+\(PW_AT \+ 3 \+ 54\)", r"story_scratch\[PW_END\]", r"story_scratch \+ PW_END \+ 2\)", r"#define SK_END\s+\(PW_END \+ 2 \+ 2 \+ 2 \* STORY_SKY_CELLS\)"],
-    "src/smap_priv.h": [r"#define A_CNT\s+220\b", r"#define S_V\s+396\b", r"#define S_T\s+464\b", r"story_scratch\[S_V \+ \(n\)\]"],
+    "src/smap_priv.h": [r"#define A_TBLN\s+352\b", r"#define S_V\s+396\b", r"#define S_T\s+464\b", r"story_scratch\[S_V \+ \(n\)\]"],
     "src/smap.c": [r"story_scratch\[i\] = 0"],
     "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ ML_ROWS \* 20\)\)", r"#define ML_ROWS\s+11\b", r"#define ML_PA_AT\s+\(ML_ROWS \* 20 \+ 2\)", r"#define ML_STAGE_AT\s+\(ML_PA_AT \+ 22\)"],
     "src/jukebox.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ JB_ROWS \* 20\)\)", r"#define JB_ROWS\s+9\b"],
@@ -253,7 +253,7 @@ def test_the_color_tile_staging_is_on_a_16_byte_boundary_at_its_offset():
 
 def test_the_palette_hand_over_bytes_are_free_on_color_and_the_dmgs_use_counts_lie_over_them():
     """src/smap_priv.h A_PEND (the Color palette hand-over: the borrowing palette and the borrowed line): 2 bytes after the cells' attribute bytes and before the staging, inside the
-    smap.TABLES range, clear of every other Color table; the DMG's use counts (A_CNT, 176 bytes) are the documented share, and smap_eng.c reads the bytes only behind is_cgb."""
+    smap.TABLES range, clear of every other Color table; the DMG's slot table (A_TBL, A_TBLN = 352 bytes) is the documented share, and smap_eng.c reads the bytes only behind is_cgb."""
     h = (SRC / "smap_priv.h").read_text()
     a = {k: int(v) for k, v in re.findall(r"#define (A_\w+)\s+(\d+)", h)}
     lo, hi = a["A_PEND"], a["A_PEND"] + 2
@@ -262,7 +262,7 @@ def test_the_palette_hand_over_bytes_are_free_on_color_and_the_dmgs_use_counts_l
     colour = {"A_NIB": 176, "A_PCNT": 46, "A_PSLOT": 23, "A_PUSE": 8, "A_ATTR_UI": 20, "A_IDA": 22, "A_XSTG": 95, "A_PSTG": 9}
     for name, n in colour.items():
         assert hi <= a[name] or a[name] + n <= lo, f"A_PEND [{lo},{hi}) shares bytes with {name}"
-    assert a["A_CNT"] <= lo and hi <= a["A_CNT"] + 176, "the DMG use counts lie over A_PEND (the documented share)"
+    assert a["A_TBL"] <= lo and hi <= a["A_TBL"] + a["A_TBLN"], "the DMG slot table lies over A_PEND (the documented share)"
     eng = code("src/smap_eng.c")
     for pat in (r"is_cgb && PEND != NIL && \(\(n", r"!is_cgb \|\| PEND == NIL", r"is_cgb && PEND != NIL\) pal_hand"):
         assert re.search(pat, eng), f"smap_eng.c no longer guards PEND with is_cgb: {pat}"

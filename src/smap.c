@@ -33,8 +33,9 @@
 //   Color: a STATIC slot plan (a tile has one of 352 VRAM slots, two tiles share one only if no 22 x 20 window holds both): a cell needs its tile's slot to
 //          hold that tile's variant (4 bits per slot in story_scratch), else the tile is loaded. BG palettes are shared by reference counts: the 18 palettes
 //          of the world take the 8 hardware slots as cells enter and leave the region (a palette is written when its first cell enters).
-//   DMG:   a DYNAMIC allocator in 176 slots: a table of the 10-bit tile id in each slot, a use count per slot, a hint slot per tile (ROM); a tile that is
-//          not resident takes its hint slot when no cell uses it, else the next unused slot after a rotating pointer. No slot free: the job waits.
+//   DMG:   a ROUTE PLAN (tools/smap_world/route.py, owner 11-11): the slot of every cell is planned at build time along the roads (a graph colouring in 176 slots over every window the
+//          region can hold while Sal walks, proved by the generator); the engine reads a cell's slot with the cell, loads the tile when the slot holds another one, and a line that
+//          leaves the region costs nothing: no search, no use counts, no drop work.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -992,7 +993,7 @@ void smap_enter(uint8_t quick) BANKED {
         set_sprite_palette(PAL_CLOUD, 1, smap_cloud_pal);
         smap_flags |= F_PALS;
     } else {
-        fill(SC(A_TBL), 0xFF, 220);                // (every slot free: tile 0x3FF)
+        fill(SC(A_TBL), 0xFF, 176); fill(SC(A_TBL) + 176, 0xFF, 176);      // (every slot free: tile 0x3FF, 176 words)
         OBP0_REG = 0xD0;                           // (OBP0 as boot sets it: colour 1 white, 2 light grey, 3 black)
     }
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = map_progress() < NSTOPS - 1 ? map_progress() : TOWN;
