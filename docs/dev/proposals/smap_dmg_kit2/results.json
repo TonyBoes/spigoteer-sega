@@ -1,0 +1,1407 @@
+{
+ "packages": {
+  "light": {
+   "unique": 861,
+   "once": 631,
+   "w21": [
+    159,
+    [
+     1,
+     40,
+     0
+    ]
+   ],
+   "w22": [
+    174,
+    [
+     1,
+     6,
+     22
+    ]
+   ],
+   "step_mean": 4.460507921714818,
+   "step_p95": 11.0,
+   "step_max": 19,
+   "step_n": 8584
+  },
+  "medium": {
+   "unique": 828,
+   "once": 610,
+   "w21": [
+    157,
+    [
+     1,
+     4,
+     23
+    ]
+   ],
+   "w22": [
+    174,
+    [
+     1,
+     6,
+     22
+    ]
+   ],
+   "step_mean": 4.334342963653309,
+   "step_p95": 11.0,
+   "step_max": 18,
+   "step_n": 8584
+  },
+  "strong": {
+   "unique": 804,
+   "once": 580,
+   "w21": [
+    154,
+    [
+     1,
+     4,
+     23
+    ]
+   ],
+   "w22": [
+    170,
+    [
+     1,
+     4,
+     22
+    ]
+   ],
+   "step_mean": 4.2320596458527495,
+   "step_p95": 10.0,
+   "step_max": 18,
+   "step_n": 8584
+  }
+ },
+ "ranked": [
+  {
+   "step": 1,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 372,
+   "moved": 172,
+   "venue": true,
+   "members": [
+    372,
+    172
+   ]
+  },
+  {
+   "step": 2,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 372,
+   "moved": 200,
+   "venue": true,
+   "members": [
+    372,
+    172,
+    200
+   ]
+  },
+  {
+   "step": 3,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 146,
+   "moved": 321,
+   "venue": true,
+   "members": [
+    146,
+    321
+   ]
+  },
+  {
+   "step": 4,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 563,
+   "moved": 323,
+   "venue": true,
+   "members": [
+    563,
+    323
+   ]
+  },
+  {
+   "step": 5,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 53,
+   "moved": 537,
+   "venue": true,
+   "members": [
+    53,
+    537
+   ]
+  },
+  {
+   "step": 6,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 365,
+   "moved": 549,
+   "venue": false,
+   "members": [
+    365,
+    549
+   ]
+  },
+  {
+   "step": 7,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 146,
+   "moved": 573,
+   "venue": true,
+   "members": [
+    146,
+    321,
+    573
+   ]
+  },
+  {
+   "step": 8,
+   "stage": 1,
+   "px": 1,
+   "cost": 1,
+   "rep": 532,
+   "moved": 746,
+   "venue": true,
+   "members": [
+    532,
+    746
+   ]
+  },
+  {
+   "step": 9,
+   "stage": 1,
+   "px": 2,
+   "cost": 2,
+   "rep": 313,
+   "moved": 19,
+   "venue": true,
+   "members": [
+    313,
+    19
+   ]
+  },
+  {
+   "step": 10,
+   "stage": 2,
+   "px": 2,
+   "cost": 2,
+   "rep": 103,
+   "moved": 61,
+   "venue": false,
+   "members": [
+    103,
+    61
+   ]
+  },
+  {
+   "step": 11,
+   "stage": 2,
+   "px": 2,
+   "cost": 2,
+   "rep": 103,
+   "moved": 62,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62
+   ]
+  },
+  {
+   "step": 12,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 118,
+   "moved": 117,
+   "venue": false,
+   "members": [
+    118,
+    117
+   ]
+  },
+  {
+   "step": 13,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 787,
+   "moved": 259,
+   "venue": false,
+   "members": [
+    787,
+    259
+   ]
+  },
+  {
+   "step": 14,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 287,
+   "moved": 497,
+   "venue": false,
+   "members": [
+    287,
+    497
+   ]
+  },
+  {
+   "step": 15,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 523,
+   "moved": 515,
+   "venue": false,
+   "members": [
+    523,
+    515
+   ]
+  },
+  {
+   "step": 16,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 524,
+   "moved": 516,
+   "venue": false,
+   "members": [
+    524,
+    516
+   ]
+  },
+  {
+   "step": 17,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 521,
+   "moved": 522,
+   "venue": false,
+   "members": [
+    521,
+    522
+   ]
+  },
+  {
+   "step": 18,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 572,
+   "moved": 550,
+   "venue": false,
+   "members": [
+    572,
+    550
+   ]
+  },
+  {
+   "step": 19,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 556,
+   "moved": 577,
+   "venue": true,
+   "members": [
+    556,
+    577
+   ]
+  },
+  {
+   "step": 20,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 779,
+   "moved": 652,
+   "venue": true,
+   "members": [
+    779,
+    652
+   ]
+  },
+  {
+   "step": 21,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 787,
+   "moved": 660,
+   "venue": true,
+   "members": [
+    787,
+    259,
+    660
+   ]
+  },
+  {
+   "step": 22,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 294,
+   "moved": 682,
+   "venue": false,
+   "members": [
+    294,
+    682
+   ]
+  },
+  {
+   "step": 23,
+   "stage": 3,
+   "px": 3,
+   "cost": 3,
+   "rep": 779,
+   "moved": 739,
+   "venue": true,
+   "members": [
+    779,
+    652,
+    739
+   ]
+  },
+  {
+   "step": 24,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 313,
+   "moved": 12,
+   "venue": false,
+   "members": [
+    313,
+    19,
+    12
+   ]
+  },
+  {
+   "step": 25,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 265,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265
+   ]
+  },
+  {
+   "step": 26,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 274,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274
+   ]
+  },
+  {
+   "step": 27,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 278,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278
+   ]
+  },
+  {
+   "step": 28,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 285,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285
+   ]
+  },
+  {
+   "step": 29,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 506,
+   "moved": 505,
+   "venue": false,
+   "members": [
+    506,
+    505
+   ]
+  },
+  {
+   "step": 30,
+   "stage": 3,
+   "px": 6,
+   "cost": 6,
+   "rep": 832,
+   "moved": 831,
+   "venue": true,
+   "members": [
+    832,
+    831
+   ]
+  },
+  {
+   "step": 31,
+   "stage": 3,
+   "px": 9,
+   "cost": 9,
+   "rep": 0,
+   "moved": 22,
+   "venue": false,
+   "members": [
+    0,
+    22
+   ]
+  },
+  {
+   "step": 32,
+   "stage": 3,
+   "px": 9,
+   "cost": 9,
+   "rep": 463,
+   "moved": 331,
+   "venue": false,
+   "members": [
+    463,
+    331
+   ]
+  },
+  {
+   "step": 33,
+   "stage": 3,
+   "px": 9,
+   "cost": 9,
+   "rep": 546,
+   "moved": 332,
+   "venue": false,
+   "members": [
+    546,
+    332
+   ]
+  },
+  {
+   "step": 34,
+   "stage": 3,
+   "px": 9,
+   "cost": 9,
+   "rep": 556,
+   "moved": 555,
+   "venue": true,
+   "members": [
+    556,
+    577,
+    555
+   ]
+  },
+  {
+   "step": 35,
+   "stage": 3,
+   "px": 12,
+   "cost": 12,
+   "rep": 56,
+   "moved": 611,
+   "venue": true,
+   "members": [
+    56,
+    611
+   ]
+  },
+  {
+   "step": 36,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 54,
+   "moved": 72,
+   "venue": false,
+   "members": [
+    54,
+    72
+   ]
+  },
+  {
+   "step": 37,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 103,
+   "moved": 137,
+   "venue": true,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137
+   ]
+  },
+  {
+   "step": 38,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 103,
+   "moved": 140,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140
+   ]
+  },
+  {
+   "step": 39,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 0,
+   "moved": 152,
+   "venue": true,
+   "members": [
+    0,
+    22,
+    152
+   ]
+  },
+  {
+   "step": 40,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 186,
+   "moved": 154,
+   "venue": true,
+   "members": [
+    186,
+    154
+   ]
+  },
+  {
+   "step": 41,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 0,
+   "moved": 163,
+   "venue": false,
+   "members": [
+    0,
+    22,
+    152,
+    163
+   ]
+  },
+  {
+   "step": 42,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 170,
+   "moved": 166,
+   "venue": true,
+   "members": [
+    170,
+    166
+   ]
+  },
+  {
+   "step": 43,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 170,
+   "moved": 167,
+   "venue": true,
+   "members": [
+    170,
+    166,
+    167
+   ]
+  },
+  {
+   "step": 44,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 292,
+   "moved": 211,
+   "venue": false,
+   "members": [
+    292,
+    211
+   ]
+  },
+  {
+   "step": 45,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 289,
+   "moved": 214,
+   "venue": false,
+   "members": [
+    289,
+    214
+   ]
+  },
+  {
+   "step": 46,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 256,
+   "moved": 255,
+   "venue": false,
+   "members": [
+    256,
+    255
+   ]
+  },
+  {
+   "step": 47,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 201,
+   "moved": 281,
+   "venue": false,
+   "members": [
+    201,
+    281
+   ]
+  },
+  {
+   "step": 48,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 359,
+   "moved": 333,
+   "venue": true,
+   "members": [
+    359,
+    333
+   ]
+  },
+  {
+   "step": 49,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 235,
+   "moved": 457,
+   "venue": true,
+   "members": [
+    235,
+    457
+   ]
+  },
+  {
+   "step": 50,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 506,
+   "moved": 513,
+   "venue": false,
+   "members": [
+    506,
+    505,
+    513
+   ]
+  },
+  {
+   "step": 51,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 521,
+   "moved": 525,
+   "venue": false,
+   "members": [
+    521,
+    522,
+    525
+   ]
+  },
+  {
+   "step": 52,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 782,
+   "moved": 781,
+   "venue": true,
+   "members": [
+    782,
+    781
+   ]
+  },
+  {
+   "step": 53,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 782,
+   "moved": 785,
+   "venue": true,
+   "members": [
+    782,
+    781,
+    785
+   ]
+  },
+  {
+   "step": 54,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 809,
+   "moved": 812,
+   "venue": true,
+   "members": [
+    809,
+    812
+   ]
+  },
+  {
+   "step": 55,
+   "stage": 4,
+   "px": 4,
+   "cost": 4,
+   "rep": 224,
+   "moved": 881,
+   "venue": false,
+   "members": [
+    224,
+    881
+   ]
+  },
+  {
+   "step": 56,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 664,
+   "moved": 246,
+   "venue": false,
+   "members": [
+    664,
+    246
+   ]
+  },
+  {
+   "step": 57,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 256,
+   "moved": 257,
+   "venue": false,
+   "members": [
+    256,
+    255,
+    257
+   ]
+  },
+  {
+   "step": 58,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 467,
+   "moved": 262,
+   "venue": false,
+   "members": [
+    467,
+    262
+   ]
+  },
+  {
+   "step": 59,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 664,
+   "moved": 263,
+   "venue": false,
+   "members": [
+    664,
+    246,
+    263
+   ]
+  },
+  {
+   "step": 60,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 467,
+   "moved": 276,
+   "venue": false,
+   "members": [
+    467,
+    262,
+    276
+   ]
+  },
+  {
+   "step": 61,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 289,
+   "moved": 280,
+   "venue": false,
+   "members": [
+    289,
+    214,
+    280
+   ]
+  },
+  {
+   "step": 62,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 291,
+   "moved": 282,
+   "venue": false,
+   "members": [
+    291,
+    282
+   ]
+  },
+  {
+   "step": 63,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 292,
+   "moved": 283,
+   "venue": false,
+   "members": [
+    292,
+    211,
+    283
+   ]
+  },
+  {
+   "step": 64,
+   "stage": 4,
+   "px": 8,
+   "cost": 8,
+   "rep": 597,
+   "moved": 558,
+   "venue": true,
+   "members": [
+    597,
+    558
+   ]
+  },
+  {
+   "step": 65,
+   "stage": 4,
+   "px": 12,
+   "cost": 12,
+   "rep": 667,
+   "moved": 668,
+   "venue": true,
+   "members": [
+    667,
+    668
+   ]
+  },
+  {
+   "step": 66,
+   "stage": 4,
+   "px": 12,
+   "cost": 12,
+   "rep": 103,
+   "moved": 868,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868
+   ]
+  },
+  {
+   "step": 67,
+   "stage": 4,
+   "px": 20,
+   "cost": 20,
+   "rep": 563,
+   "moved": 13,
+   "venue": false,
+   "members": [
+    563,
+    323,
+    13
+   ]
+  },
+  {
+   "step": 68,
+   "stage": 4,
+   "px": 36,
+   "cost": 36,
+   "rep": 201,
+   "moved": 297,
+   "venue": false,
+   "members": [
+    201,
+    281,
+    297
+   ]
+  },
+  {
+   "step": 69,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 68,
+   "moved": 73,
+   "venue": false,
+   "members": [
+    68,
+    73
+   ]
+  },
+  {
+   "step": 70,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 161,
+   "moved": 155,
+   "venue": true,
+   "members": [
+    161,
+    155
+   ]
+  },
+  {
+   "step": 71,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 365,
+   "moved": 164,
+   "venue": true,
+   "members": [
+    365,
+    549,
+    164
+   ]
+  },
+  {
+   "step": 72,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 729,
+   "moved": 177,
+   "venue": true,
+   "members": [
+    729,
+    177
+   ]
+  },
+  {
+   "step": 73,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 161,
+   "moved": 189,
+   "venue": false,
+   "members": [
+    161,
+    155,
+    189
+   ]
+  },
+  {
+   "step": 74,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 217,
+   "moved": 218,
+   "venue": true,
+   "members": [
+    217,
+    218
+   ]
+  },
+  {
+   "step": 75,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 556,
+   "moved": 594,
+   "venue": true,
+   "members": [
+    556,
+    577,
+    555,
+    594
+   ]
+  },
+  {
+   "step": 76,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 837,
+   "moved": 840,
+   "venue": true,
+   "members": [
+    837,
+    840
+   ]
+  },
+  {
+   "step": 77,
+   "stage": 5,
+   "px": 5,
+   "cost": 5,
+   "rep": 235,
+   "moved": 892,
+   "venue": true,
+   "members": [
+    235,
+    457,
+    892
+   ]
+  },
+  {
+   "step": 78,
+   "stage": 5,
+   "px": 20,
+   "cost": 20,
+   "rep": 357,
+   "moved": 356,
+   "venue": true,
+   "members": [
+    357,
+    356
+   ]
+  },
+  {
+   "step": 79,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 112,
+   "moved": 70,
+   "venue": false,
+   "members": [
+    112,
+    70
+   ]
+  },
+  {
+   "step": 80,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 93,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868,
+    93
+   ]
+  },
+  {
+   "step": 81,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 96,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868,
+    93,
+    96
+   ]
+  },
+  {
+   "step": 82,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 365,
+   "moved": 192,
+   "venue": true,
+   "members": [
+    365,
+    549,
+    164,
+    192
+   ]
+  },
+  {
+   "step": 83,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 449,
+   "moved": 447,
+   "venue": true,
+   "members": [
+    449,
+    447
+   ]
+  },
+  {
+   "step": 84,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 492,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868,
+    93,
+    96,
+    492
+   ]
+  },
+  {
+   "step": 85,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 612,
+   "moved": 615,
+   "venue": true,
+   "members": [
+    612,
+    615
+   ]
+  },
+  {
+   "step": 86,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 103,
+   "moved": 676,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868,
+    93,
+    96,
+    492,
+    676
+   ]
+  },
+  {
+   "step": 87,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 809,
+   "moved": 808,
+   "venue": true,
+   "members": [
+    809,
+    812,
+    808
+   ]
+  },
+  {
+   "step": 88,
+   "stage": 6,
+   "px": 6,
+   "cost": 6,
+   "rep": 883,
+   "moved": 869,
+   "venue": false,
+   "members": [
+    883,
+    869
+   ]
+  },
+  {
+   "step": 89,
+   "stage": 6,
+   "px": 12,
+   "cost": 12,
+   "rep": 455,
+   "moved": 272,
+   "venue": false,
+   "members": [
+    455,
+    272
+   ]
+  },
+  {
+   "step": 90,
+   "stage": 6,
+   "px": 12,
+   "cost": 12,
+   "rep": 602,
+   "moved": 604,
+   "venue": true,
+   "members": [
+    602,
+    604
+   ]
+  },
+  {
+   "step": 91,
+   "stage": 6,
+   "px": 18,
+   "cost": 18,
+   "rep": 103,
+   "moved": 481,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868,
+    93,
+    96,
+    492,
+    676,
+    481
+   ]
+  },
+  {
+   "step": 92,
+   "stage": 6,
+   "px": 18,
+   "cost": 18,
+   "rep": 103,
+   "moved": 486,
+   "venue": false,
+   "members": [
+    103,
+    61,
+    62,
+    265,
+    274,
+    278,
+    285,
+    137,
+    140,
+    868,
+    93,
+    96,
+    492,
+    676,
+    481,
+    486
+   ]
+  }
+ ]
+}
