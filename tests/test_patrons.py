@@ -268,18 +268,18 @@ def catch_once(gb, p, bar):
             break
 
 
-def test_every_mug_pushes_the_same_distance(gb):
-    """Owner 2026-10-13 (the arcade's rule): no thirst multiplier. The 1st, 2nd and 3rd mug each push a patron
-    pushback_px (32 px on level 1) back; he walks on in between (frozen here: skip the drink by poking his state)."""
+def test_every_mug_pushes_further_than_the_last(gb):
+    """Owner 2026-11-08 (thirst): mug n pushes pushback_px * (n + 1) / 2: 32, 48, 64 px on level 1. He walks on in
+    between (frozen here: skip the drink by poking his state)."""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 1, 120)
-    x = 120
+    p = set_patron(gb, 1, 200)
+    x = 200
     for n in (1, 2, 3):
         catch_once(gb, p, 1)
         assert gb.read("patron_drinks", MAX_P)[p] == n
-        assert gb.read("patron_x", MAX_P)[p] == x - PX, (n, "the same push every time")
-        x -= PX
+        assert gb.read("patron_x", MAX_P)[p] == x - PX * (n + 1) // 2, (n, "the push grows with each mug")
+        x -= PX * (n + 1) // 2
         put(gb, "patron_state", p, WALKING)                # skip the drink: walk resumes (frozen, so he stays put)
         gb.run(2)
         for i in range(MAX_M):                              # drop the returned empty
@@ -328,7 +328,8 @@ def test_a_mid_bar_patron_is_pushed_then_served_when_a_push_reaches_the_door(gb)
 def test_a_serve_happens_only_off_the_screen(gb):
     """Option C (level 1, push 32): a patron hit at x - ENTRY_X <= 32 (x <= 48) is served at once and slides off without
     drinking; one hit at x 49 is pushed the full 32 px, drinks, unserved. Credit only when he is off the screen."""
-    for x, served in ((ENTRY_X + 1, True), (ENTRY_X + 20, True), (ENTRY_X + PX, True), (ENTRY_X + PX + 1, False), (ENTRY_X, True)):
+    P2 = PX * 3 // 2                                   # (his second mug: thirst, 1.5 x the push; the almost-out roll is first-mug only)
+    for x, served in ((ENTRY_X + 1, True), (ENTRY_X + 20, True), (ENTRY_X + P2, True), (ENTRY_X + P2 + 1, False), (ENTRY_X, True)):
         clear_patrons(gb)
         freeze(gb)
         gb.write("served", 0)
@@ -347,8 +348,8 @@ def test_a_serve_happens_only_off_the_screen(gb):
             assert gb.read("patron_state", MAX_P)[p] == NONE
             assert gb.mem("served") == 1 and score(gb) == s0 + SERVE
         else:
-            gb.run(PX + 4)
-            assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == x - PX
+            gb.run(P2 + 4)
+            assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == x - P2
             assert gb.mem("served") == 0 and score(gb) == s0
 
 
@@ -400,6 +401,24 @@ def test_some_patrons_drink_early(gb):
     later = trial(10)
     assert set(later) <= {PX, PX // 2, PX // 4}, later
     assert PX in later and (PX // 2 in later or PX // 4 in later), later
+
+
+def test_only_a_first_mug_can_be_an_early_drinker(gb):
+    """Thirst (owner 2026-11-08): on level 10 many first mugs are short pushes, but a patron who has had a mug always takes
+    the full, grown push (second mug 1.5 x, third 2 x) and never drinks early."""
+    gb.write("level", 10)
+    for drinks, mult in ((1, 3), (2, 4)):
+        for k in range(40):
+            clear_patrons(gb)
+            freeze(gb)
+            for i in range(MAX_M):
+                put(gb, "mug_state", i, FREE)
+            gb.write("mugs_live", 0)
+            p = set_patron(gb, 1, 240)
+            put(gb, "patron_drinks", p, drinks)
+            inject_mug(gb, 1, 244)
+            gb.run(3 + 2 * PX + 4)
+            assert 240 - gb.read("patron_x", MAX_P)[p] == PX * mult // 2, (drinks, k)
 
 
 def test_a_new_patron_starts_thirsty_again(gb):
