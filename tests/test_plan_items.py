@@ -32,7 +32,7 @@ def test_the_saloon_full_mug_is_the_plans_tan(gb):
     assert cgb_palette(gb, 1, obj=True)[1:] == c5(ATLAS["cowboys"]["obj"]["1"]["cols"][1:]), "OBJ 1 is the Atlas's"
 
 
-@pytest.mark.parametrize("c", [SALOON])
+@pytest.mark.parametrize("c", [SALOON, FACTORY])
 def test_the_boss_body_is_on_bg_7_and_no_regular_walks_on_it(c):
     with fight("cgb", c) as gb:
         topper = cgb_palette(gb, 7, obj=True)[1:]
