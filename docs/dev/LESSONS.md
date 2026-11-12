@@ -110,3 +110,8 @@ See `tools/artifacts/README.md` for the review pages' links and how to republish
 - 2026-11-08 Twice a golden commit took a stale message: Write on the shared msg.txt failed (file changed by a printf since the last Read) and the chained commit still ran. Write each commit message with printf to a NEW file and commit in the same command.
 
 - 2026-11-12 False choice put to the owner (Q28): an agent said a plan item "costs" patron variety (Saloon boss fight 21 -> 14 combos), and I asked accept-or-move without checking the palette slots myself. The fight had free BG palettes, so there was no trade-off. Before offering a trade-off question, check the constraint behind it (free slots, budgets) in the data; ask only when the cost is real.
+
+## 2026-11-12: don't label a sound from its maths
+I put kick C on the page as "a low boom, RECOMMENDED" from the builder's period figure (103 Hz). The owner heard a cymbal: a 7-bit noise
+kick's bright LFSR clock is what the ear hears. Agents cannot listen. Describe a sound only from measured spectra (centroid, energy
+under 200/500 Hz), and never mark one RECOMMENDED on how it "should" sound.
