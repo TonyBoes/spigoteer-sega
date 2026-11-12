@@ -188,7 +188,7 @@ SPLIT_PLAYFIELD = True
 FIELD_MOVES = [("Keg, spout", 7, 1)]
 import game_truth as _game_truth  # noqa: E402
 
-SALOON_LOOKS = _game_truth.truth()["saloon"]   # the game's looks and palette instances, read from src/mirror.c sal_combo (never typed here)
+SALOON_LOOKS = _game_truth.truth(venues=False)["saloon"]   # the game's looks and palette instances, read from src/mirror.c sal_combo (never typed here)
 # Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
 # GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
 SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
