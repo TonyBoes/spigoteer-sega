@@ -408,9 +408,14 @@ void split_isr3(void);                        // every other venue's: the keg an
 void split_isr3n(void);                       // the same at normal speed (a Color game that is not switched to double speed: the tests, the goldens): the hit comes a line early and waits for its line
 #define SPLIT_ISR3  (DS_NOW ? split_isr3 : split_isr3n)
 #define SPLIT_ISR3_OFF() do { remove_LCD(split_isr3); remove_LCD(split_isr3n); } while (0)
+#define SPLIT_HIT(ds)  (ds)                     // lines early a hit comes at normal speed (ds: 1 at normal speed, 0 at double): the asm's decode fits in the one line
 #else
 #define SPLIT_ISR3  split_isr3                  // (the C twin does both: SPLIT_OFF)
 #define SPLIT_ISR3_OFF() remove_LCD(split_isr3)
+// The C twin's decode takes ~3 lines (about 1000 T-cycles against the asm's 350), so at normal speed its hit comes SPLIT_HIT_EARLY lines before its event's line and waits for it: the
+// palette then lands on the event's line, as the asm's does (the asm: 1). Two events in adjacent lines (a window shown, the keg's and the late reload's apart) still start late.
+#define SPLIT_HIT_EARLY 3
+#define SPLIT_HIT(ds)  ((ds) ? SPLIT_HIT_EARLY : 0)
 #endif
 void split_vbl3(void);
 void split_isr(void);                         // main.c: lcd_isr's twin while the split is armed (swapped in by level.c split_arm, out by split_off)

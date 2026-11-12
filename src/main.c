@@ -723,8 +723,9 @@ void split_isr3(void) {       // (the C twin: the same decode)
     while (LY_REG < tgt || (STAT_REG & 2)) ;                 // (its line's HBlank, or the VBlank: palette RAM is open; the line's pixels are out)
     split_put_a(b, s);
     if (k == EV_KEG_L) {                                     // (double speed: the keg's put and the late palette's in one HBlank; normal speed: the late one in the next line's)
+        BCPS_REG = SPLIT_L_BCPS;                             // (the index may be set at any time: only the data writes wait for an HBlank, so the put below starts the moment it opens)
         if (SPLIT_OFF) { tgt++; while (LY_REG < tgt || (STAT_REG & 2)) ; }
-        split_put_a(SPLIT_L_BCPS, SPLIT_PAL);
+        put8(&BCPD_REG, (const uint8_t *)SPLIT_PAL);
     }
     if (kk & EV_HIDE_AFTER) HIDE_WIN;                        // (the window ends on the next line)
 }
@@ -766,8 +767,8 @@ void split_vbl3(void) {       // (the C twin; each put waits for an HBlank or th
     EV_I = 0;
     LYC_REG = EV_LINE(0);
     vq_vbl();
-    if (SPLIT_L_BCPS) { while (STAT_REG & 2) ; split_put_a(SPLIT_L_BCPS, SPLIT_STG); }
-    if (SPLIT_E_BCPS) { while (STAT_REG & 2) ; split_put_a(SPLIT_E_BCPS, SPLIT_E_STG); }
+    if (SPLIT_L_BCPS) { while (STAT_REG & 2) ; BCPS_REG = SPLIT_L_BCPS; put8(&BCPD_REG, (const uint8_t *)SPLIT_STG); }   // (both are BG puts: the HBlank wait, then the index and the 8 bytes; put8 directly, split_put_a is the generic entry the isr uses)
+    if (SPLIT_E_BCPS) { while (STAT_REG & 2) ; BCPS_REG = SPLIT_E_BCPS; put8(&BCPD_REG, (const uint8_t *)SPLIT_E_STG); }
 }
 #endif
 

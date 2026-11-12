@@ -381,10 +381,10 @@ void split_plan(void) BANKED {
     ly = LY_REG;                                       // (the plan took a tenth of a frame or more: the beam is where it is now, not where it was when this began)
     for (i = 0; i < n && line[i] <= ly; i++) ;
     CRITICAL {
-        SPLIT_OFF = ds;
+        SPLIT_OFF = SPLIT_HIT(ds);
         if ((OBJX_F & 0x88) == 0x88) OBJX_F = xf;                  // (obj_stage's give-back bits: with the new table)
-        for (j = 0; j < n; j++) { EV_LINE(j) = line[j] - ds; EV_KIND(j) = kind[j]; }
-        EV_LINE(n) = line[0] - ds;                                      // (the sentinel: the line after the last is the first's, next frame)
+        for (j = 0; j < n; j++) { EV_LINE(j) = line[j] - SPLIT_HIT(ds); EV_KIND(j) = kind[j]; }
+        EV_LINE(n) = line[0] - SPLIT_HIT(ds);                                      // (the sentinel: the line after the last is the first's, next frame)
         EV_N = n;
         EV_PS = shown ? 0x80 : 0;                                  // (planned for a shown window: win_on_ / win_off_ replan when the window is not that)
         if (SPLIT_ON == 3) { EV_I = i < n ? i : 0; LYC_REG = EV_LINE(EV_I); }     // (the Saloon changing over from its one reload: saloon_mode puts these after the swap)
