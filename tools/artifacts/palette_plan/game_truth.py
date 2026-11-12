@@ -39,7 +39,33 @@ def truth():
         if c and re.search(r"V\(", line):
             names_[int(re.search(r"V\((\d),", line).group(1))] = c.group(1)
     saloon = [(names_[i], looks[i]) for i in sorted(looks)]        # [(NAME, [instances])] by look 0-7
-    return dict(inst=inst, obj_of=obj_of, bg_of=bg_of, saloon=saloon)
+    return dict(inst=inst, obj_of=obj_of, bg_of=bg_of, saloon=saloon, pal=P, venue=venue_slots())
+
+
+GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]   # tools/gen_art.py PATRON_GROUPS: the group number the engine uses
+
+
+def venue_slots():
+    """{venue key: dict(obj=[OBJ slot of palette instance 0..], bg=[BG slot ...], names=[the instance's palette: a palettes.json name, or mug / empty /
+    bartender / show / lit], bgcols=[[4 colours of the instance's BG slot as the Atlas draws it] ...] or None, looks=[look names])}: since the
+    Atlas-slots import (2026-11-01) every venue but the Saloon has its own instance table (build/looks.c, written by tools/gen_looks.py from the plan:
+    looks_insts / looks_bg_get), so the legacy game.h OBJPAL_PATRON_A-C numbers are only the Saloon's."""
+    src = _read("build/looks.c")
+    out = {}
+    for g, key in enumerate(GROUPS):
+        if key == "cowboys":
+            continue
+        m = re.search(r"case %d: \{ static const uint8_t o\[8\] = \{([\d, ]+)\}, b\[8\] = \{([\d, ]+)\}.*?return (\d+);" % g, src)
+        o, b, n = ([int(x) for x in m.group(1).split(",")], [int(x) for x in m.group(2).split(",")], int(m.group(3))) if m else ([3, 6, 7], [2, 3, 4], 3)
+        hdr = re.search(r"// %s: \d+ looks.*\n//   looks: (.*)\n//   instances: (.*)\n" % key, src)
+        names, looks = [], []
+        if hdr:
+            looks = [x.split(" ", 1)[1] for x in hdr.group(1).split(", ")]
+            names = [re.match(r"\d+ OBJ \d+ BG \d+ (\w+)", x).group(1) for x in hdr.group(2).split(", ")]
+        cm = re.search(r"case %d: \{ static const uint16_t c\[8\]\[4\] = \{(.*?)\};" % g, src.split("looks_bg_get")[1])
+        bgc = [[int(x, 16) for x in row.split(", ")] for row in re.findall(r"\{(0x[0-9A-F]{4}(?:, 0x[0-9A-F]{4}){3})\}", cm.group(1))] if cm else None
+        out[key] = dict(obj=o[:n], bg=b[:n], names=names, bgcols=bgc, looks=looks)
+    return out
 
 
 def back_notes(path):
@@ -103,3 +129,9 @@ def spawn_combos():
         else:
             out[k] = {i: {i} for i in range(3)}
     return out
+
+
+def boss_pal():
+    """The BG slot of every boss body (src/boss.h BOSS_PAL): a constant since the Atlas plan's BG 7 (owner 2026-10-21) went in; INST_BG[2] before."""
+    m = re.search(r"#define BOSS_PAL\s+(\d+)", _read("src/boss.h"))
+    return int(m.group(1)) if m else None

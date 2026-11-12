@@ -108,3 +108,5 @@ See `tools/artifacts/README.md` for the review pages' links and how to republish
 - 2026-11-08 Map import missed approved pieces (zoo B, halo cleanup): the brief was written from memory, not from the full QUEUE decision history. Before any import brief, build the checklist from every owner decision on that subject in QUEUE and check each against the result before calling it done.
 
 - 2026-11-08 Twice a golden commit took a stale message: Write on the shared msg.txt failed (file changed by a printf since the last Read) and the chained commit still ran. Write each commit message with printf to a NEW file and commit in the same command.
+
+- 2026-11-12 False choice put to the owner (Q28): an agent said a plan item "costs" patron variety (Saloon boss fight 21 -> 14 combos), and I asked accept-or-move without checking the palette slots myself. The fight had free BG palettes, so there was no trade-off. Before offering a trade-off question, check the constraint behind it (free slots, budgets) in the data; ask only when the cost is real.

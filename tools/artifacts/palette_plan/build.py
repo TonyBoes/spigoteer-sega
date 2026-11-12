@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-11-11", "Game brought in line with the plan on four items (supervisor merge): the Saloon's full mug in the tan #FFE6CD, the boss body on BG 7, BLIP in NEKA's cyan, RONIN on SAKURA's OBJ 6 / BG 6. The Saloon's mug recolour left PLANS (it is the game's colour now, like every other venue's imported recolour); the page's open items list is empty."),
+    ("2026-11-11", "Owner: \"Fix the graphics atlas.\" The page's and the self-check's idea of the game's palette slots was the pre-import one (every venue's patrons on OBJ 3, 6, 7 / BG 2, 3, 4). Since the Atlas-slots import (2026-11-01) every venue but the Saloon has its own palette-instance table (build/looks.c, from this plan), so: the game's slots are read from it (game_truth.venue_slots); plan items the game has (patron moves, joins, extra looks, the keg on BG 1, the playfield's free HUD / stage slots) show as the game, green; the show dancers are drawn from the capture (OBJ 5, and 4 and 3 with three dancers: Q7 a, Q13), so the plan moves that put them on a patron's palette are gone; a BG slot of a palette instance shows the colours the game gives it. What is still yellow is an open item: the Saloon's mug tan, the Saloon's and the Factory's boss body (BG 7 in the plan, BG 4 in the game) and RONIN (plan OBJ 6, game instance OBJ 7)."),
     ("2026-11-02", "Q7 (owner, a): the stage show's dancers get their own OBJ palette above the stage line and the patrons on that slot keep their own look during shows. Built: a mid-frame OBJ 5 write on line 35 (Color only); no plan colour changes."),
     ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Stadium BG 7 showed NORM's colours (the plan's BG recolour 'as OBJ 0' hit the game's BG 4, SERENA's, not NORM's BG 3). Now BG 3 = NORM as OBJ 0 and BG 7 = SERENA as OBJ 7 (#B47B52 #295ADE #000000), with the boss body."),
     ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Lodge BOONE and PIP (OBJ 1, the Sasquatch's colours) were listed on BG 2, which is CEDAR's in the playfield. They are now on the free BG 6 as OBJ 1 (#F6E6C5 #834A29 #291010); BG 2 keeps CEDAR and WILLOW."),
@@ -260,8 +262,11 @@ for key, name in VENUES:
     rows = c["attr"]["pal"]
     above = sorted({int(ch) for r in rows[:5] for ch in r})          # layout.h: HUD_ROW 0, stage rows 1-4, BAR_FIRST_ROW 5
     field = sorted({int(ch) for r in rows[5:] for ch in r})
-    keg7 = any(r[x] == "7" for r in rows[5:] for x in (17, 18, 19))   # the keg / spout columns on BG 7 (the Saloon's are on BG 0)
-    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field, keg7=keg7, tiles=tiles))
+    dancers = sorted({s for o in c["objs"] if o["kind"] in ("Dancers", "Sprite group") for s in o["slots"]})   # the show's own OBJ palettes (a venue's capture draws its dancers as "Dancers" or as one "Sprite group")
+    kegcols = "".join(r[x] for r in rows[5:] for x in (18, 19))
+    kegbg = int(max(kegcols, key=kegcols.count))   # the BG slot of the keg / spout columns in the playfield: BG 0 in the Saloon and the Stadium, BG 1 elsewhere (the 2026-10-21 plan, in the game since the Atlas-slots import), BG 7 before it
+    keg7 = kegbg == 7
+    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field, keg7=keg7, kegbg=kegbg, dancers=dancers, tiles=tiles))
 
 def _git(*a):
     return subprocess.run(["git", "-C", ROOT] + list(a), capture_output=True, text=True).stdout.strip()
@@ -299,7 +304,9 @@ def users(kind, v, s):
         if s == 4 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (left half, lifted)"]
         other = {0: ["Sal", "Tip coin"], 1: ["Full mug", "Fill glass", "Breaking glass", "Pour sparkle"],
-                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss fight: " + TOPPER[v["key"]]]}.get(s, [])
+                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 7: ["Boss fight: " + TOPPER[v["key"]]]}.get(s, [])
+        if s in v["dancers"]:                                # the show's dancers wear OBJ 5 (and 4, 3 with three show palettes) above the stage: the capture says which (Q7 a / Q13, 2026-11-02)
+            other = other + ["Show dancers"]
         if v["key"] == "punks" and s in (1, 2):          # the Chrome Cow draws its empty mug, glass and capacity mugs in OBJ 1 on CGB (2026-10-31)
             other = ["Full mug", "Fill glass", "Breaking glass", "Pour sparkle", "Empty mug", "Boss: capacity mugs"] if s == 1 else []
     else:
@@ -308,7 +315,7 @@ def users(kind, v, s):
             pat = [n[i] for i, (_, ps) in enumerate(SALOON_LOOKS) if any(INST_BG[p] == s for p in ps)]
         if s == 7 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (top row)"]
-        other = {0: ["Bar, wall"] + ([] if v["keg7"] else ["Keg, spout"]), 1: ["HUD"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"],
+        other = {0: ["Bar, wall"] + (["Keg, spout"] if v["kegbg"] == 0 else []), 1: ["HUD"] + (["Keg, spout"] if v["kegbg"] == 1 else []), 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"],
                  7: ["Keg, spout"] if v["keg7"] else []}.get(s, [])
     return pat, other
 
@@ -363,7 +370,39 @@ def model(v):
         for key, names in pl.get("join", {}).items():
             for nm in names:
                 m[key]["pat"].append((nm, True))
+    for (kind, sl), d in m.items():
+        if kind == "OBJ":
+            settle(v, kind, sl, d)          # (the BG entries are the capture's: above the playfield they hold the HUD's and the stage's colours; field_model settles the playfield's)
     return m
+
+
+KEG_COLS = {k: e["bg"][str(e["keg_bg"])]["cols"][1:] for k, e in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "plan_slots.json")))["venues"].items()
+            if e.get("keg_bg") == 1}     # plan_slots.json: the Atlas's export of the slot plan, which gen_art.py (keg_bg) and tests/test_plan_slots.py hold the game to
+
+
+def settle(v, kind, sl, d):
+    """Plan items the game has already are drawn as the game (green, no change note). Since the Atlas-slots import (2026-11-01) every venue but the Saloon has
+    its own palette-instance table (game_truth.venue_slots, build/looks.c): a patron the plan puts on a slot that is one of the venue's instances is in the
+    game; a colour the plan changes is in the game when the capture already holds it (only the differences stay yellow: those are the open items)."""
+    if kind == "BG" and sl == game_truth.boss_pal():
+        d["oth"] = [(t, p and t != "Boss body") for t, p in d["oth"]]      # BOSS_PAL (src/boss.h): the boss's body is on this BG slot in every venue
+    G = game_truth.truth()["venue"].get(v["key"])
+    if G is None:
+        return
+    lst = G["obj"] if kind == "OBJ" else G["bg"]
+    if sl in lst:
+        d["pat"] = [(t, False) for t, _ in d["pat"]]
+    elif d["freed"] and not d["pat"]:
+        d["freed"] = False                       # the plan's freed slot is simply free in the game now
+    q5 = lambda h: tuple(int(h[j:j + 2], 16) >> 3 for j in (1, 3, 5))        # the game holds 5 bits a channel: a plan colour is in the game when those match
+    d["new"] = {i: h for i, h in d["new"].items() if q5(h) != q5(d["cols"][i])}
+    if kind == "BG" and sl in lst:
+        d["new"] = {}                            # a BG slot of a palette instance is the game's own (looks_bg_get: the colours the game gives it; above the playfield the capture holds the HUD's or the stage's); the plan's colours here came from the legacy holder's
+        if G["bgcols"]:
+            d["cols"] = [d["cols"][0]] + [hexc(c) for c in G["bgcols"][lst.index(sl)][1:]]
+    if not d["new"]:
+        d.pop("match", None)
+        d.pop("quiet", None)
 
 
 def card(kind, sl, d, skip0, hide_cols=False):
@@ -769,8 +808,11 @@ def empty(d):
 def field_model(v, m):
     """The playfield's BG slots under the plan: global and per-venue moves, then patrons renumbered so BG n matches OBJ n where it can."""
     field = {sl: dict(m[("BG", sl)]) for sl in range(8)}
+    G = game_truth.truth()["venue"].get(v["key"])
     for sl in v["above"]:
-        if sl not in v["field"]:
+        # a slot used above the playfield only (the HUD's BG 1, the stage's BG 5 and 6) is free in the playfield; since the Atlas-slots import (2026-11-01) the
+        # capture's playfield also draws patrons in them (a palette instance sits there: the chain reloads the slot below the stage), which says nothing about HUD / Stage
+        if sl not in v["field"] or (G is not None and sl in G["bg"] and not field[sl]["pat"] and all(x[0] in ("HUD", "Stage") for x in field[sl]["oth"])):
             field[sl] = dict(pat=[], oth=[], cols=field[sl]["cols"], new={}, freed=True, open=None)
     for item, fr, to in FIELD_MOVES:
         src = field[fr]; c = eff(src)
@@ -782,6 +824,8 @@ def field_model(v, m):
         field[to] = dict(pat=[], oth=[(item, True)], cols=field[to]["cols"], new={i: c[i] for i in range(4)}, freed=False, open=None, quiet=True)
     for item, fr, to in PLANS.get(v["key"], {}).get("field_moves", []):
         src = field[fr]; c = eff(src)
+        if not any(x[0].startswith(item) for x in src["oth"]):
+            continue                                  # the game has made this move already (the capture's keg is on the target)
         src["oth"] = [x for x in src["oth"] if not x[0].startswith(item)]
         dst = dict(field[to])
         dst["new"] = {i: c[i] for i in range(4) if c[i] != dst["cols"][i]}
@@ -866,6 +910,10 @@ def field_model(v, m):
             field[bb]["oth"] = [x for x in field[bb]["oth"] if x[0] != "Boss body"]
             if empty(field[bb]):
                 field[bb] = dict(pat=[], oth=[], cols=field[bb]["cols"], new={}, freed=True, open=None)
+    for sl, d in field.items():
+        settle(v, "BG", sl, d)
+    if v["kegbg"] == 1 and v["key"] in KEG_COLS:      # the keg's colours below the HUD: the chain loads them into BG 1 (the capture holds the HUD's above the split); tests/test_plan_slots.py checks the game's buffer against them
+        field[1] = dict(field[1], cols=[field[1]["cols"][0]] + KEG_COLS[v["key"]])
     return field
 
 
@@ -940,10 +988,7 @@ def find_slot(field, item, default):
 
 
 def dancer_slot(v):
-    for start, kind, fr, to, label in PLANS.get(v["key"], {}).get("moves", []):
-        if start == "Show dancers":
-            return to
-    return 5
+    return 5 if 5 in v["dancers"] or not v["dancers"] else v["dancers"][0]     # (the capture's OBJ 5 holds the show's own colours: Q7 a, 2026-11-02)
 
 
 def piece_layout(p):
@@ -971,7 +1016,9 @@ def scene_pieces(v, m, field):
 
     # Dancers: <t>_show.txt, 4 frames (one dance) or 6 (a band), 16x24, OBJ palette, colour 0 transparent. 32 OBJ tiles.
     ds = dancer_slot(v)
-    oc = eff(m[("OBJ", ds)])
+    shp = json.load(open(P("show_pal.json")))["obj"]               # the show's own OBJ colours (gen_art VENUE_PAL_SHOW); the left dancer's when each has her own
+    oc = [wall] + (shp["hex"] if isinstance(shp, dict) else shp[0]["hex"])
+    oc = [oc[0]] + [c.upper() for c in oc[1:]]
     fr = src_blocks(P("show.txt"))
     quarters = []
     if len(fr) != 4:                                            # a band: 8x16 quarters, deduplicated (gen_art show_tiles)
@@ -1632,9 +1679,18 @@ FIELD_ERRS = []   # owner 2026-11-01 (Lodge showed -1 free BG and INES on two BG
 self_check.verify_plan(sys.modules["plan_data"], ROOT)
 self_check.verify_now(globals())
 
+OPEN_LIST = []
 for i, v in enumerate(venues):
     m = model(v)
     field = field_model(v, m)
+    for _kd, _src in (("OBJ", lambda sl: m[("OBJ", sl)]), ("BG", lambda sl: field[sl])):       # plan items the game does not have: the open items
+        for _sl in range(8):
+            _d = _src(_sl)
+            for _t, _p in _d["pat"] + _d["oth"]:
+                if _p:
+                    OPEN_LIST.append("%s: %s %d, %s (plan)" % (v["name"], _kd, _sl, _t.split(",")[0]))
+            if _d["new"]:
+                OPEN_LIST.append("%s: %s %d, colour %s: plan %s, game %s" % (v["name"], _kd, _sl, ", ".join(str(i) for i in sorted(_d["new"])), ", ".join(_d["new"][i] for i in sorted(_d["new"])), ", ".join(_d["cols"][i] for i in sorted(_d["new"]))))
     _seen = {}
     for _sl in range(8):
         for _n, _ in field[_sl]["pat"]:
@@ -1731,7 +1787,7 @@ for i, v in enumerate(venues):
             bk, bsrc = (cap_b, "game") if cap_b and (pb == cap_b or btag != "planned") else (pb, "plan")
             if btag == "planned" and bsrc == "game":
                 btag = ""                                  # the pick is already in the game
-        palplan = (not sal) and d is not None and idx is not None and (r["obj"] != GT["obj_of"][idx] or bool(d["new"]))   # the plan recolours or moves it: its colours are not the capture's
+        palplan = (not sal) and d is not None and idx is not None and (idx < 3 and r["obj"] != GT["venue"][v["key"]]["obj"][idx] or bool(d["new"]))   # the plan recolours or moves it: its colours are not the capture's
         combos = [(cols, "")]                              # (colours, file suffix) per palette the game spawns the look in; the own palette first
         if sal:
             combos = [([hexc(c) for c in GT["inst"]["cowboys"][p]], "" if n_ == 0 else "_o%d" % INST_OBJ[p]) for n_, p in enumerate(ps)]
@@ -1764,8 +1820,8 @@ for i, v in enumerate(venues):
         if not sal and r["obj"] is not None:
             SLOTS.append((v["key"], r["obj"], r["name"], tuple(c.upper() for c in cols)))
         obj_cell = obj_txt if obj_txt.startswith("<") else "OBJ " + obj_txt
-        if not sal and idx is not None and idx < len(GT["obj_of"]) and d is not None:      # the plan moves it: both numbers, plan first
-            gobj, gbg = GT["obj_of"][idx], GT["bg_of"][idx]
+        if not sal and idx is not None and idx < 3 and d is not None:      # the plan moves it from its own palette instance (look k = instance k): both numbers, plan first
+            gobj, gbg = GT["venue"][v["key"]]["obj"][idx], GT["venue"][v["key"]]["bg"][idx]
             if r["obj"] != gobj:
                 obj_cell = "plan OBJ %s / game OBJ %d" % (obj_txt, gobj)
                 DUAL.append((v["key"], r["name"], "OBJ", r["obj"], gobj))
@@ -1778,7 +1834,7 @@ for i, v in enumerate(venues):
     nx = len(EXTRA_LOOKS.get(v["key"], []))
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % (len(ident) - nx))
     if nx:
-        w('<div class="stat plan"><b>%d</b><span>planned extra looks, Color only</span></div>' % nx)
+        w('<div class="stat"><b>%d</b><span>extra looks, Color only</span></div>' % nx)      # (in the game since the venue imports, 2026-11-01: build/looks.c has all 8 looks of a venue)
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     # Owner 2026-10-29: a tile turns red when the plan does not fit the limit. Patrons still "to assign" take a free palette each.
     need_o = 0 if sal else sum(1 for r in ident + reserved if r.get("obj") is None)
@@ -1843,8 +1899,11 @@ self_check.verify_shown(globals())
 self_check.verify_slots(globals())
 self_check.verify_primary(globals())
 self_check.verify_pictures(globals())
+OPEN_LIST += ["%s %s: plan %s %d, the game has %s %d (its own palette instance)" % (_k, _n.split(",")[0], _kd, _pl, _kd, _gm) for _k, _n, _kd, _pl, _gm in DUAL]
+w('<details class="tdet"><summary>Open items: %d plan items the game does not have</summary><ul>%s</ul></details>'
+  % (len(OPEN_LIST), "".join("<li>%s</li>" % esc(x) for x in OPEN_LIST)))
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
-  'Game %s, plan %s, %s.</p>' % (esc(commit), esc(plan_commit), LOG[-1][0]))
+  'Game %s, plan %s, %s.</p>' % (esc(commit), esc(plan_commit), LOG[0][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
 w('<script type="application/json" id="tmap">%s</script>' % json.dumps(TILEMAP, separators=(",", ":")).replace("</", "<\\/"))
 w("""<script>

@@ -98,4 +98,4 @@ def test_the_engine_follows_the_plan_on_every_frame_of_every_leg_both_ways():
             checked += 1
             if f > 4 and not walking:
                 break
-    assert checked > 3000 and cells > 1000000
+    assert checked > 2500 and cells > 1000000          # a coverage floor: the walk is shorter now (the tile sharing leads more lines ahead, so fewer frames)

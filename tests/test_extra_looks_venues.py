@@ -63,9 +63,11 @@ def test_the_combos_are_the_plans_table(v):
     t = table(v)
     looks, inst, allowed = EC.venue_table(v)
     assert t["looks"] == looks and len(looks) == 8
-    assert len(t["order"]) == len(P.ENGINE_BG[v]) == 6 and t["dropped"] == [] and set(inst) == set(t["order"]), "all of the plan's instances are in"
+    dup = len(P.NATIVE_OBJ.get(v, [])) - len(set(P.NATIVE_OBJ.get(v, [])))     # (a native look that shares another's OBJ slot repeats it: the Teahouse's RONIN on SAKURA's OBJ 6)
+    assert len(t["order"]) == len(P.ENGINE_BG[v]) + dup == 6 + dup and t["dropped"] == [] and set(inst) == set(t["order"]), "all of the plan's instances are in"
     assert t["order"][4] == 5, "instance 4 is OBJ 5: the one the show's dancers take (render.c pal5_check)"
-    want = [(li, pi) for li, n in enumerate(looks) for pi, o in enumerate(t["order"]) if o in allowed[n]]
+    want = [(li, pi) for li, n in enumerate(looks) for pi, o in enumerate(t["order"])
+            if o in allowed[n] and pi == (li if li < 3 and t["order"][li] == o else t["order"].index(o))]     # (one instance an OBJ slot, but a native look keeps its own)
     assert t["combo"] == want
     own = P.BOSS_OWN_OBJ[v]
     assert t["boss"] == [(l, p) for l, p in want if l != 2 and t["order"][p] not in own]
@@ -143,7 +145,7 @@ def test_the_game_loads_its_instances_where_the_table_says(model, v):
     gb = venue_play(v)
     try:
         t = table(v)
-        assert scratch(gb, 254, 6) == t["order"] and scratch(gb, 262, 6) == t["bg"]
+        assert scratch(gb, 254, len(t["order"])) == t["order"] and scratch(gb, 262, len(t["order"])) == t["bg"]
         wall = cgb_palette(gb, 0)[0]
         assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on (SPLIT_ON 3)"
         es = P.STAGE_EARLY[v]
