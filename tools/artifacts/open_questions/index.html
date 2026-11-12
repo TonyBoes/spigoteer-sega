@@ -61,8 +61,20 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">One question per card. Each choice has its picture right under it.</p>
-    <p class="stamp">0 open · updated 2026-11-12</p>
+    <p class="stamp">1 open · updated 2026-11-12</p>
   </header>
+
+  <section class="card" id="q35">
+    <span class="tag">Q35</span>
+    <h2>DMG/Color test doubling</h2>
+    <p>Review done. About 3,260 of the 5,800 doubled tests check logic that is the same on both models. Running those on DMG only would save about 18 seconds per full test run (about 16% of the test time; the full check takes about 2.5 to 5.5 minutes). It is a careful file-by-file job: some files that look the same on both models hide Color-only branches.</p>
+    <p>The release-built-once change saves only 0.2 seconds now (the build cache already made it cheap); it is being checked and will merge.</p>
+    <p class="ask">Make the doubling edits, only the safest group, or leave the tests doubled?</p>
+    <div class="opt"><h3>Only the safest group</h3><p>38 files with no model differences at all: about 5 seconds per run, almost no risk.</p></div>
+    <div class="opt"><h3>All the candidates</h3><p>About 18 seconds per run; each file checked on both models first.</p></div>
+    <div class="opt"><h3>Leave them doubled <span class="rec">RECOMMENDED</span></h3><p>The saving is small next to the risk of missing a Color-only bug.</p></div>
+    <p class="how">Q35) safest / all / leave</p>
+  </section>
 
 
 
