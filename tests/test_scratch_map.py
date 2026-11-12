@@ -105,7 +105,7 @@ GROUPS = {
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
         "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
-        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6, "src/smap_cloud.c": 27, "src/smap_eng.c": 6, "src/smap_priv.h": 3,
+        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 23, "src/smap_cloud.c": 27, "src/smap_eng.c": 6, "src/smap_priv.h": 3,
         "src/story.c": 23, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
@@ -284,3 +284,25 @@ def test_the_denser_clouds_state_lies_clear_of_every_color_table():
     assert "shadow_OAM[39].x" in cl and "(shadow_OAM[39].x)" in cl
     sm = code("src/smap.c")
     assert "#define CL_ON      (shadow_OAM[39].x)" in sm, "smap.c tests the clouds' on flag in the OAM, not in story_scratch (a DMG reads the use counts there)"
+
+
+def test_the_dots_draw_temporaries_lie_in_free_variable_slots_clear_of_the_clouds():
+    """src/smap.c dots_draw (Color asm, a frame without a window) keeps its temporaries in story_scratch: 450-453 (V_PWL..V_LIMQ: the camera + (4, 8)) and 455-456
+    (V_BMODE, V_ID: the near mask). They lie inside smap.V, in the slots only the DMG burst names (V_BF..V_ID; smap_burst uses V_JP and V_BM, 454, which dots_draw leaves alone),
+    and clear of the clouds' A_CLN bytes (391-395). It reads V_CAMX/V_CAMY (408-411) and V_STATE (436). dots_near (the same pass) uses V_BCAP, 449."""
+    h = (SRC / "smap_priv.h").read_text()
+    s_v = int(re.search(r"#define S_V\s+(\d+)", h).group(1))
+    names = re.search(r"V_STATE, V_DIRECT.*?V_N \}", h, re.S).group(0).replace("V_N }", "").split(",")
+    idx = {n.strip(): i + 40 for i, n in enumerate(names) if n.strip()}              # (V_STATE = 40 opens the second line of the enum)
+    lo_t, hi_t, _ = USERS["smap.V"]
+    sm = code("src/smap.c")
+    offs = {int(x) for x in re.findall(r"story_scratch \+ (4[45]\d)\b", sm)}
+    assert offs == {449, 450, 451, 452, 453, 455, 456}, offs      # (449: dots_near, as before)
+    for n in ("V_PWL", "V_PWH", "V_LIMC", "V_LIMQ", "V_BMODE", "V_ID"):
+        assert s_v + idx[n] in offs and lo_t <= s_v + idx[n] < hi_t
+    a_cln = int(re.search(r"#define A_CLN\s+(\d+)", h).group(1))
+    assert max(offs) < s_v + 61 and not any(a_cln <= o < a_cln + 6 for o in offs)
+    eng = code("src/smap_eng.c")
+    assert not any(re.search(r"story_scratch \+ %d\b" % o, eng) for o in offs), "smap_eng.c's asm names one of dots_draw's bytes"
+    for n in ("V_PWL", "V_PWH", "V_LIMC", "V_LIMQ", "V_BMODE", "V_ID"):
+        assert not re.search(r"\b%s\b" % n, eng), f"{n} is used by smap_eng.c"

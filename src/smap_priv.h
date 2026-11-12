@@ -81,8 +81,8 @@ extern vq_entry_t vq[];
 #define LY_FIRST 50
 #define LOW_ROOM 8                                    // px of room under which the DMG's loader gets LY_URGENT more lines
 #define LY_URGENT 28                                  // (DMG: lines more for the loader while the room is nearly out: smap.c walk_step sets V_CS; a late frame is better than a stop)
-#define LY_WORK_C 99
-#define LY_FIRST_C 100
+#define LY_WORK_C 91
+#define LY_FIRST_C 92
 #define LY_DOTS  (is_cgb ? 12 : 24)
 #define LY_SLOWC 0
 #define LY_SLOWCC 8
