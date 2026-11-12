@@ -862,6 +862,32 @@ def pytest_configure(config):
                             "model's case is deselected at collection (so it never shows as a skip)")
 
 
+# ---- the C build (GB_ROM=build/game-c.gb, make cfall): tests/c_build_known.txt names, one node id at a time, the tests that are known to fail there for a
+# reason that is not a bug of a C twin: (a) speed (the C code is slower than the asm: late mid-frame palette writes, slower map code, timing guards;
+# owner 2026-11-01), (c) the test hooks an asm label the C twin does not have. Each is skipped with its code and reason. Never a whole file, never in
+# the asm build. C_KNOWN_RUN=1 runs them anyway (to refresh the list after a fix).
+def _c_build_known(items):
+    if not ROM.name.endswith("-c.gb") or os.environ.get("C_KNOWN_RUN"):
+        return
+    f = ROOT / "tests" / "c_build_known.txt"
+    if not f.exists():
+        return
+    known = {}
+    for line in f.read_text().splitlines():
+        if line and not line.startswith("#"):
+            p = line.split("\t")
+            known[p[0]] = (p[1], p[2] if len(p) > 2 else "")
+    legend = {}
+    for line in f.read_text().splitlines():
+        if line.startswith("# ") and ": (" in line:
+            k, v = line[2:].split(": ", 1)
+            legend[k] = v
+    for it in items:
+        k = known.get(it.nodeid)
+        if k:
+            it.add_marker(pytest.mark.skip(reason="C build, %s: %s %s" % (k[0], legend.get(k[0], ""), k[1]) ))
+
+
 def pytest_collection_modifyitems(config, items):
     """The one collection hook (it used to be two definitions, of which pytest only saw the second, so PERF_ONLY=1 did nothing): release_only,
     only_model, then the PERF_ONLY=1 filter."""
@@ -878,6 +904,7 @@ def pytest_collection_modifyitems(config, items):
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
+    _c_build_known(items)
     _perf_only_filter(config, items)
 
 
