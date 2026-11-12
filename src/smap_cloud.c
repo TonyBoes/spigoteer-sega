@@ -1,8 +1,8 @@
 // The story map's denser clouds (owner 11-11, "for the clouds to matter at all, we need to substantially increase them"; make CLOUDS=C|D, Color only, a test build:
 // the default build keeps the five clouds of src/smap.c). Its own bank: smap.c has no room left.
 //
-// 45-60 clouds over the whole 512 x 560 world, as DATA (assets/story_map/cloud_layout.txt, laid out by tools/dev/cloud_layout.py): a cloud is a row (world y = 16 * row),
-// a position and one of six shapes (the approved A B C and the small P Q R: 2 3 3 1 2 1 sprites wide, 8x16 entries). They all drift 1 px every 8 frames, like the approved clouds,
+// 33-41 clouds over the whole 512 x 560 world, as DATA (assets/story_map/cloud_layout.txt, laid out by tools/dev/cloud_layout.py): a cloud is a row (world y = 16 * row),
+// a position and one of four shapes (the approved A B C and one new Q: 2 3 3 2 sprites wide, 8x16 entries; the one-sprite puffs looked like snowballs and are gone). They all drift 1 px every 8 frames, like the approved clouds,
 // and stay where they are on the map (world-pinned): x = pos + clock / 8 (mod 512; a cloud past 488 comes in again from the left edge, the twin at pos - 512).
 //
 // One POOL of 16 entries (OAM 23-38) is handed out to whatever is on the screen, in two stacks: the clouds of the even rows take entries from the pool's first one up, the

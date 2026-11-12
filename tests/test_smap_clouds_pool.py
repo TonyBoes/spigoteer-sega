@@ -216,7 +216,7 @@ def test_steady_state_clouds_per_screen(monkeypatch, variant_rom):
     if v == "C":
         assert 2.5 <= avg <= 3.8, avg
     if v == "D":
-        assert 4.3 <= avg <= 6.0, avg
+        assert 3.2 <= avg <= 6.0, avg
 
 
 # ---- hidden on every exit -------------------------------------------------------------------------------------------------------------------------------------

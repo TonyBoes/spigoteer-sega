@@ -2,7 +2,7 @@
 """Lays the story map's world-pinned clouds out (assets/story_map/cloud_layout.txt), for the denser test builds CLOUDS=C|D (src/smap_cloud.c).
 
 A cloud is (row, pos, shape, flip): its world y is 16 * row (rows are the 16-px lines of the 35-row world), its x is pos + clock / 8 mod 512 (a cloud
-that goes past 488 comes in again from the left edge: the twin at pos - 512), the shape is one of A B C (approved, 2 3 3 sprites wide) or P Q R (small, 1 2 1).
+that goes past 488 comes in again from the left edge: the twin at pos - 512), the shape is one of A B C (approved, 2 3 3 sprites wide) or Q (the one new, 2 wide).
 The layout is searched, not drawn by hand: simulated annealing over (row, pos), the shapes fixed, to keep the sprite entries a screen (plus an 8 px margin
 each way) holds <= the pool at every camera spot and clock, to have no more than 4 entries on any line, to keep clouds in one row apart and to keep clouds in
 neighbouring rows from stacking. Deterministic (seeded). Usage: cloud_layout.py [--write]   (prints the statistics; --write replaces the layout file)."""
@@ -13,8 +13,8 @@ from pathlib import Path
 import numpy as np
 
 OUT = Path(__file__).resolve().parents[2] / "assets" / "story_map" / "cloud_layout.txt"
-W = {"A": 16, "B": 24, "C": 24, "P": 8, "Q": 16, "R": 8}
-MIX = {"C": {"A": 2, "B": 2, "C": 1, "P": 13, "Q": 7, "R": 11}, "D": {"A": 4, "B": 3, "C": 3, "P": 20, "Q": 10, "R": 18}}
+W = {"A": 16, "B": 24, "C": 24, "Q": 16}
+MIX = {"C": {"A": 10, "B": 2, "C": 2, "Q": 19}, "D": {"A": 14, "B": 2, "C": 2, "Q": 23}}
 import os
 MX, MY = int(os.environ.get("CLMX", 16)), int(os.environ.get("CLMY", 16))                                 # the margin of a look (px each way)
 WS = np.arange(0, 512, 4)                      # the screen's left edge in cloud space (4 px steps)
@@ -93,7 +93,7 @@ def build(name, seed, iters):
 
 def main():
     out = []
-    for name, seed, iters in (("C", 11, 5000), ("D", 12, 7000)):
+    for name, seed, iters in (("C", 11, 9000), ("D", 12, 16000)):
         cl, e = build(name, seed, iters)
         d = energy(cl, True)
         print(name, len(cl), "clouds; energy %.0f peak %d mean-window %.2f on-screen mean %.2f max %d max-line %d" % d)

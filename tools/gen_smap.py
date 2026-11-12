@@ -76,7 +76,7 @@ def main(build, preview):
     cols("ufo", ufo); cols("dot_open", dop); cols("dot_locked", dlk); cols("bang", bang)
     cols("arrow_r", arr); cols("arrow_u", arr_u); cols("arrow_d", arr_d)
     # the clouds (assets/story_map/clouds.txt, typed by hand: A 16x16, B and C 24x16; '.' clear, 1-3 the colours): 8-px columns as the sprites above, ids after the arrows
-    small = (SRC / "clouds_small.txt").read_text() if os.environ.get("CLOUDS", "") in ("C", "D") else ""   # (the denser test builds add three small shapes: P, R, Q)
+    small = (SRC / "clouds_small.txt").read_text() if os.environ.get("CLOUDS", "") in ("C", "D") else ""   # (the denser test builds add one shape: Q)
     for line in ((SRC / "clouds.txt").read_text() + "\n" + small).splitlines():
         if line.startswith("@"):
             cname, crows = line[1:].strip(), []
@@ -122,10 +122,10 @@ def main(build, preview):
                 cur = line[1:].strip()
             elif line and not line.startswith("#") and cur == variant:
                 r, pos, sh, fl = line.split()
-                rows.append((int(r), int(pos), "ABCPQR".index(sh), int(fl)))
+                rows.append((int(r), int(pos), "ABCQ".index(sh), int(fl)))
         rows.sort(key=lambda t: (t[0], t[1]))
         assert rows and all(p % 4 == 0 and p < 512 for _, p, _, _ in rows)
-        W4 = [4, 6, 6, 2, 4, 2]                      # a shape's width in 4 px units
+        W4 = [4, 6, 6, 4]                      # a shape's width in 4 px units
         recs, start = [], []
         assert max(t[0] for t in rows) < 35           # (the world: 512 x 560 px, 35 rows of 16 px: SMAPW_CH 70 cells)
         for r in range(36):
@@ -139,7 +139,7 @@ def main(build, preview):
         h.append("#define SCL_ROWS 35")
         h.append(carr("scl_rowstart", start, 36).replace("static ", ""))      # (byte offsets into scl_rec; the asm reads them by name)
         h.append(carr("scl_rec", recs).replace("static ", ""))               # (per cloud: x / 4, flip << 7 | shape << 4 | width in 4 px units)
-        h.append("const uint8_t scl_tile[6] = { " + ", ".join(f"OB + SOB_CLOUD{c}0" for c in "ABCPQR") + " };")
+        h.append("const uint8_t scl_tile[4] = { " + ", ".join(f"OB + SOB_CLOUD{c}0" for c in "ABCQ") + " };")
         h.append("#endif")
     h.append("#endif")
     (build / "smap_art.h").write_text("\n".join(h) + "\n")
