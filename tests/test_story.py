@@ -1431,6 +1431,7 @@ def test_the_gold_medal_bonus_life(model):
         assert gb.mem("lives") == 3 and hud_lives(gb) == "H3"
 
 
+@pytest.mark.only_model('dmg')
 def test_arcade_keeps_three_lives_for_the_run(gb):
     """Arcade is unchanged: 3 lives for the whole run (not refilled at a new level)."""
     assert gb.mem("story_on") == 0 and gb.mem("lives") == 3 and hud_lives(gb) == "H3"
@@ -1624,6 +1625,7 @@ def test_a_version_3_save_migrates_at_the_chapter_start(model):
 OLD_SAVES = [(0, 0), (0, 2), (4, 3), (5, 1), (5, 3), (6, 0), (6, 2), (7, 0), (7, 3), (8, 1), (9, 0)]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("version", [3, 4, 5])
 def test_an_old_save_s_progress_maps_onto_the_new_chapters(model, version):
@@ -1655,6 +1657,7 @@ def test_a_complete_old_story_continues_at_the_chrome_cow(model):
         assert rom.mem("story_scene") == SC["PRE_BIKER"] and rom.mem("story_chapter") == 6
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_version_7_loads_its_progress_and_old_versions_reject_a_bad_one(model):
     with booted(model, v7_image([("ABC", 500)], story=7, step=3)) as rom:

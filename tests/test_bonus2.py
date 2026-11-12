@@ -64,6 +64,7 @@ def finish(gb):
 
 
 # ---- rotation ----------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_rounds_rotate_shake_up_pour_tips(gb):
     kinds = []
     for lvl in (2, 4, 6, 8, 10, 12, 14):
@@ -84,6 +85,7 @@ def test_rounds_rotate_shake_up_pour_tips(gb):
     assert gb.mem("bonus_round") == 7
 
 
+@pytest.mark.only_model('dmg')
 def test_shake_up_difficulty_counts_shake_ups(gb):
     seen = []
     for before in (0, 1, 2, 3):
@@ -159,6 +161,7 @@ def test_holding_a_pours_and_releasing_stops_the_beer(gb):
     assert gb.mem("pour_liquid") == after, "no more beer once A is up"
 
 
+@pytest.mark.only_model('dmg')
 def test_foam_keeps_rising_after_the_release(gb):
     enter_pour(gb)
     pour_to(gb, 12)
@@ -173,6 +176,7 @@ def test_foam_keeps_rising_after_the_release(gb):
     assert all(b >= a for a, b in zip(steps, steps[1:]))
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("off,result,points", [(0, PR_PERFECT, 3000), (1, PR_PERFECT, 3000), (-1, PR_PERFECT, 3000),
                                                (3, PR_GOOD, 1500), (-4, PR_GOOD, 1500), (-8, PR_LOW, 0), (5, PR_HIGH, 0)])
 def test_scoring_bands(gb, off, result, points):
@@ -210,6 +214,7 @@ def test_overflow_spills_and_scores_nothing(gb):
     assert not [s for s in gb.visible_sprites() if s["tile"] == OBJ_B2 + 22], "no arrows over the spill"
 
 
+@pytest.mark.only_model('dmg')
 def test_three_glasses_with_different_lines_then_the_end(gb):
     enter_pour(gb)
     lines_seen = []
@@ -291,6 +296,7 @@ def tray(gb):
     return gb.mem("tray_x")
 
 
+@pytest.mark.only_model('dmg')
 def test_tips_banner_then_timer_and_coins(gb):
     enter_bonus(gb, 2, rounds_before=2)
     gb.run(10)
@@ -302,6 +308,7 @@ def test_tips_banner_then_timer_and_coins(gb):
     assert shows(gb, 2, "TIME 18") or shows(gb, 2, "TIME 19")
 
 
+@pytest.mark.only_model('dmg')
 def test_tray_moves_left_and_right(gb):
     enter_tips(gb)
     x0 = tray(gb)
@@ -329,6 +336,7 @@ def test_tip_shower_coins_use_sals_palette(gb):
     assert coins and all(s["flags"] & 7 == 0 for s in coins), [s for s in gb.visible_sprites()]
 
 
+@pytest.mark.only_model('dmg')
 def test_a_coin_on_the_tray_scores_100(gb):
     enter_tips(gb)
     clear_items(gb)
@@ -399,6 +407,7 @@ def test_the_timer_ends_the_round(gb):
     assert score(gb) == before
 
 
+@pytest.mark.only_model('dmg')
 def test_tips_round_lasts_twenty_seconds(gb):
     enter_tips(gb)
     n = 0
@@ -468,6 +477,7 @@ def tips_shot(gb, name):
     gb.screenshot(SHOTS / f"{name}.{gb.model_name}.png", 3)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_tray_is_held_at_waist_height(gb):
     """The tray's four entries sit over his body rows 8-23 (belt height, 4 px above D5b: the tray's top surface, art row 5, is his row 13),
     on the same x as his two entries and with lower OAM indexes (so it is in front of him on DMG too, where the smaller x

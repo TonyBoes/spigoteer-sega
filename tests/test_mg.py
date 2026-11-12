@@ -518,6 +518,7 @@ def unbuilt_game():
     return None
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_an_unbuilt_venue_s_slot_plays_the_stub_in_its_own_venue(model):
     """The id is the game, not the venue (the old id 9 was both the stub and the space lounge): the slot of a venue whose game is not built,

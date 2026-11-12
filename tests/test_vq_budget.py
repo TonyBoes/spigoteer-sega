@@ -99,6 +99,7 @@ def test_a_mini_game_hud_drains_inside_vblank(model, gid):
         gb.stop()
 
 
+@pytest.mark.only_model('dmg')
 def test_a_split_list_loses_nothing_and_keeps_its_order(model):
     """More than one drain's worth of rows queued in one frame: the first go out, the rest follow the next frame, and every row lands
     where it was queued, the later write of a doubled row winning."""

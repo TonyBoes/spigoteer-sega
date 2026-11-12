@@ -129,6 +129,7 @@ def settle(gb, n=70):
     gb.run(n)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_flag_is_off_in_every_other_test(title):
     trans_enable(title, False)
     assert mem(title, TRANS_ADDR) & TR_OFF

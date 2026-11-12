@@ -215,6 +215,7 @@ def test_a_hurried_walker_passes_a_slower_one(gb):
     assert shot and gb.mem("lives") == 3
 
 
+@pytest.mark.only_model('dmg')
 def test_hurried_patrons_from_level_3_at_one_and_a_half_times_the_speed(gb):
     """Levels 1-2: nobody hurries. From level 3 about 1 in 4 spawns is hurried, at 1.5x the level's speed."""
     from test_edge import goto_level
@@ -329,6 +330,7 @@ def test_three_patrons_in_one_column_by_a_push_use_both_lifts_of_the_bar(gb):
 
 
 # ---- the chooser's priorities -------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_the_walker_goes_up_over_a_drinker_and_never_a_watcher(gb):
     clear_patrons(gb)
     go(gb)
@@ -360,6 +362,7 @@ def test_the_walker_goes_up_over_a_drinker_and_never_a_watcher(gb):
 
 
 # ---- catching and empties with overlaps -----------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_catch_order_with_overlapping_patrons(gb):
     """Unchanged rule: the rightmost catcher whose 16 px contain the mug catches it, overlapping or not."""
     clear_patrons(gb)

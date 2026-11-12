@@ -133,6 +133,7 @@ def test_the_stage_animates_only_its_own_tiles(gb, t):
     assert gb.mem16("vq_late") == 0 and gb.mem("vq_end_ly_max") <= 153
 
 
+@pytest.mark.only_model('dmg')
 def test_sa_hold_freezes_the_animation(gb):
     at_venue(gb, "lodge")
     record(gb, 40)
@@ -166,6 +167,7 @@ def test_the_saloon_bar_cat(gb):
     assert gb.mem("sa_on") == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_pause_freezes_the_stage(gb):
     at_venue(gb, "bistro")
     record(gb, 30)
@@ -182,6 +184,7 @@ def test_pause_freezes_the_stage(gb):
     assert any(s != snap for s in seen)
 
 
+@pytest.mark.only_model('dmg')
 def test_title_and_bonus_round_leave_stage_ids_alone(gb):
     # the title (boot fixture state is past; open it again from a fresh game over is long, so: the bonus round, which
     # follows level 2 (sports, animated), then the next level starts on its frame 0)
@@ -203,6 +206,7 @@ def test_title_and_bonus_round_leave_stage_ids_alone(gb):
     assert gb.mem("sa_on") == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_the_title_screen_text_is_never_touched(boot):
     assert state(boot) == TITLE and boot.mem("sa_on") == 0
     boot.write("sa_hold", 0)

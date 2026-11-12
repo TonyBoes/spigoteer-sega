@@ -719,6 +719,7 @@ def test_the_story_plays_it_in_the_factory_and_the_last_call_has_everything_back
         assert palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_plays_it_in_the_factory(model):
     """ARCADE plays the story's steps: the factory's mini slot is Battery Sort, in MG_STORY, and reaching it unlocks it

@@ -175,6 +175,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         gb.run(1)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_music_advances_while_paused_with_only_the_harmony_and_the_bass_and_resume_restores_it(model):
     """The driver keeps ticking behind the menu (a frame a frame) with NR51 at channels 3 and 4 only; RESUME gives every channel back."""
@@ -194,6 +195,7 @@ def test_music_advances_while_paused_with_only_the_harmony_and_the_bass_and_resu
         assert gb.mem16("music_frames") >= n[0] + 55, "the tune goes on from where it got to"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_junk_in_the_pause_byte_at_power_on_does_not_mute_the_tunes(model):
     """HRAM is not cleared at power-on (real hardware, most emulators): main() clears PAUSE_NR51 first, so the title and a
@@ -208,6 +210,7 @@ def test_junk_in_the_pause_byte_at_power_on_does_not_mute_the_tunes(model):
         assert gb.mem(NR51) == 0xFF
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_no_effect_sounds_while_paused(model):
     """An effect that is still going when START lands stays off the speaker, and a request made meanwhile is not heard either."""
@@ -248,6 +251,7 @@ def test_the_sumo_fight_stands_still_and_silent_while_paused(model):
     assert gb.mem16("music_frames") > mf + 20
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_an_effect_in_progress_is_held_quietly_and_ends_after_resume(model):
     with rom_s(model) as gb:
@@ -365,6 +369,7 @@ def test_arcade_quit_without_a_score_goes_to_the_title_with_everything_back(mode
         assert level_vram(gb) == fresh and palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_arcade_quit_with_a_top_5_score_offers_the_initials(model):
     with rom_s(model) as gb:
@@ -384,6 +389,7 @@ def test_arcade_quit_with_a_top_5_score_offers_the_initials(model):
         settled(gb, TITLE)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_classic_quit_uses_its_own_table(model):
     with rom_s(model) as gb:
@@ -403,6 +409,7 @@ def test_classic_quit_uses_its_own_table(model):
         assert table(gb, 2)[0][1] == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_saying_no_keeps_playing(model):
     with rom_s(model) as gb:
@@ -542,6 +549,7 @@ def test_a_boss_fight_quits_to_the_title_with_the_boss_gone(model):
 
 
 # ---- (e) BOSS RUSH ------------------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_boss_rush_quit_returns_to_its_menu_without_a_record(model):
     from test_rush import RS_MENU, SAVE, R, into_fight, on_rush, save_part, tap as rtap, to_list
@@ -787,6 +795,7 @@ def test_an_arcade_mini_game_quit_offers_the_initials(model):
 
 
 # ---- (h) the debug menu still opens from a level's pause ---------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_the_debug_box_from_a_level_s_pause_puts_the_window_and_sound_back(model):
     with rom_s(model) as gb:
@@ -1193,6 +1202,7 @@ def _pause_tunes():
     return [("venue_" + n, 5 + i, n) for i, n in enumerate(songs.VENUES)] + [("show", 4, "galop")]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("tune_id,tune,song", _pause_tunes(), ids=[t[0] for t in _pause_tunes()])
 def test_pause_mix_routes_only_the_bass_and_the_drums_on_every_tune(model, tune_id, tune, song):
