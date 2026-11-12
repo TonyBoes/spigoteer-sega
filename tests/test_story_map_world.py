@@ -300,7 +300,7 @@ def test_sal_walks_without_waiting_and_the_camera_moves_with_him(model):
             assert abs(sx) + abs(sy) <= 2, (s, d, "Sal's step", sx, sy)
             assert abs((b[4] - a[4]) - sx) <= 2 and abs((b[5] - a[5]) - sy) <= 2, (s, d, "camera step against Sal's", a, b)
     b = SMOOTH[model]
-    assert frames > (3000 if model == "dmg" else 2000), frames                                   # (every leg both ways was walked)
+    assert frames > (2500 if model == "dmg" else 2000), frames                                   # (every leg both ways was walked)
     assert holds <= b["holds"] * frames, (holds, frames)
     assert late <= b["late"] * frames, (late, frames)
 

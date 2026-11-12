@@ -1142,12 +1142,23 @@ def main(build, preview):
     if pbad:
         fail.append(f"Color: a lead window needs more palettes than the hand-over can give (the walk holds for a slot): {pbad[:3]}")
     # the DMG's route plan (tools/smap_world/route.py): the slot of every cell, planned along the roads and proved by replaying every walk
-    seqs = R.walk_sequences(stops, legs, STOP_ORDER, STOP_VIEW, CW, CH, SAL_Y)
-    assert {w for sq in seqs for w in sq} == set(pw), "the route windows are not the path windows"
     dtiles = {s: np.array([[dm.disp(y * CW + x, s) & 0x3FF for x in range(CW)] for y in range(CH)]) for s in (1, NSTATE)}
     assert all(dm.disp(c, p) == dm.disp(c, 1) for c in range(NCELLS) for p in range(2, NSTATE)), "the DMG's states 1..10 differ"
     forced = sorted({int(dtiles[NSTATE][g.cells[0][1], g.cells[0][0]]) for g in ANIMS if not g.still("d")})
-    dm.slot, dm.dslot = R.plan_slots(dtiles, seqs, CW, CH, POOL, forced, colour, R.tabucol)
+    # the lookahead (owner 11-11): each stretch loads as many lines ahead as its windows' tiles leave slots for; the colouring decides whether the budget holds, and the budget falls until it does
+    for budget in range(POOL - 1, POOL - 40, -3):
+        leads = R.choose_leads(dtiles, legs, CW, CH, SAL_Y, budget)
+        seqs = R.walk_sequences(stops, legs, STOP_ORDER, STOP_VIEW, CW, CH, SAL_Y, leads=leads)
+        sw = {w for sq in seqs for w in sq}
+        assert all(w in sw or any(v[0] <= w[0] and w[1] <= v[1] and v[2] <= w[2] and w[3] <= v[3] for v in sw) for w in pw), "the route windows do not hold the path windows"
+        try:
+            dm.slot, dm.dslot = R.plan_slots(dtiles, seqs, CW, CH, POOL, forced, colour, R.tabucol)
+            break
+        except SystemExit as e:
+            print(f"smap world route plan: lead budget {budget} fails ({e}); trying fewer")
+    else:
+        raise SystemExit("gen_smap_world: the DMG's route plan cannot be coloured, not even with a lead of 1 line")
+    dm.leads = leads
     steps = R.check_plan(dtiles, dm.slot, dm.dslot, seqs, CW, CH, POOL)
     bad_d = 0
     dm.diffs = sorted(c for c in range(NCELLS) if dtiles[1][c // CW, c % CW] != dtiles[NSTATE][c // CW, c % CW])
@@ -1198,6 +1209,12 @@ def main(build, preview):
         pts = list(p) + [(0, 0)] * (4 - len(p))
         h.append("    { " + ", ".join("{ %d, %d }" % q for q in pts) + " },")
     h.append("};")
+    h.append(f"static const uint8_t smapw_leg_lead[{len(legs)}][3] = {{   // the DMG's lookahead (tools/smap_world/route.py): lines loaded ahead on each stretch, stretch f from waypoint f to f + 1: low nibble walked forwards, high backwards")
+    for li, (_, _, p) in enumerate(legs):
+        ns = len(p) - 1
+        v = [dm.leads[(li, 0, f)] | (dm.leads[(li, 1, ns - 1 - f)] << 4) if f < ns else 0 for f in range(3)]
+        h.append("    { " + ", ".join(str(x) for x in v) + " },")
+    h.append("};")
     h.append("#endif")
     h.append("#endif")
     (build / "smap_world.h").write_text("\n".join(h) + "\n")
@@ -1214,7 +1231,7 @@ def main(build, preview):
         "ufo": ufo, "cw": CW, "ch": CH, "ndmg": dm.nt, "ncgb": cg.nt, "ncgb_blocks": cg.nsig, "alt_flip_c": cg.altflip, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
         "state_end_c": cg.state_end, "state_end_d": dm.state_end, "tiles_c": bytes(dc).hex(), "tiles_d": bytes(dd).hex(),
         "win_d_21x19": n21, "win_d_22x20": n22, "win_c_pal_21x19": p21, "win_c_pal_22x20": p22, "uses_max_22x20": uses, "hint_conflicts": 0,
-        "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "slot_d": dm.slot, "dslot_d": {str(k): v for k, v in dm.dslot.items()}, "diffs_d": dm.diffs,
+        "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "leads_d": [[li, rev, j, n] for (li, rev, j), n in sorted(dm.leads.items())], "slot_d": dm.slot, "dslot_d": {str(k): v for k, v in dm.dslot.items()}, "diffs_d": dm.diffs,
         "fog_c": [cg.fog_off, cg.fog_cell, cg.fog_word], "fog_d": [dm.fog_off, dm.fog_cell, dm.fog_word], "inner_c": cg.inner, "fogint_c": cg.fogint, "fogint_d": dm.fogint,
         "zone": cg.zone, "cell_c": cg.cell, "cell_d": dm.cell,
         "anim": {"loop": AN.LOOP, "groups": [{"item": g.item, "name": g.name, "cells": g.cells, "tile_c": at["gt"]["c"][i], "tile_d": None if g.still("d") else at["gt"]["d"][i], "key": g.key,

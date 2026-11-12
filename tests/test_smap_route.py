@@ -23,7 +23,8 @@ CW, CH, POOL = WORLD["cw"], WORLD["ch"], 176
 
 def plan():
     stops, legs, _, _ = g.geometry()
-    seqs = R.walk_sequences(stops, legs, g.STOP_ORDER, g.STOP_VIEW, g.CW, g.CH, g.SAL_Y)
+    leads = {(li, rev, j): n for li, rev, j, n in WORLD["leads_d"]}
+    seqs = R.walk_sequences(stops, legs, g.STOP_ORDER, g.STOP_VIEW, g.CW, g.CH, g.SAL_Y, leads=leads)
     tiles = {s: np.array(WORLD["disp_d"][s - 1], dtype=np.int64).reshape(CH, CW) & 0x3FF for s in (1, 11)}
     return tiles, [int(v) for v in WORLD["slot_d"]], {int(k): v for k, v in WORLD["dslot_d"].items()}, seqs
 
