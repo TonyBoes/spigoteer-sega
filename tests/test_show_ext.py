@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from conftest import ROOT, THEMES, venue as venue_art
+from conftest import ROOT, THEMES, locked_make, venue as venue_art
 import test_lift
 from test_art import goto_group
 from test_lift import boot_play, freeze
@@ -213,7 +213,7 @@ def cgb_rom():
     txt.write_text("\n\n".join("\n".join(f) for f in frames) + "\n")
     txt.with_suffix(".json").write_text(json.dumps({"performers_cgb": [{"loop": l, "flip": fl} for l, fl in zip(CGB_LOOPS, CGB_FLIP)]}))
     env = dict(os.environ, SPIGOTEER_TEST_SHOW_CGB=f"factory={txt}")
-    r = subprocess.run(["make", f"BUILD={out.relative_to(ROOT)}", f"OUT=out/o_showcgb", f"{out.relative_to(ROOT)}/game.gb"], cwd=ROOT, env=env, capture_output=True, text=True)
+    r = locked_make([f"BUILD={out.relative_to(ROOT)}", f"OUT=out/o_showcgb", f"{out.relative_to(ROOT)}/game.gb"], "b_showcgb", env=env)
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     info = json.loads((out / "venues.json").read_text())["venues"]["factory"]["show_ext"]
     return out / "game.gb", info

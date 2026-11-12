@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from conftest import ROOT
+from conftest import ROOT, serialised
 
 pytestmark = [pytest.mark.timeout(1500),
               pytest.mark.skipif(not os.environ.get("RUN_SLOW"), reason="slow: six builds and twelve SameBoy runs (RUN_SLOW=1)")]
@@ -28,6 +28,7 @@ VARIANTS = {"off": "-DAUTO_NOTRANS", "f1": "-DTRANS_DEFAULT=1", "f2": "-DTRANS_D
 
 
 @pytest.fixture(scope="module")
+@serialised("fadehw")
 def shots():
     OUT.mkdir(parents=True, exist_ok=True)
     jobs = {}
@@ -35,7 +36,7 @@ def shots():
         for var, flag in VARIANTS.items():
             name = f"{route}_{var}"
             bdir = OUT / f"build_{name}"
-            cmd = ["make", f"BUILD={bdir}", f"DEBUGFLAGS=-DDEBUG_MENU -DAUTO_TRANS={n} {flag}"]
+            cmd = ["make", f"BUILD={bdir}", f"OUT={bdir}_o", f"DEBUGFLAGS=-DDEBUG_MENU -DAUTO_TRANS={n} {flag}"]
             jobs[name] = (bdir, subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT))
             if len(jobs) % 3 == 0:                  # three builds at a time
                 for _, p in list(jobs.values())[-3:]:
@@ -86,12 +87,13 @@ CARD_VARIANTS = {"closed_fade": "-DAUTO_CARD=1", "closed_cut": "-DAUTO_CARD=1 -D
 
 
 @pytest.fixture(scope="module")
+@serialised("fadehw")
 def card_shots():
     OUT.mkdir(parents=True, exist_ok=True)
     jobs = {}
     for name, flags in CARD_VARIANTS.items():
         bdir = OUT / f"build_card_{name}"
-        cmd = ["make", f"BUILD={bdir}", f"DEBUGFLAGS=-DDEBUG_MENU {flags}"]
+        cmd = ["make", f"BUILD={bdir}", f"OUT={bdir}_o", f"DEBUGFLAGS=-DDEBUG_MENU {flags}"]
         jobs[name] = (bdir, subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT))
     out = {}
     for name, (bdir, p) in jobs.items():
@@ -129,10 +131,11 @@ def test_the_card_after_the_fade_in_has_its_own_colours(card_shots, model):
 # window (the pause menu, a result card) then started at line 24 and ran to its LYC, showing the window map's stale rows (the debug menu's text) below the band.
 # -DAUTO_NOTE (src/debug.c) cuts a note off 10 frames before START: the menu must still be the band at line 64 (its blank text row, lines 72-79, one colour).
 @pytest.fixture(scope="module")
+@serialised("fadehw")
 def cut_note():
     OUT.mkdir(parents=True, exist_ok=True)
     bdir = OUT / "build_note"
-    cmd = ["make", f"BUILD={bdir}", "DEBUGFLAGS=-DDEBUG_MENU -DAUTO_TRANS=2 -DAUTO_NOTE -DAUTO_NOTRANS"]
+    cmd = ["make", f"BUILD={bdir}", f"OUT={bdir}_o", "DEBUGFLAGS=-DDEBUG_MENU -DAUTO_TRANS=2 -DAUTO_NOTE -DAUTO_NOTRANS"]
     assert subprocess.run(cmd, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT).returncode == 0
     rom = OUT / "note.gb"
     rom.write_bytes((bdir / "game.gb").read_bytes())
@@ -167,12 +170,13 @@ BOSS_VARIANTS = {"ref": "-DAUTO_BOSS=1 -DAUTO_NOTRANS -DCARD_FADE=0", "fade": "-
 
 
 @pytest.fixture(scope="module")
+@serialised("fadehw")
 def boss_shots():
     OUT.mkdir(parents=True, exist_ok=True)
     jobs = {}
     for name, flags in BOSS_VARIANTS.items():
         bdir = OUT / f"build_boss_{name}"
-        cmd = ["make", f"BUILD={bdir}", f"DEBUGFLAGS=-DDEBUG_MENU {flags}"]
+        cmd = ["make", f"BUILD={bdir}", f"OUT={bdir}_o", f"DEBUGFLAGS=-DDEBUG_MENU {flags}"]
         jobs[name] = (bdir, subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT))
     out = {}
     for name, (bdir, p) in jobs.items():

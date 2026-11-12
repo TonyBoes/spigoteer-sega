@@ -6,6 +6,33 @@ import pytest
 from gbtools import Rom
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def serialised(lockname):
+    """Decorator: run the whole function under the exclusive flock out/<lockname>.lock (a module fixture that builds and writes into fixed dirs)."""
+    import fcntl
+    import functools
+
+    def deco(fn):
+        @functools.wraps(fn)
+        def wrapper(*a, **k):
+            (ROOT / "out").mkdir(exist_ok=True)
+            with open(ROOT / "out" / f"{lockname}.lock", "w") as lk:
+                fcntl.flock(lk, fcntl.LOCK_EX)
+                return fn(*a, **k)
+        return wrapper
+    return deco
+
+
+def locked_make(args, lockname, **kw):
+    """Run `make <args>` under an exclusive file lock (out/<lockname>.lock). ptest splits a file across shards and each shard runs the file's
+    module fixture, so two makes could build into one private BUILD= dir at once; serialised, the second is a no-op."""
+    import fcntl
+    import subprocess
+    (ROOT / "out").mkdir(exist_ok=True)
+    with open(ROOT / "out" / f"{lockname}.lock", "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        return subprocess.run(["make", *args], cwd=ROOT, capture_output=True, text=True, **kw)
 ROM = Path(os.environ.get("GB_ROM", ROOT / "build" / "game.gb"))
 GOLDEN = ROOT / "tests" / "golden"
 UPDATE = os.environ.get("GB_UPDATE_GOLDEN") == "1"
