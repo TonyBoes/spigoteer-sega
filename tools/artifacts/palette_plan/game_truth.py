@@ -14,7 +14,7 @@ def _read(rel):
     return open(os.path.join(ROOT, rel)).read()
 
 
-def truth():
+def truth(venues=True):
     src = _read("build/palettes.c")
     rows = re.findall(r"\{0, (\d+), (\d+), (\d+)\},\s*// (\w+)", src)
     names = [n for *_, n in rows]
@@ -39,7 +39,7 @@ def truth():
         if c and re.search(r"V\(", line):
             names_[int(re.search(r"V\((\d),", line).group(1))] = c.group(1)
     saloon = [(names_[i], looks[i]) for i in sorted(looks)]        # [(NAME, [instances])] by look 0-7
-    return dict(inst=inst, obj_of=obj_of, bg_of=bg_of, saloon=saloon, pal=P, venue=venue_slots())
+    return dict(inst=inst, obj_of=obj_of, bg_of=bg_of, saloon=saloon, pal=P, venue=venue_slots() if venues else None)   # (venues=False: plan_data, imported by tools/gen_looks.py, which writes build/looks.c that venue_slots reads)
 
 
 GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]   # tools/gen_art.py PATRON_GROUPS: the group number the engine uses

@@ -360,6 +360,13 @@ void boss_load(void) BANKED {
     boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
     boss_ld(0, BOSS_HUD_BG + 1, 3, boss_meter_tiles, CURRENT_BANK);
     boss_pal = BOSS_PAL;
+    if (is_cgb && !cur_group && INST_BG[3] == BOSS_PAL) {    // the Saloon's instance 3 (OBJ 4) walks on BG 7, the body's: for the fight it moves to BG 4 (instance 2's, OBJ 7 = the topper's: it sits out), same colours
+        uint16_t q[4];
+        patron_pal_get(0, 3, q);
+        q[0] = venue.pal[VENUE_PAL_BAR][0];
+        boss_ldpal(0, BGPAL_PATRON + 2, q);
+        INST_BG[3] = BGPAL_PATRON + 2;
+    }
 }
 
 // reset_actors (the level's start, and after a lost life): at his start x on his bar, nothing in his hands, his meter

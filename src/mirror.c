@@ -289,14 +289,15 @@ static const uint8_t sal_combo[36] = {          // owner Q48 2026-10-29: moss (O
     V(6, 0), V(6, 3), V(6, 1), V(6, 4),                 // MABEL: 3 4 5 6
     V(7, 0), V(7, 3), V(7, 1), V(7, 4),                 // ARTIE: 3 4 5 6
 };
-// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7, 5 and 4 (pi 2, 4 and 3: BG 7 is the boss body's, OBJ 7 the topper's;
-// pi 3's walking palette is BG 7): the other 14, one draw (no rejection loop: a spawn frame is the fight's slowest, tests/test_boss_in_place.py).
-static const uint8_t sal_boss[14] = {
-    V(0, 0), V(0, 1), V(1, 1), V(1, 0), V(3, 0), V(3, 1), V(4, 0), V(4, 1),
-    V(5, 0), V(5, 1), V(6, 0), V(6, 1), V(7, 0), V(7, 1),
+// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7 and 5 (pi 2 and 4: OBJ 7 is the topper's, OBJ 5 the body's slot): the other 21, one draw
+// (no rejection loop: a spawn frame is the fight's slowest, tests/test_boss_in_place.py). Instance 3 (OBJ 4) walks on BG 7 in the levels; the body is on BG 7, so boss_load (boss.c) moves it to BG 4
+// (pi 2's, free in a fight) with the same colours: ROSIE and REDD's palette-4 look stays in.
+static const uint8_t sal_boss[21] = {
+    V(0, 0), V(0, 1), V(0, 3), V(1, 1), V(1, 0), V(1, 3), V(3, 0), V(3, 1), V(3, 3), V(4, 0), V(4, 1), V(4, 3),
+    V(5, 0), V(5, 1), V(5, 3), V(6, 0), V(6, 1), V(6, 3), V(7, 0), V(7, 1), V(7, 3),
 };
 uint8_t saloon_variant(uint8_t r) BANKED {
-    if (boss_on) return sal_boss[(uint8_t)((((uint16_t)r << 4) - ((uint16_t)r << 1)) >> 8)];   // r * 14 / 256
+    if (boss_on) return sal_boss[(uint8_t)((((uint16_t)r << 4) + ((uint16_t)r << 2) + r) >> 8)];   // r * 21 / 256 (21 = 16 + 4 + 1)
     return sal_combo[(uint8_t)((((uint16_t)r << 5) + ((uint16_t)r << 2)) >> 8)];                // r * 36 / 256 (36 = 32 + 4: no multiply call)
 }
 
