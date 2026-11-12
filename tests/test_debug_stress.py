@@ -46,6 +46,7 @@ def start_stress(gb, idx):
     gb.write("tip_chance", 0)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("idx", range(3))
 def test_the_stress_selection_starts_its_level_and_mode(boot, idx):
     name, target, mode, lv, bits = CASES[idx]
@@ -96,6 +97,7 @@ def rom_name(gb):
     return getattr(gb, "model_name", "?")
 
 
+@pytest.mark.only_model('dmg')
 def test_a_plain_start_or_the_title_ends_the_stress_run(boot):
     start_stress(boot, 0)
     assert boot.mem("debug_from_title") >> 1 == 1

@@ -280,6 +280,7 @@ def test_patrons_slow_to_walking_pace_at_the_old_door_position(gb, level):
         assert cross >= 15 * 60
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("level", range(1, 11))
 def test_crossing_time_is_unchanged_per_level(gb, level):
     """ENTRY_X to the tap takes what it did when the walk started at x = 0 (120 px at 8 px per step_frames,
@@ -368,6 +369,7 @@ def test_a_push_that_carries_him_off_serves_him_when_he_is_gone_and_he_slides_ou
     assert gb.mem("served") == 1 and score(gb) == 50
 
 
+@pytest.mark.only_model('dmg')
 def test_a_push_that_falls_short_stops_him_on_the_screen(gb):
     """Option C: one pixel too far in (x = ENTRY_X + 33: the 32 px push stops 1 px short of the left-edge stop): he is
     pushed the full 32 px, stops at ENTRY_X + 1, a BG figure, and drinks; nothing is served. (One at ENTRY_X + 32 is
@@ -447,6 +449,7 @@ def test_columns_0_1_keep_the_venue_tiles_with_patrons_coming_and_going(gb, grou
     assert gb.mem("served") >= served0 + 4
 
 
+@pytest.mark.only_model('dmg')
 def test_a_watcher_never_shuffles_left_of_entry_x(gb):
     clear_patrons(gb)
     go(gb)

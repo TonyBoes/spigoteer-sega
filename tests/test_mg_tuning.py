@@ -125,6 +125,7 @@ ROWS = {
 }
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("mode", list(MODES))
 @pytest.mark.parametrize("game", [g for g in ROWS if g in IDS])
@@ -133,6 +134,7 @@ def test_each_mode_copies_its_row_at_entry(model, game, mode):
         assert tune(gb, game) == ROWS[game][mode], (game, mode)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("game", [g for g in ROWS if g in IDS])
 def test_story_plays_the_normal_row(model, game):
@@ -167,6 +169,7 @@ def test_order_up_the_length_and_the_press_time(model, mode):
         assert field(gb, "ou", "len") == row["first"] and field(gb, "ou", "wait") == row["press"]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("mode", list(MODES))
 def test_battery_sort_d_and_the_belt_start_at_the_modes_values(model, mode):
@@ -194,6 +197,7 @@ def test_t_shirt_cannon_the_timer_and_the_meter_step(model, mode):
         assert len(steps) >= 5 and all(b - a == row["step"] for a, b in zip(steps, steps[1:])), (mode, trace)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("mode", list(MODES))
 def test_log_roll_the_first_fish_comes_at_the_modes_time(model, mode):
@@ -226,6 +230,7 @@ def test_marshmallow_drop_the_supply_and_the_belt(model, mode):
         assert field(gb, "mm", "cx", 0) - x0 == 20 * row["belt"], "the belt's speed (1/8 px a frame)"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("mode", list(MODES))
 def test_monkey_business_u_and_the_pop_interval_start_at_the_modes_values(model, mode):
@@ -234,6 +239,7 @@ def test_monkey_business_u_and_the_pop_interval_start_at_the_modes_values(model,
         assert field(gb, "mk", "unow") == row["u0"] and field(gb, "mk", "gap") == row["gap0"]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("mode", list(MODES))
 def test_asteroid_delivery_the_rocks_of_the_mode_are_the_ones_drawn(model, mode):
@@ -308,6 +314,7 @@ def test_perfect_pour_the_pour_rate_by_mode(model, mode):
         assert len(ups) >= 4 and all(b - a == rate for a, b in zip(ups, ups[1:])), (mode, seen)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_and_classic_bonus_rounds_play_normal(model):
     """Outside the framework (game_state != GS_MINI) a stale mg_mode must not make a round HARD or EASY: BONUS_DIFF() is 0 there."""

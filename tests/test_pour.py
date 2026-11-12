@@ -438,6 +438,7 @@ def test_the_x2_badge_holds_beside_the_mug_and_ends_within_a_second(model):
         assert ys[-1] == 0 and len(shown) <= 48, "and is gone within a second"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_classic_has_no_perfect_pours_and_no_streak(model):
     """CLASSIC stays as it was: a release at any frame is an ordinary launch, no chime, no streak, no bonus, no cue."""

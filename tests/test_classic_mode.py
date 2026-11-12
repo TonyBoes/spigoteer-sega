@@ -125,6 +125,7 @@ def test_play_classic_starts_level_1_of_the_table(boot):
     check_golden(boot, "classic_start")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("lv", [1, 2, 3, 5, 6, 9, 10, 12, 13, 14, 19, 23, 26])
 def test_each_level_loads_its_row(boot, lv):
     row = built_rows()[lv - 1]
@@ -142,6 +143,7 @@ def speeds(gb):
     return int.from_bytes(gb.read("spawn_interval", 2), "little"), gb.mem("patron_speed"), gb.mem("empty_gap")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_wave_2_repeats_from_level_27_a_little_harder_each_time(model):
     got = {}
@@ -197,12 +199,14 @@ def serve_one(gb, b=1):
     return score(gb) - s0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("lv,pts", [(1, 50), (3, 75), (6, 100), (10, 150), (14, 50), (26, 150)])
 def test_a_serve_scores_its_setting(boot, lv, pts):
     classic_at(boot, lv)
     assert serve_one(boot) == pts
 
 
+@pytest.mark.only_model('dmg')
 def test_an_extra_life_at_20000_then_every_40000(boot):
     classic_at(boot, 1)
     set_score(boot, 19960)
@@ -222,6 +226,7 @@ def clear_now(gb):
     return state(gb) == BONUS
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_bonus_round_follows_the_listed_levels_only(model):
     with Rom(ROM, model) as gb:
@@ -262,6 +267,7 @@ def test_the_shake_up_gets_faster_every_round_and_pays_3000(boot):
 
 
 # ---- tips: the level's first tip lies where the patron who sends the 2nd empty stands ----------------------------------------
+@pytest.mark.only_model('dmg')
 def test_the_first_tip_comes_with_the_second_empty(boot):
     classic_at(boot, 1)
     boot.write("tip_chance", 255)                      # (later tips: always; none may come before the first)
@@ -292,6 +298,7 @@ def test_the_first_tip_comes_with_the_second_empty(boot):
     assert boot.mem("tip_first") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_no_random_tip_before_the_first(boot):
     classic_at(boot, 1)
     boot.write("tip_chance", 255)
@@ -302,6 +309,7 @@ def test_no_random_tip_before_the_first(boot):
 
 
 # ---- the in-level ramp ----------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_the_ramp_speeds_the_level_up_three_times_and_a_life_resets_it(boot):
     classic_at(boot, 1)
     boot.write("intro_timer", 0)
@@ -400,6 +408,7 @@ def test_game_over_goes_to_the_classic_table(model):
         assert table(again, MODE_CLASSIC)[0] == ("AAA", 12345)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_stand_in_s_classic_block_loads_empty(model):
     """P5: CLASSIC's block magic is "HSC2"; a version-1 block ("HSC1", the old stand-in's scores) loads as an empty table

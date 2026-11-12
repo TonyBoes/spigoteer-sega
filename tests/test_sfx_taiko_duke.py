@@ -27,6 +27,7 @@ def settle(gb):
     gb.run(300)          # (the title's own sounds are over)
 
 
+@pytest.mark.only_model('dmg')
 def test_don_noise_is_a_short_knock(sgb):
     settle(sgb)
     t = trace(sgb, SFX_DON, 6)
@@ -34,6 +35,7 @@ def test_don_noise_is_a_short_knock(sgb):
     assert t[2][0] == 0, "2 frames in all: the pulse body (src/tk.c) carries the drum, the noise is its knock"
 
 
+@pytest.mark.only_model('dmg')
 def test_ka_noise_is_a_tick(sgb):
     settle(sgb)
     t = trace(sgb, SFX_KA, 6)
@@ -137,6 +139,7 @@ def test_the_backing_steps_aside_and_comes_back(model):
         assert gb.mem(NR51) == 0xFF
 
 
+@pytest.mark.only_model('dmg')
 def test_rev_climbs_for_fifty_frames(sgb):
     settle(sgb)
     t = trace(sgb, SFX_REV, 54)

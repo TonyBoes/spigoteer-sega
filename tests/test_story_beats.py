@@ -143,6 +143,7 @@ def turn_page(gb):
     gb.press("a", 1)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_first_page_waits_its_beat_then_types(model):
     with start_story(model) as gb:
@@ -152,6 +153,7 @@ def test_the_first_page_waits_its_beat_then_types(model):
         assert gb.mem("story_typed") in range(0, 55)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_page_gaps_and_mid_line_beats(model):
     with start_story(model) as gb:

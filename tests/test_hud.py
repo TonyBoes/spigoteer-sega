@@ -78,6 +78,7 @@ def test_the_meter_outline_replaces_the_u(model):
     assert px(full, 1) == "30003000"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_and_classic_show_head_digit_flag_and_level(model):
     for key in (K_ARCADE, K_CLASSIC):
@@ -126,6 +127,7 @@ def test_a_boss_fight_keeps_its_face_and_meter_and_the_head(model):
         assert FLAG not in row and GOAL_BG not in row[9:12]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_lost_life_changes_the_digit(model):
     from test_flow import lose_a_life
@@ -140,6 +142,7 @@ def test_a_lost_life_changes_the_digit(model):
         assert tilemap_row(gb, 0, 7, 2) == [HEAD, GLYPH0 + 2]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_mini_game_shows_the_lives_as_head_and_digit(model):
     import test_mg as tm

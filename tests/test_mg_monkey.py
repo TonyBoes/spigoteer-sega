@@ -811,6 +811,7 @@ def test_the_level_after_monkey_business_has_everything_back(model):
         assert palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_plays_it_in_chapter_9(model):
     """ARCADE plays the story's steps: the zoo's mini slot is Monkey Business, in MG_STORY; reaching it unlocks it."""

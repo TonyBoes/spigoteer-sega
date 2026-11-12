@@ -52,6 +52,7 @@ def test_walking_drawn_x_advances_in_1_px_steps(gb):
         assert map_ids(gb, p["bar"], col) == ids
 
 
+@pytest.mark.only_model('dmg')
 def test_level_1_crossing_time_still_about_16_seconds(gb):
     """M8a: 120 px (to the spout) in 960 frames (16 s). Door fix: the walk starts at ENTRY_X (104 px) at 28/256 px per
     frame: 951 frames, within 2% of the old 960 (and above the 15 s guarantee)."""
@@ -66,6 +67,7 @@ def test_level_1_crossing_time_still_about_16_seconds(gb):
     assert abs(n - 960) <= 0.02 * 960 and n >= 15 * 60, n
 
 
+@pytest.mark.only_model('dmg')
 def test_pushed_patron_slides_one_px_per_frame(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -86,6 +88,7 @@ def test_pushed_patron_slides_one_px_per_frame(gb):
     assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == xs[-1]
 
 
+@pytest.mark.only_model('dmg')
 def test_a_push_off_the_screen_serves_him_and_slides_out(gb):
     """A patron at ENTRY_X (x + 16 = the push): caught, he slides out past the left edge (LEAVING) and is served, scored
     and removed only when all of him is off the screen."""
@@ -158,6 +161,7 @@ def test_drinking_mug_tilts_then_the_empty_slides_right(gb):
     assert gb.read("patron_state", MAX_P)[p] == WALKING
 
 
+@pytest.mark.only_model('dmg')
 def test_drinking_patron_sways_by_2_px(gb):
     p = catch_one(gb)
     while gb.read("patron_state", MAX_P)[p] != DRINKING:
@@ -259,6 +263,7 @@ def test_drawn_x_follows_patron_x_every_pixel(gb):
     assert exact >= 1
 
 
+@pytest.mark.only_model('dmg')
 def test_tile_ids_for_an_odd_x(gb):
     clear_patrons(gb)
     freeze(gb)

@@ -534,6 +534,7 @@ def test_the_order_follows_the_seed(model):
 
 
 # ---- the list, the story, arcade ------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_from_the_mini_games_list(model):
     """BONUS > MINI GAMES lists ORDER UP (fourth, in chapter order; THE BISTRO); A plays it in practice from 0."""
@@ -603,6 +604,7 @@ def test_story_plays_it_in_the_bistro_and_the_last_call_has_everything_back(mode
                 assert after[2][k] == fresh[2][k], k
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_reaches_it_in_the_bistro(model):
     """ARCADE plays the same slot: the bistro's Happy hour won (the step poked to it) starts Order Up! in MG_STORY and

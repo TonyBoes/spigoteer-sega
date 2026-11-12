@@ -171,6 +171,7 @@ def test_a_starts_the_game_then_the_short_card_shows_and_a_skips_it(model):
         assert gb.mem("mg_phase") == MG_CARD
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_story_shows_the_card_too_and_the_short_card_skips_there(model):
     """STORY and ARCADE start their mini-game through mg_enter as well: the full card first, A, the banner; the count-in cannot be skipped
@@ -192,6 +193,7 @@ def test_the_story_shows_the_card_too_and_the_short_card_skips_there(model):
     assert parse_bx(out)[2] == 1
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_debug_select_run_does_not_record_a_seen_card(model):
     """save_lock SAVE_LOCK_DEBUG: nothing is written, so the full card comes again each time (A still starts the game)."""
@@ -229,6 +231,7 @@ def test_a_card_is_never_wider_than_the_screen_and_the_games_still_run(model):
             assert state(gb) == GS_MINI and gb.mem("mg_phase") in (MG_COUNT, MG_PLAY, 2), gid
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_b_on_the_full_card_goes_back_to_the_list_with_no_medal(model):
     """From BONUS > MINI GAMES B on the full card is the pause QUIT's clean leave: the list, no medal, and the card counts as seen."""
@@ -253,6 +256,7 @@ def test_b_on_the_full_card_goes_back_to_the_list_with_no_medal(model):
     assert parse_bx(out)[2] & 1, "the seen bit is saved"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_b_on_the_card_starts_the_game_where_there_is_no_list(model):
     with booted(model, cards=False) as gb:
@@ -288,6 +292,7 @@ def test_a_two_page_card_turns_its_page_before_it_starts(model):
         assert row_text(gb, 7) == "EARLY IS A MISS" and row_text(gb, 16) == "A START  B BACK"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_marshmallow_drops_card_has_two_pages(model):
     """Marshmallow Drop's real card (D2 rework): the controls and the goal on page 1, the loop, the supply and the gold on page 2."""

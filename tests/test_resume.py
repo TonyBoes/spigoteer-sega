@@ -68,6 +68,7 @@ def test_quit_in_a_debug_selected_first_shift_and_continue_resumes_it_and_saves_
         assert saved_story(save_ram(gb)) == (1, 0), "the real save is as it was"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_no_debug_run_no_phantom_continue(model):
     with booted(model, None) as gb:

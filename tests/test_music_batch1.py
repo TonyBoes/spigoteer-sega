@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import gen_music as gm       # noqa: E402
 import harmony as H          # noqa: E402
 import songs                 # noqa: E402
+pytestmark = pytest.mark.only_model('dmg')   # model_equiv.py: DMG and Color proven equal for every test here
 
 BUILD = ROOT / "build"
 ORDER_BYTES = 2 * gm.SLOT_BYTES

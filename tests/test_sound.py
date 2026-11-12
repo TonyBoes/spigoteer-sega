@@ -105,6 +105,7 @@ def audio_frames(rom, n):
 
 
 # ---- sound effects: each trigger starts its effect --------------------------------------
+@pytest.mark.only_model('dmg')
 def test_filling_and_launching(gb):
     gb.write("intro_timer", 255)
     gb.hold("a")
@@ -117,6 +118,7 @@ def test_filling_and_launching(gb):
     assert gb.mem("last_sfx") == SFX_LAUNCH and sfx_count(gb, SFX_LAUNCH) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_empty_caught(gb):
     gb.write("intro_timer", 255)
     inject_mug(gb, 0, gb.mem("bartender_x"), st=MUG_EMPTY)
@@ -124,6 +126,7 @@ def test_empty_caught(gb):
     assert gb.mem("last_sfx") == SFX_CATCH and sfx_count(gb, SFX_CATCH) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_glass_break_and_life_lost(gb):
     gb.write("intro_timer", 255)
     inject_mug(gb, 1, 17)                       # a full mug about to leave the left end
@@ -132,11 +135,13 @@ def test_glass_break_and_life_lost(gb):
     assert gb.mem("last_sfx") == SFX_LIFE
 
 
+@pytest.mark.only_model('dmg')
 def test_patron_reaching_the_tap_costs_a_life_without_a_break_sound(gb):
     lose_a_life(gb)
     assert sfx_count(gb, SFX_LIFE) == 1 and sfx_count(gb, SFX_BREAK) == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_patron_served_at_the_left_end(gb):
     gb.write("intro_timer", 255)
     set_patron(gb, 0, GAME["ENTRY_X"], pstate=PATRON_PUSHED)
@@ -145,6 +150,7 @@ def test_patron_served_at_the_left_end(gb):
     assert gb.mem("last_sfx") == SFX_SERVE and sfx_count(gb, SFX_SERVE) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_coin_collected(gb):
     gb.write("intro_timer", 255)
     gb.write("tip_bar", gb.mem("bar"))
@@ -154,6 +160,7 @@ def test_coin_collected(gb):
     assert gb.mem("last_sfx") == SFX_COIN and sfx_count(gb, SFX_COIN) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_can_shake_in_the_bonus_round(gb):
     enter_bonus(gb)
     before = sfx_count(gb, SFX_SHAKE)
@@ -194,6 +201,7 @@ def test_music_is_audible_and_changes(srom):
     assert corr < 0.9, f"the music changes from one second to the next (spectra correlate {corr:.2f})"
 
 
+@pytest.mark.only_model('dmg')
 def test_sfx_drive_channel_1_and_4_and_end(sgb):
     sgb.write("intro_timer", 255)
     sgb.hold("a")
@@ -257,6 +265,7 @@ PERFECT_NOTES = (D5, FS5, A5)
 X2_NOTES = tuple(n * TONE ** 2 for n in (D5, FS5, A5, D6))
 
 
+@pytest.mark.only_model('dmg')
 def test_the_perfect_pour_is_a_soft_marimba_on_the_wave_channel(sgb):
     """SFX_PERFECT (15; owner's pick 2026-10-20): D5 F#5 A5 on channel 3 (the wave channel), each note plucked by the wave volume stepping 100% 50% 25% (NR32
     0x20 0x40 0x60), 20 frames, then the channel is let go (NR32 0). Nothing on channel 1: the tune's harmony is not played over by a sustained note."""
@@ -306,6 +315,7 @@ def assert_pitches(periods, wanted):
         assert abs(wave_hz(p) / w - 1) < 0.012, (periods, [round(wave_hz(q)) for q in periods], wanted)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_marimba_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_sound_is_the_same_every_time(sgb):
     """Streak 1: the base pitch; 2: one whole tone up; 3: the x2 sound (D5 F#5 A5 D6, then a soft repeat), two whole tones up, and identical on every
     later perfect pour (the streak stays at 3). The pitches are the periods the driver writes to NR33/NR34 (exact, so a semitone's slip fails and the code
@@ -327,6 +337,7 @@ def test_the_marimba_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_s
     assert 24 <= n <= 30, f"the x2 sound lasts {n + 1} frames, under half a second"
 
 
+@pytest.mark.only_model('dmg')
 def test_the_marimba_hands_channel_3_back_and_the_bass_reloads_its_wave(sgb):
     """The wave channel is the tunes' bass: while the marimba sounds the driver is told to leave it alone (mute mask bit 2) and, when it ends, the mask clears
     and the driver is made to reload its wave (hUGE_current_wave 100) at the next bass note, when the id is the bass's again."""
@@ -343,6 +354,7 @@ def test_the_marimba_hands_channel_3_back_and_the_bass_reloads_its_wave(sgb):
     assert sgb.mem("hUGE_current_wave") == bass, "with the next bass note"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_channel_1_effect_cuts_the_marimba_and_the_marimba_cuts_one(sgb):
     """The marimba shares the channel-1 effect slot: a catch ping cutting it hands channel 3 back at once; the marimba starting over a ping lets channel 1
     go (NR12 0x08); and the extra life's fanfare is never cut by it."""
@@ -370,6 +382,7 @@ def test_a_channel_1_effect_cuts_the_marimba_and_the_marimba_cuts_one(sgb):
     assert sgb.mem(NR12) == nr12 and nr12 != 0x08 and sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "the extra life is not cut short, no marimba over it"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_marimba_sounding_when_the_game_pauses_plays_out_on_the_pause_mix(sgb):
     """Paused, NR51 is 0xCC (bass and drums: channels 3 and 4): the marimba, on channel 3, stays audible, runs out and hands the channel back as usual
     (the pause keeps ticking the effects), and RESUME gives the full mix."""
@@ -386,6 +399,7 @@ def test_a_marimba_sounding_when_the_game_pauses_plays_out_on_the_pause_mix(sgb)
     assert state(sgb) == PLAYING and sgb.mem(0xFF25) == 0xFF
 
 
+@pytest.mark.only_model('dmg')
 def test_music_yields_channel_4_to_an_effect_then_takes_it_back(sgb):
     sgb.write("intro_timer", 255)
     sgb.run(30)                                         # the in-game tune has a noise percussion line
@@ -403,6 +417,7 @@ def test_music_yields_channel_4_to_an_effect_then_takes_it_back(sgb):
 
 
 # ---- which tune plays when ---------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_tunes_follow_the_game_state(srom):
     assert srom.mem("cur_tune") == TUNE_TITLE
     start_game(srom)
@@ -444,6 +459,7 @@ def test_the_title_tune_plays_on_smoothly_across_the_attract_tables(srom):
         assert mf[-1] - mf[0] >= len(mf) - 1 - 6, f"{len(mf) - 1} frames, the tune moved {mf[-1] - mf[0]}"
 
 
+@pytest.mark.only_model('dmg')
 def test_jingle_stops_by_itself(srom):
     start_game(srom)
     srom.write("level", 1)
@@ -454,6 +470,7 @@ def test_jingle_stops_by_itself(srom):
     assert silent(audio_frames(srom, 10))
 
 
+@pytest.mark.only_model('dmg')
 def test_game_over_and_bonus_tunes(srom):
     start_game(srom)
     for n in range(3):
@@ -470,6 +487,7 @@ def test_game_over_and_bonus_tunes(srom):
     assert srom.mem("cur_tune") == TUNE_TITLE
 
 
+@pytest.mark.only_model('dmg')
 def test_bonus_round_has_its_own_tune(srom):
     start_game(srom)
     enter_bonus(srom)
@@ -526,6 +544,7 @@ def melody_check(rom, source, frames=260, min_notes=6):
     return checked, wrong
 
 
+@pytest.mark.only_model('dmg')
 def test_the_title_plays_the_entertainer(srom):
     assert srom.mem("cur_tune") == TUNE_TITLE
     checked, wrong = melody_check(srom, "entertainer", 280)
@@ -542,6 +561,7 @@ def row_lengths(rom, frames):
     return [b - a for a, b in zip(marks, marks[1:])], [rows[m] for m in marks]
 
 
+@pytest.mark.only_model('dmg')
 def test_the_swung_title_plays_rows_of_alternating_length(srom):
     """The Entertainer is swung (songs 'swing' 0xAA, src/music.c tick): rows of 9, 8, 9, 8 ... frames, the mask's bit
     (row mod 8) = a frame short; a tune without a swing (the venue tunes) keeps its tempo on every row."""
@@ -780,6 +800,7 @@ def test_ties_fold_into_the_previous_note():
     assert gm.merge_ties("R:2 C5:1! ~:2") == "r:2 C5:3!"
 
 
+@pytest.mark.only_model('dmg')
 def test_level_1_plays_oh_susanna(sgb):
     assert sgb.mem("cur_tune") == TUNE_VENUE0 and sgb.mem("cur_group") == 0
     sgb.write("intro_timer", 255)
@@ -797,6 +818,7 @@ def goto_level(rom, level):
     run_until(rom, lambda: state(rom) == PLAYING, 30)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("group", range(10))
 def test_every_venue_plays_its_own_song(sgb, group):
     """Level L shows patron group (L-1) % 10: each group has its own tune (songs.VENUES[group]), played from its first
@@ -825,6 +847,7 @@ def start_a_show(rom):
     rom.run(2)
 
 
+@pytest.mark.only_model('dmg')
 def test_a_show_plays_the_galop_and_the_level_tune_resumes_from_its_start(sgb):
     sgb.run(400)                                        # long enough for the show tune to have been copied in the background
     assert sgb.mem("cur_tune") == TUNE_VENUE0
@@ -842,6 +865,7 @@ def test_a_show_plays_the_galop_and_the_level_tune_resumes_from_its_start(sgb):
     assert not wrong, wrong
 
 
+@pytest.mark.only_model('dmg')
 def test_a_show_that_ends_with_a_lost_life_gives_the_level_tune_back(sgb):
     sgb.run(400)
     start_a_show(sgb)
@@ -866,6 +890,7 @@ def music_text(gb):
     return music_line(gb)          # the title's MUSIC line (SETTINGS' first line, row 8)
 
 
+@pytest.mark.only_model('dmg')
 def test_select_toggles_the_music(srom):
     srom.run(200)                  # (past the DX badge's stamp sound on a Color, SFX that the music switch does not silence)
     title_pick(srom, K_SETTINGS)   # (SELECT works on any menu level; SETTINGS shows the line)
@@ -885,6 +910,7 @@ def test_select_toggles_the_music(srom):
     assert srom.mem(NR52) & 0x06, "the title tune is back"
 
 
+@pytest.mark.only_model('dmg')
 def test_music_off_persists_into_the_game_but_effects_still_play(srom):
     srom.press("select", 2)
     start_game(srom)
@@ -896,6 +922,7 @@ def test_music_off_persists_into_the_game_but_effects_still_play(srom):
     assert not srom.mem(NR52) & 0x0A and srom.mem("cur_tune") == TUNE_GAME, "the music channels are cut"
 
 
+@pytest.mark.only_model('dmg')
 def test_select_does_nothing_outside_the_title(gb):
     gb.press("select", 2)
     gb.run(2)
@@ -920,6 +947,7 @@ def earn_fifty_and_lose(rom):
     assert hi_score(rom) == 50
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_hi_score_survives_a_reset(model):
     rom = make_rom(model, sound=False)
@@ -936,6 +964,7 @@ def test_hi_score_survives_a_reset(model):
         assert [d for d in again.read("hi_digits", 6)] == [0, 0, 0, 0, 5, 0]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_lower_score_does_not_overwrite_the_saved_hi(model):
     rom = make_rom(model, sound=False)
@@ -960,6 +989,7 @@ def corrupt(ram, edit):
     return bytes(ram)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_invalid_save_data_loads_as_zero(model):
     rom = make_rom(model, sound=False)

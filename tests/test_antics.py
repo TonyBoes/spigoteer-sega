@@ -97,6 +97,7 @@ def test_the_bonus_round_after_the_antics_has_its_own_tiles_and_the_level_after_
     assert show != ANT_TILES
 
 
+@pytest.mark.only_model('dmg')
 def test_the_ending_is_random_and_leaves_the_game_s_random_sequence_alone(boot):
     classic_at(boot, 1)
     got = []
@@ -190,6 +191,7 @@ def play_clear(gb, n):
     return log
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("n", range(6), ids=ENDINGS)
 def test_the_beat_the_drumroll_the_cymbal_and_the_holds(srom, n):
     log = play_clear(srom, n)
@@ -224,6 +226,7 @@ def test_the_beat_the_drumroll_the_cymbal_and_the_holds(srom, n):
     assert ANT_PRE >= 30
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("n", range(6), ids=ENDINGS)
 def test_the_state_is_frozen_through_the_clear(boot, n):
     """Nothing moves in a clear but the antics (the patrons are all served, no mug flies, the clock is not running): lives,

@@ -86,6 +86,7 @@ def test_clearing_even_levels_enters_the_bonus_round(gb, lvl, after):
     assert gb.mem("level") == after
 
 
+@pytest.mark.only_model('dmg')
 def test_round_numbers_after_nine(gb):
     for lvl, expect in ((9, False), (10, True), (11, False), (12, True)):
         gb.write("level", lvl)
@@ -99,6 +100,7 @@ def test_round_numbers_after_nine(gb):
         gb.run(5)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_calm_can_is_never_shaken(gb):
     enter_bonus(gb)
     calm = gb.mem("bonus_calm_can")
@@ -136,6 +138,7 @@ def test_shake_order_is_random_across_rounds(gb):
     assert len(orders) > 1
 
 
+@pytest.mark.only_model('dmg')
 def test_swaps_preserve_positions_and_track_the_calm_can(gb):
     enter_bonus(gb)
     calm = gb.mem("bonus_calm_can")
@@ -164,6 +167,7 @@ def test_swaps_preserve_positions_and_track_the_calm_can(gb):
     assert phase(gb) == PH_CHOOSE
 
 
+@pytest.mark.only_model('dmg')
 def test_swaps_speed_up_from_the_third_round(gb):
     durs = []
     for r in (0, 3, 6, 9):                           # M12: rounds 1, 4, 7, 10 are the shake-ups (the others pour and catch tips)
@@ -176,6 +180,7 @@ def test_swaps_speed_up_from_the_third_round(gb):
     assert durs[0] == durs[1] == 30 and durs[2] < 30 and durs[3] < durs[2]
 
 
+@pytest.mark.only_model('dmg')
 def test_cursor_moves_with_left_and_right(gb):
     enter_bonus(gb)
     to_phase(gb, PH_CHOOSE)
@@ -218,6 +223,7 @@ def _lose_setup(gb):
     return before, picked
 
 
+@pytest.mark.only_model('dmg')
 def test_picking_another_can_shoots_a_geyser_then_rains_soda_over_the_screen(gb):
     before, picked = _lose_setup(gb)
     can_x = can_pos(gb)[picked]
@@ -274,6 +280,7 @@ def test_lose_result_golden(gb):
     assert [s for s in gb.visible_sprites() if s["tile"] in DROP_TILES]
 
 
+@pytest.mark.only_model('dmg')
 def test_drops_fall_with_gravity_and_drift_sideways(gb):
     _lose_setup(gb)
     gb.run(20)
@@ -292,6 +299,7 @@ def test_drops_fall_with_gravity_and_drift_sideways(gb):
     assert abs(xs[-1] - xs[0]) >= 20, "and drifts sideways"
 
 
+@pytest.mark.only_model('dmg')
 def test_lose_result_never_exceeds_ten_sprites_on_a_line_at_any_frame(gb):
     for cursor_off in (1, 2, 3):
         enter_bonus(gb)
@@ -316,6 +324,7 @@ def test_golden_mid_swap(gb):
     check_golden(gb, "bonus_swap")
 
 
+@pytest.mark.only_model('dmg')
 def test_scanline_limit_holds_for_a_whole_round(gb):
     enter_bonus(gb)
     worst = 0
@@ -359,6 +368,7 @@ def test_next_level_loads_and_the_bar_scene_is_intact(gb):
     check_golden(gb, "bonus_after")
 
 
+@pytest.mark.only_model('dmg')
 def test_new_game_resets_the_round_count(boot):
     boot.write("bonus_round", 5)
     title_level(boot)

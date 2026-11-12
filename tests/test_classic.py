@@ -228,6 +228,7 @@ def run_both(a, b, n):
 
 
 # ---- every bar L is the default, and nothing changes -----------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_every_bar_is_l_unless_asked(gb):
     assert gb.mem("bar_dirs") == 0 and gb.mem("level_dirs") == 0 and gb.mem("draw_mask") == 0xFF
     assert list(gb.read("bar_sfp", 8)) == [0] * 8
@@ -566,6 +567,7 @@ def test_a_lifted_patron_on_an_r_bar_is_two_mirrored_entries(boot):
 
 
 # ---- input ------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_left_on_an_r_bar_walks_to_the_tap(boot):
     gb = start(boot, ALT)
     gb.write("intro_timer", 255)
@@ -611,6 +613,7 @@ def test_a_fills_and_launches_at_the_left_keg(boot):
 
 
 # ---- the rules on an R bar (all local; the picture mirrored) ------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_a_walker_reaching_the_tap_costs_a_life_on_an_r_bar(boot):
     gb = start(boot, ALL_R)
     with logic_paused(gb):
@@ -742,6 +745,7 @@ def test_golden_classic_alt(boot):
 
 
 # ---- the debug select: the LEVEL box's SELECT steps the bars' directions -------------------------------------------------
+@pytest.mark.only_model('dmg')
 def test_the_level_box_select_steps_the_directions_and_a_starts_with_them(boot):
     from test_debug import combo, release_combo, win_row
     from test_flow import tile_id

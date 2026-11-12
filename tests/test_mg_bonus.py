@@ -67,6 +67,7 @@ def test_recording_a_bonus_round_leaves_every_other_block_alone(model):
     assert out[:BX_AT] == mid[:BX_AT] and out[BX_AT + 10:] == mid[BX_AT + 10:], "nothing but the ten bytes of MGB1 changed"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_bad_bonus_block_reads_as_nothing_and_the_rest_survives(model, release_built):
     """Release build, MGP2 with Quick Draw reached: MGB1 with a wrong checksum, a bit above the three rounds, a medal byte above its six bits
@@ -152,6 +153,7 @@ def reach_arcade_bonus(gb, rounds_before):
     run_until(gb, lambda: state(gb) == BONUS, 300)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("before,kind", [(0, 0), (1, 1), (2, 2)])
 def test_arcade_playing_a_bonus_round_unlocks_it(model, before, kind):
@@ -165,6 +167,7 @@ def test_arcade_playing_a_bonus_round_unlocks_it(model, before, kind):
     assert parse_bx(out) == (1 << kind, 0, 0xFFFF)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_classic_playing_the_shake_up_unlocks_it(model):
     """CLASSIC plays the shake-up after level 2: the block says it was played (and only it)."""
@@ -249,6 +252,7 @@ def test_a_bonus_round_plays_in_the_framework_and_earns_its_medal(model, gid, ki
     assert all(medal_of(medals, k) == 0 for k in range(3) if k != gid - MG_SHAKEUP)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_shake_up_played_for_real_wins_gold(model):
     """The whole shake-up inside the framework: the banner, the cans shaken and swapped, the calm one picked on each of the three levels

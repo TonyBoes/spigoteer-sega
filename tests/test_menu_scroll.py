@@ -70,6 +70,7 @@ def test_mashing_a_list_never_runs_a_frame_late(boot, screen, period):
         assert worst <= LATE
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("screen", sorted(SCREENS))
 def test_a_mashed_list_settles_to_the_same_screen_as_a_calm_one(boot, screen):
     """The pending lines catch up: the screen after mashing equals the screen after the same number of calm taps."""

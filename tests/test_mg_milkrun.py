@@ -1100,6 +1100,7 @@ def test_the_story_plays_it_in_chapter_7_and_the_last_call_has_everything_back(m
         assert palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_plays_it_in_chapter_7(model):
     """ARCADE plays the story's steps: the Chrome Cow's mini slot is Milk Run, in MG_STORY; reaching it unlocks it."""

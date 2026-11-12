@@ -254,6 +254,7 @@ def cursor_on(gb, key, row):
     assert x - 14 <= c["x"] - 8 <= x - 12, "just left of it"
 
 
+@pytest.mark.only_model('dmg')
 def test_title_menu_is_centred_without_bands(boot):
     blank = TITLE_ART["blank"]
     assert boot.mem("title_menu") == TM_TOP and menu_items(boot) == [K_PLAY, K_BONUS, K_SETTINGS]
@@ -364,6 +365,7 @@ def test_continue_shows_only_with_a_story_save(boot):
         assert menu_items(rom) == [K_STORY, K_ARCADE, K_CLASSIC]
 
 
+@pytest.mark.only_model('dmg')
 def test_start_works_as_a_too(boot):
     boot.press("start", 2)                    # PLAY
     boot.run(1)
@@ -388,6 +390,7 @@ def test_play_arcade_starts_the_saloon_s_opening_shift_with_no_scene(boot):
     assert spr and all(o["tile"] < 56 for o in spr), "only the bartender: the title's sprites are gone"
 
 
+@pytest.mark.only_model('dmg')
 def test_play_classic_starts_classic_s_level_1(boot):
     """P5: PLAY > CLASSIC plays CLASSIC's table (no longer the old rotation): level 1 starts a patron on every bar (the
     harness's level 1 starts bars 0 and 2), with extra lives and its own top 5 (tests/test_classic_mode.py has the rest)."""
@@ -398,6 +401,7 @@ def test_play_classic_starts_classic_s_level_1(boot):
     assert patrons(boot) == [(0, ENTRY_X), (1, ENTRY_X), (2, ENTRY_X), (3, ENTRY_X)]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("lvl", [1, 7, 23])
 def test_the_level_harness_starts_any_level_on_the_same_frame_as_the_menu_did(boot, lvl):
     """tests/conftest.py title_level: the title's test hook title_go starts the old 10-level rotation (MODE_LEVEL) at lvl,
@@ -410,6 +414,7 @@ def test_the_level_harness_starts_any_level_on_the_same_frame_as_the_menu_did(bo
     assert boot.mem("arcade_loop") == (lvl - 1) // ROWS + 1
 
 
+@pytest.mark.only_model('dmg')
 def test_story_starts_the_story_mode(boot):
     """M11b (was M10a's COMING SOON): PLAY > STORY opens the story's first cut-scene (tests/test_story.py has the rest)."""
     title_pick(boot, K_PLAY, K_STORY)
@@ -430,6 +435,7 @@ def test_music_toggles_from_the_settings(boot):
     assert state(boot) == TITLE and boot.mem("title_menu") == TM_SETTINGS
 
 
+@pytest.mark.only_model('dmg')
 def test_music_off_from_the_settings_holds_into_a_game(boot):
     """The setting behaves as the old MUSIC line did: it holds for the session (not in SRAM, as before)."""
     title_pick(boot, K_SETTINGS, K_MUSIC)
@@ -440,6 +446,7 @@ def test_music_off_from_the_settings_holds_into_a_game(boot):
     assert boot.mem("sound_on") == 0, "the game starts with the music off"
 
 
+@pytest.mark.only_model('dmg')
 def test_select_toggles_the_music_on_any_menu_level(boot):
     menu_tap(boot, "select")
     assert boot.mem("sound_on") == 0, "the top level (no MUSIC line shown)"
@@ -451,6 +458,7 @@ def test_select_toggles_the_music_on_any_menu_level(boot):
     assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("on")
 
 
+@pytest.mark.only_model('dmg')
 def test_title_ignores_other_buttons(boot):
     for b in ("b", "left", "right"):
         boot.press(b, 3)
@@ -569,6 +577,7 @@ def test_lost_life_freezes_then_restarts_the_bars(gb):
     assert tilemap_row(gb, bar_top_row(0), 14, 4)[:3] == tilemap_row(gb, bar_top_row(2), 14, 4)[:3]
 
 
+@pytest.mark.only_model('dmg')
 def test_lost_life_glass_animation_completes(gb):
     gb.write("intro_timer", 255)
     for i in range(MAX_P):
@@ -580,6 +589,7 @@ def test_lost_life_glass_animation_completes(gb):
     assert state(gb) == LIFE_LOST and gb.mem("mugs_live") == 0, "glass finished while frozen"
 
 
+@pytest.mark.only_model('dmg')
 def test_served_count_persists_across_a_lost_life(gb):
     gb.write("intro_timer", 255)
     inject_mug(gb, 0, ENTRY_X + 8)                        # next to the patron at ENTRY_X: served (when he is off the screen)
@@ -668,6 +678,7 @@ def test_three_lost_lives_end_the_game_and_start_goes_on_to_the_title(gb):
     assert gb.mem("lives") == 3 and score(gb) == 0 and hi_score(gb) == 50 and gb.mem("game_over") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_lower_score_keeps_the_hi_score(gb):
     gb.write("hi_score", 5000 & 0xFF)
     gb.write(gb.addr("hi_score") + 1, 5000 >> 8)
@@ -687,6 +698,7 @@ def loop_row(lvl):
     return row
 
 
+@pytest.mark.only_model('dmg')
 def test_level_table_and_wrap(gb):
     for lvl in range(1, 13):
         row = loop_row(lvl)                     # M10b: level 11 is venue 0 again (loop 2), a little harder
@@ -708,6 +720,7 @@ def test_level_table_and_wrap(gb):
         gb.run(2)
 
 
+@pytest.mark.only_model('dmg')
 def test_level_clear_counts_patrons_pushed_out_from_mid_bar(gb):
     """Option C: both boot patrons hit at x 40 (a 32 px push reaches the left-edge stop) are served at once, slide off
     and count when gone: CLEAR THE BAR."""

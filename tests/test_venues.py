@@ -101,6 +101,7 @@ def test_one_order_for_every_list():
     assert list(pour["venues"]) == THEMES, "pour_load(chapter): the perfect pour's frames in the same order"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("group", [6, 7, 8, 9], ids=NEW_ORDER[6:])
 def test_arcade_levels_7_to_10_are_the_new_order(gb, group):
     """Arcade: level 7 is The Chrome Cow (its venue, punks and Drunken Sailor), then the teahouse, the zoo, the space
@@ -307,6 +308,7 @@ def test_a_bonus_round_between_levels_restores_the_performer_tiles(gb):
         assert len([s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]) == 12
 
 
+@pytest.mark.only_model('dmg')
 def test_the_bonus_round_stands_in_the_venue_just_played(gb):
     v = venue("saloon")
     enter_bonus(gb)

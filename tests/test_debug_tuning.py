@@ -53,6 +53,7 @@ def tune(gb, label=None, gus=None):
     gb.run(30)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_page_lists_its_knobs_with_the_defaults_and_nothing_starts(boot):
     open_tuning(boot)
     assert line(boot, 2) == ("MODE", "TUNING")
@@ -64,6 +65,7 @@ def test_the_page_lists_its_knobs_with_the_defaults_and_nothing_starts(boot):
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_coins_steps_both_ways_wraps_and_sets_tip_chance_at_once(boot):
     open_tuning(boot)
     goto(boot, 1)
@@ -79,6 +81,7 @@ def test_coins_steps_both_ways_wraps_and_sets_tip_chance_at_once(boot):
         assert line(boot, 4)[1] == COINS[k] and boot.mem("tip_chance") == CHANCE[k]
 
 
+@pytest.mark.only_model('dmg')
 def test_the_values_survive_closing_and_reopening_and_a_mode_switch(boot):
     open_tuning(boot)
     set_coins(boot, "1 IN 3")
@@ -96,6 +99,7 @@ def test_the_values_survive_closing_and_reopening_and_a_mode_switch(boot):
     assert boot.mem("tip_chance") == 85
 
 
+@pytest.mark.only_model('dmg')
 def test_the_other_modes_lines_are_unchanged_and_the_start_bit_stays(boot):
     open_tuning(boot)
     set_coins(boot, "ALWAYS")

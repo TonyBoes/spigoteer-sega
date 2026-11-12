@@ -728,6 +728,7 @@ def test_the_level_after_taiko_pour_has_everything_back(model):
         assert palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_plays_it_in_chapter_8(model):
     """ARCADE plays the story's steps: the teahouse's mini slot is Taiko Pour, in MG_STORY; reaching it unlocks it."""

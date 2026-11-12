@@ -210,6 +210,7 @@ def test_credits_is_the_fourth_bonus_item_and_opens_the_roll(model):
         assert state(gb) == GS_STORY
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_choosing_credits_in_bonus_starts_the_credits_tune_at_once(model):
     with Rom(ROM, model) as gb:

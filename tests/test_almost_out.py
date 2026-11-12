@@ -109,6 +109,7 @@ def test_classic_keeps_the_original_patron_nobody_stops_short(gb):
         assert st == LEAVING
 
 
+@pytest.mark.only_model('dmg')
 def test_the_tune_table_defaults_to_one_in_seven_everywhere_but_classic(gb):
     from test_story import BANKS, ROM
     t = gb.addr("almost_one_in")

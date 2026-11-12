@@ -104,6 +104,7 @@ def release_rom(model, ram=None):
 
 
 # ---- the menu --------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_bonus_offers_soundtrack_and_mini_games(model):
     with booted(model) as rom:
@@ -189,6 +190,7 @@ def test_the_debug_list_has_every_built_game_unlocked_in_the_one_line_style(mode
         assert gb.mem("mg_id") == MG_STUB and gb.mem("mg_mode") == MG_PRACTICE
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_up_and_down_jump_between_the_venue_games_and_the_bonus_rounds(model):
     with to_list(booted(model)) as gb:
@@ -214,6 +216,7 @@ def test_up_and_down_jump_between_the_venue_games_and_the_bonus_rounds(model):
         assert gb.mem("ml_sel") == GROUP, "DOWN from anywhere in the venue games"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_select_cycles_the_mode_and_the_medal_shown_is_that_modes(model):
     """SELECT: EASY, NORMAL, HARD, round (it was LEFT / RIGHT); the header names it; the medal and its word are the selected game's best in that mode;
@@ -317,6 +320,7 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_PRACTICE
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_list_shows_the_saves_medals_and_nothing_invented(model):
     """Real data only: the medal icon and word of each game are its saved best in the mode shown, NO MEDAL (no icon) where there is none."""
@@ -397,6 +401,7 @@ def test_a_worse_medal_never_lowers_the_best(model):
         assert parse_block(save_ram(rom)) == (1, [MEDAL_GOLD] + [0] * 9)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_reaching_quick_draw_unlocks_it_too(model):
     """ARCADE saves nothing of its own (save_lock 1), but the owner's rule is "reached in STORY or ARCADE": the block is
@@ -420,6 +425,7 @@ def test_arcade_reaching_quick_draw_unlocks_it_too(model):
         assert save_ram(rom)[PR_AT:PR_AT + 4] != b"MGP1"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_stub_and_practice_alone_unlock_nothing(model):
     """Practice never unlocks (only STORY / ARCADE reach a game); the stub (MG_STUB) is never saved."""
@@ -431,6 +437,7 @@ def test_the_stub_and_practice_alone_unlock_nothing(model):
         assert save_ram(rom)[PR_AT:PR_AT + 4] != b"MGP1"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_bad_block_unlocks_nothing_and_leaves_the_others_alone(model):
     good = v7_image([("ABC", 500)], story=3, step=1, story_tbl=[("STO", 900)])

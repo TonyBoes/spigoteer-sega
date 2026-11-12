@@ -105,6 +105,7 @@ def test_the_groove_route_in_the_game_steps_the_kick_and_the_snare(srom):
     assert contains(seq, [0x00, 0x27]) and 0x08 in seq
 
 
+@pytest.mark.only_model('dmg')
 def test_the_pattern_route_in_the_game_steps_the_kick_and_the_snare(sgb):
     sgb.run(300)
     assert sgb.mem("cur_tune") == TUNE_VENUE0

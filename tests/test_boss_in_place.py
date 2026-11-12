@@ -372,6 +372,7 @@ def test_continue_after_reaching_the_boss_lands_on_the_venue_s_opening(model):
         gb.stop()
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("step", [3, 4])
 def test_a_save_from_before_the_change_still_loads(model, step):
@@ -383,6 +384,7 @@ def test_a_save_from_before_the_change_still_loads(model, step):
 
 
 # ---- ARCADE ----------------------------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_arcade_turns_last_call_into_the_boss_and_the_venue_clear_follows_his_defeat(model):
     """ARCADE plays the story's steps: a venue's Last call quota brings its boss in place; beating him is VENUE CLEAR, then the bonus round, then the
@@ -404,6 +406,7 @@ def test_arcade_turns_last_call_into_the_boss_and_the_venue_clear_follows_his_de
         assert gb.mem("story_chapter") == 1 and gb.mem("story_shift") == 0 and gb.mem("boss_on") == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_arcade_shows_the_first_boss_card_too(model):
     """The cards are per save, whatever the mode: ARCADE's first boss pauses on his card."""

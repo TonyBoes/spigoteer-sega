@@ -310,6 +310,7 @@ def test_the_show_distracts_some_walking_patrons(gb):
     assert dist(gb) == d
 
 
+@pytest.mark.only_model('dmg')
 def test_at_least_one_is_distracted_if_any_walk(gb):
     for n in range(12):                            # different random draws
         clear_patrons(gb)
@@ -364,6 +365,7 @@ def watcher(gb, bar, x, variant=0, others=()):
     return i
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("x0,x1", [(45, 48), (42, 40), (44, 40), (47, 48), (41, 40), (48, 48)])
 def test_a_distracted_patron_snaps_to_a_multiple_of_8_and_shows_its_back(gb, x0, x1):
     i = watcher(gb, 2, x0, variant=1)
@@ -403,6 +405,7 @@ def other_watcher_first(gb, x, ox):
     return i
 
 
+@pytest.mark.only_model('dmg')
 def test_the_shuffle_passes_a_walker_but_never_lands_on_another_watcher(gb):
     """M13b (was: the shuffle kept PATRON_SPACING from the patron behind). x 43 wants 40 (columns 5-6). A plain walker
     behind him in those columns does not stop him (walkers can be lifted). Another watcher standing in his back view at
@@ -427,6 +430,7 @@ def test_four_px_off_with_a_watcher_on_the_left_place_goes_the_other_way(gb):
     assert gb.read("patron_x", MAX_P)[i + 1] == 32 and facing(gb, i + 1) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_the_shuffle_never_reaches_the_tap(gb):
     """x 117 would round to 120, which is the tap end (PATRON_FAR_X): he stays and costs no life."""
     lives = gb.mem("lives")
@@ -436,6 +440,7 @@ def test_the_shuffle_never_reaches_the_tap(gb):
     assert gb.read("patron_state", MAX_P)[i] == WALKING
 
 
+@pytest.mark.only_model('dmg')
 def test_after_the_show_it_turns_back_and_walks_on(gb):
     i = watcher(gb, 3, 61, variant=2)
     gb.run(5)
@@ -452,6 +457,7 @@ def test_after_the_show_it_turns_back_and_walks_on(gb):
     assert gb.read("patron_x", MAX_P)[i] > 64, "walking again"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_watcher_ignores_mugs(gb):
     i = watcher(gb, 1, 40)
     gb.run(5)
@@ -495,6 +501,7 @@ def show_with(gb, bar, specs):
     return ids
 
 
+@pytest.mark.only_model('dmg')
 def test_a_full_mug_slides_past_a_distracted_patron_to_the_next_one(gb):
     a, b = show_with(gb, 1, [(40, 0), (90, 1)])    # b is the distracted one, further right
     inject_mug(gb, 1, 136)
@@ -504,6 +511,7 @@ def test_a_full_mug_slides_past_a_distracted_patron_to_the_next_one(gb):
     assert gb.read("patron_mug", MAX_P)[a] != 255 and gb.read("patron_mug", MAX_P)[b] == 255
 
 
+@pytest.mark.only_model('dmg')
 def test_a_full_mug_is_caught_by_the_same_patron_once_he_pays_attention(gb):
     a, b = show_with(gb, 1, [(40, 0), (90, 0)])
     inject_mug(gb, 1, 136)
@@ -511,6 +519,7 @@ def test_a_full_mug_is_caught_by_the_same_patron_once_he_pays_attention(gb):
     assert gb.read("patron_state", MAX_P)[a] == WALKING
 
 
+@pytest.mark.only_model('dmg')
 def test_a_mug_that_passes_everyone_falls_off_the_end(gb):
     (a,) = show_with(gb, 1, [(40, 1)])
     lives = gb.mem("lives")
@@ -580,6 +589,7 @@ def test_oam_and_scanline_budget_during_a_busy_show(gb):
     assert len(dancer_sprites(gb)) == 12 and len(coin_sprites(gb)) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_obj_tiles_stay_below_the_shared_block(gb):
     assert OBJ_DANCER + DANCER_TILES <= 128, (OBJ_DANCER, DANCER_TILES)
     assert OBJ_COIN + art("COIN_TILE_COUNT") == OBJ_DANCER

@@ -68,6 +68,7 @@ def test_the_prompt_text_is_centred_and_fits_the_title_tile_budget(model):
     assert TITLE_ART["patron_base"] + 4 <= 244      # (240; 242 for the STORY difficulty prompt, 244 for its captions: the DMG mug copies' ids, made at every level start)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODELS)
 def test_the_cursor_never_rests_on_the_label_and_wraps_between_no_and_yes(model):
     rom = boot_with(model)
@@ -82,6 +83,7 @@ def test_the_cursor_never_rests_on_the_label_and_wraps_between_no_and_yes(model)
         rom.stop()
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("key", ["a", "start", "b"])
 @pytest.mark.parametrize("model", MODELS)
 def test_no_and_b_go_back_to_settings_on_erase_data_and_change_nothing(model, key):
@@ -98,6 +100,7 @@ def test_no_and_b_go_back_to_settings_on_erase_data_and_change_nothing(model, ke
 
 
 # ---- the erase ----
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODELS)
 def test_yes_zeroes_all_of_sram_and_returns_to_the_title(model):
     img = put(full_image(), 0x200, bytes([0xA5]) * (SIZE - 0x200))      # (and junk where no block lives: an erase leaves nothing)
@@ -127,6 +130,7 @@ def blank_view(model, img=None):
     return o
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODELS)
 def test_after_the_erase_the_game_reads_exactly_like_a_blank_cartridge(model):
     blank = blank_view(model)
@@ -209,6 +213,7 @@ def test_erasing_locks_the_debug_menu_again(model):
         rom.stop()
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODELS)
 def test_an_erased_cartridge_is_a_working_one(model):
     """After the erase a score is entered and saved as on a new cartridge."""

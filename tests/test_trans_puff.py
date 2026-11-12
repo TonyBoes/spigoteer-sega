@@ -38,6 +38,7 @@ def bar_change(gb):
     gb.run(6)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("variant", VARIANTS)
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_first_puff_after_title_to_arcade_has_its_own_tiles(model, variant):

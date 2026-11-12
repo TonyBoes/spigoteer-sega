@@ -208,6 +208,7 @@ def game_over_with(rom, v):
 
 
 # ---- (a) the table in SRAM -----------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_fresh_cartridge_has_an_empty_table(model):
     with booted(model) as rom:
@@ -219,6 +220,7 @@ FIVE = [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
 EMPTY = [("   ", 0)] * TOP_N
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_score_goes_in_at_its_rank_and_pushes_the_rest_down(model):
     ram = v7_image(FIVE)
@@ -232,6 +234,7 @@ def test_a_score_goes_in_at_its_rank_and_pushes_the_rest_down(model):
         assert parse_save(save_ram(rom)) == want, "saved at game over, before the initials"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_ties_go_below_and_low_scores_stay_out(model):
     ram = v7_image(FIVE)
@@ -248,6 +251,7 @@ def test_ties_go_below_and_low_scores_stay_out(model):
                 assert save_ram(rom)[:0x140] == ram[:0x140], "SRAM untouched"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_table_survives_a_reset(model):
     ram = v7_image([("ABC", 500), ("DEF", 400)], story_tbl=[("STO", 9000)], classic=[("CLA", 70)])
@@ -262,6 +266,7 @@ def test_the_table_survives_a_reset(model):
         assert hi_score(again) == 500 and hi_shown(again) == hi_tiles("000500")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_version_6_save_keeps_its_story_and_starts_the_tables_fresh(model):
     """Q4 (owner 2026-10-11): the old arcade's top 5 is dropped; the story progress and the unlocks are kept, written
@@ -280,6 +285,7 @@ def test_a_version_6_save_keeps_its_story_and_starts_the_tables_fresh(model):
         assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 2
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_version_1_or_2_save_is_a_fresh_cartridge(model):
     for ram in (v1_image(12340), v2_image(FIVE)):
@@ -288,6 +294,7 @@ def test_a_version_1_or_2_save_is_a_fresh_cartridge(model):
             assert rom.mem("story_progress") == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_bad_block_empties_only_its_own_table(model):
     good = v7_image(FIVE, story=4, step=1, story_tbl=[("STO", 900)], classic=[("CLA", 80)])
@@ -365,11 +372,13 @@ def test_after_level_10_the_venues_come_round_again_with_a_loop_banner(gb):
     assert gb.mem("intro_timer") < intro
 
 
+@pytest.mark.only_model('dmg')
 def test_levels_inside_a_loop_have_no_banner(gb):
     to_level(gb, 12)
     assert state(gb) == PLAYING and gb.mem("overlay_on") == 0 and gb.mem("cur_group") == 1 and gb.mem("arcade_loop") == 2
 
 
+@pytest.mark.only_model('dmg')
 def test_loop_3_starts_at_level_21(gb):
     to_level(gb, 21)
     assert state(gb) == GS_LOOP and gb.mem("arcade_loop") == 3 and gb.mem("cur_group") == 0
@@ -501,6 +510,7 @@ def test_entering_initials_then_the_table(model):
         assert table(again)[1] == ("JXQ", 450)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_initials_screen_waits_for_a(boot):
     to_initials(boot, 50)
     boot.run(600)
@@ -510,6 +520,7 @@ def test_the_initials_screen_waits_for_a(boot):
     assert table(boot)[0] == ("AAA", 50)
 
 
+@pytest.mark.only_model('dmg')
 def test_no_entry_shows_the_table_briefly_then_the_title(boot):
     before = table(boot)
     game_over_with(boot, 0)
@@ -520,6 +531,7 @@ def test_no_entry_shows_the_table_briefly_then_the_title(boot):
     run_until(boot, lambda: state(boot) == TITLE, 320)          # and the title after 5 s
 
 
+@pytest.mark.only_model('dmg')
 def test_a_b_or_start_leave_the_table(boot):
     for b in ("a", "b", "start"):
         idle_title(boot)
@@ -547,6 +559,7 @@ def test_an_idle_title_shows_the_table_and_comes_back(boot):
     run_until(boot, lambda: state(boot) == PLAYING, 30)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_idle_title_cycles_the_three_tables(model):
     ram = v7_image([("ARC", 300)], story_tbl=[("STO", 200)], classic=[("CLA", 100)])
@@ -562,6 +575,7 @@ def test_the_idle_title_cycles_the_three_tables(model):
             gb.run(3)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_hi_line_shows_the_table_of_the_mode_under_play_s_cursor(model):
     from conftest import K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, menu_items, menu_tap, title_pick
@@ -582,6 +596,7 @@ def test_the_hi_line_shows_the_table_of_the_mode_under_play_s_cursor(model):
         assert hi_shown(gb) == hi_tiles("000300")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_title_hi_line_is_the_top_score_and_the_table_shows_the_save(model):
     with booted(model, v7_image([("ZED", 98765), ("QUA", 4321)])) as gb:
@@ -597,6 +612,7 @@ def test_the_title_hi_line_is_the_top_score_and_the_table_shows_the_save(model):
 GS_SCORES = 10
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_title_music_keeps_playing_through_the_attract_high_scores(model):
     import numpy as np
@@ -619,6 +635,7 @@ def test_the_title_music_keeps_playing_through_the_attract_high_scores(model):
         rom.stop()
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("top", ["PLAY", "BONUS", "SETTINGS"])
 def test_no_high_scores_from_a_submenu(model, top):

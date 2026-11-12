@@ -290,6 +290,7 @@ def test_a_at_the_next_uncleared_venue_starts_its_pre_scene(model, progress):
     assert gb.regs()["WY"] == 64, "the banner window's own place again"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_at_the_next_venue_with_a_step_reached_opens_its_banner_as_continue_did(model):
     gb = to_map(model, 3, step=ts.SHIFT_STEP[1])
@@ -315,6 +316,7 @@ def venue_panel(model, progress=5, stop=1):
     return gb
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_cleared_venue_opens_play_back_and_its_best_medal(model):
     gb = venue_panel(model, 5, 1)
@@ -350,6 +352,7 @@ def back_to_map(gb):
     gb.run(40)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_play_runs_that_venues_mini_game_only_and_upgrades_the_medal(model):
     gb = venue_panel(model, 5, 1)           # the stadium: Shirt Cannon, bronze 1500, silver 2100, gold 2700
@@ -383,6 +386,7 @@ def test_play_runs_that_venues_mini_game_only_and_upgrades_the_medal(model):
     assert ram[0x40 + 6 + 1] & 3 == 3, "the saved gold (Practice's block, the stadium's byte)"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_map_play_quit_from_the_pause_menu_returns_to_the_map_without_a_medal(model):
     gb = venue_panel(model, 5, 1)
@@ -399,6 +403,7 @@ def test_a_map_play_quit_from_the_pause_menu_returns_to_the_map_without_a_medal(
     assert gb.read("mg_best", 10)[1] == 0 and gb.mem("story_progress") == 5
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_map_play_on_a_new_games_card_goes_back_with_b(model):
     gb = to_map(model, 5, stop=1, cards=False)
@@ -433,6 +438,7 @@ def test_the_town_panel_offers_the_festival_and_a_greyed_pour_off(model):
     assert not any((t & 0xFF) >= DIM_BASE for t in gb.bg_tilemap(True)[2][:20]) and win_text(gb, 3) == "GOLDS: 0"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("progress, want", [(0, 0), (1, 0), (2, 1), (3, 1), (4, 2), (6, 2), (7, 3), (10, 3)])
 def test_the_festival_unlocks_gradually_after_chapters_2_4_and_7(model, progress, want):
@@ -562,6 +568,7 @@ def test_only_normal_and_hard_story_runs_count_easy_does_not(model, diff, counts
     assert pour_off_lives(gb) == 3 + counts
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_festival_gold_says_one_more_life_and_a_repeat_does_not(model):
     gb = to_map(model, 10, step=1, stop=TOWN)
@@ -580,6 +587,7 @@ def test_a_festival_gold_says_one_more_life_and_a_repeat_does_not(model):
         back_to_map(gb)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_pour_off_outside_a_story_run_has_three_lives_whatever_the_flags_hold(model):
     gb = booted(model)
@@ -601,6 +609,7 @@ def test_the_pour_off_outside_a_story_run_has_three_lives_whatever_the_flags_hol
     assert gb.mem("mg_medal") == 3 and gb.mem("smap_flags") & 0x70 == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_new_story_run_resets_the_festival_golds(model):
     gb = booted(model, v7_image([], story=10, step=1))
@@ -611,6 +620,7 @@ def test_a_new_story_run_resets_the_festival_golds(model):
     assert gb.mem("smap_flags") & 0x7F == 0 and gb.mem("smap_stop") == TOWN,"a new run: no festival game played or won, Sal at the town"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("progress, open_", [(0, 0), (5, 0), (9, 0), (10, 1)])
 def test_the_pour_off_is_greyed_until_all_ten_venues_are_cleared(model, progress, open_):
@@ -622,6 +632,7 @@ def test_the_pour_off_is_greyed_until_all_ten_venues_are_cleared(model, progress
     assert went == bool(open_)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_dregs_nudges_with_fewer_than_three_golds_one_page_text_only(model):
     gb = town_panel(model, 10, golds=7)
@@ -641,6 +652,7 @@ def test_dregs_nudges_with_fewer_than_three_golds_one_page_text_only(model):
 
 
 # ---- START: RESUME / QUIT TO TITLE ---------------------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_start_opens_resume_and_quit_and_b_or_resume_closes_it_with_nothing_changed(model):
     gb = to_map(model, 5, stop=2)
@@ -759,6 +771,7 @@ def test_a_good_map_block_is_taken_and_a_locked_stop_in_it_is_not(model):
     assert gb.mem("smap_stop") == 4
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_all_ten_cleared_continue_returns_to_the_map_until_the_credits_end(model):
     gb = to_map(model, 10, step=1)

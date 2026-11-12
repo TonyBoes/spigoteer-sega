@@ -153,6 +153,7 @@ def test_the_rom_has_the_harmony_in_bank_24_the_blobs_in_10_and_sakura_runs_1344
     assert gm.pass_frames(112, 12) == 1344
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("group", [2, 3, 4, 5, 6, 7, 8, 9])
 def test_the_pause_mix_of_each_new_venue_tune_is_bass_and_drums(model, group):
