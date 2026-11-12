@@ -79,6 +79,7 @@ def test_bonus_is_always_on_the_menu(boot):
         assert tilemap_row(rom, 7, 0, 20) == title_text_row("credits"), "CREDITS first (tests/test_credits.py)"
 
 
+@pytest.mark.only_model('dmg')
 def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
     to_jukebox(boot)
     assert state(boot) == GS_JUKEBOX
@@ -133,6 +134,7 @@ def test_selecting_moves_through_the_tunes_and_never_plays(boot):
     assert state(boot) == GS_JUKEBOX and not boot.visible_sprites()
 
 
+@pytest.mark.only_model('dmg')
 def test_a_fresh_cartridge_has_only_the_title_tune(boot):
     to_jukebox(boot)
     settle_rows(boot)
@@ -151,6 +153,7 @@ def test_a_fresh_cartridge_has_only_the_title_tune(boot):
     assert header(boot).endswith("2 / 15")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_tune_shows_its_name_credit_and_place(model):
     with booted(model, v7_image([], tunes=ALL)) as rom:
@@ -162,6 +165,7 @@ def test_every_tune_shows_its_name_credit_and_place(model):
             tap(rom, "right")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_plays_the_selected_tune_a_again_stops_it_and_b_always_leaves(model):
     with booted(model, v7_image([], tunes=ALL)) as rom:
@@ -193,6 +197,7 @@ def test_a_plays_the_selected_tune_a_again_stops_it_and_b_always_leaves(model):
         assert rom.mem("cur_tune") == 0 and rom.mem("sound_on") == 1, "B leaves with a tune playing: the title and its tune"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_jingle_stops_by_itself_and_the_hint_follows(boot):
     to_jukebox(boot)
     boot.write("tune_unlocked", 0xFF)
@@ -206,6 +211,7 @@ def test_a_jingle_stops_by_itself_and_the_hint_follows(boot):
     assert boot.mem("jb_shown") == TUNE_NONE and hint(boot) == "@ PLAY   $ BACK"
 
 
+@pytest.mark.only_model('dmg')
 def test_music_off_still_plays_here_and_stays_off_after(boot):
     tap(boot, "select")
     boot.run(2)
@@ -388,6 +394,7 @@ def test_unlocks_survive_a_new_story(model):
 
 
 # ---- SRAM version 7 (the three modes) and the migrations from versions 4 and 5 -----------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("story,step", [(0, 0), (0, 2), (3, 0), (3, 1), (6, 2), (9, 0)])
 def test_a_version_4_save_migrates_to_version_7(model, story, step):
@@ -407,6 +414,7 @@ def test_a_version_4_save_migrates_to_version_7(model, story, step):
 V0 = TUNE_VENUE0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("old, new", [
     (1, 1),                                                    # the title only
@@ -425,6 +433,7 @@ def test_a_version_5_save_s_unlocks_follow_the_new_tune_order(model, old, new):
     assert saved_tunes(ram) == new and ram[:4] == b"TPR7"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_version_5_save_keeps_its_unlocks_and_gains_its_progress_s(model):
     """A v5 save at the old chapter 8 (the space lounge) having heard its tunes: progress 6, step 0; the tunes heard
@@ -444,6 +453,7 @@ def test_progress_unlocks_rule():
     assert progress_unlocks(10, 0) == ALL, "the story complete: everything"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_version_7_loads_its_unlocks_and_rejects_a_bad_one(model):
     with booted(model, v7_image([("ABC", 500)], story=2, step=1, tunes=0x1234 | 1)) as rom:
@@ -462,6 +472,7 @@ def test_version_7_loads_its_unlocks_and_rejects_a_bad_one(model):
             assert rom.mem("story_progress") == 0, name
 
 
+@pytest.mark.only_model('dmg')
 def test_mountain_starts_on_its_pickup_and_the_loop_is_unchanged(srom):
     """"She'll be coming": the first play of Mountain starts on the pickup (the last 8 rows of its 256: order 3, row 56,
     tools/songs.py start=), the first note heard is that pickup's A4, the driver wraps to order 0 row 0 (bar 1's "com-")

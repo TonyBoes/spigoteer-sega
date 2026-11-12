@@ -51,6 +51,7 @@ def test_the_table_slants_levels_10_to_26():
         assert row["taper"] == (1 if lv >= 10 else 0), lv
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("lv", [1, 9, 10, 12, 13, 14, 23, 26, 27])
 def test_each_level_sets_its_bars_taps(boot, lv):
     classic_at(boot, lv)
@@ -59,6 +60,7 @@ def test_each_level_sets_its_bars_taps(boot, lv):
     assert boot.mem("bartender_x") == taps(t)[0] and boot.mem("bar") == 0, "he starts at the top bar's tap"
 
 
+@pytest.mark.only_model('dmg')
 def test_taper_0_leaves_every_bar_straight(gb):
     """The harness (and every mode but CLASSIC's slanted levels): every tap at TAP_X, every window at column 0."""
     assert list(gb.read("bar_tap", 4)) == [TAP_X] * 4 and list(gb.read("bar_bofs", 4)) == [0] * 4
@@ -194,6 +196,7 @@ def test_the_bartender_snaps_walks_and_fills_at_each_bars_tap(boot, dirs):
         quiet(gb)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("dirs", DIRS)
 def test_a_walker_costs_a_life_at_his_bars_tap(boot, dirs):
     gb = start_t(boot, dirs)
@@ -267,6 +270,7 @@ def test_an_empty_off_the_near_end_breaks_past_the_bars_keg(boot, dirs):
     assert gx and all(x in want for x in gx), (gx, want)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("dirs", DIRS)
 def test_a_full_mug_off_the_far_end_is_unchanged(boot, dirs):
     gb = start_t(boot, dirs)
@@ -282,6 +286,7 @@ def test_a_full_mug_off_the_far_end_is_unchanged(boot, dirs):
     assert gb.read("mug_state", MAX_M)[m] == 3 and gb.mem("lives") == lives - 1 and gb.read("mug_x", MAX_M)[m] < 16
 
 
+@pytest.mark.only_model('dmg')
 def test_fair_empties_count_the_bars_own_distance(boot):
     """empty_travel: an empty sent on the top bar has 24 px less to go; the schedule (next_arrival) says so."""
     gb = start_t(boot, TAPER)

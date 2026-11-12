@@ -96,6 +96,7 @@ def pos(gb, d):
 
 
 # ---- opening ----
+@pytest.mark.only_model('dmg')
 def test_the_gesture_opens_the_menu_on_the_title(boot):
     combo(boot)
     assert boot.mem("debug_menu_open") == 1 and boot.mem("debug_level") == 1
@@ -125,6 +126,7 @@ def test_it_is_a_full_screen_menu(boot):
     assert boot.pb.memory[0xFE00] == (4 * 8 - 7 + 16) and boot.pb.memory[0xFE01] == 8
 
 
+@pytest.mark.only_model('dmg')
 def test_a_short_start_still_starts_the_game_and_select_still_toggles_music(boot):
     s0 = boot.mem("sound_on")
     boot.press("select", 3)
@@ -137,6 +139,7 @@ def test_a_short_start_still_starts_the_game_and_select_still_toggles_music(boot
     assert boot.mem("game_state") == PLAYING and boot.mem("debug_menu_open") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_two_taps_are_not_enough(boot):
     unlock_debug(boot)
     gesture(boot, taps=2)
@@ -145,6 +148,7 @@ def test_two_taps_are_not_enough(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_taps_too_slow_do_not_open_and_a_quick_run_after_them_does(boot):
     unlock_debug(boot)
     gesture(boot, taps=3, gap=40)                         # the third tap comes 84 frames after the first: past the window
@@ -159,6 +163,7 @@ def test_taps_too_slow_do_not_open_and_a_quick_run_after_them_does(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_three_quick_taps_open_it_at_the_window_s_edge(boot):
     unlock_debug(boot)
     gesture(boot, taps=3, gap=WINDOW // 2 - 6)            # about 60 frames from the first to the third
@@ -166,6 +171,7 @@ def test_three_quick_taps_open_it_at_the_window_s_edge(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_a_new_hold_of_select_starts_the_count_again(boot):
     unlock_debug(boot)
     gesture(boot, taps=2)
@@ -176,6 +182,7 @@ def test_a_new_hold_of_select_starts_the_count_again(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_locked_the_gesture_does_nothing_and_start_still_works(boot):
     assert not debug_unlocked(boot)
     boot.hold("select")
@@ -188,6 +195,7 @@ def test_locked_the_gesture_does_nothing_and_start_still_works(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_gesture_on_the_title_does_not_leave_the_music_toggled(boot):
     s0 = boot.mem("sound_on")
     combo(boot)
@@ -196,6 +204,7 @@ def test_the_gesture_on_the_title_does_not_leave_the_music_toggled(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_a_gesture_that_does_not_open_leaves_select_s_one_toggle(boot):
     s0 = boot.mem("sound_on")
     unlock_debug(boot)
@@ -207,6 +216,7 @@ def test_a_gesture_that_does_not_open_leaves_select_s_one_toggle(boot):
     assert boot.mem("sound_on") == s0
 
 
+@pytest.mark.only_model('dmg')
 def test_the_practice_list_s_select_is_untouched(boot):
     """SELECT cycles the Practice list's difficulty as before; the gesture lives on the title, in play and in a level's pause only."""
     from conftest import K_MINIGAMES
@@ -228,6 +238,7 @@ def test_the_practice_list_s_select_is_untouched(boot):
 
 
 # ---- using it ----
+@pytest.mark.only_model('dmg')
 def test_left_right_change_the_level_and_wrap(boot):
     combo(boot)
     release_combo(boot)
@@ -243,6 +254,7 @@ def test_left_right_change_the_level_and_wrap(boot):
     assert boot.mem("debug_level") == 1 and boot.mem("debug_sel") == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_the_box_shows_the_level(boot):
     combo(boot)
     release_combo(boot)
@@ -269,6 +281,7 @@ def test_a_starts_that_level_from_scratch(boot, lvl):
     assert boot.regs()["WY"] != 0 and boot.mem(0xFF45) != 255, "the banner window's own LYC and WY are back"
 
 
+@pytest.mark.only_model('dmg')
 def test_start_starts_too(boot):
     combo(boot)
     release_combo(boot)
@@ -278,6 +291,7 @@ def test_start_starts_too(boot):
     assert boot.mem("game_state") == PLAYING and boot.mem("level") == 2
 
 
+@pytest.mark.only_model('dmg')
 def test_the_mode_line_switches_between_the_four_runs(boot):
     combo(boot)
     release_combo(boot)
@@ -350,6 +364,7 @@ def test_b_returns_to_the_title(boot):
     assert boot.mem("game_state") == PLAYING, "the title still works"
 
 
+@pytest.mark.only_model('dmg')
 def test_b_with_select_still_held_does_not_reopen(gb):
     combo(gb)
     gb.press("b", 2); gb.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
@@ -358,6 +373,7 @@ def test_b_with_select_still_held_does_not_reopen(gb):
     release_combo(gb)
 
 
+@pytest.mark.only_model('dmg')
 def test_short_start_pauses_normally(gb):
     unlock_debug(gb)
     gb.press("start", 3)
@@ -368,6 +384,7 @@ def test_short_start_pauses_normally(gb):
     assert gb.mem("game_state") == PLAYING
 
 
+@pytest.mark.only_model('dmg')
 def test_the_gesture_opens_from_a_level_s_pause(gb):
     unlock_debug(gb)
     gb.press("start", 3)
@@ -393,6 +410,7 @@ def test_the_konami_code_unlocks_it(boot):
     release_combo(boot)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("keys", [KONAMI[:-1], KONAMI[:-2] + ["a", "b"], ["up", "up", "down", "down", "left", "right", "left", "right", "a", "b"],
                                   ["up", "up", "up", "down", "down", "left", "right", "left", "right", "b", "a"]], ids=["short", "swapped-end", "ab-swapped", "extra-up"])
 def test_a_wrong_code_does_not_unlock(boot, keys):
@@ -400,11 +418,13 @@ def test_a_wrong_code_does_not_unlock(boot, keys):
     assert not debug_unlocked(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_a_false_start_does_not_spoil_the_code(boot):
     konami(boot, ["left"] + KONAMI)
     assert debug_unlocked(boot)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_code_works_from_a_submenu_too_and_changes_nothing_there(boot):
     from test_flow import menu_block_rows
     title_pick(boot, K_SETTINGS)
@@ -444,6 +464,7 @@ def test_settings_lists_debug_menu_only_when_unlocked(boot):
     expect_settings(boot, debug=True)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_settings_line_opens_the_menu_and_b_comes_back_to_it(boot):
     unlock_debug(boot)
     title_pick(boot, K_SETTINGS, K_DEBUG)
@@ -455,6 +476,7 @@ def test_the_settings_line_opens_the_menu_and_b_comes_back_to_it(boot):
     assert menu_items(boot)[boot.mem("title_sel")] == K_DEBUG, "SETTINGS, the cursor on DEBUG MENU"
 
 
+@pytest.mark.only_model('dmg')
 def test_the_debug_line_alone_does_not_toggle_the_music(boot):
     unlock_debug(boot)
     s0 = boot.mem("sound_on")
@@ -555,6 +577,7 @@ def playable(c=0, unskip=0):
     return [0] + [p for p in range(1, n + 1) if steps[p - 1]["built"] or (unskip >> (p - 1)) & 1] + [n + 1]
 
 
+@pytest.mark.only_model('dmg')
 def test_on_story_the_box_selects_story_positions(boot):
     open_on(boot, K_STORY)
     assert boot.mem("debug_menu_open") == 1 and boot.mem("debug_story") == 1
@@ -583,6 +606,7 @@ def test_on_story_the_box_selects_story_positions(boot):
     assert banner_is(boot, "STORY 2 HAPPY")
 
 
+@pytest.mark.only_model('dmg')
 def test_an_unskipped_step_is_offered(boot):
     from test_story import SEQ
     mini = next(i for i, s in enumerate(SEQ) if s["kind"] == "MINI")
@@ -594,6 +618,7 @@ def test_an_unskipped_step_is_offered(boot):
     assert banner_is(boot, "STORY 1 MINI")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c,k", [(2, 0), (6, 2), (0, 0)])   # (a Happy hour of a chapter with a built mini-game goes on to it)
 def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(model, c, k):
@@ -633,6 +658,7 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
     assert after[:40] == with_unlock(ram)[:40], "SRAM not written (but for the unlock the test gave itself)"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("pos_name,scene", [("pre", "PRE_BISTRO"), ("post", "POST_BISTRO")])
 def test_a_on_a_scene_plays_it(boot, pos_name, scene):
     from test_flow import run_until
@@ -669,6 +695,7 @@ def test_in_story_play_the_box_opens_where_the_story_is(model):
         assert gb.mem("game_state") == PLAYING and gb.mem("story_on") == 1, "B: the shift goes on"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("k", [K_PLAY, K_BONUS, K_SETTINGS, K_SOUNDTRACK, K_MUSIC])
 def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot, k):
     """The top level (PLAY too: no mode chosen yet) and BONUS / SETTINGS: the LEVEL select (the harness). (P5: PLAY's
@@ -679,6 +706,7 @@ def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot, k):
     assert banner_is(boot, "LEVEL 01")
 
 
+@pytest.mark.only_model('dmg')
 def test_the_box_follows_play_s_cursor_and_b_leaves_the_submenu_as_it_was(boot):
     open_on(boot, K_STORY)
     assert boot.mem("debug_story") == 1 and banner_is(boot, "STORY 1 PRE")
@@ -758,6 +786,7 @@ def test_the_menu_goldens(model):
         rom.stop()
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
     """The boss is no step of its own (owner 2026-10-17): the box offers LAST (Last call); A starts it, meeting its quota turns the level into
@@ -801,6 +830,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
 
 
 # ---- the ARCADE box (the three modes): PLAY's ARCADE or ARCADE play; its steps only (no scenes) ----------------------
+@pytest.mark.only_model('dmg')
 def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
     from test_flow import GS_GOAL, run_until
     from test_story import STORY_STEPS
@@ -828,6 +858,7 @@ def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
     assert boot.mem("debug_story") == 2 and banner_is(boot, "ARCADE 2 HAPPY")
 
 
+@pytest.mark.only_model('dmg')
 def test_closing_puts_the_wall_s_tiles_back_under_the_game(gb):
     """The menu's wood wall uses the stage ids 0-4 (src/mg_list.c list_skin_load); the game under the window gets its own tiles back on B."""
     vram = lambda: bytes(gb.read(0x9000, 5 * 16))

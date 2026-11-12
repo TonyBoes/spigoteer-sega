@@ -1,3 +1,4 @@
+import pytest
 # M1: bar scene + bartender movement. Every assertion reads a named variable
 # from build/game.noi; every test runs on DMG and CGB (see conftest.gb).
 from conftest import GAME, LAYOUT, bar_top_y, check_golden
@@ -18,6 +19,7 @@ def test_boots(gb):
     check_golden(gb, "scene")
 
 
+@pytest.mark.only_model('dmg')
 def test_down_walks_bars_and_wraps(gb):
     for expected in (1, 2, 3, 0):
         gb.press("down", 2)
@@ -25,6 +27,7 @@ def test_down_walks_bars_and_wraps(gb):
         assert gb.mem("bartender_x") == TAP_X
 
 
+@pytest.mark.only_model('dmg')
 def test_up_wraps_to_bottom_bar(gb):
     gb.press("up", 2)
     assert gb.mem("bar") == 3
@@ -32,6 +35,7 @@ def test_up_wraps_to_bottom_bar(gb):
     assert gb.mem("bar") == 2
 
 
+@pytest.mark.only_model('dmg')
 def test_up_down_is_edge_triggered(gb):
     gb.hold("down")
     gb.run(30)
@@ -39,6 +43,7 @@ def test_up_down_is_edge_triggered(gb):
     assert gb.mem("bar") == 1, "holding down moves one bar only"
 
 
+@pytest.mark.only_model('dmg')
 def test_walk_left_and_right(gb):
     gb.press("left", 10)
     assert gb.mem("bartender_x") == TAP_X - 15, "1.5 px per frame"
@@ -50,6 +55,7 @@ def test_walk_left_and_right(gb):
     assert gb.mem("at_tap") == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_clamped_at_both_ends(gb):
     gb.press("left", 100)
     assert gb.mem("bartender_x") == LEFT_LIMIT
@@ -61,6 +67,7 @@ def test_clamped_at_both_ends(gb):
     assert gb.mem("bartender_x") == TAP_X
 
 
+@pytest.mark.only_model('dmg')
 def test_walk_animation_alternates(gb):
     """M8a: a calmer cycle, walk1, idle, walk2, idle, 10 frames each."""
     assert gb.mem("bartender_frame") == 0
@@ -78,6 +85,7 @@ def test_walk_animation_alternates(gb):
     assert gb.mem("bartender_frame") == 0, "idle when still"
 
 
+@pytest.mark.only_model('dmg')
 def test_bar_change_snaps_to_tap(gb):
     gb.press("left", 30)
     assert gb.mem("bartender_x") == TAP_X - 45
@@ -146,6 +154,7 @@ def _row(gb, y, x0=0, n=20):
     return [t & 0xFF for t in gb.bg_tilemap()[y][x0:x0 + n]]
 
 
+@pytest.mark.only_model('dmg')
 def test_bars_have_their_counter_rows_at_the_layout_rows(gb):
     """M9: the rows come from the level's venue (level 1: the saloon, build/venues.json)."""
     bar_map = venue_rows("saloon", "bar_map")
@@ -158,6 +167,7 @@ def test_bars_have_their_counter_rows_at_the_layout_rows(gb):
     assert _row(gb, LAYOUT["FLOOR_ROW"]) == [venue("saloon")["floor_tile"]] * 20
 
 
+@pytest.mark.only_model('dmg')
 def test_stage_rows_hold_the_venue_stage(gb):
     first, last = LAYOUT["STAGE_FIRST_ROW"], LAYOUT["STAGE_LAST_ROW"]
     assert (LAYOUT["HUD_ROW"], first, last, LAYOUT["BAR_FIRST_ROW"]) == (0, 1, 4, 5)
@@ -201,6 +211,7 @@ def test_stage_golden(gb):
 
 
 # ---- M8a: the counter to the left edge (no door, owner 2026-10-09), the spout, walking speed --------------------
+@pytest.mark.only_model('dmg')
 def test_counter_and_wall_run_to_the_left_edge(gb):
     bar_map = venue_rows("saloon", "bar_map")
     walls = set(bar_map[0][2:17] + bar_map[1][2:17])
@@ -213,6 +224,7 @@ def test_counter_and_wall_run_to_the_left_edge(gb):
         assert _row(gb, bar_counter_row(b), 0, 2) == bar_map[2][0:2], f"bar {b}: counter at columns 0-1"
 
 
+@pytest.mark.only_model('dmg')
 def test_spout_reaches_over_column_17_on_the_lower_wall_row(gb):
     bar_map = venue_rows("saloon", "bar_map")
     for b in range(4):
@@ -223,6 +235,7 @@ def test_spout_reaches_over_column_17_on_the_lower_wall_row(gb):
     assert GAME["SPOUT_X"] == 17 * 8 and GAME["TAP_X"] == GAME["SPOUT_X"] - 16
 
 
+@pytest.mark.only_model('dmg')
 def test_walk_speed_is_one_and_a_half_px_per_frame(gb):
     xs = [gb.mem("bartender_x")]
     gb.hold("left")

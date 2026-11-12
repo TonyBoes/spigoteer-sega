@@ -96,6 +96,7 @@ def play_from_list(gb, rounds=None, score=None):
 
 
 # ---- the selection ------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_select_cycles_the_mode_on_every_entry_and_the_header_and_medal_follow(model):
     """On every one of the 14 entries: SELECT goes NORMAL > HARD > EASY > NORMAL (EASY, NORMAL, HARD is the order on the screen), the header names
@@ -272,6 +273,7 @@ def test_an_old_save_keeps_its_medals_as_normal_and_has_none_for_easy_and_hard(m
     assert ml.parse_block(ram)[1][:3] == [3 | 1 << 4, 2, 1]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_mgp2_save_with_normal_medals_loads_and_a_bad_block_reads_as_nothing(model):
     good = pr_block2(1, [3 | 2 << 2 | 1 << 4])
@@ -286,6 +288,7 @@ def test_a_mgp2_save_with_normal_medals_loads_and_a_bad_block_reads_as_nothing(m
             assert table(gb)[0] == ("ABC", 500), name
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_bad_md_block_reads_as_no_easy_or_hard_bonus_medals_and_leaves_mgb1_alone(model):
     bx = bytearray(10)

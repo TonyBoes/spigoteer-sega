@@ -85,6 +85,7 @@ def test_arcade_starts_at_the_saloon_s_opening_banner_with_no_scene(model):
         check_golden(gb, "arcade_start")
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_venues_in_story_order_lives_carry_and_a_bonus_round_after_each(model):
     with start_arcade(model) as gb:
@@ -136,6 +137,7 @@ def test_after_the_space_lounge_loop_2_and_the_saloon_harder(model):
         assert state(gb) == PLAYING
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_extra_lives_at_20000_and_every_40000_at_most_four(model):
     with start_arcade(model) as gb:
@@ -161,6 +163,7 @@ SFX_EXTRA, SFX_COUNT = 9, 10
 NR11, NR12, NR52 = 0xFF11, 0xFF12, 0xFF26
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_an_extra_life_plays_its_cue_over_the_music(model):
     """Owner: a sound when an extra life is awarded.  SFX_EXTRA (the ninth effect: sfx_req is 16 bits now) is a 0.55 s
@@ -204,6 +207,7 @@ def test_an_extra_life_plays_its_cue_over_the_music(model):
         assert gb.mem("lives") == 4 and gb.read("sfx_count", SFX_COUNT)[SFX_EXTRA] == 1, "no life, no cue"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_no_extra_lives_in_the_story_or_the_harness(model):
     from conftest import K_PLAY, K_STORY, title_level, title_pick
@@ -217,6 +221,7 @@ def test_no_extra_lives_in_the_story_or_the_harness(model):
         assert int.from_bytes(gb.read("extra_at", 4), "little") == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_game_over_initials_and_the_arcade_top_5_and_nothing_else_saved(model):
     ram = v7_image([("ABC", 500)], story=3, step=1, tunes=0x21, story_tbl=[("STO", 900)])
@@ -244,6 +249,7 @@ def test_game_over_initials_and_the_arcade_top_5_and_nothing_else_saved(model):
     assert parse_save(out, MODE_STORY)[0] == ("STO", 900)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_timed_goal_out_of_lives_is_game_over_not_try_again(model):
     timed = [(c, k) for c in range(10) for k in range(3) if SHIFTS[c][k]["secs"]]

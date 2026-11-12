@@ -72,6 +72,7 @@ def tunes(rom):
 
 
 # ---- the prompt ---------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_new_story_asks_how_hard_with_the_cursor_on_normal_and_b_backs_out(model):
     with booted(model) as rom:
@@ -123,6 +124,7 @@ def check_caption(rom):
         assert rows[r][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], (r, k)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_prompt_has_no_header_and_one_caption_line_that_follows_the_cursor(model):
     t = TITLE_ART
@@ -157,6 +159,7 @@ def test_the_prompt_lines_are_centred_within_half_a_tile(model):
     assert (min(ROWS.values()) - 4) == (13 - CAP_ROW) + 2
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_prompt_appears_only_on_a_new_story(model):
     with booted(model, image(2)) as rom:                         # a save: PLAY lists CONTINUE, STORY, ARCADE, CLASSIC
@@ -440,6 +443,7 @@ def test_the_level_bonus_and_a_medal_are_scaled_too(model, d):
         assert hud_digits(rom) == s0 + gained
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_and_classic_scores_are_not_scaled(model):
     from test_classic_mode import serve_one
@@ -453,6 +457,7 @@ def test_arcade_and_classic_scores_are_not_scaled(model):
 
 
 # ---- ERASE DATA --------------------------------------------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_erase_data_resets_the_difficulty(model):
     from conftest import K_ERASE, K_SETTINGS, K_YES

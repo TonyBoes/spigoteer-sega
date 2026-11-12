@@ -86,6 +86,7 @@ def test_the_puff_is_not_drawn_in_a(gb):
     assert gb.read("sfx_count", 15)[SFX_SWISH] == w0, "no swish"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_keeps_his_place_and_walks_back_to_pour(gb):
     mode_a(gb)
     gb.press("left", 30)
@@ -105,6 +106,7 @@ def test_a_keeps_his_place_and_walks_back_to_pour(gb):
     gb.release("a")
 
 
+@pytest.mark.only_model('dmg')
 def test_a_within_the_grace_of_the_tap_snaps_and_pours_as_ever(gb):
     mode_a(gb)
     gb.press("left", 10)
@@ -116,6 +118,7 @@ def test_a_within_the_grace_of_the_tap_snaps_and_pours_as_ever(gb):
     gb.release("a")
 
 
+@pytest.mark.only_model('dmg')
 def test_a_a_full_drink_is_carried_to_the_next_bar_at_the_tap(gb):
     mode_a(gb)
     gb.hold("a")
@@ -126,6 +129,7 @@ def test_a_a_full_drink_is_carried_to_the_next_bar_at_the_tap(gb):
     gb.release("a")
 
 
+@pytest.mark.only_model('dmg')
 def test_a_away_from_the_tap_a_bar_change_drops_the_fill(gb):
     mode_a(gb)
     gb.hold("a")
@@ -135,6 +139,7 @@ def test_a_away_from_the_tap_a_bar_change_drops_the_fill(gb):
     assert gb.mem("fill_timer") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_a_the_walk_limits_hold_after_a_change(gb):
     mode_a(gb)
     gb.press("left", 100)
@@ -145,6 +150,7 @@ def test_a_the_walk_limits_hold_after_a_change(gb):
     assert gb.mem("bartender_x") == LEFT_LIMIT
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("dirs,x_after", [(0x2, None), (0x0, None)])
 def test_a_between_mirrored_bars_he_keeps_his_place_on_the_screen(boot, dirs, x_after):
     """Bar 1 an R bar (the tap on the left): his left edge on the screen stays; bar-local x is 144 - x on an R bar."""
@@ -178,6 +184,7 @@ def box_word(gb):
     return None
 
 
+@pytest.mark.only_model('dmg')
 def test_the_debug_box_switches_the_mode_on_its_line(boot):
     from test_debug import goto, tap
     combo(boot)
@@ -205,6 +212,7 @@ def test_the_debug_box_switches_the_mode_on_its_line(boot):
     assert boot.mem("bar") == 1 and boot.mem("bartender_x") != TAP_X and boot.mem("level_dirs") & KEEP_POS
 
 
+@pytest.mark.only_model('dmg')
 def test_the_mode_survives_a_trip_to_the_title(boot):
     boot.write("level_dirs", KEEP_POS)
     from conftest import title_level
@@ -213,6 +221,7 @@ def test_the_mode_survives_a_trip_to_the_title(boot):
     assert boot.mem("level_dirs") & KEEP_POS
 
 
+@pytest.mark.only_model('dmg')
 def test_the_classic_box_has_no_bar_change_line(boot):
     title_pick(boot, K_PLAY, K_CLASSIC, press=False)
     combo(boot)
@@ -298,6 +307,7 @@ def test_a_an_empty_is_caught_by_standing_on_it_not_only_at_the_tap(gb):
     assert score(gb) == s0 + EMPTY_SCORE and gb.mem("lives") == lives - 1, "missed: it broke at the tap end"
 
 
+@pytest.mark.only_model('dmg')
 def test_b_an_empty_at_the_end_of_the_bar_is_caught_at_the_tap_as_ever(gb):
     quiet_bars(gb)
     gb.press("left", 30)

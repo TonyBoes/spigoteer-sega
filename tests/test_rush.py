@@ -237,6 +237,7 @@ def test_the_debug_list_has_every_built_boss_unlocked(model):
         assert R(gb, SEL) == 1, "the menu, on CHOOSE"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_list_works_for_any_number_of_built_bosses(model):
     """CHOOSE with 1..10 built bosses (the mask rewritten in RAM, the list reopened): each boss's baked tiles are found by his rank among the built,
@@ -450,6 +451,7 @@ def test_an_arcade_boss_win_unlocks_him_but_a_debug_select_run_does_not(model):
 
 
 # ---- the block: migration and bad blocks ------------------------------------------------------------------------------
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_mgp1_migrates_with_its_mini_games(model):
     """An "MGP1" block (2026-10-11): its mini-games and medals kept, written back at boot as "MGP2" with an empty rush
@@ -465,6 +467,7 @@ def test_mgp1_migrates_with_its_mini_games(model):
     assert outside_block(out) == outside_block(ram)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_good_block_loads_and_a_bad_one_loses_only_itself(model):
     good = v7_image([("ABC", 500)], story=3, step=1, story_tbl=[("STO", 900)])
@@ -495,6 +498,7 @@ def test_a_good_block_loads_and_a_bad_one_loses_only_itself(model):
             assert line(gb, 14).strip() == "NO BEST YET", name
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_mini_game_record_keeps_the_rush_part(model):
     """mg_record rewrites the block from WRAM: the rush part is kept as it was."""

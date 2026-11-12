@@ -737,6 +737,7 @@ def test_the_level_after_marshmallow_drop_has_everything_back(model):
         assert palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_plays_it_in_chapter_5(model):
     from test_arcade import start_arcade

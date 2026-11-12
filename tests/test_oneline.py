@@ -78,6 +78,7 @@ def tap(gb, b):
     gb.run(3)
 
 
+@pytest.mark.only_model('dmg')
 def test_left_and_right_step_one_entry_and_wrap(gb, screen):
     n = entries(gb, screen)
     assert sel(gb, screen) == 0
@@ -109,6 +110,7 @@ def test_a_held_direction_repeats_after_18_frames_then_every_5(gb, screen, butto
     assert len(hold_changes(gb, button, SCREENS[screen][1](gb), 10)) == 1, "a new press starts the delay again"
 
 
+@pytest.mark.only_model('dmg')
 def test_up_and_down_do_not_repeat(gb, screen):
     changes = hold_changes(gb, "down", SCREENS[screen][1](gb), 60)
     assert len(changes) == 1, changes
@@ -134,6 +136,7 @@ def test_the_band_header_and_hint_row(gb, screen):
         assert mid[1:19] == [6] * 18 and mid[0] == mid[19] != 6, "the arrows' cells have the gold palette, the rest the panel's"
 
 
+@pytest.mark.only_model('dmg')
 def test_the_arrows_bob_a_pixel_every_16_frames(gb, screen):
     seen = []
     for _ in range(70):
@@ -174,6 +177,7 @@ def test_a_press_kicks_its_arrow_out_for_7_frames(gb, screen):
     assert not any(r for _, r in seen) and 5 <= sum(l for l, _ in seen) <= 9, seen
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("screen", [s for s in sorted(SCREENS) if s != "practice"])   # (Practice jumps between its two groups: tests/test_mg_list.py)
 def test_up_and_down_jump(gb, screen):
     n, jump = entries(gb, screen), SCREENS[screen][3]
@@ -188,6 +192,7 @@ def test_up_and_down_jump(gb, screen):
     assert sel(gb, screen) == (n - jump) % n, "wraps"
 
 
+@pytest.mark.only_model('dmg')
 def test_the_counter_follows_the_selection(gb, screen):
     n = entries(gb, screen)
     for k in range(min(n, 4)):

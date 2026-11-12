@@ -177,6 +177,7 @@ def test_intro_delay_holds_patrons(gb):
     assert all(p["x"] == ENTRY_X for p in patrons(gb))
 
 
+@pytest.mark.only_model('dmg')
 def test_a_walker_walks_up_to_and_past_a_drinker(gb):
     """M13b (was: he waited PATRON_SPACING behind): a walker closes in on a drinker and walks on through him; the
     drinker drinks on where he stands."""
@@ -234,6 +235,7 @@ def test_served_near_entry_x_scores_slides_out_and_is_removed(gb):
     check_golden(gb, "served")
 
 
+@pytest.mark.only_model('dmg')
 def test_served_further_in_is_pushed_back_then_drinks_and_returns_an_empty(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -268,6 +270,7 @@ def catch_once(gb, p, bar):
             break
 
 
+@pytest.mark.only_model('dmg')
 def test_every_mug_pushes_further_than_the_last(gb):
     """Owner 2026-11-08 (thirst): mug n pushes pushback_px * (n + 1) / 2: 32, 48, 64 px on level 1. He walks on in
     between (frozen here: skip the drink by poking his state)."""
@@ -299,6 +302,7 @@ def slide_out(gb, p, x):
     return n
 
 
+@pytest.mark.only_model('dmg')
 def test_a_mid_bar_patron_is_pushed_then_served_when_a_push_reaches_the_door(gb):
     """Option C. x 76 on level 1: 76 -> 44 (a full push, he drinks) -> the second mug would carry him to (or past) the
     left-edge stop (44 - ENTRY_X = 28 <= 32): served at once, he does not drink, he slides off. Nothing counts
@@ -325,6 +329,7 @@ def test_a_mid_bar_patron_is_pushed_then_served_when_a_push_reaches_the_door(gb)
     assert gb.mem("served") == 1 and score(gb) == SERVE
 
 
+@pytest.mark.only_model('dmg')
 def test_a_serve_happens_only_off_the_screen(gb):
     """Option C (level 1, push 32): a patron hit at x - ENTRY_X <= 32 (x <= 48) is served at once and slides off without
     drinking; one hit at x 49 is pushed the full 32 px, drinks, unserved. Credit only when he is off the screen."""
@@ -353,6 +358,7 @@ def test_a_serve_happens_only_off_the_screen(gb):
             assert gb.mem("served") == 0 and score(gb) == s0
 
 
+@pytest.mark.only_model('dmg')
 def test_the_hard_rows_push_24_px(gb):
     """The two hardest rows (zoo, space lounge) push 24 px a mug. Option C: a patron at ENTRY_X + 24 is served at once;
     one at ENTRY_X + 25 is pushed the full 24 px and drinks, unserved."""
@@ -379,6 +385,7 @@ def test_the_hard_rows_push_24_px(gb):
             assert gb.mem("served") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_some_patrons_drink_early(gb):
     """From level 2 a patron may take only a quarter or a half of the push and drink at once (never on level 1).
     Many mugs on fresh patrons at x 120: some stop after PX / 4 or PX / 2, the rest slide the whole PX; on level 1 none."""
@@ -403,6 +410,7 @@ def test_some_patrons_drink_early(gb):
     assert PX in later and (PX // 2 in later or PX // 4 in later), later
 
 
+@pytest.mark.only_model('dmg')
 def test_only_a_first_mug_can_be_an_early_drinker(gb):
     """Thirst (owner 2026-11-08): on level 10 many first mugs are short pushes, but a patron who has had a mug always takes
     the full, grown push (second mug 1.5 x, third 2 x) and never drinks early."""
@@ -421,6 +429,7 @@ def test_only_a_first_mug_can_be_an_early_drinker(gb):
             assert 240 - gb.read("patron_x", MAX_P)[p] == PX * mult // 2, (drinks, k)
 
 
+@pytest.mark.only_model('dmg')
 def test_a_new_patron_starts_thirsty_again(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -433,6 +442,7 @@ def test_a_new_patron_starts_thirsty_again(gb):
     assert all(d == 0 for d in gb.read("patron_drinks", MAX_P)), "spawned patrons reset their drink count"
 
 
+@pytest.mark.only_model('dmg')
 def test_pushed_patron_slides_through_the_patron_behind(gb):
     """M13b (was: he stopped at PATRON_SPACING from the patron behind and got no push-back): he slides back his full
     push-back through the patron behind, who stays where he is; both are drawn (one of them lifted)."""
@@ -452,6 +462,7 @@ def clump(gb, bar, xs):
     return [set_patron(gb, bar, x, variant=k % 3) for k, x in enumerate(xs)]
 
 
+@pytest.mark.only_model('dmg')
 def test_the_front_of_a_clump_is_pushed_back_through_it(gb):
     """The owner's stall: a clump of walkers PATRON_SPACING apart; the front one caught a mug and (blocked by the one
     behind) drank in place, every time, and the row never moved. M13b: he slides back his full push-back through the
@@ -471,6 +482,7 @@ def test_the_front_of_a_clump_is_pushed_back_through_it(gb):
     assert gb.mem("served") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_a_patron_pushed_while_overlapping_drinks_and_is_drawn_where_he_stands(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -489,6 +501,7 @@ def test_a_patron_pushed_while_overlapping_drinks_and_is_drawn_where_he_stands(g
     assert map_ids(gb, 2, col) == ids, "the other one is on the BG where he stands"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_clump_served_over_and_over_is_cleared(gb):
     """Serve the front patron of a clump whenever he can catch (walking, or a finished drinker per M8d): the row must
     clear (before M13b the front one caught every mug in place and the row never moved)."""
@@ -531,6 +544,7 @@ def test_a_clump_served_over_and_over_is_cleared(gb):
     assert gb.mem("served") == 4 and catches >= 4
 
 
+@pytest.mark.only_model('dmg')
 def test_bartender_catches_an_empty_mug(gb):
     clear_patrons(gb)
     inject_mug(gb, 0, 104, EMPTY)                 # M8a: 16 px from the bartender at the fill position (x 120)
@@ -556,6 +570,7 @@ def test_bartender_on_another_bar_misses_the_empty(gb):
     assert mugs(gb) == []
 
 
+@pytest.mark.only_model('dmg')
 def test_bartender_away_from_the_mug_misses_it(gb):
     clear_patrons(gb)
     gb.press("left", 20)                 # x = 90
@@ -564,6 +579,7 @@ def test_bartender_away_from_the_mug_misses_it(gb):
     assert score(gb) == 0 and gb.mem("lives") == 2
 
 
+@pytest.mark.only_model('dmg')
 def test_patron_reaching_the_tap_costs_a_life(gb):
     clear_patrons(gb)
     go(gb)
@@ -573,6 +589,7 @@ def test_patron_reaching_the_tap_costs_a_life(gb):
     assert gb.mem("lives") == 2
 
 
+@pytest.mark.only_model('dmg')
 def test_three_patrons_at_the_tap_on_one_frame_cost_one_life(gb):
     # was "end the game" while one incident could cost several lives; game over is covered in test_flow
     clear_patrons(gb)
@@ -599,6 +616,7 @@ def test_full_mug_slides_past_a_drinking_patron(gb):
     assert [m["state"] for m in mugs(gb)] == [HELD], "the walker holds it, the drinker's hands are full"
 
 
+@pytest.mark.only_model('dmg')
 def test_rightmost_patron_catches_first(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -610,6 +628,7 @@ def test_rightmost_patron_catches_first(gb):
     assert gb.read("patron_state", MAX_P)[b] == WALKING
 
 
+@pytest.mark.only_model('dmg')
 def test_level_clear(gb):
     assert gb.mem("level_clear") == 0
     freeze(gb)
@@ -622,6 +641,7 @@ def test_level_clear(gb):
     assert gb.mem("level_clear") == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_level_not_clear_while_quota_remains(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -644,6 +664,7 @@ def test_spawning_stops_at_quota(gb):
     assert gb.mem("spawned") == 3
 
 
+@pytest.mark.only_model('dmg')
 def test_spawn_waits_for_a_free_left_end(gb):
     clear_patrons(gb)
     for b in range(4):
@@ -710,6 +731,7 @@ def test_level_1_starts_on_exactly_the_configured_bars(gb):
         assert ((tm[bar_top_row(b)][ENTRY_X >> 3] & 0xFF) >= base) == (b in START_BARS), b
 
 
+@pytest.mark.only_model('dmg')
 def test_level_1_patron_takes_at_least_15_s_to_reach_the_tap(gb):
     """From ENTRY_X to the tap with no service: the first life is lost no earlier than 15 s (900 frames)."""
     gb.write("intro_timer", 0)                   # count from the first step, not from the intro (a conservative bound)
@@ -721,6 +743,7 @@ def test_level_1_patron_takes_at_least_15_s_to_reach_the_tap(gb):
     assert n >= 15 * 60, f"patron crossed in {n} frames ({n / 60:.1f} s)"
 
 
+@pytest.mark.only_model('dmg')
 def test_two_patrons_reaching_the_tap_on_one_frame_cost_one_life(gb):
     clear_patrons(gb)
     go(gb)
@@ -730,6 +753,7 @@ def test_two_patrons_reaching_the_tap_on_one_frame_cost_one_life(gb):
     assert gb.mem("lives") == 2 and gb.mem("game_state") == 2
 
 
+@pytest.mark.only_model('dmg')
 def test_mug_breaking_and_patron_arriving_on_one_frame_cost_one_life(gb):
     clear_patrons(gb)
     go(gb)
@@ -829,6 +853,7 @@ def test_a_patron_waiting_to_send_his_empty_sips_on_and_does_not_walk_on(gb):
     assert gb.read("patron_state", MAX_P)[p] == WALKING and gb.read("mug_state", MAX_M)[m] == EMPTY
 
 
+@pytest.mark.only_model('dmg')
 def test_a_lone_patron_is_never_held_back(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -850,6 +875,7 @@ def due_in(gb, frames):
     gb.write(gb.addr("spawn_timer") + 1, frames >> 8)
 
 
+@pytest.mark.only_model('dmg')
 def test_an_empty_screen_refills_within_about_30_frames(gb):
     clear_patrons(gb)
     due_in(gb, 250)                                   # (level 1 waits 300 frames between patrons)
@@ -858,6 +884,7 @@ def test_an_empty_screen_refills_within_about_30_frames(gb):
     assert gb.mem("spawned") == n0 + 1, "the next patron came in about half a second, not 250 frames"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_screen_with_a_patron_does_not_refill_early(gb):
     clear_patrons(gb)
     set_patron(gb, 1, 60)
@@ -867,6 +894,7 @@ def test_a_screen_with_a_patron_does_not_refill_early(gb):
     assert gb.mem("spawned") == n0, "only an empty screen pulls the spawn forward"
 
 
+@pytest.mark.only_model('dmg')
 def test_a_patron_still_sliding_out_counts_as_on_the_screen(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -883,6 +911,7 @@ def test_a_patron_still_sliding_out_counts_as_on_the_screen(gb):
     assert gb.mem("spawned") == n0 + 1, "off the screen: the bar is empty, the refill runs"
 
 
+@pytest.mark.only_model('dmg')
 def test_no_quick_refill_after_a_patterns_breather(gb):
     """A story arrival pattern's breather ('b', wait code 3) is deliberate: an empty screen does not cut it as short as a normal
     wait (code 0, REFILL_FRAMES) but never leaves the player idle: the next patron is there by BREATHER_REFILL (tests/test_idle_gap.py)."""

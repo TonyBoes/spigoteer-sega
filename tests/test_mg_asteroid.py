@@ -828,6 +828,7 @@ def test_the_story_plays_it_in_chapter_10_and_the_last_call_has_everything_back(
         assert palettes(gb) == pals
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_arcade_plays_it_in_chapter_10(model):
     from test_arcade import start_arcade

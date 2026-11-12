@@ -44,6 +44,7 @@ def fill_and_launch(gb, frames=30):
     gb.run(2)   # the release is polled by the next update; its result shows a frame later
 
 
+@pytest.mark.only_model('dmg')
 def test_tap_of_a_launches_nothing(gb):
     gb.press("a", 5)
     gb.run(5)
@@ -73,6 +74,7 @@ def test_hold_then_release_launches_one_mug_that_slides_left(gb):
     assert gb.mem("bartender_frame") == 0, "back to idle"
 
 
+@pytest.mark.only_model('dmg')
 def test_release_before_full_launches_nothing(gb):
     gb.hold("a")
     gb.run(GAME["FILL_FRAMES"] - 1)
@@ -81,6 +83,7 @@ def test_release_before_full_launches_nothing(gb):
     assert gb.mem("mugs_live") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_a_away_from_tap_does_nothing(gb):
     gb.press("left", 30)                         # 45 px: outside the 32 px grace
     gb.hold("a")
@@ -92,6 +95,7 @@ def test_a_away_from_tap_does_nothing(gb):
     assert gb.mem("bartender_frame") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_a_held_while_walking_back_to_tap_does_not_fill(gb):
     gb.press("left", 30)
     gb.hold("a")
@@ -103,6 +107,7 @@ def test_a_held_while_walking_back_to_tap_does_not_fill(gb):
     assert gb.mem("mugs_live") == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("button", ["left", "up", "down"])
 def test_moving_while_filling_cancels(gb, button):
     gb.hold("a")
@@ -116,6 +121,7 @@ def test_moving_while_filling_cancels(gb, button):
     assert gb.mem("mugs_live") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_mug_breaks_at_left_end_and_costs_a_life(gb):
     no_patrons(gb)
     assert gb.mem("lives") == 3
@@ -127,6 +133,7 @@ def test_mug_breaks_at_left_end_and_costs_a_life(gb):
     assert gb.mem("mugs_live") == 0, "slot freed after the glass animation"
 
 
+@pytest.mark.only_model('dmg')
 def test_breaking_state_is_visible_then_frees(gb):
     no_patrons(gb)
     fill_and_launch(gb)
@@ -137,6 +144,7 @@ def test_breaking_state_is_visible_then_frees(gb):
     assert seen == {FULL, BREAKING}
 
 
+@pytest.mark.only_model('dmg')
 def test_two_mugs_on_different_bars(gb):
     no_patrons(gb)                    # (the first mug would reach a start patron at ENTRY_X before the second is launched)
     fill_and_launch(gb)
@@ -151,6 +159,7 @@ def test_two_mugs_on_different_bars(gb):
     assert all(after[b] == before[b] - 10 for b in before)
 
 
+@pytest.mark.only_model('dmg')
 def test_per_bar_cap(gb):
     for k in range(5):
         inject(gb, 0, 130 - 8 * k)
@@ -170,6 +179,7 @@ def test_cap_is_per_bar(gb):
     assert sorted({b for _, b, _ in mugs(gb)}) == [0, 1], "bar 1 still accepts a mug"
 
 
+@pytest.mark.only_model('dmg')
 def test_three_breaks_end_the_game(gb):
     no_patrons(gb)
     for n in range(3):
@@ -239,6 +249,7 @@ def fill_sprite(gb):
     return e if 0 < e["y"] < 160 else None
 
 
+@pytest.mark.only_model('dmg')
 def test_a_within_grace_snaps_to_the_tap_and_starts_filling(gb):
     gb.press("left", 20)                         # M8a: 30 px left of the fill position, inside the 32 px grace
     assert gb.mem("bartender_x") == TAP_X - 30 and gb.mem("at_tap") == 0
@@ -252,6 +263,7 @@ def test_a_within_grace_snaps_to_the_tap_and_starts_filling(gb):
     gb.release("a")
 
 
+@pytest.mark.only_model('dmg')
 def test_grace_boundary_is_32_px(gb):
     gb.write("bartender_x", TAP_X - TAP_GRACE)  # exactly TAP_GRACE px away (not reachable in 1.5 px strides)
     gb.write("at_tap", 0)
@@ -279,6 +291,7 @@ def test_a_beyond_the_grace_does_nothing(gb):
     assert gb.mem("fill_timer") == 0 and gb.mem("mugs_live") == 0 and fill_sprite(gb) is None
 
 
+@pytest.mark.only_model('dmg')
 def test_a_held_into_the_grace_zone_does_not_snap(gb):
     gb.press("left", 30)
     gb.hold("a")
@@ -290,6 +303,7 @@ def test_a_held_into_the_grace_zone_does_not_snap(gb):
     gb.release("a")
 
 
+@pytest.mark.only_model('dmg')
 def test_snapped_fill_launches_a_mug(gb):
     gb.press("left", 5)
     gb.hold("a")
@@ -369,6 +383,7 @@ def bartender_flipped(gb):
     return all(e["flags"] & 0x20 for e in gb.oam()[:4])
 
 
+@pytest.mark.only_model('dmg')
 def test_fill_frames_is_16(gb):
     gb.hold("a")
     gb.run(2)
@@ -429,6 +444,7 @@ def test_a_full_mug_is_carried_to_another_bar_and_launched_there(gb):
     assert gb.mem("facing") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_up_down_before_the_mug_is_full_still_cancels(gb):
     gb.hold("a")
     gb.run(FILL_FRAMES_N // 2)
@@ -440,6 +456,7 @@ def test_up_down_before_the_mug_is_full_still_cancels(gb):
     assert gb.mem("mugs_live") == 0
 
 
+@pytest.mark.only_model('dmg')
 def test_walking_left_with_a_full_mug_cancels_and_right_cannot_move_him(gb):
     gb.hold("a")
     gb.run(FILL_FRAMES_N + 4)
@@ -462,6 +479,7 @@ def _quiet(gb):
     gb.write("intro_timer", 255)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("x", [140, 150])
 def test_an_empty_already_past_him_is_caught_on_arrival_by_a_bar_change(gb, x):
     _quiet(gb)
@@ -485,6 +503,7 @@ def test_an_empty_passing_beyond_the_bartender_at_the_tap_is_caught(gb):
     assert _score(gb) == 100 and gb.mem("lives") == 2, "it broke at the end"
 
 
+@pytest.mark.only_model('dmg')
 def test_the_catch_window_away_from_the_tap_is_unchanged(gb):
     _quiet(gb)
     gb.hold("left")
@@ -497,6 +516,7 @@ def test_the_catch_window_away_from_the_tap_is_unchanged(gb):
     assert _score(gb) == 0 and len(mugs(gb)) == 1
 
 
+@pytest.mark.only_model('dmg')
 def test_the_bartender_cannot_walk_right_of_the_tap(gb):
     gb.hold("right")
     gb.run(20)

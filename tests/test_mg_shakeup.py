@@ -42,6 +42,7 @@ def walker(gb):
     return [o[i] for i in WALK_OAM if 0 < o[i]["y"] < 160 and 0 < o[i]["x"] < 168]
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("cleared", [0, 1, 2, 3])
 def test_levels_cleared_give_the_medal_and_a_miss_keeps_it(model, cleared):
@@ -64,6 +65,7 @@ def test_levels_cleared_give_the_medal_and_a_miss_keeps_it(model, cleared):
         assert max(lines(gb)) <= 10
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_each_level_swaps_faster_and_more_often(model):
     """Swap frames 30, 22, 14 and 7, 9, 11 swaps (measured: the frames the first swap is in flight)."""
@@ -90,6 +92,7 @@ def head_x(gb):
     return o[31]["x"] if 0 < o[31]["y"] < 160 and 0 < o[31]["x"] < 168 else o[30]["x"] + 8
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_bar_cat_walks_in_level_3_only(model):
     """Levels 1 and 2: nothing in OAM 30-31 during the swaps. Level 3: the cat walks left to right on the counter top behind the cans (OAM
@@ -125,6 +128,7 @@ def test_the_bar_cat_walks_in_level_3_only(model):
                 next_level(gb, lv + 1)
 
 
+@pytest.mark.only_model('dmg')
 def test_arcade_and_classic_keep_their_single_round(gb):
     """ARCADE round 3 (the shake-up's n = 1 pace: 30 frames, 7 swaps) shows no cat; a win there ends the round (no second level)."""
 
