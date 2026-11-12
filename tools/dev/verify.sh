@@ -214,7 +214,7 @@ if [ -n "${FULL:-}" ]; then
 fi
 
 if [ -n "${CBUILD:-}" ]; then
-  cbuild_stage() { GB_ROM=build/game-c.gb $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed"; }
+  cbuild_stage() { PTEST_TIMEOUT_METHOD=signal PTEST_TEST_TIMEOUT=90 GB_ROM=build/game-c.gb $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed"; }
   timed cbuild cbuild_stage
   section cbuild "pytest (C build)" stage_pytest_ok
 fi
