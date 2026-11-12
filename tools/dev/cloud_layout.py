@@ -16,7 +16,7 @@ import numpy as np
 
 OUT = Path(__file__).resolve().parents[2] / "assets" / "story_map" / "cloud_layout.txt"
 W = {"A": 16, "B": 24, "T": 24, "U": 24}
-NSMALL = {"A": int(os.environ.get("CLA", 15)), "B": int(os.environ.get("CLB", 2))}
+NSMALL = {"A": int(os.environ.get("CLA", 9)), "B": int(os.environ.get("CLB", 9))}
 NBIG = int(os.environ.get("CLBIG", 2))
 MX, MY = 20, 20                                # the margin of a look (px each way)
 WS = np.arange(0, 512, 4)                      # the screen's left edge in cloud space (4 px steps)

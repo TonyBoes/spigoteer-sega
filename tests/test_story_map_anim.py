@@ -62,6 +62,7 @@ def test_the_tile_animations_play(model, stop):
     key = "imgs_c" if model == "cgb" else "imgs_d"
     seen = {}                                                  # group -> the distinct images seen on the screen
     checked = 0
+    oam_prev = []
     for f in range(300):
         gb.run(1, True)
         sc = gb.read("story_scratch", 520)
@@ -69,7 +70,10 @@ def test_the_tile_animations_play(model, stop):
         cx0, cy0 = var(sc, V_CAMX), var(sc, V_CAMY)
         scr = np.array(gb.image())
         m = np.zeros((144, 160), dtype=bool)
-        sprite_mask(gb.oam(), m)
+        oam_now = gb.oam()
+        sprite_mask(oam_now, m)
+        sprite_mask(oam_prev, m)                                   # (the picture was drawn with the OAM of the frame before: a cloud that drifted a px since)
+        oam_prev = oam_now
         if sc[SV + 9]:                                           # (a window is up: the name tag)
             m[max(sc[SV + 8] - 1, 0):sc[SV + 8] + sc[SV + 9] + 1, :] = True
         for g in GROUPS:
