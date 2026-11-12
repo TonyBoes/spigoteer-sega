@@ -557,6 +557,11 @@ static void stretch_init(void) {
     a = hz ? s[0] : s[1]; b = hz ? p[0] : p[1];
     if (hz) f |= F_HZ;
     if (b > a) { f |= F_UP; V(V_LEN) = (uint8_t)(b - a); } else V(V_LEN) = (uint8_t)(a - b);
+    if (!is_cgb) {                                   // (the DMG's lookahead: the lines this stretch loads ahead, a table of the route plan; V_LEADX/Y hold the lines beyond the first)
+        uint8_t l = smapw_leg_lead[leg][rev ? k : k - 1];
+        l = (rev ? l >> 4 : l & 15) - 1;
+        V(V_LEADX) = hz ? l : 0; V(V_LEADY) = hz ? 0 : l;
+    }
     if (rev ? k == ln - 2 : k == 1) f |= F_FIRST;
     if (rev ? !k : k + 1 == ln) f |= F_LAST;
     else {
@@ -577,8 +582,15 @@ static void walk_dirs(void) {
     if (V(V_LEN) - V(V_WT) <= WALK_AHEAD && !(f & F_LAST)) {   // the stretch after this one: its direction too, so that its first line is loaded when Sal turns
         if (f & F_NHZ) V(V_DIRX) = f & F_NUP ? 2 : 1;      // (the lines of this stretch come first: a vertical one keeps its rows-first bit)
         else V(V_DIRY) = (V(V_DIRY) & 4) | (f & F_NUP ? 2 : 1);
+        if (!is_cgb) {                                 // (and the lead of that stretch: its first lines are in when Sal turns. This stretch's own lead shrinks to the lines its last px can show: the loader has no time for lines past the corner)
+            uint8_t l = (V(V_LEN) - V(V_WT)) >> 3, *own = f & F_HZ ? &V(V_LEADX) : &V(V_LEADY);
+            if (*own > l) *own = l;
+            l = smapw_leg_lead[V(V_LEG)][V(V_REV) ? V(V_WK) - 1 : V(V_WK)];
+            l = (V(V_REV) ? l >> 4 : l & 15) - 1;
+            if (f & F_NHZ) V(V_LEADX) = l; else V(V_LEADY) = l;
+        }
     }
-    V(V_LAG) = (f & ~F_CROSS) | (((f & F_HZ ? V(V_CAMX) : V(V_CAMY)) & 6) == (is_cgb && !(f & F_UP) ? 0 : 6) ? F_CROSS : 0);   // (a camera 6 or 7 px into a cell may cross its line: the still sprites are all drawn again: ly_ok)
+    V(V_LAG) = (f & ~F_CROSS) | (((f & F_HZ ? V(V_CAMX) : V(V_CAMY)) & 6) == (!(f & F_UP) ? 0 : 6) ? F_CROSS : 0);   // (a camera 6 or 7 px into a cell may cross its line: the still sprites are all drawn again: ly_ok)
 }
 
 // A walk set off from a resting view waits for the camera (V_DONE: its direction + 1). With the camera at Sal's spot the first stretch's direction is set (as the walk would) so that
@@ -590,6 +602,7 @@ static uint8_t walk_ready(uint8_t d, int16_t tx, int16_t ty) {
     V(V_LAG) = 0;
     stretch_init(); walk_dirs();
     f = V(V_LAG);
+    V(V_LEADX) = V(V_LEADY) = 0;                     // (the camera is still gliding: the region as at a stop; the lookahead starts with the walk)
     if (V(V_JK) || V(V_DK) != J_NONE) return 0;
     if (f & F_HZ) return f & F_UP ? V(V_C1) > c1 || V(V_C1) >= 63 : V(V_C0) < c0 || !V(V_C0);
     return f & F_UP ? V(V_R1) > r1 || V(V_R1) >= SMAPW_CH - 1 : V(V_R0) < r0 || !V(V_R0);
@@ -610,6 +623,7 @@ void walk_step(void) {
     }
     f = f & ~F_HOLD;
     if (!r) f |= F_HOLD;
+    if (!is_cgb) V(V_CS) = r < LOW_ROOM;               // (the loader's budget grows while the room is nearly out: ly_ok)
     V(V_LAG) = f;
     if (!r) return;                                  // (a hold)
     if (n > r) n = r;
@@ -621,11 +635,15 @@ void walk_step(void) {
         kr =V(V_RATE) ? V(V_RATE) : 1;
         w = (uint16_t)r * kr;
         sl = (uint16_t)kr * (is_cgb ? WALK_SC : WALK_S);
-        if (n > 1 && w < ((uint16_t)rem << 1) + (sl << 1)) n = 1;
-        if (!is_cgb && n == 1) {                   // (DMG: a pause in 2, 3 or 4 frames. Color never stands still but on a hold: a frame that moved 1 px is better than one that did not, and the room is exact)
-            if (w < rem + sl && (V(V_TICK) & 1)) return;
-            if (w + w < rem + sl && (V(V_TICK) & 2)) return;
-            if ((w << 2) < rem + sl && (V(V_TICK) & 4)) return;
+        if (is_cgb) { if (n > 1 && w < ((uint16_t)rem << 1) + (sl << 1)) n = 1; }
+        else if (n > 1) {                          // DMG: an even cadence the loader can sustain, never a stop: the pace it can keep is w / (rem + sl) px a frame; 2 when it is 2 or more, else 2 in some frames of 4 (3, 2 or 1 of them at 1.75, 1.5 or 1.25 or more) and 1 in the rest
+            sl += rem;                             // (the cells to load and the frames to spare, in cells)
+            if (w < (sl << 3)) {
+                n = 1; kr = V_TICK;
+                if ((w << 2) >= sl * 7) { if (kr & 3) n = 2; }
+                else if ((w << 2) >= sl * 6) { if (!(kr & 1)) n = 2; }
+                else if ((w << 2) >= sl * 5) { if (!(kr & 3)) n = 2; }
+            }
         }
     }
     s16(hz ? V_FX : V_FY, f & F_UP ? pos + n : pos - n);
@@ -633,7 +651,7 @@ void walk_step(void) {
     if (n != d) return;
     if (f & F_LAST) {                                // the last waypoint: Sal is there
         smap_stop = V(V_DEST);
-        V(V_WALK) = 0; V(V_DOTS) = V(V_FULL) = 1;
+        V(V_WALK) = 0; V(V_DOTS) = V(V_FULL) = 1; V(V_LEADX) = V(V_LEADY) = 0;
         tag_show();
     } else { V(V_WK) = V(V_REV) ? V(V_WK) - 1 : V(V_WK) + 1; stretch_init(); }
 }

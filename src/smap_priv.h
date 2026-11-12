@@ -32,6 +32,8 @@ extern uint8_t smap_flags;
                              //   already on a boundary and the staging is 301..381 (tests/test_scratch_map.py checks that); the worst case, a staging moved up by 15, still ends at S_V
 #define A_PSTG       381     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes), after the staging (23 palettes left no room for it before the staging: 301 stays aligned)
 #define NSTG_MAX     (is_cgb ? 5 : 2)
+#define NSTG_MAX_D   3                                // (the DMG loader's tiles a frame: add_cell_d; the animations keep to the first two: NSTG_MAX)
+#define STG_D(n)     ((n) < 2 ? SC(S_T + T_TILES + ((n) << 4)) : SC(A_TBLN))     // (the DMG's third tile of a frame lies after its slot table: 352..367, the Color's staging area, unused on a DMG)
 #define S_V          396     // the variables (V_N <= 68)
 #define S_T          464     // 56 bytes: tile staging (2 tiles) | the line's tile ids (22) | SCY, SCX; the panel's two rolling rows and the name tag's row lie over the first 40
 #define T_TILES      0
@@ -46,8 +48,8 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_WT, V_ATTR, V_WY, V_WH
        V_C0, V_C1, V_R0, V_R1,                                                 // the region (cells; V_C1 = V_C0 - 1: no columns yet)
        V_JK, V_JI, V_JA, V_JN, V_JP,                                           // the add job: none / column / row, the line's index, its first cell, its length, the next cell
        V_DK, V_DI, V_DA, V_DN, V_DP,                                           // the drop job: the same
-       V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
-       V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
+       V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_LEADX, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
+       V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_LEADY, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_BEAM, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
 typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PEND && A_PEND + 2 <= A_XSTG && A_XSTG + 80 <= A_PSTG && A_PSTG + 9 <= S_V && A_XSTG + 15 + 80 <= S_V
                                 && A_ATTR_UI + 20 <= A_IDA && A_PUSE + 8 <= A_ATTR_UI && A_PCNT + 2 * 23 <= A_PSLOT && A_PSLOT + 23 <= A_PUSE && A_TBL + A_TBLN <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
@@ -74,8 +76,10 @@ extern vq_entry_t vq[];
 
 // The frame's spare time: the first slow job (a cell that needs a lookup or a load) of a frame always runs, the next ones only before line LY_WORK (a frame that starts late, in the
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
-#define LY_WORK 50                                    // (Color: double speed, the same work takes half the lines)
+#define LY_WORK 44                                    // (Color: double speed, the same work takes half the lines)
 #define LY_FIRST 50
+#define LOW_ROOM 8                                    // px of room under which the DMG's loader gets LY_URGENT more lines
+#define LY_URGENT 28                                  // (DMG: lines more for the loader while the room is nearly out: smap.c walk_step sets V_CS; a late frame is better than a stop)
 #define LY_WORK_C 99
 #define LY_FIRST_C 100
 #define LY_DOTS  (is_cgb ? 12 : 24)
@@ -86,6 +90,14 @@ extern vq_entry_t vq[];
 static uint8_t ly_ok(uint8_t slow) {      // slow: the cell that comes needs a lookup or a load (the C path: up to about 40 lines for one)
     uint8_t l = LY_REG, lim = V(V_SLOW) ? (is_cgb ? LY_WORK_C - (slow && V(V_WALK) ? LY_SLOWCC : 0) : LY_WORK) : (!V(V_WALK) || (V(V_LAG) & 1)) ? 255 : (is_cgb ? LY_FIRST_C - (slow ? LY_SLOWCC : 0) : LY_FIRST);   // (Color: a cell that needs a load starts LY_SLOWCC lines earlier: it can take 15 lines or more, and a frame that ends past line 136 loses the next one)
     if (lim != 255 && (V(V_DOTS) || (V(V_LAG) & 2))) lim -= LY_DOTS;      // (the still sprites will be drawn in full this frame: that takes about 30 lines)
+    if (lim != 255 && slow) lim -= LY_SLOWC;
+    return (l >= 144 && l < 150) || l < lim;
+}
+
+// the DMG's (ly_ok above is the Color's, untouched): the same, with LY_URGENT more lines for the loader while the room is nearly out (V_CS, set by smap.c walk_step): a late frame is better than a stop
+static uint8_t ly_ok_d(uint8_t slow) {
+    uint8_t l = LY_REG, lim = V(V_SLOW) ? LY_WORK + (V(V_CS) ? LY_URGENT : 0) : (!V(V_WALK) || (V(V_LAG) & 1)) ? 255 : LY_FIRST;
+    if (lim != 255 && (V(V_DOTS) || (V(V_LAG) & 2))) lim -= LY_DOTS;
     if (lim != 255 && slow) lim -= LY_SLOWC;
     return (l >= 144 && l < 150) || l < lim;
 }
@@ -136,7 +148,8 @@ static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   /
 #define V_RATE   V_SEL                                // cells a frame the add job has been doing
 #define WALK_AHEAD 24                                 // px before a corner at which the region starts loading for the next stretch
 #define LEAD     1                                    // lines the region loads ahead of the view, in the direction of travel
-#define ADD_CAP  10
+#define ADD_CAP  8
+#define CROSS_CAP 6                                   // (DMG: cells a frame on which the still sprites are all drawn again: that frame is the walk's heaviest)
 #define DROP_CAP 6
 
 // the engine (src/smap_eng.c)

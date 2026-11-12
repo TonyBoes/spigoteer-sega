@@ -38,6 +38,15 @@ static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
     V(V_NSTG)++;
 }
 
+// the DMG's tile load (its own function: the Color's tile_load above is not touched): up to three tiles a frame (NSTG_MAX_D), the third after the slot table (STG_D)
+static void tile_load_d(uint8_t id, uint16_t tile) {
+    uint8_t *d = STG_D(V(V_NSTG));
+    smap_d_tile(tile, d);
+    if (V(V_DIRECT)) { set_bkg_data(id, 1, d); return; }
+    qraw(0, d, tile_addr(id), 16);
+    V(V_NSTG)++;
+}
+
 // Color: palette pal takes a hardware slot (NIL: none free) and its colours are written (queued: one palette a frame, the caller checked V_PALQ and the room)
 static void pal_write(uint8_t s, uint8_t pal) {
     uint8_t *st = SC(A_PSTG);
@@ -111,10 +120,10 @@ static uint8_t add_cell_d(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, u
     uint8_t s = (uint8_t)f->aux, id = pool_id(s), need = *e != t, cost, ents = 0;
     if (!V(V_DIRECT)) {
         cost = CELL_COST(vert);
-        if (need) { if (V(V_NSTG) >= NSTG_MAX) return R_ROOM; cost += 19; ents = 1; }
+        if (need) { if (V(V_NSTG) >= NSTG_MAX_D) return R_ROOM; cost += 19; ents = 1; }
         if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
     }
-    if (need) { *e = t; tile_load(0, id, t); }
+    if (need) { *e = t; tile_load_d(id, t); }
     SC(S_T + T_IDS)[k] = id;
     if (V(V_DIRECT)) *(volatile uint8_t *)map_addr(cx, cy) = id;
     return R_OK;
@@ -335,7 +344,7 @@ static uint8_t job_run_d(uint8_t cap) {
                 }
             }
 #endif
-            if (!ly_ok(!(pos > first && fc[k].w == pw))) { r = R_ROOM; break; }                        // (the cells that need no load count too: a Color cell takes a line or two)
+            if (!ly_ok_d(!(pos > first && fc[k].w == pw))) { r = R_ROOM; break; }                        // (the cells that need no load count too: a Color cell takes a line or two)
             if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             else {
                 V(V_SLOW) = 1;
@@ -516,6 +525,45 @@ static void region_work(void) {
     }
 }
 
+// DMG: region_work for the DMG alone (region_work above is the Color's and is not touched: its frames, and so its goldens, stay cycle for cycle what they were). The same, with
+// the stretch's lead (V_LEADX / V_LEADY: lines beyond the first, set by smap.c stretch_init from the route plan, tools/smap_world/route.py: how many lines the tile slots allow),
+// the DMG's immediate drop, no drop job and no palettes. A cross frame (the still sprites are all drawn again: the walk's heaviest) adds fewer cells.
+static void region_work_d(void) {
+    uint16_t cx = g16(V_CAMX), cy = g16(V_CAMY);
+    uint8_t wc0 = (uint8_t)(cx >> 3), wc1 = (uint8_t)((cx + 159) >> 3), wr0 = (uint8_t)(cy >> 3), wr1 = (uint8_t)((cy + 143) >> 3);
+    uint8_t dx = V(V_DIRX) & 3, dy = V(V_DIRY) & 3, rows1st = V(V_DIRY) & 4, kind = V(V_JK), i, lx = LEAD + V(V_LEADX), ly = LEAD + V(V_LEADY);
+    if (dx == 1) wc0 = wc0 > lx ? wc0 - lx : 0;
+    if (dx == 2) wc1 = wc1 + lx > 63 ? 63 : wc1 + lx;
+    if (dy == 1) wr0 = wr0 > ly ? wr0 - ly : 0;
+    if (dy == 2) wr1 = wr1 + ly > SMAPW_CH - 1 ? SMAPW_CH - 1 : wr1 + ly;
+    i = V(V_JI);
+    if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) { V(V_JK) = J_NONE; V(V_STALL) = 0; }       // (the DMG's slots are not counted: the cells already added stay, resident, and cost nothing)
+    if (V(V_PANEL) || vq_held) return;
+    i = 0;
+    while (V(V_C0) < wc0 && V(V_C0) < V(V_C1)) { V(V_C0)++; i |= J_COL; }
+    while (V(V_C1) > wc1 && V(V_C1) > V(V_C0)) { V(V_C1)--; i |= J_COL; }
+    while (V(V_R0) < wr0 && V(V_R0) < V(V_R1)) { V(V_R0)++; i |= J_ROW; }
+    while (V(V_R1) > wr1 && V(V_R1) > V(V_R0)) { V(V_R1)--; i |= J_ROW; }
+    if (V(V_JK) != J_NONE && (i & (V(V_JK) ^ 3))) V(V_JK) = J_NONE;
+    if (V(V_JK) == J_NONE) {
+        if (rows1st && V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }     // (walking down or up: the rows first, a column's lead can wait)
+        else if (rows1st && V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
+        else if (V(V_C0) > wc0) { V(V_JK) = J_COL; V(V_JI) = V(V_C0) - 1; }
+        else if (V(V_C1) < wc1) { V(V_JK) = J_COL; V(V_JI) = V(V_C1) + 1; }
+        else if (V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }
+        else if (V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
+        else return;
+        if (V(V_JK) == J_COL) { V(V_JA) = V(V_R0); V(V_JN) = V(V_R1) - V(V_R0) + 1; }
+        else { V(V_JA) = V(V_C0); V(V_JN) = V(V_C1) - V(V_C0) + 1; }
+        V(V_JP) = 0;
+    }
+    if (job_run_d(V(V_WALK) && (V(V_LAG) & 2) ? CROSS_CAP : ADD_CAP)) {                          // complete: the line is part of the region
+        if (V(V_JK) == J_COL) { if (V(V_JI) < V(V_C0)) V(V_C0) = V(V_JI); else V(V_C1) = V(V_JI); }
+        else { if (V(V_JI) < V(V_R0)) V(V_R0) = V(V_JI); else V(V_R1) = V(V_JI); }
+        V(V_JK) = J_NONE;
+    }
+}
+
 // THE TILE ANIMATIONS (stage 3, build/smap_an.c, tools/smap_world/anims.py): a group of map cells shows one tile (its own id); its picture changes at ticks of a 256-frame loop (V_TICK, the
 // map's frame counter: no state of its own). An event rewrites the tile's 16 bytes in VRAM from the group's frame image, in VBlank through the copy list, only when the tile is resident (Color:
 // its slot holds its variant; DMG: the allocator has it). A tile that is not there is not drawn: when it comes into the region it loads as the map holds it (image 0) and takes the next
@@ -547,8 +595,13 @@ static void anim_step(void) {
 }
 
 void smap_region_work(void) BANKED {
-    region_work();
-    if (LY_REG < AN_LY || LY_REG >= 144) anim_step();                      // (only on a frame with lines to spare: the walk's worst frames end right at the cliff, a few lines more and the frame is missed)
+    if (is_cgb) {                                                          // (the Color's frame is as it was: the one test costs what the model test in AN_LY did)
+        region_work();
+        if (LY_REG < 90 || LY_REG >= 144) anim_step();
+        return;
+    }
+    region_work_d();
+    if (LY_REG < 30 || LY_REG >= 144) anim_step();                         // (only on a frame with lines to spare: the walk's worst frames end right at the cliff, a few lines more and the frame is missed)
 }
 
 // LCD off (smap_enter): the columns c0..c1 of the view into the map, one add job each; the region is then [c0, c1] x the view's rows

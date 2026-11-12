@@ -11,11 +11,87 @@ asserts that after every step each cell of the window shows its own tile; it als
 import numpy as np
 
 
-def walk_sequences(stops, legs, stop_order, stop_view, cw, ch, sal_y, pad=1):
-    """Ordered lists of windows (c0, c1, r0, r1): one list per leg and direction (the camera's view at every pixel of the road, padded), per stop's glide (view <-> follow spot), and
-    one window per stop."""
+LEAD_MAX = 6                                         # lines a stretch may load ahead of the view (the 32 x 32 map holds the view's 21 columns and 19 rows, and these)
+WALK_AHEAD = 24                                      # px before a corner at which the region starts loading for the next stretch (src/smap_priv.h)
+
+
+def _sg(v):
+    return (v > 0) - (v < 0)
+
+
+def _cam(fx, fy, cw, ch, sal_y):
+    return min(max(fx - 80, 0), cw * 8 - 160), min(max(fy - sal_y, 0), ch * 8 - 144)
+
+
+def seg_windows(pts, j, lead, nxt, cw, ch, sal_y, pad=1, ahead=WALK_AHEAD):
+    """The windows of the stretch pts[j] -> pts[j+1], every pixel: the view padded by `pad` on every side, `lead` lines ahead in the direction of travel, and in the last `ahead` px
+    `nxt` (the next stretch's lead, in its direction: the engine's walk_dirs) lines ahead along the next stretch's axis.  Returns (the windows with the zone's, the windows without)."""
+    (x0, y0), (x1, y1) = pts[j], pts[j + 1]
+    n = max(abs(x1 - x0), abs(y1 - y0), 1)
+    ds = [(_sg(x1 - x0), _sg(y1 - y0), lead)]
+    nd = None
+    if j + 2 < len(pts):
+        nd = (_sg(pts[j + 2][0] - x1), _sg(pts[j + 2][1] - y1), nxt)
+    full, plain = [], []
+    for i in range(n + 1):
+        cx, cy = _cam(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n, cw, ch, sal_y)
+        for out, dd in ((plain, ds), (full, ds + ([nd] if nd and n - i <= ahead else []))):
+            c0, c1, r0, r1 = (cx >> 3) - pad, ((cx + 159) >> 3) + pad, (cy >> 3) - pad, ((cy + 143) >> 3) + pad
+            for dx, dy, N in dd:
+                e = max(N - pad, 0)
+                c0 -= e * (dx < 0)
+                c1 += e * (dx > 0)
+                r0 -= e * (dy < 0)
+                r1 += e * (dy > 0)
+            out.append((max(c0, 0), min(c1, cw - 1), max(r0, 0), min(r1, ch - 1)))
+    return full, plain
+
+
+def choose_leads(tiles, legs, cw, ch, sal_y, budget, lead_max=LEAD_MAX, pad=1):
+    """How many lines each stretch loads ahead (owner 11-11: the stutter): as many as the tile slots allow.  A stretch's windows (the view, a line either side, `lead` lines ahead, and in
+    the corner zone the next stretch's lead) may hold at most `budget` distinct tiles in any unlock state; the leads fall until every stretch fits.  -> {(leg, rev, stretch): lines}"""
+    def count(w):
+        return max(len(np.unique(tiles[s][w[2]:w[3] + 1, w[0]:w[1] + 1])) for s in tiles)
+    leads = {}
+    segs = []
+    for li, (a, b, pts0) in enumerate(legs):
+        for rev, pts in ((0, pts0), (1, pts0[::-1])):
+            for j in range(len(pts) - 1):
+                segs.append((li, rev, j, pts))
+                leads[(li, rev, j)] = lead_max
+
+    def worst(key, zone):
+        li, rev, j, pts = key
+        full, plain = seg_windows(pts, j, leads[(li, rev, j)], leads.get((li, rev, j + 1), 1), cw, ch, sal_y, pad)
+        return max(count(w) for w in (full if zone else plain))
+    for _ in range(100):
+        again = False
+        for key in segs:
+            li, rev, j, pts = key
+            while leads[(li, rev, j)] > 1 and worst(key, False) > budget:
+                leads[(li, rev, j)] -= 1
+                again = True
+            while worst(key, True) > budget:
+                nk = (li, rev, j + 1)
+                if nk in leads and leads[nk] > 1:
+                    leads[nk] -= 1
+                elif leads[(li, rev, j)] > 1:
+                    leads[(li, rev, j)] -= 1
+                else:
+                    break
+                again = True
+        if not again:
+            break
+    return leads
+
+
+def walk_sequences(stops, legs, stop_order, stop_view, cw, ch, sal_y, pad=1, leads=None):
+    """Ordered lists of windows (c0, c1, r0, r1): one list per leg and direction (the camera's view at every pixel of the road, padded, and the stretch's lead lines ahead: `leads`
+    {(leg, rev, stretch): lines}, 1 where missing), per stop's glide (view <-> follow spot), and one window per stop."""
+    leads = leads or {}
+
     def cam(fx, fy):
-        return min(max(fx - 80, 0), cw * 8 - 160), min(max(fy - sal_y, 0), ch * 8 - 144)
+        return _cam(fx, fy, cw, ch, sal_y)
 
     def win(fx, fy):
         cx, cy = cam(fx, fy)
@@ -25,14 +101,12 @@ def walk_sequences(stops, legs, stop_order, stop_view, cw, ch, sal_y, pad=1):
         vx, vy, _ = stop_view.get(n, (None, None, 1))
         if vx is not None or vy is not None:
             seqs.append([win(sx if vx is None else vx + 80 + (sx - 80 - vx) * i // 32, sy if vy is None else vy + sal_y + (sy - sal_y - vy) * i // 32) for i in range(33)])
-    for a, b, pts0 in legs:
-        for pts in (pts0, pts0[::-1]):
+    for li, (a, b, pts0) in enumerate(legs):
+        for rev, pts in ((0, pts0), (1, pts0[::-1])):
             seq = []
-            for k in range(len(pts) - 1):
-                (x0, y0), (x1, y1) = pts[k], pts[k + 1]
-                n = max(abs(x1 - x0), abs(y1 - y0), 1)
-                for i in range(n + 1):
-                    seq.append(win(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n))
+            for j in range(len(pts) - 1):
+                full, _ = seg_windows(pts, j, leads.get((li, rev, j), 1), leads.get((li, rev, j + 1), 1), cw, ch, sal_y, pad)
+                seq += full
             seqs.append(seq)
     return seqs
 
