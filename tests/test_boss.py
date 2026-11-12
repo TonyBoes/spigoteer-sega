@@ -228,7 +228,7 @@ def test_the_fight_follows_the_last_call(model):
         to_goal(gb)                                         # (his tiles and palettes stream in over the first frames; the fight is started once they are in)
         if model == "cgb":
             wall = cgb_palette(gb, 2)[0]                   # (the venue's wall: colour 0 of every patron palette)
-            assert cgb_palette(gb, 4) == [wall] + TEX["pal"][1:], "BG 4: his colours over the venue's wall"
+            assert cgb_palette(gb, 7) == [wall] + TEX["pal"][1:], "BG 7: his colours over the venue's wall"
             assert cgb_palette(gb, 7, True)[1:] == TEX["pal"][1:], "OBJ 7: the topper in the same colours"
         else:
             assert gb.mem(0xFF49) == 0xE4, "DMG: the topper under OBP1 0xE4, the BG's shades"

@@ -30,3 +30,27 @@ def test_the_saloon_full_mug_is_the_plans_tan(gb):
     settle(gb, "cowboys")
     assert cgb_palette(gb, 1, obj=True)[1] == c5(["#FFE6CD"])[0] == 31 | 28 << 5 | 25 << 10
     assert cgb_palette(gb, 1, obj=True)[1:] == c5(ATLAS["cowboys"]["obj"]["1"]["cols"][1:]), "OBJ 1 is the Atlas's"
+
+
+@pytest.mark.parametrize("c", [SALOON])
+def test_the_boss_body_is_on_bg_7_and_no_regular_walks_on_it(c):
+    with fight("cgb", c) as gb:
+        topper = cgb_palette(gb, 7, obj=True)[1:]
+        body = cgb_palette(gb, 7)
+        skip = 1 if c == FACTORY else -1                  # (the Prototype's lamp: the topper's colour 2 starts green)
+        assert [x for k, x in enumerate(body[1:]) if k != skip] == [x for k, x in enumerate(topper) if k != skip], "BG 7 holds his colours (the topper's OBJ 7 pair)"
+        assert body[0] == cgb_palette(gb, 2)[0], "over the venue's wall"
+        assert cgb_palette(gb, 4)[1:] != topper, "BG 4 is a patron's again"
+        seen = set()
+        for _ in range(60):
+            frames(gb, 10)
+            for var, st in zip(gb.read("patron_variant", 16), gb.read("patron_state", 16)):
+                if st:
+                    seen.add(var)
+        assert seen, "regulars came"
+        obj, bg = inst(gb)
+        for var in seen:
+            pi = (var ^ var >> 3) & 7
+            assert bg[pi] != 7 and obj[pi] != 7, f"variant {var:#x}: instance {pi} wears his BG 7 / OBJ 7"
+            if c == FACTORY:
+                assert obj[pi] not in (4, 5), f"variant {var:#x}: the lamp's and the body OBJ slots are his"
