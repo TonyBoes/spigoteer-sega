@@ -285,6 +285,162 @@ __asm
     ret
 __endasm;
 }
+
+// Color, no window: the dots' drawing loop in asm (the C twin is the loop in draw_still, which the DMG and a window frame run too; the output is byte for byte the same entries). a = the
+// camera's cell column + 4 px, e = its row, as dots_near, which it calls first. The dots of the stops that are near and open (s <= the next stop, or the town) are put where the camera
+// has them, or hidden when they lie beyond 16 px of the screen. Scratch: V_PWL.. (450-453: the camera + (4, 8)) and V_BMODE.. (455-456: the near mask), free on the Color.
+typedef char smap_dots_draw_offsets[(S_V == 396 && V_CAMX == 12 && V_CAMY == 14 && V_STATE == 40 && V_PWL == 54 && V_PWH == 55 && V_LIMC == 56 && V_LIMQ == 57 && V_BMODE == 59 && V_ID == 60
+                                     && OB + SOB_DOT_OPEN0 == 62 && OB + SOB_DOT_LOCKED0 == 64 && PAL_OPEN == 3 && PAL_LOCKED == 4 && TOWN == 10) ? 1 : -1];
+static void dots_draw(uint8_t ccx, uint8_t ccy) __naked {
+    (void)ccx; (void)ccy;
+__asm
+    call _dots_near                         ; bc = the near mask << 5; the entries of the far stops are hidden
+    ld   a, #5
+1$:
+    srl  b
+    rr   c
+    dec  a
+    jr   nz, 1$
+    ld   hl, #_story_scratch + 455
+    ld   (hl), c
+    inc  hl
+    ld   (hl), b                            ; near
+    ld   a, (_story_scratch + 408)          ; the camera x + 4
+    add  a, #4
+    ld   (_story_scratch + 450), a
+    ld   a, (_story_scratch + 409)
+    adc  a, #0
+    ld   (_story_scratch + 451), a
+    ld   a, (_story_scratch + 410)          ; the camera y + 8
+    add  a, #8
+    ld   (_story_scratch + 452), a
+    ld   a, (_story_scratch + 411)
+    adc  a, #0
+    ld   (_story_scratch + 453), a
+    ld   c, #0                              ; s
+2$:
+    ld   a, (_story_scratch + 455)
+    and  a, #1
+    jp   z, 9$                              ; (not near: hidden already)
+    ld   a, (_story_scratch + 436)          ; V_STATE: the next stop
+    cp   a, c
+    jr   nc, 3$                             ; s <= p
+    ld   a, c
+    cp   a, #10
+    jp   nz, 9$                             ; (beyond the next stop and not the town: stays hidden)
+3$:
+    ld   a, c
+    add  a, a
+    add  a, a
+    add  a, #<_smapw_stop
+    ld   l, a
+    ld   a, #>_smapw_stop
+    adc  a, #0
+    ld   h, a
+    ld   a, (hl+)
+    ld   e, a
+    ld   a, (hl+)
+    ld   d, a                               ; de = the stop x
+    ld   a, (hl+)
+    ld   b, a
+    ld   a, (hl)
+    ld   h, a
+    ld   l, b                               ; hl = its y
+    ld   a, (_story_scratch + 450)
+    ld   b, a
+    ld   a, e
+    sub  a, b
+    ld   e, a
+    ld   a, (_story_scratch + 451)
+    ld   b, a
+    ld   a, d
+    sbc  a, b
+    ld   d, a                               ; de = ax
+    ld   a, (_story_scratch + 452)
+    ld   b, a
+    ld   a, l
+    sub  a, b
+    ld   l, a
+    ld   a, (_story_scratch + 453)
+    ld   b, a
+    ld   a, h
+    sbc  a, b
+    ld   h, a                               ; hl = ay
+    ld   a, e
+    add  a, #16
+    ld   b, a
+    ld   a, d
+    adc  a, #0
+    jp   nz, 6$
+    ld   a, b
+    cp   a, #192
+    jp   nc, 6$                             ; ((uint16_t)(ax + 16) >= 192)
+    ld   a, l
+    add  a, #15
+    ld   b, a
+    ld   a, h
+    adc  a, #0
+    jp   nz, 6$
+    ld   a, b
+    cp   a, #175
+    jp   nc, 6$                             ; ((uint16_t)(ay + 15) >= 175)
+    ld   a, l
+    add  a, #16
+    ld   b, a                               ; y
+    ld   a, e
+    add  a, #8
+    ld   d, a                               ; x
+    ld   a, c
+    add  a, a
+    add  a, a
+    add  a, #0x60                           ; OAM_DOTS * 4
+    ld   l, a
+    ld   h, #0xC0
+    ld   a, b
+    ld   (hl+), a
+    ld   a, d
+    ld   (hl+), a
+    ld   a, (_story_scratch + 436)
+    cp   a, c
+    jr   c, 4$
+    jr   z, 4$
+    ld   (hl), #62                          ; s < p: open (OB + SOB_DOT_OPEN0)
+    inc  hl
+    ld   (hl), #3                           ; PAL_OPEN
+    jp   9$
+4$:
+    ld   a, c
+    cp   a, #10
+    jr   z, 5$
+    ld   (hl), #64                          ; locked
+    inc  hl
+    ld   (hl), #4                           ; PAL_LOCKED
+    jp   9$
+5$:
+    ld   (hl), #62                          ; the town: open
+    inc  hl
+    ld   (hl), #3
+    jp   9$
+6$:
+    ld   a, c
+    add  a, a
+    add  a, a
+    add  a, #0x60
+    ld   l, a
+    ld   h, #0xC0
+    ld   (hl), #0                           ; beyond 16 px of the screen: hidden
+9$:
+    ld   hl, #_story_scratch + 456
+    srl  (hl)
+    dec  hl
+    rr   (hl)
+    inc  c
+    ld   a, c
+    cp   a, #11
+    jp   nz, 2$
+    ret
+__endasm;
+}
 #endif
 
 // The sprites that stand in the world, not on Sal: the bang over the tent, the stops' dots, the UFO. They only move when the camera does (or a window covers them): their entries stay
@@ -302,6 +458,8 @@ static void draw_still(uint8_t wh, int16_t wy, int16_t wend) {
     cx += 4; cy += 8;
     ccx = (uint8_t)(cx >> 3); ccy = (uint8_t)(cy >> 3);
 #if ASM_SMAP
+    if (is_cgb && !wh) dots_draw(ccx, ccy);          // (the Color's frame without a window: all the dots in asm)
+    else {
     near = dots_near(ccx, ccy) >> 5;
 #else
     near = 0;
@@ -318,6 +476,9 @@ static void draw_still(uint8_t wh, int16_t wy, int16_t wend) {
         if (s < p || s == TOWN) { o->tile = OB + SOB_DOT_OPEN0; o->prop = cgbp ? PAL_OPEN : 0; }
         else { o->tile = OB + SOB_DOT_LOCKED0; o->prop = cgbp ? PAL_LOCKED : 0; }
     }
+#if ASM_SMAP
+    }
+#endif
     cx -= 4; cy -= 8;
     if (p >= 10 && (uint16_t)(SMAPW_UFO_X - cx + 40) < 216) {   // the UFO over the space lounge, once that is open (bobbing 1 px)
         ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((tk >> 5) & 1) - cy;
