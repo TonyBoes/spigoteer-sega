@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-11-11", "Game brought in line with the plan on four items (supervisor merge): the Saloon's full mug in the tan #FFE6CD, the boss body on BG 7, BLIP in NEKA's cyan, RONIN on SAKURA's OBJ 6 / BG 6. The Saloon's mug recolour left PLANS (it is the game's colour now, like every other venue's imported recolour); the page's open items list is empty."),
     ("2026-11-11", "Owner: \"Fix the graphics atlas.\" The page's and the self-check's idea of the game's palette slots was the pre-import one (every venue's patrons on OBJ 3, 6, 7 / BG 2, 3, 4). Since the Atlas-slots import (2026-11-01) every venue but the Saloon has its own palette-instance table (build/looks.c, from this plan), so: the game's slots are read from it (game_truth.venue_slots); plan items the game has (patron moves, joins, extra looks, the keg on BG 1, the playfield's free HUD / stage slots) show as the game, green; the show dancers are drawn from the capture (OBJ 5, and 4 and 3 with three dancers: Q7 a, Q13), so the plan moves that put them on a patron's palette are gone; a BG slot of a palette instance shows the colours the game gives it. What is still yellow is an open item: the Saloon's mug tan, the Saloon's and the Factory's boss body (BG 7 in the plan, BG 4 in the game) and RONIN (plan OBJ 6, game instance OBJ 7)."),
     ("2026-11-02", "Q7 (owner, a): the stage show's dancers get their own OBJ palette above the stage line and the patrons on that slot keep their own look during shows. Built: a mid-frame OBJ 5 write on line 35 (Color only); no plan colour changes."),
     ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Stadium BG 7 showed NORM's colours (the plan's BG recolour 'as OBJ 0' hit the game's BG 4, SERENA's, not NORM's BG 3). Now BG 3 = NORM as OBJ 0 and BG 7 = SERENA as OBJ 7 (#B47B52 #295ADE #000000), with the boss body."),
@@ -383,14 +384,14 @@ def settle(v, kind, sl, d):
     """Plan items the game has already are drawn as the game (green, no change note). Since the Atlas-slots import (2026-11-01) every venue but the Saloon has
     its own palette-instance table (game_truth.venue_slots, build/looks.c): a patron the plan puts on a slot that is one of the venue's instances is in the
     game; a colour the plan changes is in the game when the capture already holds it (only the differences stay yellow: those are the open items)."""
+    if kind == "BG" and sl == game_truth.boss_pal():
+        d["oth"] = [(t, p and t != "Boss body") for t, p in d["oth"]]      # BOSS_PAL (src/boss.h): the boss's body is on this BG slot in every venue
     G = game_truth.truth()["venue"].get(v["key"])
     if G is None:
         return
     lst = G["obj"] if kind == "OBJ" else G["bg"]
     if sl in lst:
         d["pat"] = [(t, False) for t, _ in d["pat"]]
-    if kind == "BG" and sl == G["bg"][2]:
-        d["oth"] = [(t, p and t != "Boss body") for t, p in d["oth"]]      # BOSS_PAL = INST_BG[2] (src/boss.h): the boss's body is on look 2's BG slot
     elif d["freed"] and not d["pat"]:
         d["freed"] = False                       # the plan's freed slot is simply free in the game now
     q5 = lambda h: tuple(int(h[j:j + 2], 16) >> 3 for j in (1, 3, 5))        # the game holds 5 bits a channel: a plan colour is in the game when those match

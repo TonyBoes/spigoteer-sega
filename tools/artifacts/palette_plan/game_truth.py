@@ -129,3 +129,9 @@ def spawn_combos():
         else:
             out[k] = {i: {i} for i in range(3)}
     return out
+
+
+def boss_pal():
+    """The BG slot of every boss body (src/boss.h BOSS_PAL): a constant since the Atlas plan's BG 7 (owner 2026-10-21) went in; INST_BG[2] before."""
+    m = re.search(r"#define BOSS_PAL\s+(\d+)", _read("src/boss.h"))
+    return int(m.group(1)) if m else None
