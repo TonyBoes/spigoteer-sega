@@ -61,8 +61,19 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">One question per card. Each choice has its picture right under it.</p>
-    <p class="stamp">0 open · updated 2026-11-12</p>
+    <p class="stamp">1 open · updated 2026-11-12</p>
   </header>
+
+  <section class="card" id="q37">
+    <span class="tag">Q37</span>
+    <h2>C build: next step</h2>
+    <p>The C build (the porting reference) now plays the same game as the shipped one: a game-state check over Arcade, menus, bosses and mini-games matches on every run, and the pause hang is fixed. The shipped game is unchanged.</p>
+    <p>Left: in the C build, the mid-screen palette changes land 1 to 2 lines later than in the shipped game, so 285 picture tests are listed as known C-build differences. Its frames also finish exactly at the fade's cut-off line, with no spare time. Fixing both means restructuring that C code.</p>
+    <p class="ask">Restructure the C palette code now, or stop the C-build work here until a porting release?</p>
+    <div class="opt"><h3>Stop here <span class="rec">RECOMMENDED</span></h3><p>The C build is correct; only its timing differs, which you said is fine (11-01). Pick it up before porting.</p></div>
+    <div class="opt"><h3>Restructure now</h3><p>C code only; most listed picture differences should go and the fade gets spare time.</p></div>
+    <p class="how">Q37) stop / restructure</p>
+  </section>
 
 
 
