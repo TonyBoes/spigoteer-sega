@@ -23,14 +23,14 @@ TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan,
 PLANS = {
     "cowboys": dict(
         q=["Q44","Q46","Q48","2026-10-21"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 1, "Show dancers")],
+        moves=[],
         recolour={("OBJ", 1): {1: "#FFE6CD"}},                               # the full mug's cream to the tan; the dancers share it
         open={},
         why="Owner 2026-10-21: the dancers share the full mug's palette (OBJ 1) in the tan. The 8 looks, their palettes and variants are in the game (batch 2).",
     ),
     "sports": dict(
         q=["Q16","Q45","Q49","Q58","2026-10-21","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
+        moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"),
                ("NORM", "OBJ", 6, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 3): "OBJ 0"},
         open={},
@@ -41,7 +41,7 @@ PLANS = {
     # owner 2026-10-25: every recommended and optional merge on the Palette Merges page (tools/artifacts/palette_merges/build.py MERGES)
     "lumberjacks": dict(
         q=["Q59","Q60","2026-10-25","2026-10-29","Q86"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
+        moves=[("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
         recolour={("OBJ", 7): {1: "#C08858"}, ("BG", 4): "OBJ 7"},   # Q86 (owner 2026-10-31): "Ash to medium"
         open={},
         join={("OBJ", 1): ["BOONE"]},   # owner 2026-10-29: BOONE shares the Sasquatch's palette
@@ -49,7 +49,7 @@ PLANS = {
     ),
     "chefs": dict(
         q=["Q57","Q59","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("PIERRE", "OBJ", 3, 0, "PIERRE"), ("BRIE", "OBJ", 6, 0, "BRIE"), ("Show dancers", "OBJ", 5, 0, "Waiter"),
+        moves=[("PIERRE", "OBJ", 3, 0, "PIERRE"), ("BRIE", "OBJ", 6, 0, "BRIE"),
                ("BRIE", "BG", 3, 2, "BRIE")],
         recolour={("BG", 2): "OBJ 0"},
         open={},
@@ -57,21 +57,20 @@ PLANS = {
     ),
     "divers": dict(
         q=["Q43","Q55","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 0, "Penguin")],
+        moves=[],
         recolour={}, open={},
         why="Owner 2026-10-25: the penguin uses Sal's OBJ 0 (its orange beak and feet turn peach).",
     ),
     "punks": dict(
         q=["Q43","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 6, "The band")],
+        moves=[],
         recolour={("BG", 3): "OBJ 6", ("OBJ", 6): {1: "#8C5A3C"}},   # Q81 (owner 2026-10-31): HARLEY's skin deep
         open={},
         why="Owner 2026-10-25: the band shares HARLEY's palette. 2026-10-31: HARLEY deep skin (Q81).",
     ),
     "ninjas": dict(
         q=["Q43","Q51","2026-10-25","2026-10-30"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer"),
-               ("RONIN", "OBJ", 7, 6, "RONIN"), ("RONIN", "BG", 7, 6, "RONIN")],   # owner 2026-10-30: "ronin to sakua's palette."
+        moves=[("RONIN", "OBJ", 7, 6, "RONIN"), ("RONIN", "BG", 7, 6, "RONIN")],   # owner 2026-10-30: "ronin to sakua's palette."
         recolour={("BG", 3): "OBJ 6"},
         open={},
         why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette. 2026-10-30: \"Poet and sensei to sals palette.\" (OBJ 0; BG 5 takes its colours); then RONIN to SAKURA's OBJ 6 / BG 6 and POET his own brown-shirt palette on the freed OBJ 7 / BG 7.",
@@ -85,8 +84,7 @@ PLANS = {
     ),
     "robots": dict(
         q=["Q13","Q43","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 0, "Show dancers"),
-               ("BLIP", "OBJ", 7, 4, "BLIP"), ("BLIP", "BG", 7, 4, "BLIP")],   # owner 2026-10-29: "Put blip in neka's palette by default."
+        moves=[("BLIP", "OBJ", 7, 4, "BLIP"), ("BLIP", "BG", 7, 4, "BLIP")],   # owner 2026-10-29: "Put blip in neka's palette by default."
         recolour={}, open={},
         add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
         join={("OBJ", 7): ["TELLY"]},                                            # owner 2026-10-29: TELLY in BLIP's colours (was his own mint OBJ 5)
