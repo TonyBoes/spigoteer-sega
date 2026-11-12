@@ -61,24 +61,9 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">One question per card. Each choice has its picture right under it.</p>
-    <p class="stamp">1 open · updated 2026-11-12</p>
+    <p class="stamp">0 open · updated 2026-11-12</p>
   </header>
 
-  <section class="card" id="q31">
-    <span class="tag">Q31</span>
-    <h2>Color map headroom</h2>
-    <p>Measured on the Color map walk (typical frame 120 of 123 lines, worst 136 of 145). Three changes look worth it; none changes the picture. Color only, DMG unchanged.</p>
-    <ul>
-      <li>Loader stop line earlier: typical 120 to 114, worst 136 to 130. Walk speed drops 0.4% (1.879 to 1.871 px a frame), no stops.</li>
-      <li>Redraw only the stop dots that changed when the view crosses a tile: up to 7 lines on those frames.</li>
-      <li>One sprite pass for map sprites and clouds instead of two, and fewer repeated checks: 3 to 4 lines.</li>
-    </ul>
-    <p class="ask">Build all three, only the free loader change, or none?</p>
-    <div class="opt"><h3>All three <span class="rec">RECOMMENDED</span></h3><p>About 14 lines of headroom on typical frames, for more clouds or animations.</p></div>
-    <div class="opt"><h3>Only the loader change</h3><p>About 6 lines, one setting.</p></div>
-    <div class="opt"><h3>None</h3></div>
-    <p class="how">Q31) all / loader / none</p>
-  </section>
 
 
 
