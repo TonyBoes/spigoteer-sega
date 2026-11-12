@@ -61,8 +61,38 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">One question per card. Each choice has its picture right under it.</p>
-    <p class="stamp">0 open · updated 2026-11-12</p>
+    <p class="stamp">2 open · updated 2026-11-12</p>
   </header>
+
+  <section class="card" id="q33">
+    <span class="tag">Q33</span>
+    <h2>Third headroom change</h2>
+    <p>Built: the earlier loader stop line and the faster stop-dot redraw. Color map frames: typical 121 to 115 lines, worst 139 to 129, Sal never stops, same picture.</p>
+    <p>Not built: one sprite pass for map sprites and clouds. Measured first: even removing all sprite shifting saves at most 4 lines on a typical frame and 0 on the worst; merging the two passes saves about 0.2 of a line and risks cloud bugs. The room check cache saves under 1 line.</p>
+    <p class="ask">Skip the third change, or build it anyway?</p>
+    <div class="opt"><h3>Skip it <span class="rec">RECOMMENDED</span></h3></div>
+    <div class="opt"><h3>Build it anyway</h3></div>
+    <p class="how">Q33) skip / build</p>
+  </section>
+
+  <section class="card" id="q32">
+    <span class="tag">Q32</span>
+    <h2>What next</h2>
+    <p>Running now: the Color map headroom (three changes). Everything else from this week is merged and in Pocket Player.</p>
+    <ul>
+      <li>Test fix: the practice-picture tests can build into the same folder from two test groups at once (a rare false failure).</li>
+      <li>C-build tests: on hold since 11-01 until the patron import is done. The Graphics Atlas now shows the game matching the plan with no open items, so the import looks done. About 230 known C-build failures are unread.</li>
+      <li>Test batches C4 (merge train) and C5 (double release build): held.</li>
+      <li>Credits remake: held until you confirm all patron and boss art is locked.</li>
+      <li>Housekeeping: 38 old worktree folders with uncommitted files.</li>
+    </ul>
+    <p class="ask">Which should come next after the Color headroom?</p>
+    <div class="opt"><h3>Test fix + C-build tests back on <span class="rec">RECOMMENDED</span></h3><p>Small test fix now; then sort the C-build failures into real bugs and speed-only, report before fixing.</p></div>
+    <div class="opt"><h3>Credits remake</h3><p>Only if the patron and boss art is locked.</p></div>
+    <div class="opt"><h3>Test batches C4 and C5</h3></div>
+    <div class="opt"><h3>Something else</h3><p>Say what.</p></div>
+    <p class="how">Q32) tests / credits / batches / other</p>
+  </section>
 
 
 
