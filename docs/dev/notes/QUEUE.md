@@ -1026,3 +1026,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-12 MERGED Color clouds (over Sal, 2 round big, even mix; FULL verify clouds-final-2 PASS 6714/56). Pocket Player refresh next; test entries C/over-Sal-big can go.
 - 11-12 Pocket Player v99: main = clouds merged + Saloon fight fix + plan items; cloud test entries removed.
 - 11-12 OWNER: "31) all 3" -> build all three Color map headroom changes (loader stop line ~91, incremental stop-dot redraw on cell-crossing frames, one OAM pass for map sprites + clouds + smap_room cache). Same picture, Color only, DMG unchanged. Q31 card removed.
+- 11-12 OWNER: "What's next?" -> Q32 asked (test race fix + C-build tests back on / credits remake / test batches C4 C5 / other).
