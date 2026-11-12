@@ -70,5 +70,9 @@
 #ifndef ASM_SMAP
 #define ASM_SMAP ASM_PASS
 #endif
+// the denser story-map clouds (CLOUDS=C|D test builds): the pool build and the slide of its entries (smap_cloud.c cl_half, cl_shift)
+#ifndef ASM_CLOUD
+#define ASM_CLOUD ASM_PASS
+#endif
 
 #endif

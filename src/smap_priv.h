@@ -31,6 +31,7 @@ extern uint8_t smap_flags;
 #define A_XSTG       301     // Color: 5 tiles of staging (80 bytes, on the first 16-byte boundary at or after this; DMA reads them; the DMG's tables lie here). story_scratch is at 0xD373, so 301 is
                              //   already on a boundary and the staging is 301..381 (tests/test_scratch_map.py checks that); the worst case, a staging moved up by 15, still ends at S_V
 #define A_PSTG       381     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes), after the staging (23 palettes left no room for it before the staging: 301 stays aligned)
+#define A_CLN        390     // Color: 6 bytes after the palette write (the denser clouds, src/smap_cloud.c, CLOUDS=C|D): on, the camera's low bytes last frame (x, y), the entries in use; 2 spare. The DMG's use counts lie here: the clouds never run on a DMG
 #define NSTG_MAX     (is_cgb ? 5 : 2)
 #define S_V          396     // the variables (V_N <= 68)
 #define S_T          464     // 56 bytes: tile staging (2 tiles) | the line's tile ids (22) | SCY, SCX; the panel's two rolling rows and the name tag's row lie over the first 40

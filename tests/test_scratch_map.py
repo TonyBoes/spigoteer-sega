@@ -105,7 +105,7 @@ GROUPS = {
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
         "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
-        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6, "src/smap_eng.c": 69, "src/smap_priv.h": 3,
+        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6, "src/smap_cloud.c": 27, "src/smap_eng.c": 69, "src/smap_priv.h": 3,
         "src/story.c": 23, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
@@ -266,3 +266,21 @@ def test_the_palette_hand_over_bytes_are_free_on_color_and_the_dmgs_use_counts_l
     eng = code("src/smap_eng.c")
     for pat in (r"is_cgb && PEND != NIL && \(\(n", r"!is_cgb \|\| PEND == NIL", r"is_cgb && PEND != NIL\) pal_hand"):
         assert re.search(pat, eng), f"smap_eng.c no longer guards PEND with is_cgb: {pat}"
+
+
+def test_the_denser_clouds_state_lies_clear_of_every_color_table():
+    """src/smap_priv.h A_CLN (the CLOUDS=C|D test builds, src/smap_cloud.c: 6 bytes, 5 of them used): after the palette write and before the variables, inside smap.TABLES,
+    clear of every Color table; the DMG's use counts (A_CNT) lie over it and the clouds never run on a DMG (the cloud hook tests OAM 39's byte, which a DMG leaves 0)."""
+    h = (SRC / "smap_priv.h").read_text()
+    a = {k: int(v) for k, v in re.findall(r"#define (A_\w+)\s+(\d+)", h)}
+    s_v = int(re.search(r"#define S_V\s+(\d+)", h).group(1))
+    lo, hi = a["A_CLN"], a["A_CLN"] + 6
+    lo_t, hi_t, _ = USERS["smap.TABLES"]
+    assert lo_t <= lo and hi <= hi_t and hi <= s_v
+    colour = {"A_NIB": 176, "A_PCNT": 46, "A_PSLOT": 23, "A_PUSE": 8, "A_ATTR_UI": 20, "A_IDA": 22, "A_PEND": 2, "A_XSTG": 80, "A_PSTG": 9}     # (the staging is 80 bytes: the test above asserts it sits on a 16-byte boundary, so there is no slack)
+    for name, n in colour.items():
+        assert hi <= a[name] or a[name] + n <= lo, f"A_CLN [{lo},{hi}) shares bytes with {name}"
+    cl = code("src/smap_cloud.c")
+    assert "shadow_OAM[39].x" in cl and "(shadow_OAM[39].x)" in cl
+    sm = code("src/smap.c")
+    assert "#define CL_ON      (shadow_OAM[39].x)" in sm, "smap.c tests the clouds' on flag in the OAM, not in story_scratch (a DMG reads the use counts there)"

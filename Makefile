@@ -43,6 +43,14 @@ ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
 
+# Playtest variants (owner 2026-11-11, more Color clouds): make BUILD=out/b_cloudsC OUT=out/o_cloudsC CLOUDS=C unlocked   CLOUDS=C: about 3 clouds on a screen, D: about 5
+#   (src/smap_cloud.c, assets/story_map/clouds_small.txt + cloud_layout.txt). The default build keeps the five clouds of src/smap.c.
+CLOUDS   ?=
+export CLOUDS
+ifneq ($(CLOUDS),)
+LCCFLAGS += -DCLOUDS_$(CLOUDS)
+endif
+
 # Playtest variant (owner 2026-11-05): the credits as one continuous scroll instead of a fade between cards (src/credits.c "the scrolling credits"):
 #   make BUILD=out/b_scroll OUT=out/o_scroll CREDITS=SCROLL unlocked
 CREDITS  ?=
@@ -191,7 +199,7 @@ $(BUILD)/dgag_art.h: tools/gen_dgag.py tools/gen_art.py $(wildcard assets/art/dg
 
 # The story map (src/smap.c; the owner-approved v14 sprites, 2026-10-18): assets/story_map/obj_*.png -> build/smap_art.h (OBJ tiles and palettes),
 # build/smap.json (tests)
-$(BUILD)/smap_art.h: tools/gen_smap.py assets/story_map/clouds.txt $(wildcard assets/story_map/*.png) | $(BUILD) $(OUT)/preview
+$(BUILD)/smap_art.h: tools/gen_smap.py assets/story_map/clouds.txt assets/story_map/clouds_small.txt assets/story_map/cloud_layout.txt $(wildcard assets/story_map/*.png) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_smap.py $(BUILD) $(OUT)/preview
 
 # The story map's scrolling world (owner 2026-11-04, Q76 / Q78): the concept's hand-typed 64 x 48 cell world (tools/smap_world/) -> four banked data files
