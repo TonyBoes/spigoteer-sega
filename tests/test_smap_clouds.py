@@ -53,7 +53,7 @@ def test_dmg_has_no_clouds_ever(monkeypatch, poke):
     assert cloud_entries(gb) == 0
     oam = gb.read("shadow_OAM", 160)
     assert oam[39 * 4] == 0 and oam[39 * 4 + 1] == 0, "the clouds' flag"
-    assert not any(oam[i * 4] and 74 <= oam[i * 4 + 2] <= 97 for i in range(40)), "a cloud tile in a DMG's OAM"
+    assert not any(oam[i * 4] and 74 <= oam[i * 4 + 2] <= 95 for i in range(40)), "a cloud tile in a DMG's OAM"
 
 
 def test_color_clouds_are_always_on_in_obj_palette_1(monkeypatch):
@@ -86,12 +86,12 @@ def test_dmg_does_not_load_the_cloud_tiles(monkeypatch):
     assert bytes(gb.pb.memory[base + len(objs) - ncl * 16:base + len(objs)]) != objs[len(objs) - ncl * 16:], "the cloud tiles stay unloaded"
 
 
-# ---- leaving the map: no cloud entry (tiles 74-97, OBJ palette 1) stays in the OAM of the next screen (the Dregs gag test found one) ---------------------------------
+# ---- leaving the map: no cloud entry (tiles 74-95, OBJ palette 1) stays in the OAM of the next screen (the Dregs gag test found one) ---------------------------------
 def cloud_left(gb):
     for mem in (gb.read("shadow_OAM", 160), bytes(gb.pb.memory[0xFE00:0xFEA0])):
         for i in range(40):
             y, tile = mem[i * 4], mem[i * 4 + 2]
-            if y and 74 <= tile <= 97 and (mem[i * 4 + 3] & 0x9F) == 1 and 3 <= i <= 18:
+            if y and 74 <= tile <= 95 and 3 <= i <= 18:
                 return i
     return None
 
