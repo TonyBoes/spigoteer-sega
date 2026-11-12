@@ -296,3 +296,61 @@ def test_the_asm_build_equals_its_c_twin(monkeypatch):
     diff = [(a[0], a[1]) for a, b in zip(asm, ctw) if a != b]
     assert not diff, diff[:6]
     assert sum(1 for a in asm if any(a[2][k * 4] for k in range(16))) >= 80, "the pools are not empty"
+
+
+# ---- a cloud over Sal ---------------------------------------------------------------------------------------------------------------------------------------------
+def tile_pixels(gb, tile):
+    """The 8x16 sprite's 16 rows of 8 colour indices (tile & 0xFE and the one after, bank 0)."""
+    base = 0x8000 + (tile & 0xFE) * 16
+    mem = bytes(gb.pb.memory[base:base + 32])
+    return [[((mem[2 * r + 1] >> (7 - x)) & 1) << 1 | ((mem[2 * r] >> (7 - x)) & 1) for x in range(8)] for r in range(16)]
+
+
+def entry_pixel(gb, e, px, py):
+    """Colour index of OAM entry e at the screen pixel (px, py), 0 if the entry is not opaque there."""
+    x, y = px - (e["x"] - 8), py - (e["y"] - 16)
+    if not (0 <= x < 8 and 0 <= y < 16):
+        return 0
+    if e["flags"] & 0x20:
+        x = 7 - x
+    return tile_pixels(gb, e["tile"])[y][x]
+
+
+def test_a_cloud_draws_over_sal_on_a_color():
+    """On a Color the sprite with the lower OAM index wins: the clouds (3-18) are before Sal (19-22). Finds a stop and clock at which a cloud entry and one of Sal's overlap on
+    opaque pixels and checks the screen shows the cloud's colour there (the colour the same cloud has where nothing is under it), not Sal's."""
+    found = 0
+    for stop in (1, 2, 3, 6):
+        with double_speed():
+            g = sm.to_map("cgb", 10, stop=stop)
+        sb = g.addr("story_scratch")
+        for d in range(0, 4096, 128):
+            g.pb.memory[sb + SV + 25] = d & 255
+            g.pb.memory[sb + SV + 5] = (((d >> 8) << 1) & 255) | 1
+            g.run(12)
+            o = g.oam()
+            sal = [o[i] for i in SAL if o[i]["y"]]
+            img = g.image().convert("RGB")
+            for c in (e for i, e in enumerate(o) if i in POOL and e["y"]):
+                for s in sal:
+                    both = [(px, py) for py in range(max(0, c["y"] - 16), min(144, c["y"])) for px in range(max(0, c["x"] - 8), min(160, c["x"]))
+                            if entry_pixel(g, c, px, py) and entry_pixel(g, s, px, py)]
+                    if len(both) < 6:
+                        continue
+                    # the cloud's own colour for each index, read where only the cloud is (no Sal entry there)
+                    own = {}
+                    for py in range(max(0, c["y"] - 16), min(144, c["y"])):
+                        for px in range(max(0, c["x"] - 8), min(160, c["x"])):
+                            k = entry_pixel(g, c, px, py)
+                            if k and not any(entry_pixel(g, t, px, py) for t in sal):
+                                own.setdefault(k, set()).add(img.getpixel((px, py)))
+                    checked = 0
+                    for px, py in both:
+                        k = entry_pixel(g, c, px, py)
+                        if k in own and len(own[k]) == 1:
+                            assert img.getpixel((px, py)) in own[k], (stop, d, px, py, "Sal's pixel shows through a cloud")
+                            checked += 1
+                    if checked >= 6:
+                        found += 1
+        g.pb.stop(save=False)
+    assert found >= 3, f"no state with a cloud over Sal's opaque pixels found ({found})"
