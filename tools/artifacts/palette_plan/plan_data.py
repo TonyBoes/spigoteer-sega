@@ -202,6 +202,7 @@ ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7], "divers": [2, 3, 4, 5, 6, 7], "punks"
              "sports": [1, 2, 3, 4, 5, 6, 7],            # (BG 1: PETE and FRANK, the chain's HUD slot: the keg is on BG 0 in the Stadium)
              "lumberjacks": [2, 3, 4, 5, 6, 7],          # (the keg is BG 1; BOONE and PIP on BG 6, the chain's late slot)
              "chefs": [2, 3, 4, 5, 6, 7]}
+# The Saloon's fight: instance 3 (OBJ 4 / BG 7) walks on BG 4 (instance 2's, free: OBJ 7 is the topper's) while the body is on BG 7, same colours (src/boss.c boss_load, tests/test_plan_items.py).
 # OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
 # and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.
 BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7], "punks": [5, 7], "ninjas": [7],
