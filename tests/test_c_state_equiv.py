@@ -43,14 +43,9 @@ def both(scen, model, ds, rom_a=R.ASM_ROM, rom_c=R.C_ROM):
         return pickle.load(open(pa, "rb")), pickle.load(open(pc, "rb"))
 
 
-# A real C-build LIVELOCK found by this check: pausing a boss fight on a Color at NORMAL speed (never the shipped double speed). The pause card's
-# fade (src/trans.c vframe) waits for a frame that is not late and the C split handlers (ASM_SPLIT_PAL twin) make every frame late: the main loop
-# never reaches update() again (the asm ROM and the C ROM at double speed are fine). Expected to fail until the C split handlers are fast enough
-# (strict: when it starts to pass, this list must shrink). See docs/dev/notes/cbuild_triage_2026-11-12.md.
-LIVELOCK = {("pause1", "cgb-normal"), ("pause4", "cgb-normal")}
-CASES = [pytest.param(scen, model, ds, id="%s-%s" % (scen, cid),
-                      marks=[pytest.mark.xfail(strict=True, reason="C build livelock at Color normal speed (vframe, late C split handlers)")]
-                      if (scen, cid) in LIVELOCK else [])
+# (History: pausing a boss fight on a Color at NORMAL speed livelocked the C ROM until the C split handlers were sped up (src/main.c put8): the pause
+# card's fade, src/trans.c vframe, needs the main loop back by line 149 and the C chain resumed it at line 152. Those two runs were strict xfails.)
+CASES = [pytest.param(scen, model, ds, id="%s-%s" % (scen, cid))
          for scen in SCENARIOS for (model, ds), cid in zip(CONFIGS, ["dmg", "cgb-double", "cgb-normal"])]
 
 
