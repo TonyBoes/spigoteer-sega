@@ -536,7 +536,8 @@ def test_a_boss_fight_quits_to_the_title_with_the_boss_gone(model):
         run_until(gb, lambda: state(gb) == PLAYING, 120)
         gb.run(60)
         now = level_vram(gb)
-        assert now[:252 * 16] == fresh[:252 * 16] and now[256 * 16:] == fresh[256 * 16:], "no boss tile is left in use"
+        # (the story map's OBJ tiles 90-95, its big clouds' lower half, stay in VRAM after the map: the arcade level does not use them, so they are no boss tile)
+        assert now[:90 * 16] == fresh[:90 * 16] and now[96 * 16:252 * 16] == fresh[96 * 16:252 * 16] and now[256 * 16:] == fresh[256 * 16:], "no boss tile is left in use"
         assert palettes(gb) == pals, "no boss palette is left"
 
 

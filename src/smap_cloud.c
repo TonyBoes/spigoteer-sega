@@ -521,5 +521,5 @@ out: ;
 void cl_off(void) BANKED {
     uint8_t k;
     for (k = 0; k < N_POOL; k++) { shadow_OAM[OAM_CLOUDS + k].y = 0; shadow_OAM[OAM_CLOUDS + k].x = 0; }
-    CL_ON = 0; CL_PX = 0; CL_PY = 0; CLN(3) = 0; CLN(4) = 0;
+    CL_ON = 0; CL_PX = 0; CL_PY = 0;                          // (no story_scratch write: a stray non-zero OAM 39 byte on another screen runs this too, and the scratch is that screen's then)
 }
