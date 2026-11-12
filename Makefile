@@ -357,11 +357,12 @@ bosscap: unlocked
 	cp $(UNLOCKED) $(OUT)/test_roms/spigoteer-bosscap-unlocked.gb
 	cp $(BUILD)/$(NAME)-unlocked.noi $(OUT)/test_roms/spigoteer-bosscap-unlocked.noi
 
-# dist/: the release ROM (rebuilt from the sources; the debug menu ships locked, see DEBUGFLAGS) named by VERSION, its SHA-256,
+# dist/: the release ROM (rebuilt from the sources when stale; the debug menu ships locked, see DEBUGFLAGS) named by VERSION, its SHA-256,
 # RELEASE.txt, licenses/ and CREDITS.md. Nothing is published (CLAUDE.md rule 5).
 DIST := dist
+# An up-to-date build/release.gb is reused (make's own dependency check rebuilds it when a source changed); `make dist FORCE=1` rebuilds it.
 dist:
-	rm -f $(RELEASE)
+	$(if $(FORCE),rm -f $(RELEASE))
 	$(MAKE) $(RELEASE)
 	rm -rf $(DIST)
 	mkdir -p $(DIST)
