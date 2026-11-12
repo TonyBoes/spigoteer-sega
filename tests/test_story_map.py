@@ -29,7 +29,7 @@ LEG_OF = WORLD["exit_leg"]                                          # (bit 7: th
 ROAD = [[EXITS[s][d] if EXITS[s][d] != 255 and not LEG_OF[s][d] & 0x40 else 255 for d in range(4)] for s in range(11)]   # the exits a road leaves by: the arrows                      # (the stops' world pixels: Sal's feet; up, down, left, right per stop, 255 none)
 SV, V_WALK, V_CAMX, V_CAMY = 396, 20, 12, 14                       # (story_scratch + the map's variables, src/smap_priv.h)
 DIRS = ("up", "down", "left", "right")
-OAM_ARROWS, OAM_SAL, OAM_BANG, OAM_DOTS = 0, 3, 7, 8
+OAM_ARROWS, OAM_SAL, OAM_BANG, OAM_DOTS = 0, 19, 23, 24       # (src/smap.c: arrows 0-2, the Color clouds' pool 3-18, Sal 19-22, bang 23, dots 24-34, UFO 35-37, cursor 38; both models)
 OB = 56                                                  # the map's OBJ tiles start at this id (src/smap.c)
 DIM_BASE = 233                                           # the greyed letters (tools/gen_smap.py)
 INV = {v: k for k, v in ts.GLYPH.items()}
@@ -125,7 +125,7 @@ def test_the_map_is_up_with_its_stops_dots_and_sal(model):
     assert sal_xy(gb) == (STOPS[3][0] - 8 - cx, STOPS[3][1] - 24 - cy), "Sal stands on the stop, his feet at its centre"
     assert 0 <= sal_xy(gb)[0] and sal_xy(gb)[0] + 16 <= 160 and 0 <= sal_xy(gb)[1] and sal_xy(gb)[1] + 24 <= 144, "the camera keeps him on the screen"
     used = sum(1 for o in gb.oam() if o["y"])
-    assert 5 <= used <= 22, used
+    assert 5 <= used <= (22 if model == "dmg" else 40), used
     per = [0] * 144                                      # the worst scanline stays under the hardware's 10 (every entry counted 16 lines tall)
     for o in gb.oam():
         for y in range(max(0, o["y"] - 16), min(144, o["y"])) if o["y"] else ():
@@ -135,7 +135,7 @@ def test_the_map_is_up_with_its_stops_dots_and_sal(model):
 
 def test_the_sprite_tiles_are_loaded():
     gb = to_map("dmg", 10, step=1)
-    objs = bytes.fromhex(SMAP["obj_hex"])[:-16 * 16]       # (a DMG without the clouds loads the map's tiles but not the clouds' 16: smap_enter; test_smap_clouds.py has them)
+    objs = bytes.fromhex(SMAP["obj_hex"])[:-16 * sum(2 for n in SMAP["obj_pairs"] if n.startswith("cloud"))]       # (a DMG without the clouds loads the map's tiles but not the clouds': smap_enter; test_smap_clouds.py has them)
     assert bytes(gb.pb.memory[0x8000 + OB * 16:0x8000 + OB * 16 + len(objs)]) == objs
 
 
@@ -982,10 +982,10 @@ def test_a_at_the_space_lounge_beams_sal_up_on_the_map_and_then_the_pre_scene_st
     tap(gb, "a", 2)
     assert beam_t(gb) and gb.mem("story_phase") == SP_MAP
     run_until(gb, lambda: beam_t(gb) >= 20, 100)
-    assert shown(gb, 0) and not shown(gb, 19), "the map's UFO is on its way over Sal"
-    assert not any(shown(gb, i) for i in range(23, 32)), "no beam yet"
+    assert shown(gb, 0) and not shown(gb, 35), "the map's UFO is on its way over Sal"
+    assert not any(shown(gb, i) for i in range(3, 12)), "no beam yet"
     run_until(gb, lambda: beam_t(gb) >= 60, 100)
-    assert sum(shown(gb, i) for i in range(23, 32)) == 9, "the beam, all three bands"
+    assert sum(shown(gb, i) for i in range(3, 12)) == 9, "the beam, all three bands"
     assert all(0 < oam(gb, OAM_SAL + i)["y"] < sal[i] for i in range(4)), "Sal rising"
     assert per_line_oam(gb) <= 10
     run_until(gb, lambda: beam_t(gb) >= 80, 100)

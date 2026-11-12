@@ -12,6 +12,7 @@ OBJ colours: DMG OBP0 0xD0 (colour 1 shade 0, 2 shade 1, 3 shade 3), CGB OBJ pal
 BG: the world's tiles are tools/gen_smap_world.py's; the greyed menu letters sit at BG ids DIM_BASE.. (src/smap.c makes them from the font).
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -75,13 +76,13 @@ def main(build, preview):
     cols("ufo", ufo); cols("dot_open", dop); cols("dot_locked", dlk); cols("bang", bang)
     cols("arrow_r", arr); cols("arrow_u", arr_u); cols("arrow_d", arr_d)
     # the clouds (assets/story_map/clouds.txt, typed by hand: A 16x16, B and C 24x16; '.' clear, 1-3 the colours): 8-px columns as the sprites above, ids after the arrows
-    for line in (SRC / "clouds.txt").read_text().splitlines():
+    for line in ((SRC / "clouds.txt").read_text() + "\n" + (SRC / "clouds_big.txt").read_text()).splitlines():   # (A, B; the big cloud's left half, GT and GB: src/smap_cloud.c)
         if line.startswith("@"):
             cname, crows = line[1:].strip(), []
         elif line and not line.startswith(";"):
             crows.append([0 if ch == "." else int(ch) for ch in line.strip()])
             if len(crows) == 16:
-                assert len(crows[0]) in (16, 24) and all(len(r) == len(crows[0]) for r in crows), cname
+                assert len(crows[0]) in (8, 16, 24) and all(len(r) == len(crows[0]) for r in crows), cname
                 cols("cloud" + cname, crows)
     obj = []
     pid = {}
@@ -112,6 +113,30 @@ def main(build, preview):
         h.append("    { 0, " + ", ".join(f"0x{rgb555(c):04X}" for c in p) + " },")
     h.append("};")
     h.append(f"static const uint16_t smap_cloud_pal[4] = {{ 0, 0x{rgb555((248, 248, 248)):04X}, 0x{rgb555((176, 200, 240)):04X}, 0x{rgb555((112, 144, 200)):04X} }};   // OBJ palette 1 (Color): the clouds (DMG: OBP1 0x90)")
+    # the clouds' table (src/smap_cloud.c, assets/story_map/cloud_layout.txt, tools/dev/cloud_layout.py): sorted by row, row starts, x / 4, flip << 7 | shape << 4 | width in 4 px units
+    rows = []
+    for line in (SRC / "cloud_layout.txt").read_text().splitlines():
+        if line and not line.startswith("#"):
+            r, pos, sh, fl = line.split()
+            rows.append((int(r), int(pos), "ABTU".index(sh), int(fl)))
+    rows.sort(key=lambda t: (t[0], t[1]))
+    assert rows and all(p % 4 == 0 and p < 512 for _, p, _, _ in rows)
+    W4 = [4, 6, 6, 6]                            # a shape's width in 4 px units
+    recs, start = [], []
+    assert max(t[0] for t in rows) < 35           # (the world: 512 x 560 px, 35 rows of 16 px: SMAPW_CH 70 cells)
+    for r in range(36):
+        start.append(len(recs))
+        for t in rows:
+            if t[0] == r:
+                recs += [t[1] // 4, (t[3] << 7) | (t[2] << 4) | W4[t[2]]]
+    assert len(recs) < 256
+    h.append("#ifdef SMAP_CLOUD_TABLE")
+    h.append(f"#define SCL_N {len(rows)}")
+    h.append("#define SCL_ROWS 35")
+    h.append(carr("scl_rowstart", start, 36).replace("static ", ""))      # (byte offsets into scl_rec; the asm reads them by name)
+    h.append(carr("scl_rec", recs).replace("static ", ""))               # (per cloud: x / 4, flip << 7 | shape << 4 | width in 4 px units)
+    h.append("const uint8_t scl_tile[4] = { " + ", ".join(f"OB + SOB_CLOUD{c}0" for c in ("A", "B", "GT", "GB")) + " };")
+    h.append("#endif")
     h.append("#endif")
     (build / "smap_art.h").write_text("\n".join(h) + "\n")
     (build / "smap.json").write_text(json.dumps({

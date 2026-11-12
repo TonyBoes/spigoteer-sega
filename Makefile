@@ -191,7 +191,7 @@ $(BUILD)/dgag_art.h: tools/gen_dgag.py tools/gen_art.py $(wildcard assets/art/dg
 
 # The story map (src/smap.c; the owner-approved v14 sprites, 2026-10-18): assets/story_map/obj_*.png -> build/smap_art.h (OBJ tiles and palettes),
 # build/smap.json (tests)
-$(BUILD)/smap_art.h: tools/gen_smap.py assets/story_map/clouds.txt $(wildcard assets/story_map/*.png) | $(BUILD) $(OUT)/preview
+$(BUILD)/smap_art.h: tools/gen_smap.py assets/story_map/clouds.txt assets/story_map/clouds_big.txt assets/story_map/cloud_layout.txt $(wildcard assets/story_map/*.png) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_smap.py $(BUILD) $(OUT)/preview
 
 # The story map's scrolling world (owner 2026-11-04, Q76 / Q78): the concept's hand-typed 64 x 48 cell world (tools/smap_world/) -> four banked data files

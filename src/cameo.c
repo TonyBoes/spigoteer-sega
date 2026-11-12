@@ -116,7 +116,8 @@ void cam_frame(void) BANKED {
 }
 
 // ---- the map's beam-up (src/smap.c: Sal's stop at the space lounge, before its PRE scene) -----------------------------------------------------------------------------------
-// The map's OBJ palette 2 (the UFO's) is the UFO's and the beam's; OAM 0-2 the UFO (over Sal), 3-6 Sal (the map's), 19-21 the map's own UFO, 23-31 the beam.
+// The map's OBJ palette 2 (the UFO's) is the UFO's and the beam's; OAM 0-2 the UFO (over Sal), 19-22 Sal (the map's), 35-37 the map's own UFO, 3-11 the beam (the clouds' pool: they are hidden then;
+// the beam is over Sal, who rises in it: smap.c OAM layout).
 #define MAP_PAL_UFO 2
 
 void cam_map_load(void) BANKED {                 // LCD off, the map entered with the space lounge open
@@ -133,13 +134,13 @@ uint8_t cam_map_beam(uint8_t t, int16_t sx, int16_t sy, int16_t ax, int16_t ay) 
     else { x = tx; y += (t >> 4) & 1; if (t >= 96) y -= (t - 96) * 3; }                                  // hovers, then goes up
     rows = t < 32 ? 0 : t < 36 ? 1 : t < 40 ? 2 : t < 82 ? 3 : t < 86 ? 2 : t < 90 ? 1 : 0;
     rise = t < 40 ? 0 : t < 70 ? (t - 40) >> 1 : 15;
-    for (i = 19; i < 22; i++) shadow_OAM[i].y = 0;                // (the map's own UFO is this one now)
-    for (i = 3; i < 7; i++) {                                    // Sal rises in the beam, then he is inside
+    for (i = 35; i < 38; i++) shadow_OAM[i].y = 0;                // (the map's own UFO is this one now)
+    for (i = 19; i < 23; i++) {                                    // Sal rises in the beam, then he is inside
         o = shadow_OAM + i;
         if (rise >= 15) o->y = 0; else if (o->y) o->y -= rise;
     }
     figat(0, cf_ufo[0], cf_ufo + 1, x, y, is_cgb ? MAP_PAL_UFO : 0);
-    i = figat(23, rows * 3, cf_beam + 1, x, y + 11, is_cgb ? MAP_PAL_UFO : S_PALETTE);   // the beam, band by band from the top (entries 0-2 band 0, 3-5 band 1, 6-8 band 2); drawn first, the unused ones hidden after
-    for (; i < 32; i++) shadow_OAM[i].y = 0;
+    i = figat(3, rows * 3, cf_beam + 1, x, y + 11, is_cgb ? MAP_PAL_UFO : S_PALETTE);   // the beam, band by band from the top (entries 0-2 band 0, 3-5 band 1, 6-8 band 2); drawn first, the unused ones hidden after
+    for (; i < 12; i++) shadow_OAM[i].y = 0;
     return t >= 96 && y < -16;
 }
