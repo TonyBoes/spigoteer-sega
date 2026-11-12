@@ -1021,3 +1021,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-12 Saloon fight branch FULL verify: 3 Color fade tests fail (test_the_boss_fight_after_the_swap_and_the_card_is_the_picture_without_them fade/seen/white: extra colours (232,67,36), (255,237,218)) -> sent back: real BG 4 timing bug vs a different patron pick.
 - 11-12 clouds even mix committed as default (branch worktree-agent-a2c835c492b6d1d9a: revert 508162b5 + layout CLA 9 / CLB 9): 2.0 clouds/screen, 45% long, pool 15/16, line 9, Color p90 121 / worst 139 / holds 0; test_story_map_anim mask widened; 16 Color goldens -> gb-golden-check.
 - 11-12 MERGED Saloon fight 21 looks + fresh-clone build fix (FULL verify saloon-fight-2 PASS 6700/56).
+- 11-12 clouds FULL verify clouds-final: 5 fails outside the map (test_pause boss quit cgb; test_rush all-chains + out-of-lives cgb+dmg) -> sent back to the clouds agent (OAM re-layout suspect).
