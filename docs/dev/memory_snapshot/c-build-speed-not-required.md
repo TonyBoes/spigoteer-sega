@@ -15,3 +15,5 @@ Owner 2026-11-01: "I'm not terribly concerned about the c version passing all of
 
 Owner 2026-11-01 (later): "You can hold off for running tests on the C version until we get everything imported. Right now, all I care is that the assembly version comes out correctly. We can go back and work on the C version before we put it out for porting to other platforms."
 **How to apply now:** during the patron import, no C-build test runs (verify's default skips them; `CBUILD=1` is for the pre-porting release) and no C-build fixes (make cfall must still link so the C twin exists, and stays in verify's default). C-build correctness work is queued for after the import, before any porting release.
+
+**Update 2026-11-12:** owner "Work on the c build tests." The hold is lifted: C-build tests are being triaged and fixed (speed-only failures still allowed; real mismatches fixed in the C twins).
