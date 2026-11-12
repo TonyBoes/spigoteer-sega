@@ -343,25 +343,29 @@ void split_vbl(void) {        // vq_vbl's place while the split is armed (the VB
 
 // ---- mode 3 (SPLIT_ON 3, every venue but the Saloon): game.h KEG_* / SPLIT_E_* / SPLIT_L_*. C only: the writes are split_put_a (asm label, or its C twin below).
 #if !ASM_SPLIT_PAL
+// (the 8 bytes unrolled: a counted loop cost ~120 T-cycles a byte, 960 for the put against the asm's 156; two puts in the VBlank chain made the C build's main loop resume
+// 4 lines after the asm build's, so a fade's vframe (src/trans.c: lines 144-149) never found a frame in time: a livelock at Color normal speed, tests/test_c_state_equiv.py)
+static void put8(volatile uint8_t *reg, const uint8_t *s) {   // (the source is plain bytes: no reload per store; one copy, ROM0 is tight: ~190 T-cycles of stores)
+    *reg = *s++; *reg = *s++; *reg = *s++; *reg = *s++; *reg = *s++; *reg = *s++; *reg = *s++; *reg = *s;
+}
 static void put_o8(uint8_t ocps, const volatile uint8_t *src, uint8_t wait) {   // (C twin: 8 bytes at OCPS, in the HBlank after the next mode 3 when `wait`)
-    uint8_t i;
     if (wait) { while (!(STAT_REG & 3)) ; while (STAT_REG & 3) ; }   // (this HBlank over, then the next: no wait for mode 3, which WasmBoy never reports)
     OCPS_REG = ocps;
-    for (i = 0; i != 8; i++) OCPD_REG = src[i];
+    put8(&OCPD_REG, (const uint8_t *)src);
 }
-void split_put_a(uint8_t bcps, const volatile uint8_t *src) {   // (the C twin of the asm label: 8 bytes at BCPS)
-    uint8_t i, f = OBJX_F;
-    if (bcps & 0x40) {                                  // (EV_OBJ: OBJ 5, then with three show palettes OBJ 4 and OBJ 3, each in the next line's HBlank. EV_OBJS: OBJ 3, then OBJ 4 with the show's colours)
-        put_o8(bcps, src, 0);
-        if (bcps == 0xD8) put_o8(0xE0, src + 8, 1);
-        else {
-            if (f & 2) put_o8(0xE0, OBJX_PAT4, 1);
-            if (f & 4) put_o8(0xD8, OBJX_PAT3, 1);
-        }
-        return;
+static void put_obj(uint8_t bcps, const volatile uint8_t *src) {   // (EV_OBJ: OBJ 5, then with three show palettes OBJ 4 and OBJ 3, each in the next line's HBlank. EV_OBJS: OBJ 3, then OBJ 4 with the show's colours)
+    uint8_t f = OBJX_F;
+    put_o8(bcps, src, 0);
+    if (bcps == 0xD8) put_o8(0xE0, src + 8, 1);
+    else {
+        if (f & 2) put_o8(0xE0, OBJX_PAT4, 1);
+        if (f & 4) put_o8(0xD8, OBJX_PAT3, 1);
     }
+}
+void split_put_a(uint8_t bcps, const volatile uint8_t *src) {   // (the C twin of the asm label: 8 bytes at BCPS; the BG put first, nothing before its stores)
+    if (bcps & 0x40) { put_obj(bcps, src); return; }
     BCPS_REG = bcps;
-    for (i = 0; i != 8; i++) BCPD_REG = src[i];
+    put8(&BCPD_REG, (const uint8_t *)src);
 }
 #endif
 
@@ -758,16 +762,12 @@ _split_put_w:
 __endasm;
 }
 #else
-static void split_put_w(uint8_t bcps, const volatile uint8_t *src) {
-    while (STAT_REG & 2) ;
-    split_put_a(bcps, src);
-}
-void split_vbl3(void) {       // (the C twin)
+void split_vbl3(void) {       // (the C twin; each put waits for an HBlank or the VBlank, written out here: a wrapper function cost ~100 T-cycles a put, the chain's budget is tight, see put8)
     EV_I = 0;
     LYC_REG = EV_LINE(0);
     vq_vbl();
-    if (SPLIT_L_BCPS) split_put_w(SPLIT_L_BCPS, SPLIT_STG);
-    if (SPLIT_E_BCPS) split_put_w(SPLIT_E_BCPS, SPLIT_E_STG);
+    if (SPLIT_L_BCPS) { while (STAT_REG & 2) ; split_put_a(SPLIT_L_BCPS, SPLIT_STG); }
+    if (SPLIT_E_BCPS) { while (STAT_REG & 2) ; split_put_a(SPLIT_E_BCPS, SPLIT_E_STG); }
 }
 #endif
 

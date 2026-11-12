@@ -156,9 +156,34 @@ The 43 open ones are now classified (tests/c_build_known.txt, the C stage has 0 
 - A-SPEED-GUARD 4 more: test_perf, test_perf_arcade 2, test_half_rate (guards that also fail at double speed).
 - C-ASM-HOOK 2 more: test_show_three's `split_put_o` KeyErrors.
 
+## Update 3: the normal-speed livelock fixed (C twins only)
+
+Measured with PyBoy hooks (out/ scripts, not committed): T-cycles since the VBlank vector at which the main loop resumes (frame_wait's RET), arcade
+level 4 on a Color at normal speed, a line is 456 T-cycles:
+
+| | asm game.gb | game-c.gb before | game-c.gb after |
+|---|---|---|---|
+| first palette put (split_vbl3) starts | 1312 | 1408 | 1304 |
+| second put starts | 1576 | 2244 | 1752 |
+| main loop resumes | 1952 (LY 148) | 3072 (LY 150-152) | 2528 (LY 149) |
+| C `split_put_a` (8 BG bytes) | 156 | 960 | ~330 |
+
+The fade (src/trans.c vframe) accepts a frame only when the main loop is back by line 149; the C chain resumed at 150 to 152 on every frame, so
+the pause card's fade never returned. Changes, all inside `#if !ASM_SPLIT_PAL` in src/main.c: the 8 palette bytes are stored unrolled through one
+`put8()` (the source as plain bytes, so SDCC does `ld a,(bc) / inc bc / ld (de),a`; the counted loop cost ~120 T-cycles a byte), the OBJ path is its
+own function so the BG put has nothing in front of its stores, and `split_vbl3` waits for the HBlank itself instead of through a wrapper.
+game.gb sha1 unchanged (9ee22ebc...); game-c.gb ROM0 free 85 -> 80 B.
+
+Effect: the pause scenarios of the state check pass at Color normal speed (the two strict xfails are removed), and 105 of the 389 known-list
+entries pass now (A-DS-PASS 88, A-SPEED-GUARD 6, A-LATE-WRITE 6, C-ASM-HOOK 4, A-PHASE 1) and are dropped; 1 test that now fails
+(test_rng two_title_timings [cgb]: 7 spawns in 3000 emulator frames, 8 needed) is added as A-PHASE. Known list: 389 -> 285.
+
+What is left of the late writes: the C `split_isr3` still lands its palette 1 to 2 lines after the asm one (a hit costs ~2000 T-cycles of which ~400
+are the put; the decode is ~270 instructions of stack-heavy SDCC code, and the C hides the window after the decode where the asm hides it first).
+A further speed-up needs a restructured decode, not a faster store loop; not done.
+
 ## Open / next
 
-1. A faster C split handler (task 3 of the second brief) would remove the normal-speed livelock and most of the A-LATE-WRITE / A-SPLIT-TWIN
-   entries. Not done: it needs a measured handler budget (line-by-line cycles of split_isr3 / split_vbl3 / put_o8 against the HBlank).
+1. A leaner C `split_isr3` (window hidden first like the asm, fewer live locals) would remove most of the remaining A-LATE-WRITE / A-SPLIT-TWIN entries.
 2. To make the A-SPLIT-TWIN entries proofs: a test that reads the palette RAM bytes written by the C and the asm handlers at each event line
    (same values, any time) would settle value versus lateness.
