@@ -1050,3 +1050,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-12 MERGED C split speed-up (FULL+CBUILD PASS, C stage 0). Q37 asked: stop the C work here / restructure the C split decode.
 - 11-12 OWNER: "Suggest to me a song that would work well for the map--public domain and feels good for travelling." -> map plays the title tune now (src/smap.c:1013). Suggested (none used yet; used list in tools/songs.py): The Easy Winners (Joplin 1901, rec), The Great Rock Island Route (1882), Arkansas Traveler (1840s). Q38 asked; draft per the music skill (Fable spec, Opus build, stems) after the pick.
 - 11-12 OWNER: "Those are good. Give me a few more." -> Q38 options added: The Girl I Left Behind Me, Little Brown Jug, Soldier's Joy, Country Gardens (folk tune), The Washington Post.
+- 11-12 OWNER: "Give me just a few more" -> Q38 options added: The Old Chisholm Trail, Git Along Little Dogies, Over the Waves, Maple Leaf Rag.
