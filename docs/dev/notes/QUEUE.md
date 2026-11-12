@@ -999,3 +999,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-11 OWNER: "25 drop." -> patron looks audit test dropped; branch worktree-agent-aa4d7f359679a3f4a deleted (tip in refs/recovered/), its clean worktree removed. Q25 card removed; 0 open.
 - 11-11 Q26 asked (fade test f1-cgb + Graphics Atlas 287 mismatches: both / fade / atlas / leave); I had asked it in chat only twice.
 - 11-11 OWNER: "Fix the graphics atlas. Put an agent in the fade failure." -> Q26 = both. gb-worker A: Graphics Atlas self-check (287 mismatches): fix the page where it is stale; any real game deviation from the plan reported, not changed; then I republish. gb-worker B: fade test f1-cgb root cause + fix. Q26 card removed.
+- 11-11 MERGED DMG tile plan (FULL verify tiles-full: only known fade, 6691/56, MATCH x3). DMG work done -> Color route plan starts (owner Q20).
