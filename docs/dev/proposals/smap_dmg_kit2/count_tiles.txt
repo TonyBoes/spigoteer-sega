@@ -1,0 +1,54 @@
+map 64x70 cells = 4480 cells; DMG tile pool 176; window 21x19 view, 22x20 loaded region
+unique tiles (state 11): 896   used once: 663   (all states: 903, of which animation group tiles 46)
+worst 21x19 window: 164 of 176  at (state, x, y) (1, 41, 0);   worst 22x20: 181 at (1, 6, 22)
+   state 11 only (no fog): 21x19 164 at (41, 0),  22x20 181 at (6, 22)
+scroll step, new tile ids per one-cell step of the 22x20 loaded region (8584 steps, both axes and directions): mean 4.60  p95 11  max 19
+
+area                   cells  unique only here  once
+Stadium                   70      45        38    34
+Bistro                    63      43        42    38
+Igloo                     60      34        30    28
+Saloon                    63      53        52    45
+Town                     108      75        72    65
+Lodge                     80      54        44    43
+Space                    126      61        47    44
+Factory                   70      47        46    35
+Zoo                      112      46        42    23
+Teahouse                  84      64        63    56
+Rodeo                     70      43        41    38
+Ground: Base              49      33        33    28
+Ground: Cactus             8       6         5     4
+Ground: Desert           242      52        22    21
+Ground: Farmland         141       2         0     0
+Ground: Grass           1359      22         3     3
+Ground: Jungle           196      14         8     6
+Ground: Park              12      12        12    12
+Ground: Paved              8       6         4     3
+Ground: Pines             18       6         4     0
+Ground: Ranch             49      26        24    22
+Ground: Snow             213      84        52    49
+Ground: Water            332      39        38    21
+Ground: Yard              14       3         1     1
+Ground: town1             17       4         2     2
+Ground: town1@g            1       1         1     1
+Ground: town1@n            1       1         0     0
+Ground: town1@w            1       1         0     0
+Roads                    913     122       106    41
+venues: 906 cells, 545 unique tiles; everything else: 3574 cells
+
+identical tiles: 0 (the model already merges equal blocks).  Flip twins (a tile equal to another after an X, Y or XY flip): 134 pairs, self-symmetric tiles 46.  The DMG background cannot flip tiles, so these save nothing without redrawing one of the pair.
+
+animation groups whose tile id is pinned (the animation rewrites the one tile): near-twins they block
+item                   pinned tiles equal twins twins <= 6 px
+01_water                          2           0            24
+02_falls                          9           0             1
+03_fountain                       4           0             0
+04a_bunting                       3           0             0
+04b_stadium_flag                  2           0             0
+05_airbase                        2           0             0
+06a_smoke_lodge                   2           0             7
+06c_smoke_igloo                   1           0             0
+06b_smoke_factory                 4           2            96
+07_cow_tail                       2           0             0
+09_logs                          12           0             0
+10_runway_lights                  3           3             6
