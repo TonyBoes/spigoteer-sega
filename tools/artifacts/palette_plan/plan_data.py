@@ -188,7 +188,7 @@ SPLIT_PLAYFIELD = True
 FIELD_MOVES = [("Keg, spout", 7, 1)]
 import game_truth as _game_truth  # noqa: E402
 
-SALOON_LOOKS = _game_truth.truth()["saloon"]   # the game's looks and palette instances, read from src/mirror.c sal_combo (never typed here)
+SALOON_LOOKS = _game_truth.truth(venues=False)["saloon"]   # the game's looks and palette instances, read from src/mirror.c sal_combo (never typed here)
 # Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
 # GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
 SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
@@ -202,6 +202,7 @@ ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7], "divers": [2, 3, 4, 5, 6, 7], "punks"
              "sports": [1, 2, 3, 4, 5, 6, 7],            # (BG 1: PETE and FRANK, the chain's HUD slot: the keg is on BG 0 in the Stadium)
              "lumberjacks": [2, 3, 4, 5, 6, 7],          # (the keg is BG 1; BOONE and PIP on BG 6, the chain's late slot)
              "chefs": [2, 3, 4, 5, 6, 7]}
+# The Saloon's fight: instance 3 (OBJ 4 / BG 7) walks on BG 4 (instance 2's, free: OBJ 7 is the topper's) while the body is on BG 7, same colours (src/boss.c boss_load, tests/test_plan_items.py).
 # OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
 # and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.
 BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7], "punks": [5, 7], "ninjas": [7],
