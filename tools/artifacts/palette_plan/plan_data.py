@@ -24,9 +24,9 @@ PLANS = {
     "cowboys": dict(
         q=["Q44","Q46","Q48","2026-10-21"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
         moves=[],
-        recolour={("OBJ", 1): {1: "#FFE6CD"}},                               # the full mug's cream to the tan; the dancers share it
+        recolour={},                               # the full mug's tan #FFE6CD (owner 2026-10-21) is in the game now: the capture holds it, so it is no plan item
         open={},
-        why="Owner 2026-10-21: the dancers share the full mug's palette (OBJ 1) in the tan. The 8 looks, their palettes and variants are in the game (batch 2).",
+        why="Owner 2026-10-21: the full mug's cream goes to the tan (in the game 2026-11-11). The 8 looks, their palettes and variants are in the game (batch 2).",
     ),
     "sports": dict(
         q=["Q16","Q45","Q49","Q58","2026-10-21","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
