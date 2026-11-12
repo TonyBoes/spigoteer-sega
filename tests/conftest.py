@@ -893,8 +893,12 @@ def pytest_collection_modifyitems(config, items):
     only_model, then the PERF_ONLY=1 filter."""
     keep, drop = [], []
     full = bool(os.environ.get("FULL"))
+    c_state = bool(os.environ.get("RUN_C_STATE")) or ROM.name.endswith("-c.gb")      # (tests/test_c_state_equiv.py: on demand or in the C stage; deselected, never a skip, otherwise)
     for it in items:
         if not full and it.get_closest_marker("release_only"):
+            drop.append(it)
+            continue
+        if not c_state and it.nodeid.startswith("tests/test_c_state_equiv.py"):
             drop.append(it)
             continue
         mk = it.get_closest_marker("only_model")
