@@ -1010,3 +1010,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-11 Graphics Atlas published v149 (195 files, self-check 0, 4 open items), published.json marked. Branch merged (19a369f6).
 - 11-11 Color route plan STOPPED after measurement (worktree-agent-abab251820d914769, nothing committed): removing ALL Color palette work saves 0 lines p90 / 2 worst (p90 120 stays 120) -> a palette replay plan can't pay. Color lines go to the frame tail (music, clouds, sprites), walk_step, tile load/fetch, anim. Q29 asked: measure those (neuter bounds) to find real Color headroom / stop here.
 - 11-11 MERGED plan items (mug tan, boss body BG 7, BLIP cyan, RONIN on SAKURA). Atlas open items should clear on the next atlas-page capture. Q28 still open (accept / move).
+- 11-11 MERGED atlas follow-up (cfc6a6d2): 0 self-check errors, 0 open items; Graphics Atlas v150 published (7 files), marked. Pocket Player v98 = main with the plan items.
