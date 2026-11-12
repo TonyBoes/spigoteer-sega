@@ -14,7 +14,7 @@ import test_story_map as sm
 from test_story_map_world import LEG_WALKS
 from smap_motion_check import mid_walk_stops, walk_steps
 
-LEGS = LEG_WALKS
+LEGS = [(s, d) for s in range(11) for d in range(4) if sm.EXITS[s][d] != 255]      # every walk the map allows (32: the forgiveness buttons too)
 QUIET = [(0, 3), (1, 2), (7, 2), (8, 3)]          # legs whose stretches the plan gives 5 or 6 lines ahead
 
 

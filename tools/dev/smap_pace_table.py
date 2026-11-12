@@ -43,7 +43,7 @@ def main(argv):
     tot = dict(frames=0, px=0, zero=0, late=0)
     alll = []
     print("leg      frames  px/f   zero  run  late  p90 worst")
-    for s, d in tw.LEG_WALKS:
+    for s, d in [(s, d) for s in range(11) for d in range(4) if wn.sm.EXITS[s][d] != 255]:
         st = stats(wn.walk_log(model, s, d, noi), mc.walk_steps(model, s, d))
         ln = st["lines"]
         print(f"{s:2d}:{d}    {st['frames']:6d}  {st['px'] / st['frames']:.3f}  {st['zero']:4d}  {st['run']:3d}  {st['late']:4d}  {ln[len(ln) * 9 // 10]:3d}  {ln[-1]:3d}")
