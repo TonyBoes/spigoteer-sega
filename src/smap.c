@@ -136,14 +136,15 @@ static uint8_t *blank_row(uint8_t *r) { fill(r, TILE_HUD_BLANK, 20); return r; }
 #define PAL_ARROW  6
 #define PAL_BANG   7
 #define OAM_ARROWS 0       // 0-2: the direction arrows
-#define OAM_SAL    3       // 3-6: A B C D
-#define OAM_BANG   7
-#define OAM_DOTS   8       // 8..18
-#define OAM_UFO    19      // 19-21
-#define OAM_CURSOR 22      // the panel's selection arrow
-#define OAM_CLOUDS 23      // 23-35: the five clouds (the beam's 23-31 while it plays: the clouds are hidden then)
-#if defined(CLOUDS_C) || defined(CLOUDS_D)
-#define CLOUDS_NEW 1           // the denser test builds (make CLOUDS=C|D): src/smap_cloud.c has the clouds, a pool of 17 entries (23-39), its state in story_scratch (A_CLN)
+// The OAM, top (nearest the viewer) to bottom, for both models (a Color orders its sprites by this index; a DMG by x, so its picture is the same): the arrows 0-2, the clouds' pool 3-18
+// (OAM_CLOUDS: over Sal; Color only, src/smap_cloud.c), Sal 19-22, the bang 23, the dots 24-34, the UFO 35-37, the panel's cursor 38 (under a window layer the clouds are hidden), 39 the
+// clouds' flag and camera (0 on a DMG). The beam (cameo.c) is drawn in the pool's 3-11 while the clouds are hidden.
+#define OAM_SAL    19       // 4 entries: A B C D
+#define OAM_BANG   23
+#define OAM_DOTS   24       // 11
+#define OAM_UFO    35       // 3
+#define OAM_CURSOR 38       // the panel's selection arrow
+#define OAM_CLOUDS 3                 // Color: 3-18
 void cl_all(void) BANKED;
 void cl_init(void) BANKED;
 void cl_tick(void) BANKED;
@@ -153,20 +154,14 @@ void cl_off(void) BANKED;
 #define cloud_init() cl_init()
 #define cloud_gone() cl_off()
 #define cloud_hide() do { if (CL_ON) cl_off(); } while (0)
-#define CL_ON      (shadow_OAM[39].x)      // (the denser clouds' OAM 39, spare y 0: x non-zero while they are on, tile and prop the camera's low bytes; src/smap_cloud.c)
-#else
-#define CL_ON      (shadow_OAM[36].x)      // (non-zero: the clouds are on this visit: one byte to test per frame; smap_enter sets it, the beam clears it)
-#endif
-#define CLOUDS_ON  is_cgb      // Color only (owner 11-09): a DMG never loads the cloud tiles or touches OAM 23-39 for them
-#define CL_PX      (shadow_OAM[37].tile)   // (the camera's position last frame, low bytes: cloud_tick takes its step from it; spare OAM 37, y 0)
-#define CL_PY      (shadow_OAM[37].prop)
+#define CL_ON      (shadow_OAM[39].x)      // (the clouds' OAM 39, spare y 0: x non-zero while they are on, tile and prop the camera's low bytes; src/smap_cloud.c; a DMG leaves it 0)
+#define CLOUDS_ON  is_cgb      // Color only (owner 11-09): a DMG never loads the cloud tiles or runs the clouds
 #define PAL_CLOUD  1       // (Color OBJ palette 1)
 
-// px, py: the top-left of the 8-px column's art on screen (may be off the left / top edge); vh: its visible height (8 or 16). A sprite the window layer covers is not drawn.
+// The panel's cursor (the only caller; it is on the window layer, so the window never hides it): px, py: the top-left of the 8-px art on screen; vh: its visible height.
 static void put(uint8_t i, int16_t px, int16_t py, uint8_t tile, uint8_t pal, uint8_t flip, uint8_t vh) {
     OAM_item_t *o = shadow_OAM + i;
-    uint8_t wy = V(V_WY), wh = V(V_WH);
-    if (px + 8 <= 0 || px >= 160 || py + vh <= 0 || py >= 144 || (i != OAM_CURSOR && wh && py < (int16_t)wy + wh && py + vh > (int16_t)wy)) { o->y = 0; return; }
+    if (px + 8 <= 0 || px >= 160 || py + vh <= 0 || py >= 144) { o->y = 0; return; }
     o->y = (uint8_t)(py + 16); o->x = (uint8_t)(px + 8);
     o->tile = tile;
     o->prop = (is_cgb ? pal : 0) | flip;
@@ -199,7 +194,7 @@ static void oam_shift(int8_t dx, int8_t dy) __naked {
 __asm
     ld   c, a
     ld   b, e
-    ld   hl, #_shadow_OAM + 28              ; OAM_BANG * 4
+    ld   hl, #_shadow_OAM + 92              ; OAM_BANG * 4
     ld   e, #15                             ; the bang, 11 dots, the UFO's 3
 1$:
     ld   a, (hl)
@@ -244,7 +239,7 @@ static void oam_shift(int8_t dx, int8_t dy) {
 // The dots' quick cull. a = the camera's cell column + 4 px, e = its row: bc = a mask (bit 5 + s set when stop s lies within the cull window, 21 + 2 + 2 cells wide and 19 + 2 + 2 tall);
 // the entries of the others are hidden. (The C twin is the loop in draw_still. Asm: the compiler's 16-bit arithmetic made that loop 25 lines of the frame.)
 #if ASM_SMAP
-typedef char smap_dots_offsets[(OAM_DOTS == 8 && NSTOPS == 11) ? 1 : -1];
+typedef char smap_dots_offsets[(OAM_DOTS == 24 && OAM_BANG == 23 && NSTOPS == 11) ? 1 : -1];
 static uint16_t dots_near(uint8_t ccx, uint8_t ccy) __naked {
     (void)ccx; (void)ccy;
 __asm
@@ -252,7 +247,7 @@ __asm
     ld   c, e
     ld   de, #0
     ld   hl, #_smapw_stopc
-    ld   a, #32                             ; OAM_DOTS * 4: the low byte of the first dot's entry (shadow_OAM is at 0xC000)
+    ld   a, #96                             ; OAM_DOTS * 4: the low byte of the first dot's entry (shadow_OAM is at 0xC000)
     ld   (_story_scratch + 449), a          ; V_BCAP: the entry's low byte (free: the burst keeps no state in it)
 1$:
     ld   a, (hl+)
@@ -283,7 +278,7 @@ __asm
     ld   a, (_story_scratch + 449)
     add  a, #4
     ld   (_story_scratch + 449), a
-    cp   a, #76                             ; (OAM_DOTS + NSTOPS) * 4
+    cp   a, #140                            ; (OAM_DOTS + NSTOPS) * 4
     jr   nz, 1$
     ld   b, d
     ld   c, e
@@ -395,10 +390,6 @@ static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over l
     V(V_WY) = y; V(V_WH) = h; V(V_DOTS) = V(V_FULL) = 1;
     overlay_on = 3;                                // (1 would hide the sprites over the banner, 2 is a note: main.c)
 }
-
-#ifndef CLOUDS_NEW
-static void cloud_all(void);
-#endif
 
 static void win_hide(void) {
     overlay_on = 0; HIDE_WIN;
@@ -680,13 +671,6 @@ static void isr_on(void) {
 }
 
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
-#ifndef CLOUDS_NEW
-static void cloud_gone(void) {                      // the map is left: no cloud entry stays in the shadow OAM for the next screen (tiles 74-89, OBJ palette 1), nor the clouds' spare bytes
-    uint8_t i;
-    for (i = OAM_CLOUDS; i < OAM_CLOUDS + 15; i++) shadow_OAM[i].y = 0;
-    CL_ON = 0; shadow_OAM[36].tile = 0;
-}
-#endif
 
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
     win_hide();
@@ -695,16 +679,6 @@ static void leave(void) {                          // before any other screen: t
     sm_put(smap_stop, smap_flags & F_SAVED);
 }
 
-#ifndef CLOUDS_NEW
-static void cloud_all(void);
-
-static void cloud_hide(void) {                      // the beam-up begins: the clouds go (23-31 are the beam's; Color)
-    uint8_t i;
-    if (!CL_ON) return;                             // (a DMG: no clouds, OAM 23-39 are the beam's)
-    for (i = OAM_CLOUDS; i < OAM_CLOUDS + 13; i++) shadow_OAM[i].y = 0;
-    shadow_OAM[36].tile = 0; CL_ON = 0;
-}
-#endif
 
 static uint8_t press_a(void) {                     // A with no panel up. 1: the screen was left
     uint8_t s = smap_stop;
@@ -781,144 +755,6 @@ static void panel_input(uint8_t pressed) {
     if (V(V_SEL) != sel) SFX(SFX_KA);
 }
 
-#ifndef CLOUDS_NEW
-// ---- the clouds: five sprite groups that drift in the world (they stay where they are on the map, not on Sal), OAM 23-35, tiles OB + SOB_CLOUD*, OBJ palette 1 / OBP1 ---------------------
-// A cloud is a row of 8x16 entries (A 2, B and C 3) at a fixed world y, its world x = base + clock >> sh, mod 1024 (the world is 512 wide: it is on the map half the time). The clock is
-// V_TICK and the high bits of V_BOTTOM (bit 0 of that byte is the tag's side): 15 bits, wrapping seamlessly (32768 is a multiple of 1024 << 3). A group that is flipped lists its entries
-// in reverse, each X-flipped. Off the screen, or under the window layer: y 0 (no scanline). docs/dev/proposals/smap_clouds/.
-typedef struct { uint16_t wy, base; uint8_t oam, n, tile, sh, flip; } cloud_t;
-static const cloud_t clouds[5] = {
-    {  56,  20, OAM_CLOUDS,      2, OB + SOB_CLOUDA0, 3, 0 },
-    { 184, 300, OAM_CLOUDS + 2,  3, OB + SOB_CLOUDC0, 3, 0 },
-    { 184,  90, OAM_CLOUDS + 5,  3, OB + SOB_CLOUDB0, 3, S_FLIPX },
-    { 312, 380, OAM_CLOUDS + 8,  3, OB + SOB_CLOUDB0, 2, 0 },
-    { 440, 200, OAM_CLOUDS + 11, 2, OB + SOB_CLOUDA0, 3, S_FLIPX },
-};
-
-#define CL_MASK    (shadow_OAM[36].tile)   // (OAM 36-39 are spare, y 0: this byte says which clouds have their entries placed, bit c = cloud c. Rewritten by every cloud_one: a stray value heals within 8 frames)
-#define CL_MARGIN  20                      // a cloud is placed while it is on the screen or within this many px of it: the camera (2 px a frame) cannot bring one in between two looks (8 frames: 17 px). The x and y bytes of a placed entry tell a look that it has left (a window of 184 + 2 * 20 of 256 values: the band outside is wider than a step)
-
-static void cloud_init(void) {                     // (smap_enter: the entries' tiles and attributes, once; their positions follow)
-    uint8_t c, k;
-    OAM_item_t *o;
-    for (c = 0; c < 5; c++)
-        for (k = 0; k < clouds[c].n; k++) {
-            o = shadow_OAM + clouds[c].oam + k;
-            o->y = 0;
-            o->tile = clouds[c].tile + ((clouds[c].flip ? clouds[c].n - 1 - k : k) << 1);
-            o->prop = PAL_CLOUD | clouds[c].flip;
-        }
-    shadow_OAM[36].y = 0; shadow_OAM[37].y = 0; CL_ON = 1; CL_PX = V(V_CAMX); CL_PY = V(V_CAMY);
-    CL_MASK = 0;
-    cloud_all();
-}
-
-// Cloud c, from the clock and the camera: placed (all its entries, their bytes wrapping past the screen's edges as the hardware reads them) or hidden (y 0) when it is farther than
-// CL_MARGIN from the screen or under the window layer.
-static void cloud_one(uint8_t c) {
-    uint8_t k, n, y, wh = V(V_WH);
-    uint16_t wx, d;
-    int16_t sx, sy;
-    const cloud_t *cl = clouds + c;
-    OAM_item_t *o = shadow_OAM + cl->oam;
-    n = cl->n;
-    sy = (int16_t)cl->wy - (int16_t)g16(V_CAMY);
-    if ((uint16_t)(sy + 16 + CL_MARGIN) >= 144 + 16 + 2 * CL_MARGIN || (wh && sy < (int16_t)V(V_WY) + wh && sy + 16 > (int16_t)V(V_WY))) goto out;
-    d = ((uint16_t)(V(V_BOTTOM) >> 1) << 8) | V(V_TICK);
-    wx = (cl->base + (d >> cl->sh)) & 1023;
-    sx = (int16_t)wx - (int16_t)g16(V_CAMX);
-    if (wx >= 1000) sx -= 1024;                                           // (the 24 px before the world's left edge: the cloud comes in from there)
-    if ((uint16_t)(sx + 24 + CL_MARGIN) >= 160 + 24 + 2 * CL_MARGIN) goto out;
-    y = (uint8_t)(sy + 16);
-    if (!y) y = 1;                                                        // (a placed entry's y is never 0: that is "hidden")
-    for (k = 0; k < n; k++, sx += 8) { o[k].y = y; o[k].x = (uint8_t)(sx + 8); }
-    CL_MASK |= 1 << c;
-    return;
-out:
-    if (CL_MASK & (1 << c)) { for (k = 0; k < n; k++) o[k].y = 0; CL_MASK &= ~(1 << c); }
-}
-
-static void cloud_all(void) {
-    uint8_t c;
-    for (c = 0; c < 5; c++) cloud_one(c);
-}
-
-// The placed clouds move with the camera (dx, dy: how far the map slid on the screen) and their drift. A placed entry's y is never 0. (The C twin is the loop below the #else.)
-#if ASM_SMAP
-static void cloud_shift(int8_t dx, int8_t dy) __naked {
-    (void)dx; (void)dy;
-__asm
-    ld   c, a
-    ld   b, e
-    ld   hl, #_shadow_OAM + 92              ; OAM_CLOUDS * 4
-    ld   e, #13                             ; the five clouds' entries
-1$:
-    ld   a, (hl)
-    or   a, a
-    jr   z, 2$
-    add  a, b
-    jr   nz, 3$
-    inc  a
-3$:
-    ld   (hl+), a
-    ld   a, (hl)
-    add  a, c
-    ld   (hl+), a
-    inc  hl
-    inc  hl
-    jr   4$
-2$:
-    inc  hl
-    inc  hl
-    inc  hl
-    inc  hl
-4$:
-    dec  e
-    jr   nz, 1$
-    ret
-__endasm;
-}
-#else
-static void cloud_shift(int8_t dx, int8_t dy) {
-    uint8_t k, y;
-    OAM_item_t *o = shadow_OAM + OAM_CLOUDS;
-    for (k = 0; k < 13; k++, o++) {
-        y = o->y;
-        if (!y) continue;
-        y += dy;
-        o->y = y ? y : 1;
-        o->x += dx;
-    }
-}
-#endif
-
-// Every frame (the beam has the entries 23-31): the placed clouds slide with the camera and drift (1 px every 8 frames, cloud 3 every 4); one cloud a frame is looked at again: a placed one
-// that has left the margin goes (its entries' bytes say: cheap), a hidden one that has come into it is placed (cloud_one, from the clock). While a window is up they all are, every frame.
-static void cloud_tick(void) {
-    uint8_t c, k, m = CL_MASK, tk = V(V_TICK), e = !(tk & 7), dx = CL_PX - V(V_CAMX), dy = CL_PY - V(V_CAMY);
-    OAM_item_t *o;
-    CL_PX = V(V_CAMX); CL_PY = V(V_CAMY);
-    if (!tk) V(V_BOTTOM) += 2;          // (the clouds' clock: V_TICK wrapped: V_BOTTOM's bits 1-7 count the wraps)
-    if (V(V_WH)) { cloud_all(); return; }
-    if (m) {
-        if (dx | dy | e) cloud_shift(dx + e, dy);
-        if ((tk & 7) == 4 && (m & 8)) { o = shadow_OAM + OAM_CLOUDS + 8; o[0].x++; o[1].x++; o[2].x++; }      // (cloud 3 drifts every 4 frames)
-    }
-    c = tk & 7;
-    if (c < 5) {
-        if (!(m & (1 << c))) {
-            if ((uint16_t)((int16_t)clouds[c].wy - (int16_t)g16(V_CAMY) + 16 + CL_MARGIN) < 144 + 16 + 2 * CL_MARGIN) cloud_one(c);     // (its lane is in reach: the usual case is that it is not)
-        } else {
-            o = shadow_OAM + clouds[c].oam;
-            if ((uint8_t)(o->x + 16 + CL_MARGIN) >= 184 + 2 * CL_MARGIN || (uint8_t)(o->y + CL_MARGIN) >= 160 + 2 * CL_MARGIN) {
-                for (k = clouds[c].n; k; k--, o++) o->y = 0;
-                CL_MASK &= ~(1 << c);
-            }
-        }
-    }
-}
-
-#endif   // !CLOUDS_NEW
 // ---- the screen -------------------------------------------------------------------------------------------------------------------------------------------------------
 // One frame (story.c story_update, STORY_PHASE_MAP). 1: the screen was left (the next one is up).
 uint8_t smap_update(uint8_t pressed) BANKED {
@@ -1048,10 +884,7 @@ void smap_enter(uint8_t quick) BANKED {
     isr_on();
     SCX_REG = (uint8_t)tx; SCY_REG = (uint8_t)ty;
     V(V_DOTS) = V(V_FULL) = 1;
-    shadow_OAM[36].x = 0;
-#ifdef CLOUDS_NEW
     shadow_OAM[39].x = 0;
-#endif
     if (CLOUDS_ON) cloud_init();
     V(V_PREV) = 1;                                 // (the arrival tag is queued by the first frame: the transition's reveal has put the window rows back by then)
     story_phase = STORY_PHASE_MAP;

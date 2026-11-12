@@ -23,7 +23,7 @@ def test_color_walk_has_no_standing_frame_between_the_first_and_last_step(s, d):
 
 
 def _dot_places(stop, d, speed, golden=False):
-    """(SCX + dot x, SCY + dot y) of the stop dot (OAM 8, tile 62) for every picture of a walk: read at the end of each emulated frame, after its VBlank interrupts, when the
+    """(SCX + dot x, SCY + dot y) of the stop dot (OAM 24, tile 62) for every picture of a walk: read at the end of each emulated frame, after its VBlank interrupts, when the
     registers and the OAM are what the next picture is drawn with. `golden`: the way test_golden_scroll_map_halfway_on_a_leg sets the walk off."""
     if speed:
         with double_speed():
@@ -37,7 +37,7 @@ def _dot_places(stop, d, speed, golden=False):
         walking = gb.read("story_scratch", 520)[SV + sm.V_WALK]
         started = started or walking
         if started:
-            y, x, t, _a = gb.read(0xFE00, 160)[32:36]
+            y, x, t, _a = gb.read(0xFE00, 160)[96:100]
             if y and t == 62:
                 out.append(((gb.mem(0xFF43) + x) & 255, (gb.mem(0xFF42) + y) & 255))
         if fr > 4 and started and not walking:

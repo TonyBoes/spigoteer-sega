@@ -1,14 +1,15 @@
 // The story map's denser clouds (owner 11-11, "for the clouds to matter at all, we need to substantially increase them"; make CLOUDS=C|D, Color only, a test build:
 // the default build keeps the five clouds of src/smap.c). Its own bank: smap.c has no room left.
 //
-// 33-41 clouds over the whole 512 x 560 world, as DATA (assets/story_map/cloud_layout.txt, laid out by tools/dev/cloud_layout.py): a cloud is a row (world y = 16 * row),
+// 22 clouds (two of them big) over the whole 512 x 560 world, as DATA (assets/story_map/cloud_layout.txt, laid out by tools/dev/cloud_layout.py): a cloud is a row (world y = 16 * row),
 // a position and one of four shapes (the approved A B C and one new Q: 2 3 3 2 sprites wide, 8x16 entries; the one-sprite puffs looked like snowballs and are gone). They all drift 1 px every 8 frames, like the approved clouds,
 // and stay where they are on the map (world-pinned): x = pos + clock / 8 (mod 512; a cloud past 488 comes in again from the left edge, the twin at pos - 512).
 //
 // One POOL of 16 entries (OAM 23-38) is handed out to whatever is on the screen, in two stacks: the clouds of the even rows take entries from the pool's first one up, the
 // clouds of the odd rows from its last one down, each cloud's entries in a row. A stack is built again from the clock and the camera (exact: the rows the screen shows plus
-// 16 px each way, their clouds that reach into it plus 16 px each way) on every 8th frame, the even rows' four frames after the odd rows'; the live entries of both slide with the
-// camera and the drift between (cl_shift). The camera moves 2 px a frame: 8 frames are 16 px, the margin, so no cloud comes in or goes out inside the screen. The two stacks
+// 20 px each way, their clouds that reach into it plus 20 px each way) on every 8th frame, the even rows' four frames after the odd rows' (a build that falls on a frame whose logic has already run
+// to scanline 100 waits one frame); the live entries of both slide with the camera and the drift between (cl_shift). The camera moves 2 px a frame: 9 frames are
+// 18 px < the 20 px margin, so no cloud comes in or goes out inside the screen. The two stacks
 // never hold more than the pool: the layout is searched so that no screen and clock holds more than 15 entries (tools/dev/cloud_layout.py), and no line more than 4. Sal, the
 // arrows, the dots, the bang, the UFO and the panel's cursor keep their own entries (0-22) and are never touched: nothing that must show can lose its sprite to a cloud. A window
 // layer over a row hides that row's clouds (both stacks are built every frame a window is up).
@@ -16,7 +17,6 @@
 // make cfall and kept equal to it frame for frame by tests/test_smap_clouds_pool.py.
 // State: 5 bytes of story_scratch (A_CLN 1-5): the temporaries of a build (par | x's 9th bit, n, x's low byte) while one runs, the two stacks' counts; and OAM 39's spare bytes. No WRAM global.
 #pragma bank 255
-#if defined(CLOUDS_C) || defined(CLOUDS_D)     // (the default build has no code here: the five clouds of smap.c)
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
@@ -32,29 +32,30 @@
 #define SMAP_CLOUD_TABLE
 #include "smap_art.h"
 
-#define OAM_CLOUDS 23
-#define N_POOL     16          // OAM 23-38 (39: y 0, x: the clouds are on, tile, prop: the camera's low bytes the last frame; like the five clouds' OAM 36, 37)
+#define OAM_CLOUDS 3
+#define N_POOL     16          // OAM 3-18 (39: y 0, x: the clouds are on, tile, prop: the camera's low bytes the last frame; like the five clouds' OAM 36, 37)
 #define CL_ON      (shadow_OAM[39].x)
 #define CL_PX      (shadow_OAM[39].tile)
 #define CL_PY      (shadow_OAM[39].prop)
+#define CL_LATE    100         // (the frame's logic has run to this scanline: a heavy frame; its build waits a frame)
 #define PAL_CLOUD  1           // Color OBJ palette 1
-#define CLN(i)     (SC(A_CLN)[i])   // 0: spare; 1, 2, 5: a build's temporaries (par | x bit 8 << 1; n; x low byte); 3, 4: the entries in use of the even rows' stack, of the odd rows' stack
+#define CLN(i)     (SC(A_CLN)[i])   // 0: this beat's stack is built; 1, 2, 5: a build's temporaries (par | x bit 8 << 1; n; x low byte); 3, 4: the entries in use of the even rows' stack, of the odd rows' stack
 
 void cl_all(void) BANKED;
 void cl_off(void) BANKED;
 
-// The stack `par` (0: even rows, from the pool's first entry; 1: odd rows, from its last): the clouds of the rows 16 * r (r of that parity) that meet [cy - 16, cy + 160) and
-// reach into [cx - 16, cx + 176). A cloud's x is pos + drift (mod 512); its record is (pos / 4, flip << 7 | shape << 4 | width in 4 px units). The coarse test is in 4 px units
-// (s = (pos / 4 + b4) & 127: in when s < 51 or s + width >= 128), the exact one (t, 9 bits) only for the clouds that pass it. An entry's x is the low byte of its place.
+// The stack `par` (0: even rows, from the pool's first entry; 1: odd rows, from its last): the clouds of the rows 16 * r (r of that parity) that meet [cy - 20, cy + 164) and
+// reach into [cx - 20, cx + 180). A cloud's x is pos + drift (mod 512); its record is (pos / 4, flip << 7 | shape << 4 | width in 4 px units). The coarse test is in 4 px units
+// (s = (pos / 4 + b4) & 127: in when s < 53 or s + width >= 128), the exact one (t, 9 bits) only for the clouds that pass it. An entry's x is the low byte of its place.
 #if ASM_CLOUD
-typedef char smap_cloud_offsets[(S_V == 396 && A_CLN == 390 && V_BOTTOM == 5 && V_WY == 8 && V_WH == 9 && V_CAMX == 12 && V_CAMY == 14 && V_TICK == 25 && SCL_ROWS == 35 && OAM_CLOUDS == 23 && N_POOL == 16) ? 1 : -1];
+typedef char smap_cloud_offsets[(S_V == 396 && A_CLN == 390 && V_BOTTOM == 5 && V_WY == 8 && V_WH == 9 && V_CAMX == 12 && V_CAMY == 14 && V_TICK == 25 && SCL_ROWS == 35 && OAM_CLOUDS == 3 && N_POOL == 16) ? 1 : -1];
 static void cl_half(uint8_t par) __naked {
     (void)par;
 __asm
     ld   c, a                               ; c = par
     xor  a, a
     ld   (_story_scratch + 392), a          ; CLN2: n = 0
-    ld   a, (_story_scratch + 396 + 5)      ; kx = (drift + 16 - cx) & 511, drift = (V_BOTTOM >> 1 & 15) << 5 | V_TICK >> 3
+    ld   a, (_story_scratch + 396 + 5)      ; kx = (drift + 20 - cx) & 511, drift = (V_BOTTOM >> 1 & 15) << 5 | V_TICK >> 3
     srl  a
     and  a, #15
     ld   h, a
@@ -71,7 +72,7 @@ __asm
     srl  a
     add  a, l
     ld   l, a
-    ld   de, #16
+    ld   de, #20
     add  hl, de
     ld   a, (_story_scratch + 396 + 12)
     ld   e, a
@@ -98,8 +99,8 @@ __asm
     or   a, e
     add  a, #2
     ld   d, a                               ; d = b4 = kx / 4 + 2
-    ld   a, (_story_scratch + 396 + 14)     ; the rows (cy is 9 bits: the world is 560 tall): r0 = (cy - 16) / 16 (0 when cy < 16), r1 = min(34, (cy + 159) / 16)
-    sub  a, #16
+    ld   a, (_story_scratch + 396 + 14)     ; the rows (cy is 9 bits: the world is 560 tall): r0 = (cy - 20) / 16 (0 when cy < 20), r1 = min(34, (cy + 163) / 16)
+    sub  a, #20
     ld   b, a
     ld   a, (_story_scratch + 396 + 15)
     sbc  a, #0
@@ -123,7 +124,7 @@ __asm
     inc  b                                  ; (the first row of this stack's parity)
 13$:
     ld   a, (_story_scratch + 396 + 14)
-    add  a, #159
+    add  a, #163
     ld   e, a
     ld   a, (_story_scratch + 396 + 15)
     adc  a, #0
@@ -170,11 +171,6 @@ __asm
     jr   z, 22$
     jp   70$                                ; (the row is under the window layer)
 22$:
-    ld   a, e
-    or   a, a
-    jr   nz, 23$
-    inc  e                                  ; (a live entry's y is never 0)
-23$:
     ld   hl, #_scl_rowstart
     ld   a, l
     add  a, b
@@ -200,7 +196,7 @@ __asm
     ld   a, (hl)
     add  a, d
     and  a, #127
-    cp   a, #51
+    cp   a, #53
     jr   c, 40$
     ld   c, a
     inc  hl
@@ -244,8 +240,8 @@ __asm
     ld   a, b
     add  a, a
     add  a, a
-    add  a, #192
-    ld   d, a                               ; d = 192 + 4 * width
+    add  a, #200
+    ld   d, a                               ; d = 200 + 4 * width
     ld   a, h
     or   a, a
     jp   nz, 49$
@@ -253,7 +249,7 @@ __asm
     cp   a, d
     jp   nc, 49$                            ; (t >= 176 + 4 * width: out of the window)
     sub  a, d
-    add  a, #192
+    add  a, #200
     ld   d, a                               ; d = x of the first entry = t - 4 * width (low byte)
     ld   a, b
     srl  a
@@ -284,7 +280,7 @@ __asm
     ld   a, l
     add  a, a
     add  a, a
-    add  a, #92
+    add  a, #12
     ld   l, a
     ld   h, #0xC0                           ; hl = its place in the shadow OAM
     ld   a, c
@@ -373,13 +369,13 @@ __asm
 92$:
     add  a, a
     add  a, a
-    add  a, #92
+    add  a, #12
     ld   l, a
     ld   h, #0xC0
 93$:
-    ld   (hl), #0
-    inc  hl
-    inc  hl
+    xor  a, a
+    ld   (hl+), a                           ; hidden: y and x 0
+    ld   (hl+), a
     inc  hl
     inc  hl
     dec  e
@@ -392,25 +388,24 @@ static void cl_half(uint8_t par) {
     uint16_t kx, t;
     uint8_t r, r1, i, e, s, w4, k, y, tl, n = 0, b4, sh, fl, ent, old, other, pos4;
     OAM_item_t *o;
-    kx = ((((uint16_t)(V(V_BOTTOM) >> 1) & 15) << 5) | (V(V_TICK) >> 3)) + 16 - g16(V_CAMX);
+    kx = ((((uint16_t)(V(V_BOTTOM) >> 1) & 15) << 5) | (V(V_TICK) >> 3)) + 20 - g16(V_CAMX);
     kx &= 511;
     b4 = (uint8_t)(kx >> 2) + 2;
-    r = g16(V_CAMY) >= 16 ? (g16(V_CAMY) - 16) >> 4 : 0;
-    r1 = (uint8_t)((g16(V_CAMY) + 159) >> 4);
+    r = g16(V_CAMY) >= 20 ? (g16(V_CAMY) - 20) >> 4 : 0;
+    r1 = (uint8_t)((g16(V_CAMY) + 163) >> 4);
     if (r1 > SCL_ROWS - 1) r1 = SCL_ROWS - 1;
     if ((r ^ par) & 1) r++;
     old = CLN(3 + par); other = CLN(4 - par);
     for (; r <= r1; r += 2) {
         y = (uint8_t)((r << 4) + 16 - V(V_CAMY));
         if (V(V_WH) && y < 240 && y > V(V_WY) && y < (uint8_t)(V(V_WY) + V(V_WH) + 16)) continue;     // (under the window layer)
-        if (!y) y = 1;
         for (i = scl_rowstart[r], e = scl_rowstart[r + 1]; i < e; i += 2) {
             pos4 = scl_rec[i]; sh = scl_rec[i + 1]; w4 = sh & 15;
             s = (pos4 + b4) & 127;
-            if (s >= 51 && (uint8_t)(s + w4) < 128) continue;       // (not near the window)
+            if (s >= 53 && (uint8_t)(s + w4) < 128) continue;       // (not near the window)
             t = (((uint16_t)(pos4 + w4)) << 2) + kx;
             t &= 511;
-            if (!t || t >= 192 + (w4 << 2)) continue;
+            if (!t || t >= 200 + (w4 << 2)) continue;
             ent = w4 >> 1;
             if (other + n + ent > N_POOL) continue;
             o = shadow_OAM + OAM_CLOUDS + (par ? N_POOL - n - ent : n);
@@ -427,28 +422,32 @@ static void cl_half(uint8_t par) {
     CLN(3 + par) = n;
     if (old > n) {
         o = shadow_OAM + OAM_CLOUDS + (par ? N_POOL - old : n);
-        for (k = old - n; k; k--, o++) o->y = 0;                   // (the entries of the stack's last build that are not needed now)
+        for (k = old - n; k; k--, o++) { o->y = 0; o->x = 0; }                   // (the entries of the stack's last build that are not needed now)
     }
 }
 #endif
 
-// The live pool entries move with the camera (dx, dy: how far the map slid on the screen) and the drift. A live entry's y is never 0. (The C twin is the loop below the #else.)
+// The live pool entries move with the camera (dx, dy: how far the map slid on the screen) and the drift. A hidden entry has y and x 0; a live one may sit at y 0 (off the screen). (The C twin is the loop below the #else.)
 #if ASM_CLOUD
 static void cl_shift(int8_t dx, int8_t dy) __naked {
     (void)dx; (void)dy;
 __asm
     ld   c, a
     ld   b, e
-    ld   hl, #_shadow_OAM + 92              ; OAM_CLOUDS * 4
+    ld   hl, #_shadow_OAM + 12              ; OAM_CLOUDS * 4
     ld   e, #16                             ; N_POOL
 1$:
+    ld   a, (hl+)
+    ld   d, a
+    or   a, a
+    jr   nz, 5$
     ld   a, (hl)
     or   a, a
-    jr   z, 2$
+    jr   z, 2$                              ; y and x 0: hidden
+5$:
+    ld   a, d
     add  a, b
-    jr   nz, 3$
-    inc  a
-3$:
+    dec  hl
     ld   (hl+), a
     ld   a, (hl)
     add  a, c
@@ -460,7 +459,6 @@ __asm
     inc  hl
     inc  hl
     inc  hl
-    inc  hl
 4$:
     dec  e
     jr   nz, 1$
@@ -469,17 +467,24 @@ __endasm;
 }
 #else
 static void cl_shift(int8_t dx, int8_t dy) {
-    uint8_t k, y;
+    uint8_t k;
     OAM_item_t *o = shadow_OAM + OAM_CLOUDS;
     for (k = 0; k < N_POOL; k++, o++) {
-        y = o->y;
-        if (!y) continue;
-        y += dy;
-        o->y = y ? y : 1;
+        if (!o->y && !o->x) continue;                              // (hidden: y and x 0; a live entry may sit at y 0, off the screen, and comes back)
+        o->y += dy;
         o->x += dx;
     }
 }
 #endif
+
+// a window layer is up (V_WY, V_WH): the live entries that meet its lines are hidden
+static void cl_hide_under(void) {
+    uint8_t k, wy = V(V_WY);
+    uint16_t we = (uint16_t)wy + V(V_WH) + 16;
+    OAM_item_t *o = shadow_OAM + OAM_CLOUDS;
+    for (k = 0; k < N_POOL; k++, o++)
+        if (o->y > wy && o->y < we) { o->y = 0; o->x = 0; }
+}
 
 // both stacks again (the map was entered, a window layer came or went or is up)
 void cl_all(void) BANKED {
@@ -490,26 +495,31 @@ void cl_all(void) BANKED {
 // smap_enter: the pool is empty and built from the clock and the camera
 void cl_init(void) BANKED {
     uint8_t k;
-    for (k = 0; k < N_POOL; k++) shadow_OAM[OAM_CLOUDS + k].y = 0;
+    for (k = 0; k < N_POOL; k++) { shadow_OAM[OAM_CLOUDS + k].y = 0; shadow_OAM[OAM_CLOUDS + k].x = 0; }
     shadow_OAM[39].y = 0; CL_ON = 1; CL_PX = V(V_CAMX); CL_PY = V(V_CAMY);
-    CLN(3) = 0; CLN(4) = 0;
+    CLN(0) = 0; CLN(3) = 0; CLN(4) = 0;
     cl_all();
 }
 
 // Every frame (dx, dy: how far the camera slid the map on the screen since the last). The clock (V_TICK, and V_BOTTOM's bits 1-7 count its wraps) is the drift's.
 void cl_tick(void) BANKED {
-    uint8_t tk = V(V_TICK), e = !(tk & 7), dx = CL_PX - V(V_CAMX), dy = CL_PY - V(V_CAMY);
+    uint8_t tk = V(V_TICK), e = !(tk & 7), dx = CL_PX - V(V_CAMX), dy = CL_PY - V(V_CAMY), cross = LY_REG >= CL_LATE && LY_REG < 144;
     CL_PX = V(V_CAMX); CL_PY = V(V_CAMY);
     if (!tk) V(V_BOTTOM) += 2;
     if (dx | dy | e) cl_shift(dx + e, dy);
-    if (V(V_WH)) cl_all();
-    else if (!(tk & 3)) cl_half((tk >> 2) & 1);                 // (one stack on every 4th frame: each row is seen again every 8 frames)
+    if (V(V_WH)) cl_hide_under();                              // (a window layer is up: the entries under it go at once; the builds skip its rows; cl_all when it goes)
+    if (!(tk & 2)) {                                           // (a stack on every 4th frame; one that falls on a frame in which the camera crossed a cell line, which draws all the still sprites again, waits a frame)
+        if (!(tk & 1)) { CLN(0) = 0; if (cross) goto out; }
+        else if (CLN(0)) goto out;
+        CLN(0) = 1;
+        cl_half((tk >> 2) & 1);
+    }
+out: ;
 }
 
 // the clouds go (the beam-up has OAM 23-31; the map is left): none stays in the shadow OAM for the next screen
 void cl_off(void) BANKED {
     uint8_t k;
-    for (k = 0; k < N_POOL; k++) shadow_OAM[OAM_CLOUDS + k].y = 0;
+    for (k = 0; k < N_POOL; k++) { shadow_OAM[OAM_CLOUDS + k].y = 0; shadow_OAM[OAM_CLOUDS + k].x = 0; }
     CL_ON = 0; CL_PX = 0; CL_PY = 0; CLN(3) = 0; CLN(4) = 0;
 }
-#endif
