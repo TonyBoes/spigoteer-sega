@@ -66,7 +66,7 @@
 #define ASM_TILE_COPY ASM_PASS
 #endif
 
-// the scrolling story map: the DMG tile allocator's counting cells (smap.c smap_burst)
+// the scrolling story map: the DMG's cells whose slot already holds their tile (src/smap_eng.c smap_burst)
 #ifndef ASM_SMAP
 #define ASM_SMAP ASM_PASS
 #endif

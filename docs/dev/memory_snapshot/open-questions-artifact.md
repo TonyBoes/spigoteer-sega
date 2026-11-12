@@ -1,9 +1,13 @@
 ---
 name: open-questions-artifact
-description: Keep the "Open Questions" artifact (https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d) current with every open Qn, its concise ask, context and media
+description: "Keep the \"Open Questions\" artifact (https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d) current with every open Qn, its concise ask, context and media"
 metadata:
+  node_type: memory
   type: feedback
+  originSessionId: 1f365d81-9c39-4e65-b0fc-e3d166beadd7
+  modified: 2026-11-11T23:27:08.355Z
 ---
+
 Owner, 2026-10-21: he wants a list I keep updated with every open question and its images and files. Each question stays concise but explains enough that he knows exactly what to answer.
 
 The Open Questions page is at https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d. Its source is the scratchpad open_questions/index.html, with its files in media/.
@@ -15,6 +19,7 @@ The Open Questions page is at https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d.
 - Whenever I ask a new Qn or he answers one, update the page: add or remove the card, update the count and the stamp, and republish the same file path or URL.
 - Owner 2026-11-03: "The questions in the open questions artefact don't seem to be questions." Every card's highlighted ask is a full question ending in "?" that says what to answer (e.g. "Which peacock should get the next pass: A (side view) or B (facing you)?"), never a bare option list like "A side view · B facing you". The index line is phrased as the question too. Each option's meaning goes in the bullets in plain words.
 - In chat, still state new questions briefly and point to the page.
+- Source now lives in the repo: tools/artifacts/open_questions/ (index.html + media/).
 - The Review Board was deleted 2026-10-29: animations and large items for a question go on its card here.
 
 Related: [[batched-numbered-questions]], [[review-board-artifact]].
