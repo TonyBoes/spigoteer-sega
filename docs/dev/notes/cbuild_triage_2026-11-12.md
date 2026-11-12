@@ -125,11 +125,40 @@ Nothing was fixed in the C twins; the asm build is untouched (same sha1).
 - tests/test_pause.py, tests/test_boss_in_place.py: the tap-until-"A BACK" loops are bounded and assert (same meaning, fail in seconds).
 - tools/dev/ptest.py: `PTEST_TIMEOUT_METHOD`, `PTEST_TEST_TIMEOUT` (defaults unchanged); tools/dev/verify.sh C stage uses signal / 90 s.
 
+## Update, same day: the timing-independent state check and the 43 open ones
+
+tests/test_c_state_equiv.py (rig tests/c_state_rig.py): the same scripted run on game.gb and game-c.gb, compared on game STATE only (about 90
+logic variables: score, lives, level, patrons, mugs, bartender, boss, story progress, RNG) at the start of every main-loop pass. A hook on the
+RET of joypad() answers update()'s call with the script's mask for that pass and records the state in the same call, so both ROMs see the same
+input at the same logical step whatever their speed. (My first version drove PyBoy's buttons between emulator frames; that gave false
+divergences because a late C frame can read the joypad before the host has changed the buttons.) Scenarios: ARCADE levels 1, 2, 4, 7, 9;
+random title menus; three boss fights; boss fights with START/A/B mashed (pause menu, hint cards); seven mini-games; DMG, Color double speed
+and Color normal speed. Result: all 54 runs have identical state at every step. Findings of the check:
+
+- The story map is the one place where state depends on speed, by design: its walk adapts its pace to the loader rate (src/smap.c V_RATE, the
+  "pace the loader can keep"). A new story's first walk ends at stop 0 at one step in the asm ROM and later in the C ROM. The SMAP single-twin
+  ROM alone reproduces it (the map code's speed). The comparison ends at the map's first step; the map's code is covered by the twin tests
+  (test_asm_twins) and by the pace tests (known list, A-MAP-PHASE).
+- Fields that are timing-dependent by design and left out of the comparison: patron_lift (lift.c decides from frame_t0 whether the frame has
+  run over), the frame_counter value (aligned by a poke at the start; the logic reads its parity).
+- A real C-build LIVELOCK, found by the pause scenarios: pausing a boss fight on a Color at NORMAL speed (not the shipped double speed) never
+  returns. The card fade waits in vframe (src/trans.c) for a frame that is not late, and the slow C split handlers (ASM_SPLIT_PAL twin) make
+  every frame late. The asm ROM and the C ROM at double speed are fine. The shared code is correct; only a faster C split handler removes it
+  (fixing vframe would change game.gb). Two strict xfails in the state test mark it.
+- No state divergence anywhere else: no C twin was found to differ from its asm in behaviour in these scenarios.
+
+The 43 open ones are now classified (tests/c_build_known.txt, the C stage has 0 failures, 5758 passed, 447 skipped, 0 not reported):
+- A-SPLIT-TWIN 32: reproduced by the SPLIT_PAL single-twin ROM alone (3 more of the 35 SPLIT_PAL-only are the C-ASM-HOOK ones). This is
+  attribution, not a measurement of the late write; the picture tests that fail (lifted looks, show colours, goldens of the show at rows 8-10)
+  cannot tell a late palette write from a wrong value. Medium confidence; the twin copies the same 8 source bytes.
+- A-PHASE 5: test_look_window (CHOOSER/F twins alone), test_boss_yeti, test_pour, test_rng: the test pokes or counts at an emulator-frame
+  boundary; the logic is equal in the state check. Medium confidence.
+- A-SPEED-GUARD 4 more: test_perf, test_perf_arcade 2, test_half_rate (guards that also fail at double speed).
+- C-ASM-HOOK 2 more: test_show_three's `split_put_o` KeyErrors.
+
 ## Open / next
 
-1. The 43 open ones, by family above. Most likely reclassify as late writes with a bbox check; the test_look_window pair and the sumo
-   "mug moves first" pair are the ones that could still be real.
-2. Real fix candidates for the late writes (if the owner wants the C twin usable at normal speed on Color): the C split handlers are too
-   slow, not wrong. At double speed 105 of the 263 SPLIT_PAL failures pass. Not required (owner 11-01).
-3. A twin check that would catch a real C bug without timing: run the same scripted input on game.gb and game-c.gb at double speed and
-   compare the game state (RNG, positions) frame by frame, ignoring the pictures. Not built.
+1. A faster C split handler (task 3 of the second brief) would remove the normal-speed livelock and most of the A-LATE-WRITE / A-SPLIT-TWIN
+   entries. Not done: it needs a measured handler budget (line-by-line cycles of split_isr3 / split_vbl3 / put_o8 against the HBlank).
+2. To make the A-SPLIT-TWIN entries proofs: a test that reads the palette RAM bytes written by the C and the asm handlers at each event line
+   (same values, any time) would settle value versus lateness.

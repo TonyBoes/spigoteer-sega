@@ -3,8 +3,10 @@
 # One test per line: node id, TAB, code, TAB, detail. Never a whole file. The asm build never reads this file.
 # C-ASM-HOOK: (c) the test hooks asm labels (_split_put_o, _split_put_o2, _split_put_oe in src/main.c); the C twin has no such labels, so there is nothing to hook (the HBlank discipline of the C twin is not measured here)
 # A-LATE-WRITE: (a) speed: only the mid-frame palette-split rows differ (rows 40-106, the chain lines): the C split handlers (ASM_SPLIT_PAL twin) write late
+# A-SPLIT-TWIN: (a) speed, attributed not measured: reproduced by the ASM_SPLIT_PAL single-twin ROM alone; the twin only changes how late the mid-frame palette writes land
+# A-PHASE: (a) test phase: the test aligns by emulator frames (a poke or a count at a frame boundary), the slower C ROM is a step off; the timing-independent state check finds the logic equal
 # A-DS-PASS: (a) speed: fails on the C ROM at normal speed, passes on the same C ROM at double speed (GB_DOUBLE_SPEED=1), the speed the Color ships at
-# A-MAP-PHASE: (a) speed: story map motion / pace / picture checks that count frames; the C map code (ASM_SMAP, ASM_CLOUD twins) is slower, so the scroll and animation phase differ
+# A-MAP-PHASE: (a) speed: story map motion / pace / picture checks that count frames; the map walk adapts its pace to the loader rate (src/smap.c V_RATE) and the C map code (ASM_SMAP, ASM_CLOUD twins) is slower
 # A-SPEED-GUARD: (a) speed: a timing / frame-budget / late-frame guard (perf, ends-on-time, tick gap), expected to fail in the C build (owner 2026-11-01)
 tests/test_antics.py::test_each_ending_plays_and_ends_within_the_clear[cgb-beer]	A-SPEED-GUARD	
 tests/test_antics.py::test_each_ending_plays_and_ends_within_the_clear[cgb-bird]	A-SPEED-GUARD	
@@ -72,6 +74,7 @@ tests/test_boss_leo.py::test_a_life_lost_in_the_tell_ends_the_roar[cgb]	A-DS-PAS
 tests/test_boss_leo.py::test_the_entrance_plays_once_with_the_hoop_the_leap_and_the_landing_roar[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_leo.py::test_the_fight_follows_the_last_call[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_leo.py::test_the_roar_tell_and_timing[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
+tests/test_boss_leo.py::test_the_wave_is_drawn_sweeping_right_on_every_bar[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_boss_mascot.py::test_the_fight_follows_the_last_call[cgb]	A-LATE-WRITE	golden diff bbox (80, 72, 89, 82): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_mothership.py::test_a_bartender_who_stays_is_stunned[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_mothership.py::test_the_entrance_tractor_beam[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
@@ -90,24 +93,28 @@ tests/test_boss_sumo.py::test_a_lost_life_keeps_the_meter_and_the_target[cgb]	A-
 tests/test_boss_sumo.py::test_at_target_1_every_cup_knocks_him_back[cgb]	A-DS-PASS	
 tests/test_boss_sumo.py::test_his_empties_still_come_back[cgb]	A-DS-PASS	
 tests/test_boss_sumo.py::test_no_drink_limit[cgb]	A-DS-PASS	
+tests/test_boss_sumo.py::test_pose_and_golden_during_the_knock_back[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_boss_sumo.py::test_ring_out_wins[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_boss_sumo.py::test_the_entrance_walks_in_and_stamps[cgb]	A-DS-PASS	
+tests/test_boss_sumo.py::test_the_fight_follows_the_last_call[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_boss_sumo.py::test_the_full_meter_blinks[cgb]	A-DS-PASS	
 tests/test_boss_sumo.py::test_the_knock_back_ends_a_charge[cgb]	A-DS-PASS	
+tests/test_boss_sumo.py::test_the_meter_fills_and_the_target_shrinks[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_boss_sumo.py::test_the_salt_flies_and_the_dust_rises[cgb]	A-LATE-WRITE	golden diff bbox (16, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_sumo.py::test_the_stamp_golden[cgb]	A-LATE-WRITE	golden diff bbox (16, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_yeti.py::test_the_breath_tell_ice_and_thaw[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_yeti.py::test_the_entrance_is_a_frost_front[cgb]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_boss_yeti.py::test_the_fight_follows_the_last_call[cgb]	A-LATE-WRITE	golden diff bbox (80, 40, 159, 106): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
+tests/test_boss_yeti.py::test_win_the_fight_by_pouring[cgb]	A-PHASE	the test pokes or counts at an emulator-frame boundary, so the C ROM is a step off: spawn / fight phase; game state equal in tests/test_c_state_equiv.py (twin attribution: none alone)
 tests/test_classic.py::test_golden_classic_alt[cgb]	A-LATE-WRITE	golden diff bbox (0, 40, 104, 105): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_classic.py::test_golden_classic_flip[cgb]	A-LATE-WRITE	golden diff bbox (97, 40, 143, 105): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_classic.py::test_golden_classic_split[cgb]	A-LATE-WRITE	golden diff bbox (0, 40, 143, 105): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_classic_mode.py::test_golden_classic_level3[cgb]	A-LATE-WRITE	golden diff bbox (96, 40, 119, 45): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_debug.py::test_a_starts_that_level_from_scratch[cgb-12]	A-DS-PASS	
 tests/test_debug.py::test_a_starts_that_level_from_scratch[cgb-1]	A-DS-PASS	
-tests/test_debug.py::test_start_starts_too[cgb]	A-DS-PASS	
-tests/test_debug.py::test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run[cgb]	A-DS-PASS	
 tests/test_debug.py::test_the_gesture_in_play_opens_the_menu_then_a_starts_a_level_fresh[cgb]	A-DS-PASS	
-tests/test_debug_stress.py::test_the_stress_selection_starts_its_level_and_mode[cgb-2]	A-DS-PASS	
+tests/test_extra_looks.py::test_a_lifted_factory_look_changes_no_pixel_and_wears_its_palette[cgb-look5-inst1]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks.py::test_a_lifted_factory_look_changes_no_pixel_and_wears_its_palette[cgb-look7-inst1]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[aliens-cut]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[aliens-fade]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[chefs-cut]	A-DS-PASS	
@@ -116,16 +123,33 @@ tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shif
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[divers-fade]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[lumberjacks-cut]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[lumberjacks-fade]	A-DS-PASS	
+tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[ninjas-cut]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[ninjas-fade]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[punks-cut]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[punks-fade]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[robots-cut]	A-DS-PASS	
 tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[robots-fade]	A-DS-PASS	
+tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[sports-cut]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[sports-fade]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[zoo-cut]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_pixels.py::test_every_color_look_is_its_art_at_every_shift_on_the_bg_and_lifted[zoo-fade]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_venues.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-divers-look0-inst4]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_venues.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-divers-look3-inst4]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_venues.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-divers-look5-inst4]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_venues.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-ninjas-look1-inst3]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_venues.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-punks-look0-inst4]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_venues.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-punks-look4-inst4]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_zoo_space.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-aliens-look2-inst3]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_zoo_space.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-aliens-look5-inst3]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_zoo_space.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-zoo-look1-inst1]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_extra_looks_zoo_space.py::test_a_lifted_look_changes_no_pixel_and_wears_its_palette[cgb-zoo-look2-inst1]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_through_amber[2]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_through_amber[5]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_through_amber[9]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[1]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[2]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[3]	A-DS-PASS	
+tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[4]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[5]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[6]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[7]	A-DS-PASS	
@@ -133,9 +157,11 @@ tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[8]	A-DS-
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_to_white[9]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_with_screen_bright[5]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_fade_with_screen_bright[9]	A-DS-PASS	
+tests/test_fade_chain.py::test_every_scanline_follows_the_pause_cards_fade[2]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_fade_chain.py::test_every_scanline_follows_the_pause_cards_fade[5]	A-DS-PASS	
 tests/test_fade_chain.py::test_every_scanline_follows_the_pause_cards_fade[9]	A-DS-PASS	
 tests/test_flow.py::test_level_clear_scores_shows_banner_and_loads_level_2[cgb]	A-LATE-WRITE	golden diff bbox (16, 40, 39, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
+tests/test_half_rate.py::test_music_ticks_per_second_are_equal	A-SPEED-GUARD	perf / timing guard that also fails at double speed
 tests/test_lift.py::test_forty_entries_with_the_show_running[cgb]	A-LATE-WRITE	first differing pixel at row 40, in the stage palette split rows 40-106 (a late mid-frame palette write)
 tests/test_lift.py::test_lifted_patrons_look_exactly_like_bg_ones[cgb-aliens]	A-LATE-WRITE	first differing pixel at row 42, in the stage palette split rows 40-106 (a late mid-frame palette write)
 tests/test_lift.py::test_lifted_patrons_look_exactly_like_bg_ones[cgb-chefs]	A-LATE-WRITE	first differing pixel at row 42, in the stage palette split rows 40-106 (a late mid-frame palette write)
@@ -146,6 +172,8 @@ tests/test_lift.py::test_lifted_patrons_look_exactly_like_bg_ones[cgb-punks]	A-D
 tests/test_lift.py::test_lifted_patrons_look_exactly_like_bg_ones[cgb-robots]	A-LATE-WRITE	first differing pixel at row 45, in the stage palette split rows 40-106 (a late mid-frame palette write)
 tests/test_lift.py::test_lifted_patrons_look_exactly_like_bg_ones[cgb-sports]	A-LATE-WRITE	first differing pixel at row 40, in the stage palette split rows 40-106 (a late mid-frame palette write)
 tests/test_lift.py::test_lifted_patrons_look_exactly_like_bg_ones[cgb-zoo]	A-LATE-WRITE	first differing pixel at row 45, in the stage palette split rows 40-106 (a late mid-frame palette write)
+tests/test_look_window.py::test_the_dmg_spawn_sequence_for_the_fixed_seed_is_unchanged[0-dmg]	A-PHASE	the test pokes or counts at an emulator-frame boundary, so the C ROM is a step off: spawn / fight phase; game state equal in tests/test_c_state_equiv.py (twin attribution: CHOOSER)
+tests/test_look_window.py::test_the_dmg_spawn_sequence_for_the_fixed_seed_is_unchanged[1-dmg]	A-PHASE	the test pokes or counts at an emulator-frame boundary, so the C ROM is a step off: spawn / fight phase; game state equal in tests/test_c_state_equiv.py (twin attribution: CHOOSER,F)
 tests/test_music_batch234.py::test_the_sailor_plays_at_the_last_calls_tempo_and_the_groove_keeps_in_step[cgb]	A-DS-PASS	
 tests/test_pause.py::test_a_boss_fight_pause_menu_opens_his_hint_card[1-cgb]	A-DS-PASS	
 tests/test_pause.py::test_a_boss_fight_pause_menu_opens_his_hint_card[2-cgb]	A-DS-PASS	
@@ -169,7 +197,12 @@ tests/test_pause.py::test_the_mascots_and_the_sumos_one_page_cards_close_on_a[7-
 tests/test_pause_card_fade.py::test_the_card_fade_restores_the_menu_registers_exactly[3-cgb]	A-DS-PASS	
 tests/test_pause_card_fade.py::test_the_card_fade_restores_the_menu_registers_exactly[7-cgb]	A-DS-PASS	
 tests/test_pause_card_fade.py::test_the_pause_mix_loses_no_tick_through_the_card_fades[3-cgb]	A-DS-PASS	
+tests/test_perf.py::test_classic_peak_real_rows[dmg-12]	A-SPEED-GUARD	perf / timing guard that also fails at double speed
+tests/test_perf_arcade.py::test_the_arcade_peak_is_late_on_a_bounded_share_of_its_frames[10-cgb]	A-SPEED-GUARD	perf / timing guard that also fails at double speed
+tests/test_perf_arcade.py::test_the_arcade_peak_is_late_on_a_bounded_share_of_its_frames[8-cgb]	A-SPEED-GUARD	perf / timing guard that also fails at double speed
 tests/test_pour.py::test_only_the_third_perfect_pour_in_a_row_and_later_ones_score_the_x2_bonus_with_its_badge[cgb]	A-DS-PASS	
+tests/test_pour.py::test_only_the_third_perfect_pour_in_a_row_and_later_ones_score_the_x2_bonus_with_its_badge[dmg]	A-PHASE	the test pokes or counts at an emulator-frame boundary, so the C ROM is a step off: spawn / fight phase; game state equal in tests/test_c_state_equiv.py (twin attribution: none alone)
+tests/test_rng.py::test_the_stadium_picks_are_uniform_and_not_locked_to_a_few_successors[cgb]	A-PHASE	the test pokes or counts at an emulator-frame boundary, so the C ROM is a step off: spawn / fight phase; game state equal in tests/test_c_state_equiv.py (twin attribution: none alone)
 tests/test_saloon_looks_lift_mirror.py::test_the_color_only_looks_mirror_pixel_for_pixel_on_an_r_level[cgb-looks345]	A-DS-PASS	
 tests/test_saloon_looks_lift_mirror.py::test_the_color_only_looks_mirror_pixel_for_pixel_on_an_r_level[cgb-looks673]	A-DS-PASS	
 tests/test_show_obj5.py::test_a_fade_through_amber_during_a_show_follows_the_screen[0]	C-ASM-HOOK	
@@ -230,6 +263,12 @@ tests/test_show_resume_attrs.py::test_patrons_resuming_after_a_show_keep_their_v
 tests/test_show_resume_attrs.py::test_patrons_resuming_after_a_show_keep_their_vram_bank[cgb-9]	A-DS-PASS	
 tests/test_show_three.py::test_a_screen_fade_during_a_show_with_three_palettes_follows_the_screen[1]	A-DS-PASS	
 tests/test_show_three.py::test_a_screen_fade_during_a_show_with_three_palettes_follows_the_screen[2]	A-DS-PASS	
+tests/test_show_three.py::test_a_show_starting_and_ending_with_three_palettes_holds_no_wrong_colour_frame[double]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_show_three.py::test_a_show_starting_and_ending_with_three_palettes_holds_no_wrong_colour_frame[normal]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_show_three.py::test_each_dancer_wears_her_own_colours_and_each_patron_below_his_in_the_same_frame[double]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_show_three.py::test_each_dancer_wears_her_own_colours_and_each_patron_below_his_in_the_same_frame[normal]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_show_three.py::test_the_five_writes_of_a_frame_are_each_in_their_own_hblank_and_never_in_mode_3[double]	C-ASM-HOOK	
+tests/test_show_three.py::test_the_five_writes_of_a_frame_are_each_in_their_own_hblank_and_never_in_mode_3[normal]	C-ASM-HOOK	
 tests/test_show_wash.py::test_golden_the_stage_wash_at_each_tint[amber-bistro]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_show_wash.py::test_golden_the_stage_wash_at_each_tint[blue-bistro]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_show_wash.py::test_golden_the_stage_wash_at_each_tint[green-bistro]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 40): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
@@ -341,11 +380,13 @@ tests/test_story_map_world.py::test_sal_walks_without_waiting_and_the_camera_mov
 tests/test_story_map_world.py::test_sal_walks_without_waiting_and_the_camera_moves_with_him[dmg]	A-MAP-PHASE	story map motion/pace/picture checks count frames: the C map code is slower
 tests/test_story_map_world.py::test_the_walks_cost_stays_within_the_measured_bounds[cgb]	A-MAP-PHASE	story map motion/pace/picture checks count frames: the C map code is slower
 tests/test_story_map_world.py::test_the_walks_cost_stays_within_the_measured_bounds[dmg]	A-MAP-PHASE	story map motion/pace/picture checks count frames: the C map code is slower
-tests/test_story_resume.py::test_a_debug_select_run_quit_to_title_from_the_map_still_offers_continue[cgb]	A-DS-PASS	
 tests/test_story_resume.py::test_a_debug_select_run_quits_to_the_map_resumes_and_saves_nothing[cgb]	A-DS-PASS	
 tests/test_taper.py::test_golden_classic_taper[cgb]	A-LATE-WRITE	golden diff bbox (112, 40, 135, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_taper.py::test_golden_classic_taper_r[cgb]	A-LATE-WRITE	golden diff bbox (24, 40, 47, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
+tests/test_tips.py::test_show_backs_golden[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
+tests/test_tips.py::test_show_golden[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_trans.py::test_a_scene_leaves_for_the_next_behind_the_drink[cgb]	A-SPEED-GUARD	
+tests/test_trans.py::test_milk_run_is_entered_and_left_behind_the_drink[cgb]	A-SPLIT-TWIN	reproduced by the ASM_SPLIT_PAL single-twin ROM alone (the C split handlers write late); game state equal in tests/test_c_state_equiv.py
 tests/test_venues.py::test_crash_golden[cgb-factory]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_venues.py::test_venue_golden[cgb-biker]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
 tests/test_venues.py::test_venue_golden[cgb-bistro]	A-LATE-WRITE	golden diff bbox (136, 40, 159, 42): rows 40-106 only, the chain lines of the stage palette split (a late mid-frame palette write)
