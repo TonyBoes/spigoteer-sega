@@ -237,9 +237,12 @@ def test_the_card_opens_only_after_his_entrance_ends_over_a_whole_picture(model,
 def card_pages(gb):
     """Turn the open card to its last page with A; the rows of each page seen."""
     pages = [card_rows(gb)]
-    while pages[-1][16] != "A BACK":
+    for _ in range(12):                     # bounded: a card that never reaches its last page fails here, not after the 180 s timeout
+        if pages[-1][16] == "A BACK":
+            break
         tap(gb, "a", CARD_FRAMES)
         pages.append(card_rows(gb))
+    assert pages[-1][16] == "A BACK", "the card's last page (A BACK) is reached within 12 taps"
     return pages
 
 

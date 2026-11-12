@@ -14,6 +14,9 @@ Whole files are kept in one unit unless a file is too big for a shard; then it i
 
     --record   after the run, rewrite tests/durations.json from this run's per-test times (run it serially, -j 1, on a
                quiet machine; the file only balances shards, it never changes a result).
+    PTEST_TIMEOUT_METHOD=signal / PTEST_TEST_TIMEOUT=SECS (env): the per-test timeout method and limit (default thread, 180). The C-build stage uses signal:
+               a hung test then fails alone; the thread method kills the whole shard process and loses its junit file and every result in it.
+
     -j 1       the same collection and merge with a single shard: the serial reference for comparing result sets.
 
 Result sets: out/ptest/<run>/results.txt has one "<outcome> <nodeid>" line per test, sorted: diff two runs' files.
@@ -165,7 +168,9 @@ def main():
     jobs = max(1, a.jobs)
     pytest_args = rest or ["tests"]
     if not any(x.startswith("--timeout") for x in pytest_args):
-        pytest_args += DEFAULT_TIMEOUT_PER_TEST
+        # PTEST_TIMEOUT_METHOD=signal (the C-build stage): a hung test fails alone. The default "thread" method kills the whole shard process
+        # (os._exit), which loses that shard's junit file and every result in it: the "coverage differs between runs" of the C-build runs.
+        pytest_args += ["--timeout=" + os.environ.get("PTEST_TEST_TIMEOUT", "180"), "--timeout-method=" + os.environ.get("PTEST_TIMEOUT_METHOD", "thread")]
 
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
