@@ -182,8 +182,39 @@ What is left of the late writes: the C `split_isr3` still lands its palette 1 to
 are the put; the decode is ~270 instructions of stack-heavy SDCC code, and the C hides the window after the decode where the asm hides it first).
 A further speed-up needs a restructured decode, not a faster store loop; not done.
 
+## Update 4: the split palette lands on the asm's lines (owner Q37: "fix it if we can now")
+
+Measured with PyBoy hooks (arcade level 4, Color, normal speed; T-cycles; a line is 456; scripts in out/, not committed). "hit" is the LCD interrupt of
+a palette event, "put" its first palette write:
+
+| | asm game.gb | game-c.gb before | game-c.gb after |
+|---|---|---|---|
+| write line of the early stage palette / keg's / late | 31 / 38 / 39 | 32 / 40 / 41 | 31 / 38 / 39 |
+| write line of the HUD's BG 1 at the floor row | 136 | 138 | 136 |
+| phase of those puts in the line (T-cycles) | 288 / 320 / 304 / 288 | 320 / 336 / 304 / 352 | 336 / 320 / 304 / 336 |
+| decode, hit to the first wait loop (median, range) | 492 (492-548) | 1260 (828-1428) | 1176 (792-1436) |
+| hit to first put, with the wait for the HBlank | 588 / 620 / 588 | 1116 / 1548 / 1572 | 1548 / 1536 / 1548 (3 lines early, same lines) |
+| ISR cost per hit, entry to return (median) | n/a (naked) | 2316 | 2020 |
+| main loop resumes after the VBlank (median) | 1952 (LY 148) | 2308 (LY 149) | 2116 (LY 148) |
+
+What was done (C twins only, game.gb sha1 unchanged): the C decode cannot get below about 1200 T-cycles (the asm's is 490: SDCC spills every local and
+promotes the list indexing to 16 bits; a table-driven rewrite and a pointer-walking rewrite were both measured and were SLOWER, 1290 and 1570, so they were dropped). So at normal
+speed the C twin's hit comes `SPLIT_HIT_EARLY` = 3 lines before its event's line instead of the asm's 1 (src/game.h, used by split_plan in src/level.c
+through `SPLIT_HIT(ds)`; in the asm build the macro is `(ds)`, the same source as before): the decode and the wait for the event's HBlank then
+fill the 3 lines and the write lands on the event's own line. The 8-byte put was already unrolled (`put8`); the keg-and-late hit sets the late index
+before its wait and calls `put8` directly, and split_vbl3 calls `put8` directly: the VBlank chain is 140 T-cycles from the asm's, so the C frame
+resumes in line 148 like the asm's, with about 600 T-cycles of room before the cut-off of the fade's vframe (the asm 780).
+
+What is left: events in adjacent lines (a window shown: the keg's and the late reload's separate events, or a window's end next to a palette). A hit cannot start
+before the previous one returns and the C hit takes about 3 lines, so the second one writes 1 to 2 lines late; and the C put (a burst of about 190 T-cycles, the asm's 128)
+starts late in a short HBlank when sprites lengthen mode 3. 18 known-list entries are of that kind (single-row differences of the golden at rows 40, 86, 102, 112-127).
+Fixing them would take the asm's structure (decode the next event while waiting, a 128 T-cycle burst); not done, it would not read as a porting reference.
+
+Known list 285 -> 199 (85 pass now and are dropped, 2 tests that now fail are added as A-PHASE: test_edge [cgb-8] counts the bars patrons came in on in a fixed number of
+emulator frames; test_rng two_title_timings was added earlier). C stage with the list: 0 failed, 5950 passed, 255 skipped.
+
 ## Open / next
 
-1. A leaner C `split_isr3` (window hidden first like the asm, fewer live locals) would remove most of the remaining A-LATE-WRITE / A-SPLIT-TWIN entries.
+1. The remaining A-LATE-WRITE / A-SPLIT-TWIN entries are adjacent-event cases and short-HBlank puts (Update 4); an asm-shaped decode would be needed.
 2. To make the A-SPLIT-TWIN entries proofs: a test that reads the palette RAM bytes written by the C and the asm handlers at each event line
    (same values, any time) would settle value versus lateness.
