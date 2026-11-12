@@ -15,7 +15,7 @@ import pytest
 from PIL import Image
 from gbtools import Rom
 
-from conftest import K_BONUS, K_MINIGAMES, ROM, ROOT, hold_stage_anim, title_pick
+from conftest import locked_make, K_BONUS, K_MINIGAMES, ROM, ROOT, hold_stage_anim, title_pick
 from test_flow import run_until, state, tilemap_row
 from test_mg import GS_MGLIST
 from test_menu_scroll import LATE, mash
@@ -32,7 +32,7 @@ DMG_SHADES = [(255, 255, 255), (153, 153, 153), (85, 85, 85), (0, 0, 0)]    # BG
 @pytest.fixture(scope="module")
 def art_rom():
     """The ROM built from the placeholder pictures (make rebuilds only what changed)."""
-    r = subprocess.run(["make", "BUILD=out/b_pa", "OUT=out/o_pa", "PRACTICE_ART_DIRS=tests/data/practice_art", "out/b_pa/game.gb"], cwd=ROOT, capture_output=True, text=True)
+    r = locked_make(["BUILD=out/b_pa", "OUT=out/o_pa", "PRACTICE_ART_DIRS=tests/data/practice_art", "out/b_pa/game.gb"], "b_pa")
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     return ROOT / "out" / "b_pa" / "game.gb"
 
