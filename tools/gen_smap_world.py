@@ -8,7 +8,7 @@ writes
   build/smap_world.h     constants, the accessors' prototypes, the stops, the legs and the exits (included by src/smap.c)
   build/smap_wc_a.c      Color: the cells, the zone map, the fog, the slot plan and the palettes   (one bank, with its accessors)
   build/smap_wc_t.c      Color: the 2bpp tiles                                                      (one bank)
-  build/smap_wd_a.c      DMG:   the cells, the zone map, the fog and the allocator's hints          (one bank, with its accessors)
+  build/smap_wd_a.c      DMG:   the cells and the planned slot of every cell (the route plan, tools/smap_world/route.py)   (one bank, with its accessors)
   build/smap_wd_t.c      DMG:   the 2bpp tiles (the hand-trimmed DMG data set: world2.WORLD_DMG)    (one bank)
   build/smap_world.json  what the tests check against
   out/preview/smap_world_*.png  the whole world, late and early, Color and DMG
@@ -21,9 +21,8 @@ world2.fog_tiles; the engine does not re-derive the edge sequence).  Both kinds 
 
 Tiles.  Both data sets number their tiles in first-use order over the states 1..10 (identical 8 x 8 pixel blocks are one tile; the palette is
 the cell's, not the tile's).  Color: a static slot plan (two tiles share a VRAM slot only when no 22 x 20 window of any state holds both; the 352
-slots are the pool of ids 0-35 and 93-232 in each of the two VRAM banks); DMG: a dynamic allocator in 176 slots (the same pool, one bank), with a
-hint byte per tile (the slot a min-conflict colouring gives it).  The generator fails the build when a 21 x 19 window needs more than 176 tiles on
-DMG, more than 8 palettes on Color, or a tile has more than 239 cells in a 22 x 20 window.
+slots are the pool of ids 0-35 and 93-232 in each of the two VRAM banks); DMG: a route plan in 176 slots (the same pool, one bank): the slot of every cell is planned along the roads and proved by replaying every walk (tools/smap_world/route.py).  The generator fails the build when a 21 x 19 window needs more than 176 tiles on
+The generator fails the build when a 21 x 19 window needs more than 176 tiles on DMG, more than 8 palettes on Color, or a tile has more than 239 cells in a 22 x 20 window.
 """
 import json
 import sys
@@ -35,7 +34,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT / "tools" / "smap_world"))
 import world_snap as W  # noqa: E402  (the frozen integrated map, assets/smap/: tools/dev/smap_snapshot.py writes it)
-import anims as AN  # noqa: E402  (stage 3: the tile animations, tools/smap_world/anims.py)
+import anims as AN  # noqa: E402
+import route as R  # noqa: E402  (the DMG's route plan)  (stage 3: the tile animations, tools/smap_world/anims.py)
 PAL = W  # noqa: E402  (W.get(name): a palette's four colours, W.DMG_SHADE)
 
 CW, CH = W.CW, W.CH
@@ -426,25 +426,6 @@ def colour(conf, k_max, spread):
     return col, used
 
 
-def min_conflict(conf, weight, k):
-    """Colour with at most k colours, allowing conflicts: each tile (most conflicted first) takes the colour with the least conflict weight with
-    its already coloured neighbours (ties: the fewest tiles).  Returns the colour per tile and the number of conflicting pairs left."""
-    n = conf.shape[0]
-    order = sorted(range(n), key=lambda v: -int(conf[v].sum()))
-    col = -np.ones(n, dtype=np.int32)
-    size = np.zeros(k, dtype=np.int32)
-    for v in order:
-        cost = np.zeros(k)
-        for u in np.nonzero(conf[v])[0]:
-            if col[u] >= 0:
-                cost[col[u]] += weight[v, u]
-        c = min(range(k), key=lambda c: (cost[c], size[c], c))
-        col[v] = c
-        size[c] += 1
-    bad = sum(1 for v in range(n) for u in np.nonzero(conf[v])[0] if u > v and col[u] == col[v])
-    return col, bad
-
-
 def path_windows(stops, legs, pad=1):
     """The cell windows the region can hold while Sal walks: for every pixel of every leg (and every stop) the camera's view (Sal's feet at the screen's
     centre, clamped to the world) in cells, padded by pad cells on every side (the line ahead, the one the drop has not yet taken)."""
@@ -546,36 +527,6 @@ def path_max(m, wins, grids):
     return best, at
 
 
-def path_hints(dm, wins, k):
-    """DMG allocator hints: the colouring that matters is the one of the windows the camera can actually show.  Tiles conflict when some such window of
-    some state holds both; the weight of a pair is the number of such windows; a min-conflict pass, then local search until no tile gains by moving."""
-    n = dm.nt
-    conf = np.zeros((n, n), dtype=bool)
-    wt = np.zeros((n, n), dtype=np.float32)
-    for p in dm.ustates:
-        gr = dm.grids[p]
-        for (c0, c1, r0, r1) in wins:
-            ts = np.unique(gr[r0:r1 + 1, c0:c1 + 1])
-            conf[np.ix_(ts, ts)] = True
-            wt[np.ix_(ts, ts)] += 1
-    np.fill_diagonal(conf, False)
-    col, _ = min_conflict(conf, wt, k)
-    for _ in range(12):
-        moved = 0
-        for v in range(n):
-            nb = np.nonzero(conf[v])[0]
-            cost = np.zeros(k)
-            np.add.at(cost, col[nb], wt[v, nb])
-            best = int(np.argmin(cost))
-            if cost[best] < cost[col[v]]:
-                col[v] = best
-                moved += 1
-        if not moved:
-            break
-    bad = sum(1 for v in range(n) for u in np.nonzero(conf[v])[0] if u > v and col[u] == col[v])
-    return col, bad
-
-
 # ---- geometry ----------------------------------------------------------------------------------------------------------------------------
 def geometry():
     stops = [W.STOPS[n] for n in STOP_ORDER]
@@ -628,9 +579,124 @@ def carr(typ, name, vals, per=12, hexw=0, const=True):
     return f"{'const ' if const else ''}{typ} {name}[{len(vals)}] = {{\n" + "\n".join(body) + "\n};\n"
 
 
+def emit_accessors_d(m, tag):
+    """The DMG's cells bank: the cell words and the planned slot of every cell (the world of the finished story, unlock state 11), the few cells that differ before it (the fountain), and the
+    accessors.  A fetched cell is {tile, slot}: the engine loads the tile when the slot holds another one (src/smap_eng.c)."""
+    nd = len(m.diffs)
+    box = [min(c % CW for c in m.diffs), max(c % CW for c in m.diffs), min(c // CW for c in m.diffs), max(c // CW for c in m.diffs)] if nd else [255, 0, 255, 0]
+    L = [f"// generated by tools/gen_smap_world.py -- do not edit (DMG: cells and their planned slots)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "smap_world.h"',
+         '#include "asm_cfg.h"', "", f"BANKREF({tag}_a)", f"BANKREF({tag}_cell)"]
+    L.append(carr("uint16_t", f"{tag}_cell", [int(w) & 0x3FF for w in m.cell], 12, 4))
+    L.append(carr("uint8_t", f"{tag}_slot", m.slot, 16, 2))
+    L.append(carr("uint16_t", f"{tag}_dcell", m.diffs or [0], 12, 4))
+    L.append(carr("uint16_t", f"{tag}_dword", [m.disp(c, 1) & 0x3FF for c in m.diffs] or [0], 12, 4))
+    L.append(carr("uint8_t", f"{tag}_dslot", [m.dslot[c] for c in m.diffs] or [0], 16, 2))
+    L.append(f"""
+// the cells that differ before the story is done (unlock states 1..10: the fountain is broken), patched into a fetched line: the engine calls it when the state is below 11.
+// The cell, its tile and its slot of a difference replace the line's entry; no difference lies outside columns {box[0]}..{box[1]}, rows {box[2]}..{box[3]}.
+void {tag}_fix(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, smap_fc *out) BANKED {{
+    uint8_t i, x, y, k;
+    uint16_t c;
+    if (vert ? (cx < {box[0]} || cx > {box[1]}) : (cy < {box[2]} || cy > {box[3]})) return;
+    for (i = 0; i < {nd}; i++) {{
+        c = {tag}_dcell[i];
+        x = (uint8_t)c & 63; y = (uint8_t)(c >> 6);
+        if (vert) {{ if (x != cx || y < cy || y >= cy + n) continue; k = y - cy; }}
+        else {{ if (y != cy || x < cx || x >= cx + n) continue; k = x - cx; }}
+        out[k].w = {tag}_dword[i]; out[k].aux = {tag}_dslot[i];
+    }}
+}}
+
+// n cells of one line (a row, or a column when vert) from (cx, cy) of the finished story's world: the tile to show and its slot (aux).
+#if ASM_SMAP
+// asm (the C twin follows in the #else): the stack holds, at entry, the return address, the trampoline's 4 bytes, then cx, cy, n, vert, p, out (2).
+// The loop's scratch lives in story_scratch's free bytes: V_BCAP (n), V_LIMQ (vert). bc = the cell's index, de = the output pointer.
+void {tag}_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED __naked {{
+    (void)cx; (void)cy; (void)n; (void)vert; (void)p; (void)out;
+__asm
+    ldhl sp, #6
+    ld   a, (hl+)                           ; cx
+    ld   c, a
+    ld   a, (hl+)                           ; cy
+    ld   e, a
+    srl  a
+    srl  a
+    ld   b, a                               ; the index's high byte: cy >> 2
+    ld   a, e
+    and  a, #3
+    rrca
+    rrca                                    ; (cy & 3) << 6
+    add  a, c
+    ld   c, a
+    jr   nc, 0$
+    inc  b
+0$:
+    ld   a, (hl+)                           ; n
+    or   a, a
+    ret  z
+    ld   (_story_scratch + 449), a
+    ld   a, (hl+)                           ; vert
+    ld   (_story_scratch + 453), a
+    inc  hl                                 ; (p: the engine patches the states before the last in smap_d_fix)
+    ld   a, (hl+)
+    ld   e, a
+    ld   d, (hl)                            ; out
+1$:
+    ld   hl, #_{tag}_cell
+    add  hl, bc
+    add  hl, bc
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl)
+    ld   (de), a
+    inc  de
+    ld   hl, #_{tag}_slot
+    add  hl, bc
+    ld   a, (hl)
+    ld   (de), a
+    inc  de
+    xor  a, a
+    ld   (de), a
+    inc  de
+    ld   a, (_story_scratch + 453)
+    or   a, a
+    jr   z, 5$
+    ld   a, c
+    add  a, #64
+    ld   c, a
+    jr   nc, 6$
+    inc  b
+    jr   6$
+5$:
+    inc  bc
+6$:
+    ld   hl, #_story_scratch + 449
+    dec  (hl)
+    jr   nz, 1$
+    ret
+__endasm;
+}}
+#else
+void {tag}_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED {{
+    uint16_t c = (uint16_t)cy * 64 + cx, step = vert ? 64 : 1;
+    (void)p;
+    while (n--) {{
+        out->w = {tag}_cell[c];
+        out->aux = {tag}_slot[c];
+        out++; c += step;
+    }}
+}}
+#endif
+""")
+    return "\n".join(L)
+
+
 def emit_accessors_a(m, tag):
     """the cells bank: data and the accessors that read it (every read stays inside the one bank)"""
     cgb = m.cgb
+    if not cgb:
+        return emit_accessors_d(m, tag)
     L = [f"// generated by tools/gen_smap_world.py -- do not edit ({'Color' if cgb else 'DMG'}: cells, zone map, cloud{', slot plan, palettes' if cgb else ', allocator hints'})",
          "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "smap_world.h"', '#include "asm_cfg.h"', "", f"BANKREF({tag}_a)", f"BANKREF({tag}_cell)"]
     L.append(carr("uint16_t", f"{tag}_cell", m.cell, 12, 4))
@@ -652,8 +718,6 @@ def emit_accessors_a(m, tag):
     if cgb:
         L.append(carr("uint16_t", f"{tag}_slotvar", m.slotvar, 12, 4))
         L.append(carr("uint16_t", f"{tag}_pal", m.pal_words, 4, 4))
-    else:
-        L.append(carr("uint8_t", f"{tag}_hint", m.hint, 16, 2))
     asm_open = asm_close = ""
     if True:
         asm_open = '''#if ASM_SMAP
@@ -884,25 +948,6 @@ void {tag}_palette(uint8_t i, uint8_t *dst) BANKED {{
     for (k = 0; k < 4; k++) {{ *dst++ = (uint8_t)s[k]; *dst++ = (uint8_t)(s[k] >> 8); }}
 }}
 """)
-    else:
-        L.append(f"""
-// tile t's hint slot (the allocator asks it of the tile a slot holds)
-uint8_t {tag}_hintof(uint16_t t) BANKED {{ return {tag}_hint[t]; }}
-
-#if ASM_SMAP
-// asm, for smap_dadd (src/smap_eng.c, through the bank trampoline): the hint slot of tile b << 8 | c, in a
-void {tag}_hintx(void) BANKED __naked {{
-__asm
-    ld   h, b
-    ld   l, c
-    ld   de, #_{tag}_hint
-    add  hl, de
-    ld   a, (hl)
-    ret
-__endasm;
-}}
-#endif
-""")
     return "\n".join(L)
 
 
@@ -950,18 +995,6 @@ def emit_tiles(m, tag):
          "    for (k = 0; k < 16; k++) dst[k] = s[k];",
          "}",
          "#endif", ""]
-    if not m.cgb:        # DMG only: smap_dadd's tile copy (it reaches this bank through the trampoline, with no arguments on the stack)
-        tc = [f"#if ASM_SMAP",
-              f"// asm, for smap_dadd (through the bank trampoline): tile t (story_scratch + 450, 451: V_PWL, V_PWH) into the staging slot V_NSTG (story_scratch + 438), 16 bytes unrolled",
-              f"void {tag}_tcopy(void) BANKED __naked {{",
-              "__asm",
-              "    ld   a, (_story_scratch + 450)", "    ld   l, a", "    ld   a, (_story_scratch + 451)", "    ld   h, a",
-              "    add  hl, hl", "    add  hl, hl", "    add  hl, hl", "    add  hl, hl",
-              f"    ld   de, #_{tag}_tiles", "    add  hl, de",
-              "    ld   a, (_story_scratch + 438)", "    swap a", "    and  a, #0xF0", "    add  a, #<(_story_scratch + 464)", "    ld   e, a",
-              "    ld   a, #>(_story_scratch + 464)", "    adc  a, #0", "    ld   d, a"] + ["    ld   a, (hl+)\n    ld   (de), a\n    inc  de"] * 15 + [
-              "    ld   a, (hl)", "    ld   (de), a", "    ret", "__endasm;", "}", "#endif", ""]
-        L += tc
     return "\n".join(L), data
 
 
@@ -987,7 +1020,7 @@ def anim_tables(cg, dm):
                 assert not model.altflip[t], g.name
                 gi_a[m].append(model.slotvar[t] & 0x7FF)
             else:
-                gi_a[m].append(model.hint[t])
+                gi_a[m].append(model.slot[g.cells[0][1] * CW + g.cells[0][0]])
     imgs = {"c": [], "d": []}
     imap = {"c": {}, "d": {}}
 
@@ -1094,7 +1127,6 @@ def main(build, preview):
     for name in PAL_NAMES:
         cols = PAL.get(name)
         cg.pal_words += [rgb555(c) for c in cols]
-    # the DMG hints: a min-conflict colouring of the DMG tiles in 176 slots (the allocator takes a tile's hint slot when it is free)
     stops, legs, exits, exit_leg = geometry()
     pw = path_windows(stops, legs)
     wd, wp = path_max(dm, pw, dm.grids), path_max(cg, path_windows(stops, legs, 0), cg.pals)       # the windows the camera can hold on the walk and at the stops
@@ -1109,8 +1141,28 @@ def main(build, preview):
         fail.append(f"Color: a path view needs {wp[0]} palettes at {wp[1]}")
     if pbad:
         fail.append(f"Color: a lead window needs more palettes than the hand-over can give (the walk holds for a slot): {pbad[:3]}")
-    col_d, bad_d = path_hints(dm, pw, POOL)
-    dm.hint = [int(c) for c in col_d]
+    # the DMG's route plan (tools/smap_world/route.py): the slot of every cell, planned along the roads and proved by replaying every walk
+    dtiles = {s: np.array([[dm.disp(y * CW + x, s) & 0x3FF for x in range(CW)] for y in range(CH)]) for s in (1, NSTATE)}
+    assert all(dm.disp(c, p) == dm.disp(c, 1) for c in range(NCELLS) for p in range(2, NSTATE)), "the DMG's states 1..10 differ"
+    forced = sorted({int(dtiles[NSTATE][g.cells[0][1], g.cells[0][0]]) for g in ANIMS if not g.still("d")})
+    # the lookahead (owner 11-11): each stretch loads as many lines ahead as its windows' tiles leave slots for; the colouring decides whether the budget holds, and the budget falls until it does
+    for budget in range(POOL - 1, POOL - 40, -3):
+        leads = R.choose_leads(dtiles, legs, CW, CH, SAL_Y, budget)
+        seqs = R.walk_sequences(stops, legs, STOP_ORDER, STOP_VIEW, CW, CH, SAL_Y, leads=leads)
+        sw = {w for sq in seqs for w in sq}
+        assert all(w in sw or any(v[0] <= w[0] and w[1] <= v[1] and v[2] <= w[2] and w[3] <= v[3] for v in sw) for w in pw), "the route windows do not hold the path windows"
+        try:
+            dm.slot, dm.dslot = R.plan_slots(dtiles, seqs, CW, CH, POOL, forced, colour, R.tabucol)
+            break
+        except SystemExit as e:
+            print(f"smap world route plan: lead budget {budget} fails ({e}); trying fewer")
+    else:
+        raise SystemExit("gen_smap_world: the DMG's route plan cannot be coloured, not even with a lead of 1 line")
+    dm.leads = leads
+    steps = R.check_plan(dtiles, dm.slot, dm.dslot, seqs, CW, CH, POOL)
+    bad_d = 0
+    dm.diffs = sorted(c for c in range(NCELLS) if dtiles[1][c // CW, c % CW] != dtiles[NSTATE][c // CW, c % CW])
+    print(f"smap world route plan: proved over {len(seqs)} walks ({steps} window steps), {len(dm.diffs)} cells differ before the story is done")
     at = anim_tables(cg, dm)
     print(f"smap world animations: {len(ANIMS)} groups, {len(at['ev'])} events in {AN.LOOP} ticks (at most {at['max_ev']} at one tick), {len(at['imgs']['c'])} Color / {len(at['imgs']['d'])} DMG images")
     if fail:
@@ -1131,7 +1183,7 @@ def main(build, preview):
          "void smap_c_tile(uint16_t t, uint8_t *dst) BANKED;",
          "void smap_d_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED;",
          "void smap_d_tile(uint16_t t, uint8_t *dst) BANKED;",
-         "uint8_t smap_d_hintof(uint16_t t) BANKED;",
+         "void smap_d_fix(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, smap_fc *out) BANKED;",
          f"#define SMAPW_AN_MAX {min(at['max_ev'], 8)}       // the most events one tick of the animation loop holds (src/smap_eng.c anim_step)",
          "uint8_t smap_an_due(uint8_t tick, uint8_t cgb, uint8_t *out, const uint8_t *reg) BANKED;     // the tile animations' events due at a tick whose group lies in the region reg[0..3] = c0, c1, r0, r1 (build/smap_an.c)",
          "void smap_an_img(uint8_t cgb, uint8_t im, uint8_t *dst) BANKED;", "",
@@ -1157,6 +1209,12 @@ def main(build, preview):
         pts = list(p) + [(0, 0)] * (4 - len(p))
         h.append("    { " + ", ".join("{ %d, %d }" % q for q in pts) + " },")
     h.append("};")
+    h.append(f"static const uint8_t smapw_leg_lead[{len(legs)}][3] = {{   // the DMG's lookahead (tools/smap_world/route.py): lines loaded ahead on each stretch, stretch f from waypoint f to f + 1: low nibble walked forwards, high backwards")
+    for li, (_, _, p) in enumerate(legs):
+        ns = len(p) - 1
+        v = [dm.leads[(li, 0, f)] | (dm.leads[(li, 1, ns - 1 - f)] << 4) if f < ns else 0 for f in range(3)]
+        h.append("    { " + ", ".join(str(x) for x in v) + " },")
+    h.append("};")
     h.append("#endif")
     h.append("#endif")
     (build / "smap_world.h").write_text("\n".join(h) + "\n")
@@ -1172,8 +1230,8 @@ def main(build, preview):
         "stops": stops, "stop_order": STOP_ORDER, "legs": [[a, b, [list(q) for q in p]] for a, b, p in legs], "exits": exits, "exit_leg": exit_leg,
         "ufo": ufo, "cw": CW, "ch": CH, "ndmg": dm.nt, "ncgb": cg.nt, "ncgb_blocks": cg.nsig, "alt_flip_c": cg.altflip, "slots_c": nslots, "slots_c_min": k_min, "vars_max": nvar, "pal_names": PAL_NAMES, "pal": pal_cols,
         "state_end_c": cg.state_end, "state_end_d": dm.state_end, "tiles_c": bytes(dc).hex(), "tiles_d": bytes(dd).hex(),
-        "win_d_21x19": n21, "win_d_22x20": n22, "win_c_pal_21x19": p21, "win_c_pal_22x20": p22, "uses_max_22x20": uses, "hint_conflicts": int(bad_d),
-        "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "hint_d": dm.hint,
+        "win_d_21x19": n21, "win_d_22x20": n22, "win_c_pal_21x19": p21, "win_c_pal_22x20": p22, "uses_max_22x20": uses, "hint_conflicts": 0,
+        "slot_of_c": [int(c) for c in col_c], "var_of_c": [var_idx[t] for t in range(cg.nt)], "leads_d": [[li, rev, j, n] for (li, rev, j), n in sorted(dm.leads.items())], "slot_d": dm.slot, "dslot_d": {str(k): v for k, v in dm.dslot.items()}, "diffs_d": dm.diffs,
         "fog_c": [cg.fog_off, cg.fog_cell, cg.fog_word], "fog_d": [dm.fog_off, dm.fog_cell, dm.fog_word], "inner_c": cg.inner, "fogint_c": cg.fogint, "fogint_d": dm.fogint,
         "zone": cg.zone, "cell_c": cg.cell, "cell_d": dm.cell,
         "anim": {"loop": AN.LOOP, "groups": [{"item": g.item, "name": g.name, "cells": g.cells, "tile_c": at["gt"]["c"][i], "tile_d": None if g.still("d") else at["gt"]["d"][i], "key": g.key,

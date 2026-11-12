@@ -39,3 +39,25 @@ The map is not free roam: every walk follows a leg with fixed stretches (waypoin
   so the camera step finds everything resident.
 - Expected DMG gain: a load cell becomes about 5 lines (copy + queue), no scans; the worst frames (now up to 168) lose the 30-line scan and dadd's 8-13 lines, loads move to spare frames,
   so ADD_CAP 9-10 and 2 px steps could hold on the dense stretches. I expect 1.3 px/frame or more on the DMG (with walk_step and flush_line trimmed) and no late frames.
+
+# Round 6 (owner Q17, 2026-11-11): the DMG's route plan, built
+The design note above, as built (DMG first; Color below when done).
+- The slot of every CELL is planned at build time (tools/smap_world/route.py, called by tools/gen_smap_world.py): the windows the region can hold while Sal walks (every pixel of every leg
+  both ways, the stops, the glides between a resting view and Sal; each padded by one line) give a conflict graph over live ranges (a tile's cells that share a window share a node, an animated tile is
+  one node), DSATUR with a tabu search in 176 colours. `check_plan` is the build's proof: every window holds one tile a slot, and a replay of every walk (lines leave, lines enter and load their tiles
+  into their slots) finds every cell of every window resident. The build fails if either fails. 175 colours, the fullest window 173 of 176.
+- A line is a list of {tile, slot} from `smap_d_fetch` (the finished story's world; `smap_d_fix` patches the 12 fountain cells of states 1..10). The engine loads the tile when the slot holds
+  another one. Gone: the hint, home2, smap_freeslot, V_RR, V_NDISP, V_CS, the far-tile scan, tbl_find, the use counts (A_CNT), smap_dadd, the drop job (a DMG line that leaves costs nothing: region_work just
+  moves the extents; an add job that spans a line that left starts over). The slot table is 176 u16 (A_TBL, 352 bytes).
+- Asm: `smap_burst` (cells whose slot already holds their tile; C twin add_cell_d), `smap_d_fetch`. job_run is two functions (job_run_c the Color's, job_run_d the DMG's) so a change to one does not move a cycle of the other.
+- Not built (said): the spare-slot preload of the next lines (the dense stretches have 3 spare slots, not 20-30: the fullest padded window is 173 of 176), and plans for the camera jumps (they need none: the
+  map entry, the resting views and the glides are windows of the plan).
+- Tools: tools/dev/smap_walk_numbers.py (px/frame, holds, late, p90, worst over every leg both ways, GB_ROM / GB_NOI for main's ROM), tools/dev/smap_cmp_main.py (every frame against main's ROM).
+
+# Round 7 (owner 11-11): the DMG walk stutter, lookahead and an even pace
+Cause, verified: the region led the view by ONE line, so on every stretch the next line (19-22 cells, each a fetch and a map write) was never loaded in time at 2 px a frame; walk_step then paced 1 px and paused 1 frame in 2/3/4 (cycle 2,2,2,1,1,0 a cell line, quiet or busy). On the dense stretches a second limit: the DMG stages 2 tiles a frame, and a line of new tiles needs about 18.
+- Lookahead: tools/smap_world/route.py choose_leads gives each stretch (both ways) up to 6 lines ahead, as many as its windows' tiles leave slots for (budget falls 175 -> 157 until the colouring holds); windows, plan and proof use them (walk_sequences leads=); smapw_leg_lead[leg][stretch] (low nibble forward, high backwards). Dense stretches (saloon, space lounge roads) keep 1-2.
+- Engine (DMG only): V_LEADX/V_LEADY (the old V_RR / V_NDISP slots) = lines beyond the first; stretch_init sets them, walk_dirs shrinks the stretch's own to the lines its last px can show and takes the next stretch's in the corner zone, walk_ready and the walk's end clear them. region_work_d is the DMG's own region_work (the Color's region_work, tile_load and ly_ok are untouched: the Color's frames are cycle for cycle main's; ANY cycle added to them flipped Color goldens: the tag timing sits on a frame edge); smap_region_work dispatches.
+- Pace: walk_step DMG branch: the sustainable pace is w / (rem + sl): 2 px, or 2 in 3, 2 or 1 of 4 frames, else 1; never a 0 (the old pauses are gone). Dense stretches run 1,1,2,2 cadences.
+- Loader: NSTG_MAX_D 3 (the third staging tile after the slot table: 352..367, WRAM free on the DMG), ADD_CAP 8, CROSS_CAP 6 on a cross frame, LY_WORK 44, LY_URGENT 28 while the room is under 8 px (V_CS), ly_ok_d. F_CROSS fixed for DMG walks to the left / up (it only flagged right / down: the heavy "sprites all redrawn" frame came unannounced). A dropped frame (logic past the VBlank) shows as a 0 px SAMPLE though the hook log has no record of it: measure with tools/dev/smap_pace_table.py (samples every emulated frame).
+- Numbers (all legs both ways, DMG): frames 3475 -> 3030, px/frame 1.445 -> 1.657, 0 px frames mid-stretch 369 -> 0, late 0 -> 0, logic p90 106 -> 107, worst 133 -> 129. Color identical.
