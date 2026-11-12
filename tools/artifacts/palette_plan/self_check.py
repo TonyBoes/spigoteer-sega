@@ -26,60 +26,97 @@ def verify_now(ns):
     venues, NAMES, PLANS, load, hexc, users = (ns[x] for x in ("venues", "NAMES", "PLANS", "load", "hexc", "users"))
     PATRON_SLOT, BG_PATRON, SALOON_LOOKS = ns["PATRON_SLOT"], ns["BG_PATRON"], ns["SALOON_LOOKS"]
     errs = []
+    OPEN = ns.setdefault("OPEN_ITEMS", [])
     for v in venues:
         k = v["key"]
         lv = load("level_" + k)["cgb"]
         E = lambda msg, v=v: errs.append("%s: %s" % (v["name"], msg))
-        inst = T["inst"][k]
-        # a. the patron palettes in palette RAM are the game's (assets/palettes.json)
-        for i, cols in enumerate(inst):
-            for kind, sl, pals in (("OBJ", T["obj_of"][i], lv["pal"]["obj"]), ("BG", T["bg_of"][i], lv["pal"]["bg"])):
-                if kind == "BG" and i == 4:
-                    continue                # the Saloon's BG 5 holds the stage's colours above the split line; the patron's only below it
-                rep = tuple(pals[sl]["rep"][1:])
-                if rep != tuple(cols):
-                    E("%s %d holds %s in the capture, the game's patron palette %d is %s" % (kind, sl, [hexc(c) for c in rep], i, [hexc(c) for c in cols]))
-        # b. the slot numbers the page assumes
-        for i in range(3):
-            if PATRON_SLOT.get(T["obj_of"][i]) != i:
-                E("page says OBJ %d is not patron %s, the game's OBJPAL_PATRON_%s is OBJ %d" % (T["obj_of"][i], "ABC"[i], "ABC"[i], T["obj_of"][i]))
-            if BG_PATRON.get(T["bg_of"][i]) != i:
-                E("page says BG %d is not patron %s, the game's is BG %d" % (T["bg_of"][i], "ABC"[i], T["bg_of"][i]))
-        if list(ns["INST_OBJ"]) != T["obj_of"] or list(ns["INST_BG"]) != T["bg_of"]:
-            E("page maps palette instances to OBJ %s / BG %s, the game's game.h has OBJ %s / BG %s" % (ns["INST_OBJ"], ns["INST_BG"], T["obj_of"], T["bg_of"]))
-        # c. who the page says is in each patron palette against the game's tables
-        want = {}
-        if k == "cowboys":
-            for nm, ps in T["saloon"]:
-                for p in ps:
-                    want.setdefault(("OBJ", T["obj_of"][p]), set()).add(nm)
-                    want.setdefault(("BG", T["bg_of"][p]), set()).add(nm)
-            if [first(n) for n, _ in SALOON_LOOKS] != [n for n, _ in T["saloon"]]:
-                E("page lists the Saloon's looks as %s, the game's sal_combo has %s" % ([first(n) for n, _ in SALOON_LOOKS], [n for n, _ in T["saloon"]]))
-            for (n, ps), (gn, gps) in zip(SALOON_LOOKS, T["saloon"]):
-                if sorted(ps) != sorted(gps):
-                    E("%s: page says palette instances %s, sal_combo has %s" % (first(n), sorted(ps), sorted(gps)))
-        else:
+        if k == "cowboys":     # the Saloon keeps the game.h slots (OBJPAL_PATRON_A-E) and sal_combo
+            inst = T["inst"][k]
+            # a. the patron palettes in palette RAM are the game's (assets/palettes.json)
+            for i, cols in enumerate(inst):
+                for kind, sl, pals in (("OBJ", T["obj_of"][i], lv["pal"]["obj"]), ("BG", T["bg_of"][i], lv["pal"]["bg"])):
+                    if kind == "BG" and i == 4:
+                        continue                # the Saloon's BG 5 holds the stage's colours above the split line; the patron's only below it
+                    rep = tuple(pals[sl]["rep"][1:])
+                    if rep != tuple(cols):
+                        E("%s %d holds %s in the capture, the game's patron palette %d is %s" % (kind, sl, [hexc(c) for c in rep], i, [hexc(c) for c in cols]))
+            # b. the slot numbers the page assumes
             for i in range(3):
-                want[("OBJ", T["obj_of"][i])] = {first(NAMES[k][i])}
-                want[("BG", T["bg_of"][i])] = {first(NAMES[k][i])}
-        for kind in ("OBJ", "BG"):
-            for sl in range(8):
-                claim = {first(x) for x in users(kind, v, sl)[0]}
-                if claim != want.get((kind, sl), set()):
-                    E("%s %d: page says %s, the game has %s" % (kind, sl, sorted(claim) or "no patron", sorted(want.get((kind, sl), set())) or "no patron"))
-        # d. the capture's lifted patrons sit in the slots the game's tables give looks A-C
-        for o in lv["objs"]:
-            m_ = re.match(r"Patron ([ABC]) \(", o["kind"])
-            if m_ and k != "cowboys":
-                exp = T["obj_of"]["ABC".index(m_.group(1))]
-                if set(o["slots"]) != {exp}:
-                    E("capture: %s is in OBJ %s, the game's palette is OBJ %d" % (o["kind"], o["slots"], exp))
-        # e. the non-patron users of each OBJ palette
+                if PATRON_SLOT.get(T["obj_of"][i]) != i:
+                    E("page says OBJ %d is not patron %s, the game's OBJPAL_PATRON_%s is OBJ %d" % (T["obj_of"][i], "ABC"[i], "ABC"[i], T["obj_of"][i]))
+                if BG_PATRON.get(T["bg_of"][i]) != i:
+                    E("page says BG %d is not patron %s, the game's is BG %d" % (T["bg_of"][i], "ABC"[i], T["bg_of"][i]))
+            if list(ns["INST_OBJ"]) != T["obj_of"] or list(ns["INST_BG"]) != T["bg_of"]:
+                E("page maps palette instances to OBJ %s / BG %s, the game's game.h has OBJ %s / BG %s" % (ns["INST_OBJ"], ns["INST_BG"], T["obj_of"], T["bg_of"]))
+            # c. who the page says is in each patron palette against the game's tables
+            want = {}
+            if k == "cowboys":
+                for nm, ps in T["saloon"]:
+                    for p in ps:
+                        want.setdefault(("OBJ", T["obj_of"][p]), set()).add(nm)
+                        want.setdefault(("BG", T["bg_of"][p]), set()).add(nm)
+                if [first(n) for n, _ in SALOON_LOOKS] != [n for n, _ in T["saloon"]]:
+                    E("page lists the Saloon's looks as %s, the game's sal_combo has %s" % ([first(n) for n, _ in SALOON_LOOKS], [n for n, _ in T["saloon"]]))
+                for (n, ps), (gn, gps) in zip(SALOON_LOOKS, T["saloon"]):
+                    if sorted(ps) != sorted(gps):
+                        E("%s: page says palette instances %s, sal_combo has %s" % (first(n), sorted(ps), sorted(gps)))
+            for kind in ("OBJ", "BG"):
+                for sl in range(8):
+                    claim = {first(x) for x in users(kind, v, sl)[0]}
+                    if claim != want.get((kind, sl), set()):
+                        E("%s %d: page says %s, the game has %s" % (kind, sl, sorted(claim) or "no patron", sorted(want.get((kind, sl), set())) or "no patron"))
+        else:
+            # a-c. every other venue has its own palette-instance table (build/looks.c, from the plan: game_truth.venue_slots)
+            G = T["venue"][k]
+            m = ns["model"](v)
+            f = ns["field_model"](v, m)
+            for i, (o, b, nm) in enumerate(zip(G["obj"], G["bg"], G["names"])):
+                # a. the palette RAM of the capture holds the instance's colours (OBJ: its palettes.json palette; BG: the colours the game says the slot has)
+                if nm in T["pal"]:
+                    rep = tuple(lv["pal"]["obj"][o]["rep"][1:])
+                    if rep != tuple(T["pal"][nm]):
+                        E("OBJ %d holds %s in the capture, the game's palette instance %d (%s) is %s" % (o, [hexc(c) for c in rep], i, nm, [hexc(c) for c in T["pal"][nm]]))
+                if G["bgcols"] and b not in v["above"]:  # (a slot used above the playfield, HUD or stage, holds those colours in the capture: the chain gives the patron's below the split)
+                    rep = tuple(lv["pal"]["bg"][b]["rep"][1:])
+                    if rep != tuple(G["bgcols"][i][1:]):
+                        E("BG %d holds %s in the capture, the game's palette instance %d is %s" % (b, [hexc(c) for c in rep], i, [hexc(c) for c in G["bgcols"][i][1:]]))
+                # b. the page's plan puts patrons on the slots the game's instances sit on, OBJ and BG paired as the plan says
+                po = {first(t) for t, _ in m[("OBJ", o)]["pat"]}
+                pb = {first(t) for t, _ in f[b]["pat"]}
+                if not po:
+                    E("the game's palette instance %d is on OBJ %d, the page lists no patron there" % (i, o))
+                if not pb:
+                    E("the game's palette instance %d is on BG %d, the page lists no patron there" % (i, b))
+                elif po and not (po & pb):
+                    E("the game's palette instance %d is on OBJ %d / BG %d: the page lists %s there and %s on the BG" % (i, o, b, sorted(po), sorted(pb)))
+            for sl in range(8):                      # a page slot with a patron that the game has no instance on
+                for kind, lst, mm in (("OBJ", G["obj"], m), ("BG", G["bg"], None)):
+                    pats = mm[("OBJ", sl)]["pat"] if mm else f[sl]["pat"]
+                    if pats and sl not in lst:
+                        E("%s %d: the page lists %s, the game has no palette instance there (instances sit on %s %s)" % (kind, sl, sorted(first(t) for t, _ in pats), kind, sorted(set(lst))))
+        # (c, Saloon) who the page says is in each patron palette
+        if k == "cowboys":
+            for kind in ("OBJ", "BG"):
+                for sl in range(8):
+                    claim = {first(x) for x in users(kind, v, sl)[0]}
+                    if claim != want.get((kind, sl), set()):
+                        E("%s %d: page says %s, the game has %s" % (kind, sl, sorted(claim) or "no patron", sorted(want.get((kind, sl), set())) or "no patron"))
+        # d. the capture's lifted patrons sit on slots that are palette instances of the venue (the Color-only looks wear any allowed instance's slot)
+        if k != "cowboys":
+            sit = set(T["venue"][k]["obj"])
+            for o in lv["objs"]:
+                if re.match(r"Patron [ABC] \(", o["kind"]) and not set(o["slots"]) <= sit:
+                    E("capture: %s is in OBJ %s, the game's palette instances sit on OBJ %s" % (o["kind"], o["slots"], sorted(sit)))
+        # e. the non-patron users of each OBJ palette. Only OBJ 0-2 are checked against what the capture draws: a show frame draws its own sprites (the
+        # dancers, a band) with tile ids that are also a mug's or Sal's, on the show's OBJ 3-5, so the capture lists "Mug: full" there too; that is the
+        # show, not the mug. The dancers themselves ("Dancers" or one "Sprite group") must be on the slots the page names. A glass breaks in OBJ 1 or 2
+        # (a full or an empty one) and the capture may not hold both.
         used = {}
         for o in lv["objs"]:
-            for s in o["slots"]:
-                used.setdefault(s, set()).add(o["kind"])
+            for s_ in o["slots"]:
+                used.setdefault(s_, set()).add(o["kind"])
+        OPTIONAL = {"Breaking glass"}
         for sl in range(8):
             oth = users("OBJ", v, sl)[1]
             claimed = {KIND_OF[x] for x in oth if x in KIND_OF}
@@ -87,10 +124,22 @@ def verify_now(ns):
             if unknown:
                 E("OBJ %d: no way to check %s against the capture" % (sl, unknown))
             seen = {x for x in used.get(sl, set()) if not x.startswith("Patron") and x not in SKIP_KINDS}
-            for x in sorted(claimed - seen):
+            if "Dancers" in claimed:
+                if not seen & {"Dancers", "Sprite group"}:
+                    E("OBJ %d: page says Show dancers, the capture does not draw them there" % sl)
+                claimed.discard("Dancers")
+            seen -= {"Dancers", "Sprite group"} if sl in v["dancers"] else set()
+            if sl > 2:
+                seen = set()
+            elif "Dancers" in seen or "Sprite group" in seen:
+                E("OBJ %d: the capture draws the show's dancers there, the page does not say so" % sl)
+            for x in sorted(claimed - seen - OPTIONAL):
                 E("OBJ %d: page says %s, the capture does not draw it there" % (sl, x))
             for x in sorted(seen - claimed):
                 E("OBJ %d: the capture draws %s there, the page does not say so" % (sl, x))
+        for sl in sorted(set(range(8)) - set(v["dancers"])):
+            if used.get(sl, set()) & {"Dancers", "Sprite group"}:
+                E("OBJ %d: the capture draws the show's dancers there, the page does not say so" % sl)
         # f. the BG palettes above the playfield
         rows = lv["attr"]["pal"]
         for sl in range(8):
@@ -99,19 +148,23 @@ def verify_now(ns):
                     E("BG %d: page says HUD, row 0 of the capture has %s" % (sl, sorted(set(rows[0]))))
                 if x == "Stage" and not any(str(sl) in r for r in rows[1:5]):
                     E("BG %d: page says Stage, rows 1-4 of the capture have %s" % (sl, sorted(set("".join(rows[1:5])))))
-        # g. planned items that are already in the game
+        # g. planned items against the game. The Saloon: a planned item the game already has is an error (the page would show it yellow). Every other venue
+        # has had its plan imported (Atlas-slots, 2026-11-01): the model draws what the capture holds as the game, and a plan colour the capture does
+        # not hold is an open item, listed on the page and printed here (not an error: the owner decides).
         pl = PLANS.get(k, {})
-        for (kind, sl), ch in pl.get("recolour", {}).items():
-            cur = (lv["pal"]["obj"] if kind == "OBJ" else lv["pal"]["bg"])[sl]["rep"]
-            if isinstance(ch, dict) and all(hexc(cur[i]).lower() == hx.lower() for i, hx in ch.items()):
-                E("planned: %s %d colours %s are already in the game" % (kind, sl, sorted(ch)))
-        for start, kind, fr, to, label in pl.get("moves", []):
-            if kind != "OBJ":
-                continue
-            if start in KIND_OF and KIND_OF[start] in used.get(to, set()) and KIND_OF[start] not in used.get(fr, set()):
-                E("planned: %s OBJ %d -> %d is already in the game" % (start, fr, to))
-            if k == "cowboys" and any(first(start) == nm and T["obj_of"][p] == to for nm, ps in T["saloon"] for p in ps):
-                E("planned: %s -> OBJ %d is already in the game (sal_combo)" % (start, to))
+        if k == "cowboys":
+            for (kind, sl), ch in pl.get("recolour", {}).items():
+                cur = (lv["pal"]["obj"] if kind == "OBJ" else lv["pal"]["bg"])[sl]["rep"]
+                if isinstance(ch, dict) and all(hexc(cur[i]).lower() == hx.lower() for i, hx in ch.items()):
+                    E("planned: %s %d colours %s are already in the game" % (kind, sl, sorted(ch)))
+            for start, kind, fr, to, label in pl.get("moves", []):
+                if kind == "OBJ" and any(first(start) == nm and T["obj_of"][p] == to for nm, ps in T["saloon"] for p in ps):
+                    E("planned: %s -> OBJ %d is already in the game (sal_combo)" % (start, to))
+        else:
+            for sl in range(8):
+                d_ = ns["model"](v)[("OBJ", sl)]
+                if d_["new"]:
+                    OPEN.append("%s: OBJ %d, plan colours %s, the game holds %s" % (v["name"], sl, [d_["new"][i] for i in sorted(d_["new"])], [d_["cols"][i] for i in sorted(d_["new"])]))
         # h. every look shows a back view (owner 2026-10-28: all current backs, except where a planned back replaces one)
         n_looks = len(T["saloon"]) if k == "cowboys" else 3
         shown = ns["back_rows_by_look"](v)
@@ -285,7 +338,8 @@ def verify_pictures(ns):
             if got != cap:
                 errs.append("%s: the thumbnail is not the capture's tiles (%d pixels differ)" % (where, sum(a != b for r1, r2 in zip(got, cap or ["?" * 16] * 16) for a, b in zip(r1, r2))))
             lv = load("level_" + k)["cgb"]["pal"]
-            slot = T["obj_of"][inst] if inst is not None and inst < 5 else None
+            slots_ = T["obj_of"] if k == "cowboys" else T["venue"][k]["obj"]       # (the other venues have their own palette-instance slots: game_truth.venue_slots)
+            slot = slots_[inst] if inst is not None and inst < len(slots_) else None
             if slot is None:
                 errs.append("%s: no palette instance" % where)
                 continue
