@@ -111,6 +111,42 @@ def test_the_saloon_fight_slots_survive_a_lost_life():
         assert fg.mem("boss_pal") == 7
 
 
+@pytest.mark.parametrize("path", ["entrance", "card"])
+def test_the_saloon_fight_slots_after_the_swap_the_entrance_and_the_hint_card(path):
+    """The fight reached the way a player does: the in-place swap with his warm-up and entrance (tiles and palettes streamed through the VBlank queue), and the
+    HOW TO PLAY card's white fades and back. Palette RAM then: BG 4 = instance 3's colours (OBJ 4's), the body on BG 7, and an instance-3 regular is drawn with BG 4."""
+    from test_pause import tap, card_rows, CARD_FRAMES
+    from boss_common import skip_entrance, play
+    want = c5(ATLAS["cowboys"]["obj"]["4"]["cols"][1:])
+    with fight("cgb", SALOON, entrance=True) as fg:
+        skip_entrance(fg)
+        play(fg)
+        if path == "card":
+            fg.run(40)
+            tap(fg, "start", 3)
+            tap(fg, "down")
+            tap(fg, "a", CARD_FRAMES)
+            while card_rows(fg)[16] != "A BACK":
+                tap(fg, "a", CARD_FRAMES)
+            tap(fg, "b", CARD_FRAMES)
+            tap(fg, "up")
+            tap(fg, "start", 3)
+        topper = cgb_palette(fg, 7, obj=True)[1:]
+        seen_bg4 = False
+        for _ in range(400):
+            frames(fg, 10)
+            obj, bg = inst(fg)
+            assert (obj[3], bg[3]) == (4, 4)
+            assert cgb_palette(fg, 4)[1:] == want, "BG 4 holds instance 3's colours"
+            assert cgb_palette(fg, 7)[1:3] == topper[:2] and cgb_palette(fg, 7)[1:] != want, "the body is on BG 7"
+            for var, st in zip(fg.read("patron_variant", 16), fg.read("patron_state", 16)):
+                if st and (var ^ var >> 3) & 7 == 3:
+                    seen_bg4 = True
+            if seen_bg4:
+                break
+        assert seen_bg4, "an instance-3 regular walked in"
+
+
 def test_every_saloon_fight_combo_is_in_the_table():
     """All 21 (look, palette) combinations of the fight: every sal_combo entry but GUS (look 2) and the instances on OBJ 7 and 5 (pi 2, 4). The table is in the ROM as its bytes."""
     import re
