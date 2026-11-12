@@ -230,3 +230,13 @@ change. Tile ids and `path_hints` change with any package, so `gen_smap_world.py
     python3 docs/dev/proposals/smap_dmg_kit2/review.py 1 999 --png   # png/ranked_merges_N.png
 
 Files: `lib.py` (model, window and step counts), `merge.py` (distance, greedy, screens), `vetoes.py` (protected ids with reasons), `render.py` (greys, big labels).
+
+## 13. Applied 11-11 (owner: "medium except uneven line on stadium")
+
+Patch: `tools/dev/smap_dmg_tile_share.py` (idempotent, 115 cells, 421 px; a second run changes 0), regenerated `assets/smap/world_d.png`. Color untouched.
+Re-run on main's world (zoo bush gone, route plan in): medium is 826 tiles in the proposal model (66 saved, 421 px, worst 157 / 174); `vetoes.py` protects blocks 19 and 189.
+
+Dropped, stadium (both made an uneven line): cell (9,1) tile 19 > 313, 1 px, the roofline of the stands above the flag grows 1 px; cell (8,8) tile 189 > 161, 5 px, the lawn's lower-right edge steps.
+Dropped with them: tile 12 > 313 in two ground cells, Snow (58,0) and Desert (15,31), 1 px each (they rode in the same merge group), and the Zoo cell (16,53), which shares tile 19 (1 px).
+So 9 px fewer than the 430 of the proposal. Nothing else was invalidated by the zoo-bush removal (the bush cells were in no merge). The Stadium view differs by 0 px (`png/applied_stadium_x4.png`); `png/applied_changed_x2.png` is the whole-map overlay of what was applied.
+Reproduce: `packages.py`, `export_patch.py`, `python3 tools/dev/smap_dmg_tile_share.py`, `applied_sheets.py`.

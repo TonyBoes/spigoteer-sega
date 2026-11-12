@@ -11,6 +11,8 @@ PROTECT_WHY = {
     791: "Rodeo sign: the M of MILK changes.",
     832: "Zoo gate: a bar of the gate loses a pixel.",
     833: "Zoo gate: a bar of the gate loses a pixel.",
+    19: "Stadium (owner 11-11, uneven line): the roofline of the stands above the flag grows by 1 px (19 > 313, also shown in one Zoo cell).",
+    189: "Stadium lawn, lower right edge (owner 11-11, uneven line): 5 px of the lawn outline step change (189 > 161).",
     235: "Igloo: the penguin's chest.",
     208: "Igloo sign: the A of COCOA changes.",
     387: "Lodge sign: a letter of LODGE changes.",
