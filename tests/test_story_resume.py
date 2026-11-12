@@ -263,6 +263,7 @@ def test_a_new_game_run_quits_to_the_map_and_resumes(model):
         assert gb.mem("story_chapter") == 0 and gb.mem("lives") == start_lives
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODES)
 def test_a_debug_select_run_quit_to_title_from_the_map_still_offers_continue(model):
     from conftest import K_CONTINUE

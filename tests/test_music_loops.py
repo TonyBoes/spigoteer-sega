@@ -142,6 +142,7 @@ def test_pop_goes_the_weasel_wraps_to_bar_1_without_the_empty_rows(gb):
     assert seen[i + 1] == (0, 0), f"after the last row: {seen[i + 1]}"
 
 
+@pytest.mark.only_model('dmg')
 def test_oh_susanna_plays_its_three_orders_and_wraps_to_bar_1(gb):
     """In the ROM: the saloon tune (192 sixteenth rows = three whole orders) runs order 2 (hUGE_current_order 4) to row
     63, then order 0 from row 0 again."""

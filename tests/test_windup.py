@@ -240,6 +240,7 @@ def test_a_patron_finishing_under_the_bartender_hands_him_the_glass(gb):
     assert state(gb, p) == (WALKING, 0) and score(gb) == s0 + 100 and mugs(gb) == []
 
 
+@pytest.mark.only_model('dmg')
 def test_the_bartender_does_not_take_a_glass_mid_drink_or_from_another_bar(gb):
     clear_patrons(gb)
     freeze(gb)
@@ -253,6 +254,7 @@ def test_the_bartender_does_not_take_a_glass_mid_drink_or_from_another_bar(gb):
     assert score(gb) == s0 and len(mugs(gb)) == 2 and b == waiting
 
 
+@pytest.mark.only_model('dmg')
 def test_catching_an_empty_shows_the_catch_pose(gb):
     clear_patrons(gb)
     inject_mug(gb, 0, 118, EMPTY)

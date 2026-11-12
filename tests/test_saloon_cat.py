@@ -11,6 +11,7 @@ from test_stage_anim import POOL, anim, at_venue, keep_playing, stage_vram
 
 sys.path.insert(0, str(ROOT / "docs/dev/concepts/stage_cat_2026-11-03"))
 import catprev  # noqa: E402
+pytestmark = pytest.mark.only_model('dmg')   # model_equiv.py: DMG and Color proven equal for every test here
 
 FRAMES = ["base", "s", "l1", "l2", "hang_blink", "hang_ear", "flick"]
 IDX = catprev.IDX

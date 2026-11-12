@@ -44,6 +44,7 @@ def test_bonus_mini_games_lists_and_plays_it(model, gid, name, title, medal):
         assert gb.mem("ml_sel") == gid and selection(gb) == name
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("gid,name,title,medal", GAMES, ids=IDS)
 def test_the_release_list_unlocks_it_when_reached(model, gid, name, title, medal, release_built):

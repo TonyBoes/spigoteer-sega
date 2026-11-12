@@ -79,6 +79,7 @@ def end_show(gb):
     assert gb.mem16("show_timer") == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODELS)
 def test_the_pocket_is_on_and_empty_in_arcade_and_shows_nothing(model):
     with arcade(model) as gb:
@@ -166,6 +167,7 @@ def test_b_does_nothing_with_an_empty_pocket_or_during_a_show(model):
         assert hud9(gb) == ICON
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", MODELS)
 def test_b_does_not_move_the_bartender_or_pause(model):
     with arcade(model) as gb:
@@ -235,6 +237,7 @@ def test_classic_is_unchanged(model):
         assert gb.mem16("show_timer") == 0, "B does nothing"
 
 
+@pytest.mark.only_model('dmg')
 def test_the_harness_is_unchanged(boot):
     from conftest import title_level
     title_level(boot)

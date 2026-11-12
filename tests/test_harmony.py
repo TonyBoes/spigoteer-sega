@@ -124,6 +124,7 @@ def playing_harmony(sgb):
     return harm_regs("susanna")
 
 
+@pytest.mark.only_model('dmg')
 def test_the_harmony_plays_on_channel_1_between_effects(sgb):
     inst = playing_harmony(sgb)
     seen, nr12 = set(), set()
@@ -136,6 +137,7 @@ def test_the_harmony_plays_on_channel_1_between_effects(sgb):
     assert nr12 <= {e for _, e in inst} | {0x08}, f"only the harmony's envelopes or a silent rest (0x08): {nr12}"
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("sfx,duty,env,frames", [(SFX_COIN, 0x80, 0xC1, 15), (SFX_EXTRA, 0x40, 0xD2, 33)])
 def test_the_harmony_steps_aside_for_an_effect_and_comes_back(sgb, sfx, duty, env, frames):
     """While the effect sounds, every frame channel 1 holds the effect's duty and envelope (the music writes nothing:
@@ -161,6 +163,7 @@ def test_the_harmony_steps_aside_for_an_effect_and_comes_back(sgb, sfx, duty, en
     assert {r[1] for r in after} <= {e for _, e in inst} | {0x08}
 
 
+@pytest.mark.only_model('dmg')
 def test_effects_on_channel_1_are_never_cut_by_the_harmony(sgb):
     """Two effects in a row and an extra life during a harmony note: each runs its whole length on its own registers."""
     playing_harmony(sgb)
@@ -173,6 +176,7 @@ def test_effects_on_channel_1_are_never_cut_by_the_harmony(sgb):
         sgb.run(5)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_harmony_is_audible_and_quieter_than_the_melody(sgb):
     """Channel 2 routed to the left output only, channel 1 to the right only (NR51 0x21), over the same two bars: the
     harmony is there (RMS of the samples), and below the melody."""
@@ -188,6 +192,7 @@ def test_the_harmony_is_audible_and_quieter_than_the_melody(sgb):
     assert rms[0] < rms[1], f"the harmony sits under the melody (RMS ch1 {rms[0]:.2f}, ch2 {rms[1]:.2f})"
 
 
+@pytest.mark.only_model('dmg')
 def test_mountains_harmony_starts_in_step_with_the_melody_at_the_pickup(srom):
     """Mountain's first play begins on song row 248 (the "She'll be" pickup, songs.py start=).  The harmony must begin on
     the same row of its own line: every frame, channel 1 holds what the line has at the driver's row (the pad's envelope

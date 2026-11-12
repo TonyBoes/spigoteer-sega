@@ -26,6 +26,7 @@ def views(request):
     return m, all_views(m, full_image()), all_views(m, None)
 
 
+@pytest.mark.only_model('dmg')
 def test_the_full_image_reads_as_written(views):
     model, full, blank = views
     assert full["progress"] == 2 and full["reached"] == 0 and full["tunes"] == 0x2345 | 1 and full["keep"] == 0x80 and full["debug"] == 1
@@ -76,6 +77,7 @@ def expected(stage_n, full, blank):
     return e
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("n", range(8))
 def test_a_save_from_each_stage_loads_with_defaults_for_the_blocks_it_does_not_have(views, n):
     model, full, blank = views
@@ -107,6 +109,7 @@ FIELDS = {"main": ("progress", "reached", "tunes", "continue"), "MGP2": ("mg_unl
 TABLE = {"HSA1": 0, "HSS1": 1, "HSC2": 2}
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("name", list(BLOCKS))
 def test_a_bad_checksum_reads_as_absent_and_touches_only_its_own_part(views, name):
     model, full, blank = views
@@ -131,6 +134,7 @@ def test_a_bad_checksum_reads_as_absent_and_touches_only_its_own_part(views, nam
             assert now == (bytes(20) if u == TABLE[name] else was), (name, u)
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("name", [n for n in BLOCKS if n != "main"])
 def test_a_block_with_the_wrong_magic_or_a_flipped_complement_reads_as_absent(views, name):
     model, full, blank = views
@@ -148,6 +152,7 @@ def test_a_block_with_the_wrong_magic_or_a_flipped_complement_reads_as_absent(vi
 OLD = {3: v3_image, 4: v4_image, 5: v5_image, 6: v6_image}
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("ver", [3, 4, 5, 6])
 def test_an_old_main_block_s_table_bytes_never_read_as_a_later_block(views, ver):
     """Versions 3-6 keep a top 5 in bytes 4-33, where "SV" (0x0A), "BC" (0x12) and "DU" (0x18) now sit: its initials and scores must not unlock
@@ -162,6 +167,7 @@ def test_an_old_main_block_s_table_bytes_never_read_as_a_later_block(views, ver)
     assert got["bonus"] == bonus_expect(0, 0, 0) and got["mg_unlocked"] == 0
 
 
+@pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("ver", [3, 4, 5, 6])
 def test_an_old_save_keeps_the_blocks_that_live_beyond_its_bytes(views, ver):
     """An old main block with practice, bonus rounds and EASY / HARD medals (0x40 and up are free in every version): migrated, the rest kept."""

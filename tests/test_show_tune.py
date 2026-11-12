@@ -14,6 +14,7 @@ from test_sound import start_a_show, start_game, w16
 sys.path.insert(0, str(ROOT / "tools"))
 import gen_music as gm      # noqa: E402
 import songs                # noqa: E402
+pytestmark = pytest.mark.only_model('dmg')   # model_equiv.py: DMG and Color proven equal for every test here
 
 TUNE_SHOW = 4
 NR21, NR32, NR43 = 0xFF16, 0xFF1C, 0xFF22
