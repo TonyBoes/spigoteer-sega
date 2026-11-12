@@ -1180,8 +1180,11 @@ def test_a_boss_hint_card_and_back_leaves_the_fight_as_if_it_had_not_been_opened
             if card:
                 tap(gb, "down")
                 tap(gb, "a", CARD_FRAMES)
-                while card_rows(gb)[16] != "A BACK":
+                for _ in range(12):                 # bounded: a card that never reaches its last page fails here, not after the 180 s timeout
+                    if card_rows(gb)[16] == "A BACK":
+                        break
                     tap(gb, "a", CARD_FRAMES)
+                assert card_rows(gb)[16] == "A BACK", "the card's last page (A BACK) is reached within 12 taps"
                 gb.run(30)
                 tap(gb, "b", CARD_FRAMES)
                 assert menu_rows(gb)[:3] == ["RESUME", "> HOW TO PLAY", "QUIT TO MENU"]
