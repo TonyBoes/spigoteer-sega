@@ -54,3 +54,16 @@ def test_the_boss_body_is_on_bg_7_and_no_regular_walks_on_it(c):
             assert bg[pi] != 7 and obj[pi] != 7, f"variant {var:#x}: instance {pi} wears his BG 7 / OBJ 7"
             if c == FACTORY:
                 assert obj[pi] not in (4, 5), f"variant {var:#x}: the lamp's and the body OBJ slots are his"
+
+
+def test_ronin_wears_sakuras_palette_in_the_teahouse(gb):
+    settle(gb, "ninjas")
+    obj, bg = inst(gb)
+    assert (obj[1], bg[1]) == (6, 6), "SAKURA"
+    assert (obj[2], bg[2]) == (6, 6), "RONIN (look 2, instance 2) shares them"
+    want = c5(ATLAS["ninjas"]["obj"]["6"]["cols"][1:])
+    assert cgb_palette(gb, 6, obj=True)[1:] == want
+    assert bg_slot_colours(gb, 6) == want
+    assert {"SAKURA", "RONIN"} <= set(ATLAS["ninjas"]["obj"]["6"]["patrons"]) and ATLAS["ninjas"]["obj"]["7"]["patrons"] == ["POET"]
+    assert 7 in obj[:8] and obj.index(7) > 2, "POET keeps OBJ 7 / BG 7 as a later instance"
+    assert bg[obj.index(7)] == 7

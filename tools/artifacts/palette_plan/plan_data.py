@@ -210,7 +210,7 @@ BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7], "punks": [5, 7], "ninjas": [
                 "sports": [4, 7], "lumberjacks": [4, 7], "chefs": [4, 7], "zoo": [4, 7], "aliens": [4, 7]}   # (the Stadium, Lodge and Bistro fights load the topper into OBJ 7 and the body into BG 4 = OBJ 4's pair: boss_load.h)
 # Instances 0-2 are looks 0-2's OBJ slots (gen_looks.py). Where the plan puts two of the three natives on one OBJ slot (the Teahouse: RONIN joined SAKURA's OBJ 6) the
 # third instance is named here: look 2's boss slot (the Sumo's body is BG 7, his topknot OBJ 7 = POET's freed palette). Look 2 may still spawn on any of its allowed slots.
-NATIVE_OBJ = {"ninjas": [3, 6, 7]}
+NATIVE_OBJ = {"ninjas": [3, 6, 6]}   # owner 2026-10-30: RONIN wears SAKURA's OBJ 6 / BG 6, so instance 2 repeats instance 1's slot (the Lodge and the Bistro repeat theirs too); POET's OBJ 7 / BG 7 is the next instance, benched in a fight with the topper
 # The stage palette the mid-frame chain reloads EARLY (line 31, the end of the stage's third text row); the other is reloaded late (line 39). The early one must not be used
 # in the stage's last row: the Factory's BG 5 ends on row 3 (its BG 6 is the shelf under the stage); the Igloo, the Chrome Cow and the Teahouse have BG 5 on the last row
 # and BG 6 earlier, so BG 6 is the early one there. tests/test_extra_looks_venues.py checks this against the venues' stage attributes.
