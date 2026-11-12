@@ -61,25 +61,9 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">One question per card. Each choice has its picture right under it.</p>
-    <p class="stamp">1 open · updated 2026-11-12</p>
+    <p class="stamp">0 open · updated 2026-11-12</p>
   </header>
 
-  <section class="card" id="q34">
-    <span class="tag">Q34</span>
-    <h2>Outstanding test items</h2>
-    <ul>
-      <li>Merge train: verify several finished branches together in one run instead of one run each. Saves about 5 min per extra branch; a bad branch holds up the others.</li>
-      <li>Release built once: one slow test builds the release ROM twice. Saves about 80 s, only on the full check.</li>
-      <li>Known-failures list: verify would report only new failures. Today there are no known failures left (the fade test is fixed), so this matters only when the C-build tests come back.</li>
-      <li>DMG and Color doubling: about 5,700 tests run on both models, many testing logic that is the same on both. Trimming them would speed up every test run; needs a careful review per file.</li>
-      <li>"Say what a check measures": a habit rule for agents (picture vs model vs real-ROM motion). Already mostly followed this week.</li>
-    </ul>
-    <p class="ask">Which of these should be done?</p>
-    <div class="opt"><h3>Doubling review + release built once <span class="rec">RECOMMENDED</span></h3><p>The two that save real time with low risk. Merge train and known-failures list stay parked.</p></div>
-    <div class="opt"><h3>All of them</h3></div>
-    <div class="opt"><h3>None for now</h3></div>
-    <p class="how">Q34) recommended / all / none</p>
-  </section>
 
 
 
