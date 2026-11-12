@@ -92,6 +92,25 @@ def test_the_saloons_instance_3_walks_on_bg_4_in_the_fight_in_its_own_colours(gb
         assert f_obj[i] == lvl_obj[i], f"OBJ {i}"
 
 
+def test_the_saloon_fight_slots_survive_a_lost_life():
+    """Lose a life in the Saloon fight (a regular reaches the tap; the freeze, then PLAYING again): instance 3 is still on BG 4 in OBJ 4's colours, the body still on BG 7."""
+    from test_flow import lose_a_life, run_until, state, LIFE_LOST, PLAYING
+    want = c5(ATLAS["cowboys"]["obj"]["4"]["cols"][1:])
+    with fight("cgb", SALOON) as fg:
+        frames(fg, 30)
+        topper = cgb_palette(fg, 7, obj=True)[1:]
+        lose_a_life(fg)
+        assert state(fg) == LIFE_LOST
+        run_until(fg, lambda: state(fg) == PLAYING, 400)
+        frames(fg, 60)
+        obj, bg = inst(fg)
+        assert (obj[3], bg[3]) == (4, 4)
+        assert cgb_palette(fg, 4)[1:] == want, "BG 4 still instance 3's colours"
+        assert cgb_palette(fg, 4, obj=True)[1:] == want
+        assert cgb_palette(fg, 7)[1:3] == topper[:2] and bg.count(7) == 0, "the body is still on BG 7"
+        assert fg.mem("boss_pal") == 7
+
+
 def test_every_saloon_fight_combo_is_in_the_table():
     """All 21 (look, palette) combinations of the fight: every sal_combo entry but GUS (look 2) and the instances on OBJ 7 and 5 (pi 2, 4). The table is in the ROM as its bytes."""
     import re
