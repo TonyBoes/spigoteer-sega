@@ -152,8 +152,8 @@ void cl_off(void) BANKED;
 #define cloud_all()  cl_all()
 #define cloud_tick() cl_tick()
 #define cloud_init() cl_init()
-#define cloud_gone() cl_off()
-#define cloud_hide() do { if (CL_ON) cl_off(); } while (0)
+#define cloud_gone() do { if (smap_flags & F_PALS) cl_off(); } while (0)      // (only while the map owns the Color OAM and palettes: F_PALS, set by smap_enter, cleared by the first screen after it; OAM 39 is another screen's sprite byte then)
+#define cloud_hide() do { if (CL_ON && (smap_flags & F_PALS)) cl_off(); } while (0)
 #define CL_ON      (shadow_OAM[39].x)      // (the clouds' OAM 39, spare y 0: x non-zero while they are on, tile and prop the camera's low bytes; src/smap_cloud.c; a DMG leaves it 0)
 #define CLOUDS_ON  is_cgb      // Color only (owner 11-09): a DMG never loads the cloud tiles or runs the clouds
 #define PAL_CLOUD  1       // (Color OBJ palette 1)
@@ -674,7 +674,7 @@ static void isr_on(void) {
 
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
     win_hide();
-    if (CL_ON) cloud_gone();
+    cloud_gone();
     if (TRANS & TR_OFF) { SCX_REG = 0; SCY_REG = 0; }   // (else the scene change's cover shows the map as it stands and the scroll goes home once the LCD is off: src/trans.c)
     sm_put(smap_stop, smap_flags & F_SAVED);
 }
@@ -930,7 +930,7 @@ uint8_t smap_po_lives(void) BANKED {
 
 // the screens after the map, LCD off: the HUD palette (BG 1, which the world borrowed) as the game keeps it, tinted as the run's difficulty tints it (main_cold.c)
 void smap_pal_back(void) BANKED {
-    if (CL_ON) cloud_gone();                       // (every screen after the map, LCD off, comes through here or leave())
+    cloud_gone();                                  // (every screen after the map, LCD off, comes through here or leave(): a no-op unless the map owns the OAM)
     uint16_t p[4];
     if (!(smap_flags & F_PALS)) return;
     smap_flags &= ~F_PALS;
