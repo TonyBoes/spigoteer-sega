@@ -1027,3 +1027,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-12 Pocket Player v99: main = clouds merged + Saloon fight fix + plan items; cloud test entries removed.
 - 11-12 OWNER: "31) all 3" -> build all three Color map headroom changes (loader stop line ~91, incremental stop-dot redraw on cell-crossing frames, one OAM pass for map sprites + clouds + smap_room cache). Same picture, Color only, DMG unchanged. Q31 card removed.
 - 11-12 OWNER: "What's next?" -> Q32 asked (test race fix + C-build tests back on / credits remake / test batches C4 C5 / other).
+- 11-12 Color headroom back (worktree-agent-a1fd34ca27b292353 8dfb68e8 loader 99->91, c73c84c2 asm dots_draw): Color p90 121 -> 115, worst 139 -> 129, holds 0, px/f 1.879 -> 1.871, picture identical; change 3 not built (ceiling 4 lines p90 / 0 worst; merge saves ~0.2 line) -> Q33 skip / build. 4 Color goldens (peaks, walking camera; start, tag anim phase) -> gb-golden-check.
