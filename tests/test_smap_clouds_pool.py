@@ -14,7 +14,7 @@ from conftest import ROOT, double_speed
 
 POOL = range(3, 19)                  # the clouds' entries on a Color
 SAL = range(19, 23)
-CLOUD_TILES = range(74, 96)          # OB + the cloud tiles: A, B, the big cloud's top and bottom halves
+CLOUD_TILES = range(74, 98)          # OB + the cloud tiles: B, the big cloud (GT, GB), the long big cloud (GV)
 SV = 396
 
 
@@ -167,14 +167,14 @@ def test_steady_state_clouds_per_screen_and_the_line_limit_at_every_stop():
     print(f"\nsteady state: clouds on screen {avg:.2f} (range {rng}), entries {ents:.2f}, max pool {mx_pool}, max sprites on a line {mx_line}, a big cloud on {big:.0%} of the looks")
     (ROOT / "out" / "clouds_pool_steady.txt").write_text(f"clouds_avg={avg:.2f} range={rng[0]}-{rng[1]} entries_avg={ents:.2f} max_pool={mx_pool} max_line={mx_line} big_share={big:.2f}\n")
     assert mx_line <= 10 and mx_pool <= len(POOL)
-    assert 1.5 <= avg <= 4.5, avg
+    assert 1.0 <= avg <= 4.5, avg
 
 
 # ---- hidden on every exit ---------------------------------------------------------------------------------------------------------------------------------------------
 def cloud_left(gb):
     for mem in (gb.read("shadow_OAM", 160), bytes(gb.pb.memory[0xFE00:0xFEA0])):
         for i in range(40):
-            if mem[i * 4] and mem[i * 4 + 2] in CLOUD_TILES and i in POOL:
+            if mem[i * 4] and mem[i * 4 + 2] in CLOUD_TILES and (mem[i * 4 + 3] & 0x9F) == 1 and i in POOL:      # (a cloud: its tiles, OBJ palette 1, no bank, no priority bit)
                 return i
     return None
 
@@ -184,6 +184,19 @@ def placed(gb):
     return any(oam[i * 4] for i in POOL)
 
 
+def clouds_up(gb):
+    """Sets the clock until the pool holds a cloud (a few places have none at a given moment)."""
+    sb = gb.addr("story_scratch")
+    for i in range(24):
+        if placed(gb):
+            return True
+        d = (i * 683 + 256) % 32768
+        gb.pb.memory[sb + SV + 25] = d & 255
+        gb.pb.memory[sb + SV + 5] = (((d >> 8) << 1) & 255) | 1
+        gb.run(12)
+    return placed(gb)
+
+
 @pytest.mark.parametrize("path", ["venue_play", "venue_story", "festival", "menu", "beam"])
 def test_no_cloud_entry_is_left_after_any_exit(path):
     from test_flow import run_until, state
@@ -191,23 +204,23 @@ def test_no_cloud_entry_is_left_after_any_exit(path):
     with double_speed():
         if path == "venue_play":
             gb = sm.to_map("cgb", 10, stop=0)
-            assert placed(gb)
+            assert clouds_up(gb)
             tap(gb, "a", 20); gb.run(10); tap(gb, "a", 2)
         elif path == "venue_story":
             gb = sm.to_map("cgb", 0, stop=0)
-            assert placed(gb)
+            assert clouds_up(gb)
             tap(gb, "a", 2)
         elif path == "festival":
             gb = sm.to_map("cgb", 10, stop=10)
-            assert placed(gb)
+            assert clouds_up(gb)
             tap(gb, "a", 20); gb.run(10); tap(gb, "a", 2); gb.run(20); tap(gb, "a", 2)
         elif path == "menu":
             gb = sm.to_map("cgb", 10, stop=10)
-            assert placed(gb)
+            assert clouds_up(gb)
             tap(gb, "start", 20); gb.run(10); tap(gb, "down", 2); tap(gb, "a", 2)
         else:                                                    # the space lounge's beam: the clouds go at once; the beam is in 3-11 (the pool), Sal rises in 19-22
             gb = sm.to_map("cgb", 9, stop=9)
-            assert placed(gb)
+            assert clouds_up(gb)
             tap(gb, "a", 2)
             seen_beam = False
             for _ in range(120):
@@ -222,8 +235,8 @@ def test_no_cloud_entry_is_left_after_any_exit(path):
             run_until(gb, lambda: not (state(gb) == sm.GS_STORY and gb.mem("story_phase") == SP_MAP), 300)
         except Exception:
             pytest.skip(f"{path}: this path did not leave the map here")
-        gb.run(30)
-        assert cloud_left(gb) is None, f"a cloud entry stays in OAM after {path}"
+        gb.run(3)
+        assert cloud_left(gb) is None, f"a cloud entry stays in OAM after {path}"      # (3 frames on: later a mini-game, a scene ... draws its own sprites, with tiles in the clouds' range, into 3-18)
 
 
 def test_a_dmg_has_no_clouds():

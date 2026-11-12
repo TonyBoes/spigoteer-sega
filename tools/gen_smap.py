@@ -118,10 +118,10 @@ def main(build, preview):
     for line in (SRC / "cloud_layout.txt").read_text().splitlines():
         if line and not line.startswith("#"):
             r, pos, sh, fl = line.split()
-            rows.append((int(r), int(pos), "ABTU".index(sh), int(fl)))
+            rows.append((int(r), int(pos), "BTUV".index(sh), int(fl)))
     rows.sort(key=lambda t: (t[0], t[1]))
     assert rows and all(p % 4 == 0 and p < 512 for _, p, _, _ in rows)
-    W4 = [4, 6, 6, 6]                            # a shape's width in 4 px units
+    W4 = [6, 6, 6, 6]                            # a shape's width in 4 px units
     recs, start = [], []
     assert max(t[0] for t in rows) < 35           # (the world: 512 x 560 px, 35 rows of 16 px: SMAPW_CH 70 cells)
     for r in range(36):
@@ -135,7 +135,7 @@ def main(build, preview):
     h.append("#define SCL_ROWS 35")
     h.append(carr("scl_rowstart", start, 36).replace("static ", ""))      # (byte offsets into scl_rec; the asm reads them by name)
     h.append(carr("scl_rec", recs).replace("static ", ""))               # (per cloud: x / 4, flip << 7 | shape << 4 | width in 4 px units)
-    h.append("const uint8_t scl_tile[4] = { " + ", ".join(f"OB + SOB_CLOUD{c}0" for c in ("A", "B", "GT", "GB")) + " };")
+    h.append("const uint8_t scl_tile[4] = { " + ", ".join(f"OB + SOB_CLOUD{c}0" for c in ("B", "GT", "GB", "GV")) + " };")
     h.append("#endif")
     h.append("#endif")
     (build / "smap_art.h").write_text("\n".join(h) + "\n")

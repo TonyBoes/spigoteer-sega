@@ -15,9 +15,10 @@ from pathlib import Path
 import numpy as np
 
 OUT = Path(__file__).resolve().parents[2] / "assets" / "story_map" / "cloud_layout.txt"
-W = {"A": 16, "B": 24, "T": 24, "U": 24}
-NSMALL = {"A": int(os.environ.get("CLA", 15)), "B": int(os.environ.get("CLB", 2))}
+W = {"A": 16, "B": 24, "T": 24, "U": 24, "V": 24}
+NSMALL = {"A": int(os.environ.get("CLA", 0)), "B": int(os.environ.get("CLB", 14))}      # (A is not a shape any more: OBJ tiles; CLA is kept for a scratch build)
 NBIG = int(os.environ.get("CLBIG", 2))
+BIGTOPS = "TV"                                 # the first big cloud has the top T, the second the long one V (its bottom half is the first one's: U)
 MX, MY = 20, 20                                # the margin of a look (px each way)
 WS = np.arange(0, 512, 4)                      # the screen's left edge in cloud space (4 px steps)
 CY = np.arange(0, 417, 4)                      # the camera's y
@@ -51,7 +52,8 @@ def records(items):
             out.append((it[1], it[2], it[3], None, g))
         else:
             r, p = it[1], it[2]
-            out += [(r, p, "T", 0, g), (r, (p + 24) % 512, "T", 1, g), (r + 1, p, "U", 0, g), (r + 1, (p + 24) % 512, "U", 1, g)]
+            t = it[3] if len(it) > 3 else "T"
+            out += [(r, p, t, 0, g), (r, (p + 24) % 512, t, 1, g), (r + 1, p, "U", 0, g), (r + 1, (p + 24) % 512, "U", 1, g)]
     return out
 
 
@@ -64,10 +66,10 @@ def energy(items, detail=False):
     for r, p, s, f, g in recs:
         wd = W[s]
         T += np.outer(xind(p, wd), yind(r, MY)) * (wd // 8)
-        S += np.outer(xind_screen(p, wd), yind(r, 0)) * (0.25 if s in 'TU' else 1.0)
+        S += np.outer(xind_screen(p, wd), yind(r, 0)) * (0.25 if s in 'TUV' else 1.0)
         rowline.setdefault(r, np.zeros(len(WS), np.int32))
         rowline[r] += xind(p, wd) * (wd // 8)
-        if s in "TU":
+        if s in "TUV":
             bigrow.add(r)
     peak = int(T.max())
     for r, v in rowline.items():
@@ -95,7 +97,7 @@ def energy(items, detail=False):
 def build(seed, iters):
     rnd = random.Random(seed)
     items = [("s", rnd.randrange(NROWS), rnd.randrange(0, 512, 4), s) for s, n in NSMALL.items() for _ in range(n)]
-    items += [("b", BIGROWS[k], rnd.randrange(0, 512, 4)) for k in range(NBIG)]
+    items += [("b", BIGROWS[k], rnd.randrange(0, 512, 4), BIGTOPS[k % 2]) for k in range(NBIG)]
     e = energy(items)
     temp = 40.0
     for it in range(iters):
