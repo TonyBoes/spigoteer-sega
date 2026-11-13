@@ -569,3 +569,31 @@ def test_the_roll_returns_to_its_caller_within_a_second_of_the_tune_with_the_scr
         assert gb.pb.memory[0xFF40] & 0x80, "the LCD is on"
         assert len(gb.image().convert("RGB").getcolors(10000)) >= 3, "a screen, not a blank one"
         assert state(gb) == (TITLE if path == "bonus" else state(gb)) and state(gb) != GS_STORY
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_frame_of_the_roll_runs_past_its_vblank(model):
+    """A frame whose work runs past its VBlank makes the main loop wait out a whole frame (vq_frame_begin two frames after the last), and the tune pays a tick
+    for it, unpredictably (the drift of 0 to 8 frames the roll's layout used to give it). 2026-11-13: the sprite stage writes only what moved, the roll's steps
+    start only if they end by line 96 (cr_room), a tick due in the picture's last lines waits for the VBlank (music_pump_cr), the patrons' sprites are written in
+    place: none left over the whole credits (the one gap is the first screen's build, behind the white)."""
+    from tick_helpers import FRAME, tick_log
+    with Rom(ROM, model) as gb:
+        gb.run(120)
+        gb.model_name = model
+        hold_stage_anim(gb)
+        stamps = tick_log(gb)
+        noi = ROM.with_suffix(".noi").read_text()
+        v = int([x for x in noi.splitlines() if x.startswith("DEF _vq_frame_begin ")][0].split()[2], 16)
+        begins = []
+        gb.pb.hook_register(v >> 16, v & 0xFFFF, lambda ctx: begins.append(gb.pb._cycles()), None)
+        title_pick(gb, K_BONUS, K_CREDITS)
+        run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
+        n0 = len(stamps)
+        begins.clear()
+        run_until(gb, lambda: gb.mem("cur_tune") != TUNE_CREDITS, TUNE_FRAMES + 200)
+        gaps = [round((b - a) / FRAME) for a, b in zip(begins, begins[1:])]
+        assert sum(1 for g in gaps if g == 2) <= 2 and not [g for g in gaps if g > 2][1:], ("frames that ran past their VBlank", sum(1 for g in gaps if g == 2))
+        s = stamps[n0:][3:]
+        span = (s[-1] - s[0]) / FRAME
+        assert abs(span - (len(s) - 1)) <= 2, ("the tune's length follows the frames", span, len(s))
