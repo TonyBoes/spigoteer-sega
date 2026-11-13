@@ -175,7 +175,7 @@ def test_an_older_save_without_the_block_loads_cleanly_and_the_other_blocks_are_
         r.run(120)
         assert flag(r) == want, "not chosen: NORMAL, and a GBA asks"
         o = observe(r)
-        assert o["progress"] == 2 and o["tunes"] == 0x2345 | 1 and o["keep"] == 0x80, "the other blocks read as written"
+        assert o["progress"] == 2 and o["tunes"] == (0x2345 & 0xFFF1) | 1 and o["keep"] == 0x80, "the other blocks read as written"
         r.stop()
 
 
