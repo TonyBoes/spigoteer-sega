@@ -192,6 +192,22 @@ def test_the_factory_blob_is_252_tiles_in_bank_1(model):
         gb.stop()
 
 
+def take_off_near_tap(gb, x=48):
+    """Nobody drinks in these runs: whoever gets near the tap is taken off the bar, or the level restarts (a patron at the tap costs a life) every few patrons and the palette rule
+    (a look's first appearance in a level is its default palette: src/mirror.c pick_pal) would show only the defaults. A level of the length the game has (8-16 patrons) shows
+    few of the other pairs: tests/test_palette_rule.py measures that; these tests check that every pair is reachable in a long level."""
+    st, px = gb.read("patron_state", MAX_P), gb.read("patron_x", MAX_P)
+    gone = [i for i in range(MAX_P) if st[i] and px[i] >= x]
+    for i in gone:
+        gb.write(gb.addr("patron_state") + i, 0)
+        gb.write(gb.addr("patron_lift") + i, 0)
+        gb.write(gb.addr("patron_draw") + i, 255)
+    if gone:
+        gb.write("patrons_live", sum(1 for i in range(MAX_P) if st[i] and i not in gone))
+        gb.write("lists_dirty", 1)
+        gb.write("lists_ok", 0)
+
+
 def test_the_factory_spawns_only_the_tables_combinations_and_all_of_them(model):
     t = table()
     allowed = set(t["combo"])
@@ -201,6 +217,7 @@ def test_the_factory_spawns_only_the_tables_combinations_and_all_of_them(model):
         for _ in range(8000):
             gb.write("lives", 3)
             gb.write("quota", 250)
+            take_off_near_tap(gb)
             gb.run(20)
             st = gb.read("patron_state", MAX_P)
             for i, v in enumerate(gb.read("patron_variant", MAX_P)):

@@ -458,7 +458,7 @@ void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
     level_cfg_t row;
-    if (is_cgb) LOOK_HIST[0] = LOOK_HIST[1] = LOOK_HIST[2] = LOOK_HIST[3] = 255;   // the Color spawn rule's history of looks (scratch.h)
+    if (is_cgb) { LOOK_HIST[0] = LOOK_HIST[1] = LOOK_HIST[2] = LOOK_HIST[3] = 255; LOOK_LP1[0] = LOOK_LP1[1] = LOOK_LP2[0] = LOOK_LP2[1] = 255; LOOK_G2 = 63; }   // the Color spawn rule's history of looks, each look's last palette (15: none yet), the last two palettes (7, 7): scratch.h
     TIP2->t = 0;                                    // (the second tip coin lives in story_scratch, which the last screen left junk in: tip2.h)
     if ((k = classic_row(&row)) != 255) c = &row;   // P5: CLASSIC's table (classic.c), its repeats as the loops
     else {

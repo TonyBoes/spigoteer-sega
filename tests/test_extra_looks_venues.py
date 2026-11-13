@@ -15,6 +15,7 @@ from test_lift import HOOK_DROP, HOOK_LIFT, boot_play, freeze, hook, lifted_spri
 from test_patrons import MAX_P, WALKING, lineup, patrons
 from test_venues import cgb_palette
 import test_classic as tc
+from test_extra_looks import take_off_near_tap
 
 sys.path.insert(0, str(ROOT / "tools"))
 import gen_looks as GL  # noqa: E402
@@ -204,6 +205,7 @@ def test_it_spawns_only_the_tables_combinations_and_all_of_them(model, v):
         for _ in range(12000):
             gb.write("lives", 3)
             gb.write("quota", 250)
+            take_off_near_tap(gb)
             gb.run(20)
             st = gb.read("patron_state", MAX_P)
             for i, x in enumerate(gb.read("patron_variant", MAX_P)):
