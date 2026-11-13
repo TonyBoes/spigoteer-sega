@@ -160,10 +160,13 @@ ROLL = [
 # CREDITS=SCROLL's layout (rows of the world; credits.c uses these through credits_text.h). G: the gap between blocks (a card's top rows and the cards' own blank rows
 # included in the heights); LG: the larger gap before a venue's divider (blank rows at the top of its owner card). Stops (the block centred on the screen) are at OFF px from the card's top.
 LAY_G, LAY_LG = 2, 12
-LAY = dict(G=LAY_G, LG=LAY_LG, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG + 3, R_OLBL=LAY_LG + 8, R_PORT=LAY_LG + 10, R_ONAME=LAY_LG + 18,
-           H_OWN=LAY_LG + 19, R_PLBL=0, R_PN=5, H_PAT=16, R_BLBL=2, R_BBODY=6, R_BNAME=10, H_BOSS=14,
-           OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 11), OFF_PAT=64, OFF_BOSS=56)
-LABELS = ["OWNER", "REGULARS", "BOSS"]
+# Owner 2026-11-13: no spigot icon over a venue's title ("It just reads as garbage scrolling by so fast"), and no REGULARS or BOSS label ("That's implied"): the band
+# is where the divider was (the venue's card is 3 rows shorter), the first line of patrons' names is on row R_PA (the label's 2 rows and the blank above it are gone: the card
+# is 2 rows shorter), the boss is 3 rows up (H_BOSS 11). R_DIV is the card's row its loads wait for (credits.c cr_lrow), no longer a drawn row.
+LAY = dict(G=LAY_G, LG=LAY_LG, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG, R_OLBL=LAY_LG + 5, R_PORT=LAY_LG + 7, R_ONAME=LAY_LG + 15,
+           H_OWN=LAY_LG + 16, R_PA=3, R_PN=5, H_PAT=14, R_BBODY=3, R_BNAME=7, H_BOSS=11,
+           OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 8), OFF_PAT=56, OFF_BOSS=40)
+LABELS = ["OWNER"]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
 ROLL_POOL = 160                                      # the roll's BG ids (credits.c CR_RING): the most tiles of 21 consecutive rows it may need
@@ -331,10 +334,6 @@ def main():
     ids["LBL0"] = len(ROWS)
     for t in LABELS:                                  # the labels: the small font, the ink one shade on (DMG light grey, Color the venue palette 0's gold), centred
         row("LBL_" + t, centred(t), inkmap={0: 1}, store=EXTRA)
-    ids["DIV"] = len(ROWS)
-    icon = [[IDX[c] for c in r] for r in story["spigot_icon"]]
-    xs = [x for x in range(8) if any(icon[y][x] != BAND for y in range(8))]
-    row("DIVIDER", [((icon, min(xs), max(xs)), 80)], store=EXTRA)
     ids["BAND0"] = len(ROWS)
     for v in range(10):                               # the venue band: the name's letters 8 px wide, 16 tall, on a stripe (colour 2); three rows of tiles
         px, x0, x1 = strip(VENUES[v])
@@ -382,13 +381,11 @@ def main():
             for off, name in [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]:
                 cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
             yy += L["H_OWN"] + L["G"]
-            cnt[yy] = n("LBL_REGULARS")
             for k, nm in enumerate("ABC"):
                 if dmg and k != 1:
                     continue
-                cnt[yy + L["R_PN"] * (k + 1)] = n(f"PAT{nm}{v}")
+                cnt[yy + L["R_PA"] + L["R_PN"] * k] = n(f"PAT{nm}{v}")
             yy += L["H_PAT"] + L["G"]
-            cnt[yy + L["R_BLBL"]] = n("LBL_BOSS")
             cnt[yy + L["R_BNAME"]] = n(f"BOSS{v}")
             yy += L["H_BOSS"] + L["G"]
         top = max(cnt)
@@ -463,7 +460,7 @@ def main():
           "static const uint16_t ct_pcol[10][7][3] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in (pc + [0, 0, 0])[:3]) + " }" for pc in pcs + [[]] * (7 - len(pcs))) + " }" for pcs in PAL_COLS) + " };   // the palettes' colours 1-3 (RGB555, before BRIGHTEN)",
           "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", ""]
     h += ["#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and layout (rows of the world: tools/gen_credits.py LAY)",
-          f"#define CT_LBL {ids['LBL0']}   // the labels OWNER, REGULARS, BOSS", f"#define CT_DIV {ids['DIV']}   // the divider's row (the spigot icon, centred)",
+          f"#define CT_LBL {ids['LBL0']}   // the label OWNER",
           f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",
           "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
     h += [f"#define CT_{k} {v}" for k, v in LAY.items()]

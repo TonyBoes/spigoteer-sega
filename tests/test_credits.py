@@ -190,7 +190,7 @@ def visible_rows(gb):
     return [((scy >> 3) + r) % 32 for r in range(19 if scy & 7 else 18)]
 
 
-ROLL_END = 10454      # frames from the credits' first frame to the roll's leave (the scrolling credits' own clock: the tune is over some 6 s earlier)
+ROLL_END = 10297      # frames from the credits' first frame to the roll's leave (its own clock; 10454 until 2026-11-13, when the spigot divider and the REGULARS and BOSS labels went: the cards are 3, 2 and 3 rows shorter)
 
 
 def lines_on_screen(gb):
