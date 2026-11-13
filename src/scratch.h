@@ -84,6 +84,23 @@ typedef char scr_obj2_below_cap[SCR_OBJ2_AT + SCR_OBJ2_N <= SCR_CAP_AT ? 1 : -1]
 #define SCR_LOOKH_AT     65
 #define SCR_LOOKH_N      5
 #define LOOK_HIST        (story_scratch + SCR_LOOKH_AT)
+// The Color palette rule (owner 2026-11-13: the same look kept coming back in the same palette): the palette each look wore the last time it spawned, 4 bits a look (15 = it has not spawned
+// this level: its first appearance wears its default palette), looks 0-3 in LOOKP1 and 4-7 in LOOKP2; and the last two palettes that spawned (3 bits each, 7 = none). [3] of LOOK_HIST now holds
+// look | palette << 3. All cleared by build/looks.c looks_reset (level.c start_level). Gaps of the map: 228..229 (above the second tip coin) and 297..299 (under the staging buffer).
+#define SCR_LOOKP1_AT    228
+#define SCR_LOOKP1_N     2
+#define SCR_LOOKP2_AT    297
+#define SCR_LOOKP2_N     2
+#define SCR_LOOKG_AT     299
+#define SCR_LOOKG_N      1
+#define LOOK_LP1         (story_scratch + SCR_LOOKP1_AT)
+#define LOOK_LP2         (story_scratch + SCR_LOOKP2_AT)
+#define LOOK_G2          (story_scratch[SCR_LOOKG_AT])
+typedef char scr_lookp1_above_tip2[SCR_LOOKP1_AT + SCR_LOOKP1_N <= SCR_TIP2_AT ? 1 : -1];
+typedef char scr_lookp1_below_objf[SCR_OBJF_AT + SCR_OBJF_N <= SCR_LOOKP1_AT ? 1 : -1];
+typedef char scr_lookp2_below_obj2[SCR_OBJ2_AT + SCR_OBJ2_N <= SCR_LOOKP2_AT ? 1 : -1];
+typedef char scr_lookg_above_cap[SCR_LOOKG_AT + SCR_LOOKG_N <= SCR_CAP_AT ? 1 : -1];
+typedef char scr_lookp2_below_lookg[SCR_LOOKP2_AT + SCR_LOOKP2_N <= SCR_LOOKG_AT ? 1 : -1];
 typedef char scr_lookh_above_ld[SCR_LOOKH_AT + SCR_LOOKH_N <= SCR_LD_AT ? 1 : -1];
 typedef char scr_lookh_below_ltst[SCR_LTST_AT + SCR_LTST_N <= SCR_LOOKH_AT ? 1 : -1];
 typedef char scr_ltst_above_ld[SCR_LTST_AT + SCR_LTST_N <= SCR_LD_AT ? 1 : -1];

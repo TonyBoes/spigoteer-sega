@@ -49,9 +49,11 @@ def play_picks(model, wait, frames, seed=1, group=1):
         assert gb.mem("cur_group") == group
         gb.run(60)
         pend = []
+        cur = [0]
         bank, addr = spawn_variant_hook()
-        gb.pb.hook_register(bank, addr, lambda _: pend.append(list(gb.read("patron_state", 16))), None)
+        gb.pb.hook_register(bank, addr, lambda _: pend.append((list(gb.read("patron_state", 16)), cur[0])), None)
         for fr in range(frames):
+            cur[0] = fr
             if fr % 30 == 0:
                 gb.write("lives", 9)
                 gb.write("served", 0)
@@ -62,8 +64,8 @@ def play_picks(model, wait, frames, seed=1, group=1):
                 gb.press(rnd.choice(["a", "up", "down", "left"]), 2)
             else:
                 gb.run(1)
-            if pend:
-                before = pend.pop()
+            if pend and pend[0][1] < fr:                # (the frame the call is in can end before the patron is added: judged a frame later)
+                before = pend.pop(0)[0]
                 now = list(gb.read("patron_state", 16))
                 v = gb.read("patron_variant", 16)
                 new = [v[i] for i in range(16) if now[i] and not before[i]]

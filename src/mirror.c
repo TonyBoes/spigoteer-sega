@@ -309,6 +309,28 @@ uint8_t extra_on(void) BANKED { return extra_on_(); }
 
 // The Color pick: one (look, palette) pair of the venue's allowed ones from the random byte r (build/looks_pick.h, generated from the Graphics Atlas plan; the Saloon's table above), again with r + 97
 // while its look is one of the last 3 that spawned (LOOK_HIST, scratch.h; build/looks.c; owner 2026-11-04). It ends: r + 97, + 194 ... visits every byte, and every venue allows at least 4 looks (tools/gen_looks.py).
+// The palette rule (owner 2026-11-13: "the same palette seems to repeat between appearances of that character", "the first appearance of a patron is its default look"): the look stays as picked
+// (so its odds are untouched), its palette is what the table gave unless that is not allowed. A look's first appearance in a level wears its default palette (looks_dflt / sal_df); later ones
+// the next allowed palette (counting up from the picked one, so the picked one when it is fine) that is not the palette this look wore last and not one of the last two that spawned
+// (LOOK_LP1/2, LOOK_G2); when that leaves nothing, only the look's own last palette is avoided. A fight keeps the fight's smaller table (pm_g[1], sal_pm[1]).
+static const uint8_t sal_pm[2][8] = { {0x1F, 0x1B, 0x1B, 0x1F, 0x1F, 0x1F, 0x1B, 0x1B}, {0x0B, 0x0B, 0x00, 0x0B, 0x0B, 0x0B, 0x0B, 0x0B} };   // the Saloon's allowed palette instances per look: sal_combo, sal_boss (tests/test_palette_rule.py checks them)
+static const uint8_t sal_df[8] = { 0, 1, 0, 0, 0, 0, 0, 0 };   // its default instances: Dusty's and Emma's own, the A set for the rest (Gus has no OBJ 2 here)
+static const uint8_t bitv[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };   // (1 << n without a shift loop: this runs on a spawn frame, the tightest of a fight)
+static uint8_t pick_pal(uint8_t v) {
+    uint8_t l = v & 7, p = ((v >> 3) ^ v) & 7, m, c, lp, g = cur_group, *b = (l & 4 ? LOOK_LP2 : LOOK_LP1) + ((l & 3) >> 1);
+    m = g ? pm_x[g - 1][boss_on][l] : sal_pm[boss_on][l];
+    lp = (l & 1) ? *b >> 4 : *b & 15;
+    if (lp == 15) {                              // its first appearance this level
+        c = g ? df_x[g - 1][l] : sal_df[l];
+        if (m & bitv[c]) p = c;
+    } else {
+        c = m & ~(bitv[lp] | bitv[LOOK_G2 & 7] | bitv[LOOK_G2 >> 3]);
+        if (!c) c = m & ~bitv[lp];
+        if (!c) c = m;
+        while (!(c & bitv[p])) p = (p + 1) & 7;
+    }
+    return (v & 0xC7) | ((p ^ l) << 3);
+}
 static uint8_t pick_x(uint8_t r, uint8_t now) {
     uint8_t v, l, *h = LOOK_HIST;
     if (!now) looks_sync();                      // (the start patrons and the show's: a pick from before is not committed late, note drops it)
@@ -318,7 +340,8 @@ static uint8_t pick_x(uint8_t r, uint8_t now) {
         if (l != h[0] && l != h[1] && l != h[2]) break;
         r += 97;                                 // (not next_rand: the generator's stream stays the one every other draw saw; 97 is odd, so the 256 bytes all come up and the loop ends)
     }
-    looks_note(v, now);
+    if (!boss_on) v = pick_pal(v);               // (a boss fight keeps the old pick: its spawn frame is the tightest there is, tests/test_boss_in_place.py's guard)
+    looks_note(l | ((((v >> 3) ^ v) & 7) << 3), now);
     return v;
 }
 uint8_t extra_variant(uint8_t r) BANKED { return pick_x(r, 1); }   // (the start patrons and the show's: placed at once)
