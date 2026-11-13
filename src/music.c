@@ -538,3 +538,11 @@ void music_pump(void) BANKED {
     TIMA_REG = t;                                     // (the remainder carries over: it is how late this tick was)
     TMA_REG = (TMA_REG & 2) | 1 | (t & 0xFC);         // (bits 2-7: that lateness, rounded down to 4 counts: TIMA minus it is the real time since this tick, see music_tick)
 }
+
+// The credits' pump: music_pump, except that a tick that falls due late in the picture (lines 121-143) waits for the VBlank: the update's work and the loop's own tick still
+// have to end before the next one, and a tick (up to 18 lines) struck at line 130 ran the frame past it (the main loop then waits out a whole frame, and the tune pays for it).
+void music_pump_cr(void) BANKED {
+    uint8_t ly = LY_REG;
+    if (ly > 120 && ly < 144 && (LCDC_REG & LCDCF_ON)) return;
+    music_pump();
+}

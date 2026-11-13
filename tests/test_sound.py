@@ -1051,7 +1051,7 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     assert len(frames) == TUNE_COUNT + 3, "the title .. venues, then the map's, the credits and the bonus Easy Winners (src/music.h TUNE_MAP, TUNE_CREDITS, TUNE_EWFAST)"
     assert frames.pop() == gm.pass_frames(704, 9, 0xAA) == 5984, "the bonus Easy Winners: 704 rows with the title's swing, 99.7 s, looping (tests/test_music_batch5.py)"
     t = songs.SONGS["credits"]
-    assert frames.pop() == gm.pass_frames(707, t["tempo"], 0, t["tempo_map"]) == 9986, "the credits tune: 166.4 s with its ritard, played once (tests/test_credits.py)"
+    assert frames.pop() == gm.pass_frames(707, t["tempo"], 0, t["tempo_map"]) == 10700, "the credits tune: 178.3 s (15 frames a row since 11-13; 9986 at 14) with its ritard, played once (tests/test_credits.py)"
     assert frames.pop() == 8448, "the story map's Swipesy: 768 rows of 11 frames, 140.8 s, looping (tests/test_music_batch5.py)"
     assert frames[TUNE_TITLE] == gm.pass_frames(1216, 9, 0xAA) == 10336, "the title: the whole Entertainer, 173 s, looping (tests/test_music_batch1.py)"
     frames[TUNE_TITLE] = 60

@@ -29,7 +29,7 @@ PROARR_DIGEST = {
     "sakura": "d3a39e5f2bf42079605b27f1ece40c10507758089dfbe8a30e0d5a4118c5d381",
     "weasel": "62003ef4dba02adea51b7a60e7429f8ab61b3fdb22ebcd498cdf1731162296bf",
     "danube": "249a3ca10289d9d88ccdf887c83f2a5543a54540e6b2438404eb0cfc0282db3a",
-    "credits": "127161fcc82b52e261fd079d5da4e8a8e56b23c1a51d437b0e5581c61ec0bdfc",       # batch 5: the Easy Winners (the brass lead; its notes equal the audition's rags_data, tests/test_music_batch5.py)
+    "credits": "f347e089c4190a6ad6c4d01c64df1e231a1138c811a734dc5f3817fc7d953635",       # (2026-11-13: slowed to 15 frames a row, the ritard 16 17 19 21 24: only the Fxx tempo effects of the rows changed; was 127161fc...)  batch 5: the Easy Winners (the brass lead; its notes equal the audition's rags_data, tests/test_music_batch5.py)
     "clear": "e1f92054abecbb3bcee2ff89143b8104948dc2802619f258fb7b6b6e7b8a6f4d",
     "over": "beab595b30400ce1bc0b809751e64f53aa3cfc155b235ca90248d4105950e133",
     "bonus": "94c3c54eae1e17b52607d882063f37d46fd0125541a4383d7cddb56a385e5898",
@@ -219,9 +219,9 @@ def test_the_sailor_plays_at_the_last_calls_tempo_and_the_groove_keeps_in_step(m
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
-    """The held bass keeps NR32 at 100 % (0x20) through the tune; at rows 702 and 704 the last chord steps to 50 % (0x40) and 25 % (0x60) (frames 9881 and 9925); the tune ends."""
+    """The held bass keeps NR32 at 100 % (0x20) through the tune; at rows 702 and 704 the last chord steps to 50 % (0x40) and 25 % (0x60) (frames 10580 and 10628 at 15 frames a row); the tune ends."""
     t = songs.SONGS["credits"]
-    start, cur = [0], 14
+    start, cur = [0], 15
     for r in range(707):
         cur = t["tempo_map"].get(r, cur)
         start.append(start[-1] + cur)
@@ -234,7 +234,7 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         assert gb.mem("cur_tune") == 16
         raw, frames = [], 0
         c0 = gb.pb._cycles()
-        while gb.mem("cur_tune") == 16 and frames < 10100:
+        while gb.mem("cur_tune") == 16 and frames < 10900:
             raw.append((gb.mem(0xFF1C) & 0x60, frames))           # (NR32 bits 5-6: the wave channel's output level, 1 = 100 %, 2 = 50 %, 3 = 25 %)
             gb.run(1)
             frames = int((gb.pb._cycles() - c0) / 70224)
@@ -248,4 +248,4 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         assert not any(v in (0x40, 0x60) for v, f in seq if f < start[702] - 6), "no pluck steps before the last chord"
         steps = {v: f for v, f in seq}
         assert abs(steps[0x40] - start[702]) <= 6 and abs(steps[0x60] - start[704]) <= 6, (seq, start[702], start[704])
-        assert start[702] == 9876 and start[704] == 9920 and 9985 <= frames <= 9990, "the fade rows (the audition's 9881 and 9925 are 5 frames of start-up later) and the stop at 9986"
+        assert start[702] == 10580 and start[704] == 10628 and 10699 <= frames <= 10704, "the fade rows (the audition's 9881 and 9925 are 5 frames of start-up later) and the stop at 10700 (the 11-13 slowdown: 15 frames a row, was 14: 9876/9920/9986)"

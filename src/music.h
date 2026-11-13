@@ -96,6 +96,7 @@ void music_set_on(uint8_t on) BANKED;       // sound_on, then start/stop the cur
 void music_tick(void) BANKED;               // once per frame, after the VBlank queue drain
 void music_load_now(void) BANKED;           // LCD off: finish the pattern copy music_play began (the tune starts at once)
 void music_load_now_p(void) BANKED;         // the same, pumping between the slices
+void music_pump_cr(void) BANKED;            // the credits roll's pump: music_pump, but not in the picture's last lines (src/music.c)
 void music_pump(void) BANKED;               // inside a long LCD-off load: music_tick when a frame's time has passed
                                             // since the last tick (the timer, polled), so the tune does not stall
 
