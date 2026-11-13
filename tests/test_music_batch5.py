@@ -37,7 +37,7 @@ def test_easy_winners_credits_is_the_audition_data():
     t = songs.SONGS["credits"]
     assert (digest(t["ch2"]), digest(t["ch3"]), digest(t["ch1"]), digest(t["track"])) == (
         "9a02be46438aa14b", "cc1fa80ac108d1e1", "411c55059250a90d", "befc5a9b3c9e689e"), "rags_data.easywinners_credits_r5(join='pickup', bass='upper', voice='voice', lead='brass'); ch3 with the held bass"
-    assert t["tempo"] == 14 and not t["groove"] and not t["swing"] and t["ch1_inst"] == ("voice", "ring50")
+    assert t["tempo"] == 15 and not t["groove"] and not t["swing"] and t["ch1_inst"] == ("voice", "ring50")
     assert H.nrows(t["ch2"]) == H.nrows(t["ch3"]) == H.nrows(t["ch1"]) == H.nrows(t["track"]) == 707
     assert gm.kick_body(t) == t["ch3"], "no kick body on this tune: its drums are a track, not a groove"
 

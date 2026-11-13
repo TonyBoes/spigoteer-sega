@@ -123,7 +123,7 @@ def test_the_credits_last_chord_fades_100_50_25_percent():
     assert rows[702][2] == 0xC05 and rows[704][2] == 0xC02
     last = [(i, r) for i, r in enumerate(rows) if r[0] != gm.REST and r[2] != 0xC05][-1]
     assert last[1][1] == gm.BASS_HELD, "the last chord's bass is held (the pluck table would be silent before its fade)"
-    start = gm.pass_frames(699, 14, 0, t["tempo_map"])
+    start = gm.pass_frames(699, 15, 0, t["tempo_map"])
     with make_rom("cgb") as gb:                 # (sound on: the APU registers read back)
         gb.run(120)
         hold_stage_anim(gb)
@@ -132,7 +132,7 @@ def test_the_credits_last_chord_fades_100_50_25_percent():
         while gb.mem16("music_frames") < start - 3:
             gb.run(1)
         seq = []
-        while gb.mem("cur_tune") == 16 and gb.mem16("music_frames") < gm.pass_frames(707, 14, 0, t["tempo_map"]) - 2:
+        while gb.mem("cur_tune") == 16 and gb.mem16("music_frames") < gm.pass_frames(707, 15, 0, t["tempo_map"]) - 2:
             gb.run(1)
             v = gb.mem(NR32) & 0x60
             if not seq or seq[-1] != v:

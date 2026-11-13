@@ -893,7 +893,7 @@ CREDITS_LEAD = LEAD_PRO
 # output byte for byte (rags_data.easywinners_credits_r5(join="pickup", bass="upper", voice="voice", lead="brass") on the audition branch): the tune
 # on the brass lead, the counter-melody on channel 1 in every strain ("voice", the last chord on "ring50"), strain D an octave lower with the pickup
 # join into it, the bass (the score's left hand, held) with its notes under E2 an octave up.  The ending is as the old credits tune's: a ritard on the
-# last bars (tempo_map), the ringing chord on the ring lead, the bass fading to 50 % and 25 % (fx_map) and the tune over at frame 9990.
+# last bars (tempo_map), the ringing chord on the ring lead, the bass fading to 50 % and 25 % (fx_map) and the tune over at frame 9990 (10700 since 2026-11-13: 15 frames a row, the ritard 16, 17, 19, 21, 24).
 # The drums are a THROUGH-COMPOSED TRACK (EWC_DRUMS, kit letters as the groove: one byte a row, 707 rows, tools/gen_music.py): src/music.c reads a
 # byte a row from the tune's own bank on a plain tick and plays it with the groove player's hit code.  The kick is the click alone: no kick body on
 # this tune (its bass notes name their instrument).  It replaces the first credits tune (CR_*, whose notes the title still reads).
@@ -975,10 +975,10 @@ EWC_DRUMS = (
     "b:2 t:2 n:2 t:2 b:2 t:2 n:2 o:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 b:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 o:2 b:2 t:2 n:2 t:2 "
     "b:2 t:2 n:2 b:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 o:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 b:2 b:2 t:2 n:2 r:2 b:2 r:2 o:1 r:6"
 )
-EWC_TEMPO_MAP = {688: 15, 692: 16, 696: 18, 698: 20, 700: 22}
+EWC_TEMPO_MAP = {688: 16, 692: 17, 696: 19, 698: 21, 700: 24}   # (owner 2026-11-13: "slightly slow down the credits music, so that it ends a little bit after the credits end": 15 frames a row, was 14, and the ritard scaled by 15/14; the notes, repeats and cuts are the same) 
 EWC_FX_MAP = {702: [(3, 0xC05)], 704: [(3, 0xC02)]}   # the last bass chord: 50 %, then 25 % (the low nibble of Cxy is the wave channel's volume)
 CR_BASS_HELD = with_inst(EWC_BASS, BASS_HELD)
-song("credits", 14, "A", EWC_MEL, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=EWC_TEMPO_MAP, fx_map=EWC_FX_MAP)
+song("credits", 15, "A", EWC_MEL, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=EWC_TEMPO_MAP, fx_map=EWC_FX_MAP)
 SONGS["credits"].update(ch1=EWC_HARM, ch1_inst=("voice", "ring50"), track=EWC_DRUMS)
 
 # ---------------------------------------------------------------------------------------------
