@@ -7,6 +7,7 @@
 import collections
 import multiprocessing
 import os
+import random
 import re
 
 import pytest
@@ -61,8 +62,25 @@ def plan_shares(g, boss=False):
     return {k: c / 256 for k, c in pairs.items()}
 
 
-def problems(counts, shares, min_ratio=0.1, look_tol=0.35):
-    """What is wrong with the pairs' counts against the plan's shares (empty list: fine): a pair that never came or came far under its share, a look whose share moved."""
+def look_shares(g):
+    """The looks' expected shares: the plan's, after the pick's history filter. try_spawn / pick_x draw a table entry and draw again (r + 97) while its look is one of the last 3 that spawned,
+    which takes odds from the common looks and gives them to the rare ones (the venue 4 look with 19 of 256 entries really comes about 12 % of the time, not 7.4 %): the same before the palette rule
+    (measured on its baseline ROM over 60 levels: 0.125 against 0.124 after). Simulated here on the real table, 100000 spawns, a fixed seed."""
+    tab = [lk for lk, _ in plan_table(g)]
+    rnd, h, c, n = random.Random(g), [255] * 3, collections.Counter(), 100000
+    for _ in range(n):
+        r = rnd.randrange(256)
+        while tab[r] in h:
+            r = (r + 97) & 255
+        c[tab[r]] += 1
+        h = [tab[r]] + h[:2]
+    return {lk: v / n for lk, v in c.items()}
+
+
+def problems(counts, shares, min_ratio=0.1, z=4, looks=None):
+    """What is wrong with the pairs' counts against the plan's shares (empty list: fine): a pair that never came or came far under its share, a look whose share moved.
+    A look's share is a binomial proportion of the n spawns, so it may sit z standard deviations (sqrt(want * (1 - want) / n)) from its expected share `looks` (the plan's when not given): 980 spawns
+    allow 0.042 around 0.12, and a rarely drawn look cannot be flagged by luck; the real spread is a little under that (per level the draws are not independent, the filter spreads them)."""
     n = sum(counts.values())
     bad = []
     for (lk, p), s in sorted(shares.items()):
@@ -70,9 +88,9 @@ def problems(counts, shares, min_ratio=0.1, look_tol=0.35):
         if c == 0 or c < min_ratio * s * n:
             bad.append(("pair under its share", lk, p, c, round(s * n, 1)))
     for lk in sorted({k[0] for k in shares}):
-        want = sum(s for k, s in shares.items() if k[0] == lk)
+        want = looks[lk] if looks else sum(s for k, s in shares.items() if k[0] == lk)
         got = sum(c for k, c in counts.items() if k[0] == lk) / n
-        if abs(got - want) > look_tol * want + 0.02:
+        if abs(got - want) > z * (want * (1 - want) / n) ** 0.5 + 0.005:
             bad.append(("look share moved", lk, round(got, 3), round(want, 3)))
     return bad
 
@@ -198,4 +216,4 @@ def test_every_allowed_pair_comes_up_the_first_is_default_and_no_look_repeats_it
                     assert p != last[lk], (lk, p, "the same palette as this look's last appearance")
                 last[lk] = p
     assert firsts >= 5 * nlev // 2, (firsts, nlev)
-    assert problems(counts, plan_shares(group)) == []
+    assert problems(counts, plan_shares(group), looks=look_shares(group)) == []
