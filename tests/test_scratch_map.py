@@ -105,7 +105,7 @@ GROUPS = {
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
         "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
-        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 23, "src/smap_cloud.c": 27, "src/smap_eng.c": 6, "src/smap_priv.h": 3,
+        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 3, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 23, "src/smap_cloud.c": 27, "src/smap_eng.c": 6, "src/smap_priv.h": 3,
         "src/story.c": 23, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
@@ -120,7 +120,7 @@ SOURCE_HAS = {
     "src/oneline.h": [r"story_scratch \+ SCR_OL_AT\)\)"],
     "src/credits.c": [r"story_scratch \+ 72\)", r"story_scratch \+ 200\)\)", r"story_scratch \+ 200 \+ sizeof\(portrait_t\)", r"sizeof\(struct cr_state\) <= 68"],
     "src/main.c": [r"story_scratch\[69\]", r"story_scratch\[68\]"],
-    "src/rush.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20"],
+    "src/rush.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ 11 \* 20 \+ 48"],   # (the list's picture state: the tail of row buffers 11-13, after the VBlank staging)
     "src/boss.c": [r"story_scratch \+ SCR_LD_AT"], "src/boss_prototype.c": [r"story_scratch \+ SCR_BELT_AT"],
     "src/boss_duke.c": [r"story_scratch \+ SCR_CAP_AT"], "src/boss_sumo.c": [r"story_scratch \+ SCR_CAP_AT"],
     "src/boss.h": [r"story_scratch \+ SCR_CAP_AT", r"story_scratch \+ SCR_BOSS_AT", r"#define BOSS_SCRATCH_N\s+73\b"],

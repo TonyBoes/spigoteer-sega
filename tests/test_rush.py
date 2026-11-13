@@ -5,6 +5,7 @@
 # card between them) and its end (after the last boss, or out of lives), the bests saved; a rush writes nothing to the
 # story progress, the tunes or the high-score tables; "MGP1" migrates with its mini-games, a bad block loses only itself.
 import re
+import sys
 
 import pytest
 from conftest import (clear_regulars, K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP,
@@ -41,6 +42,8 @@ NAMES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOT
          "LEO THE LION", "MOTHERSHIP"]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY",
           "THE CHROME COW", "THE TEAHOUSE", "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
+sys.path.insert(0, str(ROOT / "tools"))
+import gen_rush_portraits as gen                      # (the picture's source: the whole figure, topper and body, from build/boss_<name>_art.h)
 BUILT = sorted(BOSS_BUILT)                     # the built bosses in chapter order (gen_story BUILT_SLOTS["BOSS"])
 STORY_H = (ROOT / "build" / "story.h").read_text()
 COLON = QUEST + 3                              # ST_GLYPH_COLON = STORY_FONT_BASE + 6 (QUEST is + 3)
@@ -261,8 +264,8 @@ def test_the_list_works_for_any_number_of_built_bosses(model):
                 tap(gb, "right")
                 gb.run(4)
                 assert selection(gb) == NAMES[k], (n, k)
-                body = tilemap_row(gb, 8, 7, 6)
-                assert body == [136 + 12 * k + 2 * i for i in range(6)], (n, k, body)
+                gb.run(40)                                    # (his tiles stream in, then the picture is swapped in)
+                assert picture_matches(gb, k), (n, k, "the window shows his whole figure")
 
 
 WIN = (56, 56, 104, 88)                                   # the window's interior in pixels: columns 7-12, rows 7-10
@@ -283,17 +286,73 @@ def drawn_centre(gb):
     return (min(xs) + max(xs) + 1) / 2, (min(ys) + max(ys) + 1) / 2
 
 
+def figure_grid(v):
+    """The window's 48 x 32 px as the source says: boss v's whole figure (topper and body), centred by its drawn pixels (index 0 = backdrop)."""
+    rows, _ = gen.figure_pixels(ROOT / "build", gen.BOSSES[v])
+    return gen.place(rows)[0]
+
+
+def picture_matches(gb, v):
+    """The window's interior shows exactly boss v's whole figure: the drawn pixels are the source's, and each of its colour indices is one colour."""
+    im = gb.image().convert("RGB")
+    x0, y0, _, _ = WIN
+    back = im.getpixel((x0, y0))
+    grid = figure_grid(v)
+    seen = {}
+    for y in range(32):
+        for x in range(48):
+            px, want = im.getpixel((x0 + x, y0 + y)), grid[y][x]
+            if (want == 0) != (px == back) or (want and seen.setdefault(want, px) != px):
+                return False
+    return len(set(seen.values())) == len(seen)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_boss_is_centred_by_his_drawn_pixels(model):
-    """The window's middle is (80, 72): each built boss's fight sprite, measured on the picture, lands within half a pixel of it both ways."""
+    """The window's middle is (80, 72): each built boss's WHOLE fight figure (his topper over his body: up to 24 rows, not just the body's 16), measured on the
+    picture, is as tall and wide as the source's and lands within half a pixel of it both ways."""
     with to_list(booted(model)) as gb:
         for k, v in enumerate(BUILT):
-            to_game = k
-            while R(gb, LIST_SEL) != to_game:
+            while R(gb, LIST_SEL) != k:
                 tap(gb, "right")
-            gb.run(8)
+            gb.run(40)
             cx, cy = drawn_centre(gb)
             assert abs(cx - 80) <= 0.5 and abs(cy - 72) <= 0.5, (NAMES[v], cx, cy)
+            xs = [x for r in figure_grid(v) for x, p in enumerate(r) if p]
+            ys = [y for y, r in enumerate(figure_grid(v)) if any(r)]
+            assert drawn_size(gb) == (max(xs) - min(xs) + 1, ys[-1] - ys[0] + 1), (NAMES[v], drawn_size(gb))
+
+
+def drawn_size(gb):
+    """The width and height of what is drawn in the window's interior."""
+    im = gb.image().convert("RGB")
+    x0, y0, x1, y1 = WIN
+    back = im.getpixel((x0, y0))
+    pts = [(x, y) for y in range(y0, y1) for x in range(x0, x1) if im.getpixel((x, y)) != back]
+    return max(p[0] for p in pts) - min(p[0] for p in pts) + 1, max(p[1] for p in pts) - min(p[1] for p in pts) + 1
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_scrolling_through_the_bosses_shows_each_one_complete(model):
+    """RIGHT through all ten bosses (and back with LEFT, and by a quick mash of 3 steps): once the picture has settled the window holds that boss's whole figure,
+    pixel for pixel (the hat, the antenna, the horns included), and never a half-loaded one: while the next picture streams in the old one stays, whole."""
+    with to_list(booted(model)) as gb:
+        assert picture_matches(gb, BUILT[0]), NAMES[0]
+        for k in range(1, len(BUILT)):
+            tap(gb, "right")
+            for _ in range(40):                           # (every frame while it changes: the old picture or the new one, never a mix)
+                gb.run(1)
+                assert picture_matches(gb, BUILT[k - 1]) or picture_matches(gb, BUILT[k]), (model, k)
+            assert picture_matches(gb, BUILT[k]), (model, NAMES[BUILT[k]])
+        for k in range(len(BUILT) - 2, -1, -1):
+            tap(gb, "left")
+            gb.run(40)
+            assert picture_matches(gb, BUILT[k]), (model, NAMES[BUILT[k]])
+        tap(gb, "right")                                  # a mash: the picture that settles is the last one's
+        tap(gb, "right")
+        tap(gb, "right")
+        gb.run(60)
+        assert picture_matches(gb, BUILT[3]), (model, "after a mash")
 
 
 def test_the_list_follows_the_story_data():
@@ -736,6 +795,7 @@ def test_the_list_is_intact_after_the_mothership(model, route):
         tap(gb, "left")                                   # (wraps to the last line)
         assert R(gb, LIST_SEL) == len(BUILT) - 1 and BUILT[-1] == 9
         before = bytes(gb.read(gb.addr("story_scratch") + RUSH_AT, 48))
+        gb.run(40)                                        # (his picture streams in)
         name, centre = selection(gb), drawn_centre(gb)
         tap(gb, "a")
         into_fight(gb, entered=False)

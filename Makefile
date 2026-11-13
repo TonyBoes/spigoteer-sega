@@ -180,28 +180,10 @@ PRACTICE_ART_DIRS ?= assets/art/practice
 $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c $(BUILD)/practice_art.h $(BUILD)/practice_art.json &: tools/gen_practice_art.py $(foreach d,$(PRACTICE_ART_DIRS),$(wildcard $(d)/*.png)) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_practice_art.py $(BUILD) $(OUT)/preview --dirs $(PRACTICE_ART_DIRS)
 
-# The Boss Rush list's portraits (src/rush.c): each boss's sprite centred by its drawn pixels -> build/rush_portraits.h (tools/gen_rush_portraits.py)
+# The Boss Rush list's portraits (src/rush.c): each boss's whole figure (topper and body) centred by its drawn pixels -> build/rush_portraits.h (tools/gen_rush_portraits.py)
 BONUS_H  += $(BUILD)/rush_portraits.h
-#   PROPOSALS (owner 2026-11-13, boss portraits cut off): make BUILD=out/b_rushA OUT=out/o_rushA RUSHPIC=A unlocked   RUSHPIC=A|AS|AT: the whole figure at 1:1 on three
-#   tile rows with content-packed tiles (src/rush.c RUSHPIC_A; AS / AT: seated at the bottom / at the top), B: hand-drawn 0.7 reductions, C: a crop that keeps
-#   the topper. Generator and art: docs/dev/concepts/rush_portraits_2026-11-13/. Off by default: nothing changes without RUSHPIC.
-RUSHPIC  ?=
-export RUSHPIC
-RUSHPIC_DIR := docs/dev/concepts/rush_portraits_2026-11-13
-ifneq ($(RUSHPIC),)
-RUSHPIC_DEP := $(wildcard $(RUSHPIC_DIR)/*.py $(RUSHPIC_DIR)/*.txt)
-ifneq ($(filter A AS AT,$(RUSHPIC)),)
-LCCFLAGS += -DRUSHPIC_A
-endif
-else
-RUSHPIC_DEP :=
-endif
-$(BUILD)/rush_portraits.h: tools/gen_rush_portraits.py assets/tiles/story.txt $(BOSS_H) $(RUSHPIC_DEP) | $(BUILD)
-ifeq ($(RUSHPIC),)
+$(BUILD)/rush_portraits.h: tools/gen_rush_portraits.py assets/tiles/story.txt src/boss.c $(BOSS_H) | $(BUILD)
 	python3 tools/gen_rush_portraits.py $(BUILD)
-else
-	python3 $(RUSHPIC_DIR)/gen_variant.py $(BUILD) $(RUSHPIC)
-endif
 
 BONUS_H  += $(BUILD)/cameo_art.h
 # Story cameos (src/cameo.c): the Sasquatch / Leo poses, the valve and the map UFO transcribed to OBJ tiles + the hand-placed beam
