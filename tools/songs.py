@@ -1033,6 +1033,91 @@ ENT_BASS_CHECK = H.bass_check(ENT_FULL_BASS, ENT_FULL_CHORDS, 8)
 song("entertainer", 9, "A", ENT_FULL_MEL, ENT_FULL_BASS, swing=0xAA, groove=ENT_GROOVE, short_orders=(0, 15))
 SONGS["entertainer"].update(ch1=ENT_FULL_HARM, ch1_inst=("harm50", "harm50"))
 
+# ---------------------------------------------------------------------------------------------
+# "Swipesy" Cake Walk (Scott Joplin and Arthur Marshall, John Stark & Son, 1900; public domain): the story map's tune (src/smap.c, TUNE_MAP), the owner's
+# pick of 2026-11-12 / 13 (music batch 5, revision 3.2 with the hybrid A).  Melody: the top note of the right hand of the owner's scan of the first edition
+# (docs/dev/music_sources/swipesy_cakewalk_score.pdf), every pitch and rhythm as printed; chords and bass: the score's left hand; the second voice
+# (channel 1) and the drums are ours.  The order is the score's A A B B A C C D D with one pass of A, B and D and both passes of the trio: 96 bars of
+# 8 rows, 768 rows, 12 orders, 11 frames a row (a quarter = 82 a minute), 8448 frames = 140.8 s a pass, looping.  Every strain is an octave lower than the
+# score's register (the owner's "ABCD"); the second voice is the left hand's fills in A bars 1-11, the counter-melody in A bars 12-16 and in D, B's
+# revision 3.2 and the trio's fills (all on the "voice" instrument).  The text below is the audition generator's output (rags_data.swipesy_map_32() on
+# the audition branch), byte for byte; it is streamed through buffer A like the title (gen_music.STREAMED) and its drums are a 32-row groove.
+SW_MEL = (
+    "A#4:1 A#4:2 F4:1 A4:1 G4:1 F4:1 D4:1 F4:1 G4:2 F4:1 D4:2 A#3:2 A#3:1 D4:2 A#3:1 A3:2 D4:1 G3:1 ~:4 r:1 A#3:2 "
+    "G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 D4:2 A#3:1 D4:4 C4:1 A#4:2 A4:1 ~:1 E4:1 G4:2 C5:1 F4:1 "
+    "A4:1 F4:1 G4:1 A4:2 F4:1 A#4:1 A#4:2 F4:1 A4:1 G4:1 F4:1 D4:1 F4:1 G4:2 F4:1 D4:2 A#3:2 A#3:1 D4:2 A#3:1 A3:2 "
+    "D4:1 G3:1 ~:4 r:1 A#3:2 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 D4:2 A#3:1 D4:4 G3:1 D4:3 A3:1 "
+    "C4:2 A#3:1 ~:1 F3:1 G3:1 A3:1 A#3:2 F3:2 A3:1 D#4:2 C4:1 D4:1 C4:1 A3:1 F3:1 A3:1 D#4:2 C4:1 D4:1 C4:1 A3:1 F3:1 "
+    "A#3:1 D4:2 A#3:1 G3:4 r:1 D4:2 C4:1 D4:1 C4:1 A#3:1 G3:1 A3:1 D4:2 C4:1 A3:4 ~:8 A#3:1 D4:2 A#3:1 G3:4 r:1 D4:2 "
+    "C4:1 D4:1 C4:1 A#3:1 G3:1 A3:1 D#4:2 C4:1 D4:1 C4:1 A3:1 F3:1 A3:1 D#4:2 C4:1 D4:1 C4:1 A3:1 F3:1 A#3:1 D4:2 "
+    "A#3:1 G3:4 r:1 D4:2 C4:1 D4:1 C4:1 A#3:1 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 D4:2 A#3:1 D4:4 "
+    "G3:1 D4:3 A3:1 C4:2 A#3:1 ~:2 F4:2 G4:2 A4:2 A#4:1 A#4:2 F4:1 A4:1 G4:1 F4:1 D4:1 F4:1 G4:2 F4:1 D4:2 A#3:2 "
+    "A#3:1 D4:2 A#3:1 A3:2 D4:1 G3:1 ~:4 r:1 A#3:2 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 D4:2 A#3:1 "
+    "D4:4 C4:1 A#4:2 A4:1 ~:1 E4:1 G4:2 C5:1 F4:1 A4:1 F4:1 G4:1 A4:2 F4:1 A#4:1 A#4:2 F4:1 A4:1 G4:1 F4:1 D4:1 F4:1 "
+    "G4:2 F4:1 D4:2 A#3:2 A#3:1 D4:2 A#3:1 A3:2 D4:1 G3:1 ~:4 r:1 A#3:2 G3:1 A#3:1 C4:1 A#3:1 G3:1 A#3:1 C4:1 A#3:1 "
+    "G3:1 A#3:1 D4:2 A#3:1 D4:4 G3:1 D4:3 A3:1 C4:2 A#3:1 ~:1 F3:1 G3:1 A3:1 A#3:2 A#4:1 A4:1 G#4:2 F4:1 F4:1 ~:1 "
+    "C4:1 D4:1 D#4:1 G4:2 F4:1 F4:1 ~:1 A#3:1 C4:1 D4:1 F4:2 D#4:1 D#4:1 ~:1 G3:1 G#3:1 A#3:1 C4:2 A#3:1 A#3:1 ~:1 "
+    "G3:1 F3:1 D#3:1 r:1 D3:1 F3:1 G#3:1 D4:1 C4:2 D4:1 C4:2 C4:1 C4:1 ~:1 A#3:1 G#3:1 F3:1 r:1 D#3:1 G3:1 A#3:1 "
+    "D#4:1 A#3:2 D#4:1 C4:2 A#3:1 A#3:1 ~:2 A#4:1 A4:1 G#4:2 F4:1 F4:1 ~:1 C4:1 D4:1 D#4:1 G4:2 F4:1 F4:1 ~:1 A#3:1 "
+    "C4:1 D4:1 F4:2 D#4:1 D#4:1 ~:1 G3:1 G#3:1 A#3:1 C4:2 A#3:1 A#3:1 ~:1 A#3:1 D#4:1 G4:1 r:1 E4:1 G4:1 A#4:1 C#5:1 "
+    "C5:2 A#4:1 ~:1 G#4:1 G4:2 F4:2 F#4:2 G4:1 A#4:2 G4:1 F4:2 F4:1 D#4:1 ~:1 G4:2 C5:1 A#4:2 A#4:1 A4:1 G#4:2 F4:1 "
+    "F4:1 ~:1 C4:1 D4:1 D#4:1 G4:2 F4:1 F4:1 ~:1 A#3:1 C4:1 D4:1 F4:2 D#4:1 D#4:1 ~:1 G3:1 G#3:1 A#3:1 C4:2 A#3:1 "
+    "A#3:1 ~:1 G3:1 F3:1 D#3:1 r:1 D3:1 F3:1 G#3:1 D4:1 C4:2 D4:1 C4:2 C4:1 C4:1 ~:1 A#3:1 G#3:1 F3:1 r:1 D#3:1 G3:1 "
+    "A#3:1 D#4:1 A#3:2 D#4:1 C4:2 A#3:1 A#3:1 ~:2 A#4:1 A4:1 G#4:2 F4:1 F4:1 ~:1 C4:1 D4:1 D#4:1 G4:2 F4:1 F4:1 ~:1 "
+    "A#3:1 C4:1 D4:1 F4:2 D#4:1 D#4:1 ~:1 G3:1 G#3:1 A#3:1 C4:2 A#3:1 A#3:1 ~:1 A#3:1 D#4:1 G4:1 r:1 E4:1 G4:1 A#4:1 "
+    "C#5:1 C5:2 A#4:1 ~:1 G#4:1 G4:2 F4:2 F#4:2 G4:1 A#4:2 G4:1 F4:2 F4:1 D#4:1 ~:2 A#4:2 D#5:2 F3:2 F4:1 D4:2 F4:1 "
+    "D4:4 F4:1 D4:2 F4:1 D4:3 A#3:1 ~:1 C4:1 D4:1 A#3:1 C4:1 D4:1 C4:1 A#3:1 ~:7 F3:1 F4:1 D4:2 F4:1 D4:4 F4:1 D4:2 "
+    "F4:1 D4:3 G3:1 ~:2 D4:2 C4:1 D4:2 C4:1 ~:2 F4:2 E4:2 D#4:2 F4:1 D4:2 F4:1 D4:4 F4:1 D4:2 F4:1 D4:3 A#3:1 ~:1 "
+    "C4:1 A#3:2 C4:1 A#3:1 C4:1 D4:1 ~:7 A#3:1 D4:1 A#3:1 C4:1 D4:1 C4:1 A#3:1 G#3:1 D4:1 D#4:2 D4:1 C4:1 ~:1 A#3:1 "
+    "G3:1 A#3:1 F3:1 F4:2 D4:1 C4:2 C4:1 A#3:1 ~:1 A#3:1 D4:1 F4:1 A#4:2 r:2"
+)
+
+SW_BASS = (
+    "A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 D3:2 F2:2 G2:2 D3:2 D3:2 F#2:2 G2:2 D2:2 G2:2 D2:2 D#2:2 F2:2 G2:2 A2:2 A#2:2 "
+    "F2:2 G2:2 A#2:2 C3:2 G2:2 C3:2 E2:2 F2:2 F#2:2 G2:2 A2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 D3:2 F2:2 G2:2 D3:2 "
+    "D3:2 F#2:2 G2:2 D2:2 G2:2 D2:2 D#2:2 F2:2 G2:2 A2:2 A#2:2 F2:2 G2:2 B2:2 C3:2 G2:2 F2:2 A2:2 A#2:2 F2:2 A#2:2 "
+    "D#2:2 F2:2 C3:2 F2:2 C3:2 F2:2 C3:2 F2:2 A2:2 A#2:2 F2:2 D3:4 G2:2 D3:2 G2:2 C3:2 D3:2 A2:2 D3:4 D3:2 D#3:1 D3:1 "
+    "~:1 C3:1 A#2:1 A2:1 G2:2 D3:2 A#2:4 G2:2 D3:2 A#2:2 G2:2 F2:2 C3:2 F2:2 C3:2 F2:2 C3:2 F2:2 A2:2 A#2:2 F2:2 D3:4 "
+    "G2:2 D3:2 G2:2 D2:2 D#2:2 F2:2 G2:2 A2:2 A#2:2 F2:2 G2:4 C3:2 G2:2 F2:2 A2:2 A#2:2 D3:2 C#3:2 C3:2 A#2:2 F2:2 "
+    "A#2:2 F2:2 A#2:2 F2:2 D3:2 F2:2 G2:2 D3:2 D3:2 F#2:2 G2:2 D2:2 G2:2 D2:2 D#2:2 F2:2 G2:2 A2:2 A#2:2 F2:2 G2:2 "
+    "A#2:2 C3:2 G2:2 C3:2 E2:2 F2:2 F#2:2 G2:2 A2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 D3:2 F2:2 G2:2 D3:2 D3:2 F#2:2 "
+    "G2:2 D2:2 G2:2 D2:2 D#2:2 F2:2 G2:2 A2:2 A#2:2 F2:2 G2:2 B2:2 C3:2 G2:2 F2:2 A2:2 A#2:2 F2:2 D3:2 A#2:1 C3:1 "
+    "D3:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 D3:2 D#3:2 A#2:2 D#3:2 A#2:2 D#3:2 A#2:2 G3:2 G#2:2 A#2:2 F2:2 A#2:2 F2:2 "
+    "A#2:2 F2:2 A#2:2 D3:2 D#3:2 A#2:2 D#3:2 A#2:2 D#3:2 A#2:2 G2:2 A#2:1 C3:1 D3:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 "
+    "D3:2 D#3:2 A#2:2 D#3:2 A#2:2 D#3:2 A#2:2 G3:2 A#2:2 C3:2 G2:2 E2:2 G2:2 F2:2 G2:2 G#2:2 A2:2 A#2:2 D#3:2 C3:2 "
+    "D3:2 D#3:2 A#2:2 D#3:2 A#2:1 C3:1 D3:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 D3:2 D#3:2 A#2:2 D#3:2 A#2:2 D#3:2 A#2:2 "
+    "G3:2 G#2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 D3:2 D#3:2 A#2:2 D#3:2 A#2:2 D#3:2 A#2:2 G2:2 A#2:1 C3:1 D3:2 "
+    "F2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 D3:2 D#3:2 A#2:2 D#3:2 A#2:2 D#3:2 A#2:2 G3:2 A#2:2 C3:2 G2:2 E2:2 G2:2 F2:2 "
+    "G2:2 G#2:2 A2:2 A#2:2 D#3:2 C3:2 D3:2 D#3:2 A#2:2 D#2:2 r:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 D3:2 D2:2 D#2:2 "
+    "F2:2 G2:2 A2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 D3:2 F2:2 A#2:2 F2:2 D3:2 A#2:2 C3:2 G2:2 C3:2 E2:2 F2:2 F2:2 "
+    "G2:2 A2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 F2:2 A#2:2 D3:2 D#3:2 D#2:2 D#3:2 D#2:2 D3:2 A2:2 F#2:2 D2:2 A#2:2 G#2:2 "
+    "G2:2 F2:2 D#2:2 A#2:2 E2:2 A#2:2 F2:2 A#2:2 G2:2 A2:2 A#2:2 F2:2 A#2:2 r:2"
+)
+
+SW_HARM = (
+    "D4:4 C4:4 A#3:4 F3:2 G3:2 G3:4 F#3:4 D4:1 A#3:2 D4:1 G4:2 D4:2 D#4:4 D4:4 F4:4 A#3:2 G3:2 E3:4 G3:4 D#4:4 C4:4 "
+    "D4:4 C4:4 A#3:4 F3:2 G3:2 G3:4 F#3:4 D4:1 A#3:2 D4:1 G4:2 D4:2 D#4:4 D4:4 F4:4 B3:2 G3:2 E3:4 D#3:4 D3:4 F3:2 "
+    "r:2 F3:4 A3:4 D#3:4 F3:4 F3:4 r:2 A#3:1 D4:1 A#3:4 G3:4 F#3:4 r:2 C4:1 D4:1 F#4:2 A4:1 F#4:1 ~:1 F#4:1 D4:1 C4:1 "
+    "G3:4 r:2 D4:1 A#3:1 G3:4 D3:4 F3:4 A3:4 D#3:4 F3:4 F3:4 r:2 A#3:1 D4:1 A#3:4 G3:4 D#3:4 D3:4 F3:4 r:2 B3:1 G3:1 "
+    "E3:4 D#3:4 D4:6 r:2 D4:4 C4:4 A#3:4 F3:2 G3:2 G3:4 F#3:4 D4:1 A#3:2 D4:1 G4:2 D4:2 D#4:4 D4:4 F4:4 A#3:2 G3:2 "
+    "E3:4 G3:4 D#4:4 C4:4 D4:4 C4:4 A#3:4 F3:2 G3:2 G3:4 F#3:4 D4:1 A#3:2 D4:1 G4:2 D4:2 D#4:4 D4:4 F4:4 B3:2 G3:2 "
+    "E3:4 D#3:4 D3:4 F3:2 r:2 F4:2 D4:1 D4:2 G#3:1 A#3:1 A#3:1 A#3:2 D4:1 D4:2 D3:1 G#3:1 A#3:1 A#3:2 G3:1 G3:2 D#3:1 "
+    "D#3:1 G3:1 G3:2 G3:1 G3:2 D#4:1 D3:1 C3:1 r:1 F3:1 D3:1 F3:1 A#3:1 G#3:2 A#3:1 G#3:2 G#3:1 G#3:2 D3:1 F3:1 D3:1 "
+    "r:1 C4:1 D#3:1 G3:1 G3:1 G3:2 G3:1 G3:2 G3:1 G3:3 G4:1 F4:1 F4:2 D4:1 D4:2 G#3:1 A#3:1 A#3:1 A#3:2 D4:1 D4:2 "
+    "D3:1 G#3:1 A#3:1 A#3:2 G3:1 G3:2 D#3:1 D#3:1 G3:1 G3:2 G3:1 G3:2 G3:1 G3:1 D#4:1 r:1 C4:1 E4:1 G4:1 E4:1 E4:2 "
+    "G4:1 F4:1 F4:1 C4:2 A3:2 D#4:2 D#4:1 G4:2 D#4:1 D4:2 D4:1 A#3:1 G3:1 D#4:2 D#4:1 G4:2 G4:1 F4:1 F4:2 D4:1 D4:2 "
+    "G#3:1 A#3:1 A#3:1 A#3:2 D4:1 D4:2 D3:1 G#3:1 A#3:1 A#3:2 G3:1 G3:2 D#3:1 D#3:1 G3:1 G3:2 G3:1 G3:2 D#4:1 D3:1 "
+    "C3:1 r:1 F3:1 D3:1 F3:1 A#3:1 G#3:2 A#3:1 G#3:2 G#3:1 G#3:2 D3:1 F3:1 D3:1 r:1 C4:1 D#3:1 G3:1 G3:1 G3:2 G3:1 "
+    "G3:2 G3:1 G3:3 G4:1 F4:1 F4:2 D4:1 D4:2 G#3:1 A#3:1 A#3:1 A#3:2 D4:1 D4:2 D3:1 G#3:1 A#3:1 A#3:2 G3:1 G3:2 D#3:1 "
+    "D#3:1 G3:1 G3:2 G3:1 G3:2 G3:1 G3:1 D#4:1 r:1 C4:1 E4:1 G4:1 E4:1 E4:2 G4:1 F4:1 F4:1 C4:2 A3:2 D#4:2 D#4:1 G4:2 "
+    "D#4:1 D4:2 D4:1 A#3:1 G3:2 G4:2 G4:2 D3:2 F3:4 A#3:1 F3:2 A#3:1 F3:4 A#3:1 F3:2 D3:1 D#3:4 G3:4 D4:1 F4:2 D4:1 "
+    "A#4:2 F4:2 F3:4 A#3:1 F3:2 A#3:1 F3:4 A#3:1 F3:2 D3:1 E3:4 G3:4 A3:4 C4:4 F3:4 A#3:1 F3:2 A#3:1 F3:4 A#3:1 F3:2 "
+    "D4:1 G3:4 G3:4 F#3:2 A3:2 F#4:3 r:1 F3:4 F3:4 G3:4 E3:4 D3:4 D#3:4 D3:4 D4:2 r:2"
+)
+SW_GROOVE = "b:1 r:1 t:1 r:1 x:1 r:1 t:1 r:1 b:1 r:1 t:1 b:1 x:1 r:1 t:1 t:1 b:1 r:1 t:1 r:1 x:1 r:1 t:1 r:1 b:1 r:1 t:1 b:1 x:1 r:1 n:1 o:1"
+song("swipesy", 11, "A", SW_MEL, SW_BASS, groove=SW_GROOVE)
+SONGS["swipesy"].update(ch1=SW_HARM, ch1_inst=("voice", "voice"))
+
 # which songs, in tune order after title/show
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"]
 

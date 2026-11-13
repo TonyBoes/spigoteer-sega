@@ -369,14 +369,17 @@ BLOB_BANKS = (10,)      # a bank of their own (the autobanker only places `#prag
 CREDITS = "credits"
 CREDITS_BANK = 22
 TITLE_BANK = 23
-STREAMED = {"title": TITLE_BANK, CREDITS: CREDITS_BANK}
+MAP = "map"                  # the story map's tune (Swipesy Cake Walk, tools/songs.py "swipesy"): looping, streamed like the title; TUNE_MAP follows TUNE_CREDITS
+MAP_BANK = 25
+STREAMED = {"title": TITLE_BANK, CREDITS: CREDITS_BANK, MAP: MAP_BANK}
 STREAM_BUF = 3                # tune_t.buf of a streamed tune (buffer A, always copied afresh, order tables wrap at 8 patterns)
 STREAM_PRELOAD = 8            # patterns in the first copy (the buffer's size)
 CREDITS_ORDERS = 10
 JINGLE_BANK = 24              # the jingles' patterns (batch 1 moved them out of bank 2): copied to buffer A like any tune's (a jingle starts 1-4 frames later)
 PAT_BANKS = BLOB_BANKS + tuple(STREAMED.values()) + (JINGLE_BANK,)     # one build/music_pat<bank>.c each (the Makefile's GEN lists the same; tools/music_rig.py copies these only)
-TUNES = ORDER + [CREDITS]
+TUNES = ORDER + [CREDITS, MAP]
 SOURCE[CREDITS] = CREDITS
+SOURCE[MAP] = "swipesy"
 BUF_ID = {"A": 1, "B": 2}
 
 
@@ -452,7 +455,7 @@ def kick_body(t):
             if nm == "b":
                 kicks.add(r)
             r += int(rest.split("/")[0].rstrip("!"))
-    if not kicks:
+    if not kicks or t.get("no_kick_body"):      # (songs.SONGS[name]["no_kick_body"] = True: a tune that keeps its bass plain)
         return t["ch3"]
     out, r = [], 0
     for tok in t["ch3"].split():

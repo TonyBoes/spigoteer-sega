@@ -586,7 +586,7 @@ def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch
     # build/ is what the generator makes from the sources now
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
-    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c"):
+    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c", "music_pat25.c"):
         assert filecmp.cmp(tmp_path / f, BUILD / f, shallow=False), f + " is stale"
     # the order tables: orders 0-3 use patterns 0-7 of the buffer, order j >= 4 sits over order j & 3
     data = (BUILD / "music_data.c").read_text()

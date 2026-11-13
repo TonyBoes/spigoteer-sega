@@ -1010,7 +1010,8 @@ void smap_enter(uint8_t quick) BANKED {
     hide_all_sprites();
     win_rows[0][4] = 0;                            // (Dregs's gag state, src/dgag.c: a POST scene skipped mid-gag leaves none running)
     music_fast = 0;
-    music_play(TUNE_TITLE);
+    music_play(TUNE_MAP);                          // (Swipesy: its first four orders are copied now, with the screen off, not in the frames that follow)
+    music_load_now();
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
     story_font_load();                             // (the font first: the world's tiles take the ids around it)
     dim_load();

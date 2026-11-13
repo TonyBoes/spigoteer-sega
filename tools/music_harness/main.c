@@ -16,7 +16,7 @@ void main(void) {
     while (1) {
         if (aud_req != aud_cur) {
             aud_cur = aud_req;
-            if (aud_cur == 255) music_stop(); else if (aud_cur <= TUNE_CREDITS) music_play(aud_cur);
+            if (aud_cur == 255) music_stop(); else if (aud_cur < TUNE_ALL) music_play(aud_cur);
         }
         vsync();
         {
