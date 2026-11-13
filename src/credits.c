@@ -384,7 +384,11 @@ static void cr_white(void) {                      // LCD off: every palette whit
 #define CR_VMAX       4     // the glide's cruise speed (px a frame); the ramps take CR_VLEN frames at each speed 1..CR_VMAX
 #define CR_VLEN       4
 #define CR_RAMP      40     // the px of one ramp: 4 * (1 + 2 + 3 + 4)
+#if CT_FLOWFMT
+#define CR_END_HOLD  45     // (smooth: the last page is on as the tune ends, and goes with it)
+#else
 #define CR_END_HOLD 240     // the roll's end is held this many frames
+#endif
 
 static uint8_t cr_hgt(uint8_t c) {                // a card's rows
     uint8_t v = 0, kd;
@@ -701,6 +705,33 @@ static void cr_glide(void) {                      // the glide from stop k to th
     CR->ph = 0; CR->st = 1;
 }
 
+#if CT_FLOWFMT
+// CRFLOW=SMOOTH: no stops. The picture moves up CR->ts / 65536 px a frame (CR->nc, rr: the fraction's carry, a whole px on the frames it overflows: the most even a pixel scroll can be)
+// from the first frame to the roll's last scroll, which it reaches CR_FLOW_TAIL frames before the tune ends (cr_flow_init); then the last page is held and the roll leaves with the tune.
+#define CR_FLOW_TAIL 100          // (the roll starts counting 55 frames after the tune: the fade in; the last scroll lands as the tune's last row rings out)
+static void cr_flow_init(void) {
+    uint32_t n = ((uint32_t)(CR->wroll * 8 + CR_LAST_T) - CR->pos) << 16, r = 0;
+    uint16_t d = music_tune_frames(TUNE_CREDITS) - CR_FLOW_TAIL, q = 0;
+    uint8_t i;
+    for (i = 0; i < 32; i++) {                       // (a long division bit by bit: the library's would sit in ROM0)
+        r = (r << 1) | (n >> 31);
+        n <<= 1;
+        q <<= 1;
+        if (r >= d) { r -= d; q |= 1; }
+    }
+    CR->ts = q; *(uint16_t *)&CR->nc = 0;                // (8.16: CR->nc and rr are the fraction's carry)
+}
+
+static void cr_step(void) {
+    uint16_t fin = CR->wroll * 8 + CR_LAST_T;
+    uint32_t f;
+    if (CR->st >= 3) { if (CR->ph < 0xFFFF) CR->ph++; return; }
+    f = (uint32_t)*(uint16_t *)&CR->nc + CR->ts;
+    *(uint16_t *)&CR->nc = (uint16_t)f;
+    CR->pos += (uint16_t)(f >> 16);
+    if (CR->pos >= fin) { CR->pos = fin; CR->st = 3; CR->ph = 0; }
+}
+#else
 static void cr_step(void) {                       // one frame
     uint8_t c = CR->k;
     switch (CR->st) {
@@ -723,6 +754,7 @@ static void cr_step(void) {                       // one frame
         if (CR->ph < 0xFFFF) CR->ph++;
     }
 }
+#endif
 
 void credits_enter(uint8_t from_story) BANKED {
     uint8_t y, *o = CR_PAL;
@@ -762,6 +794,9 @@ void credits_enter(uint8_t from_story) BANKED {
     CR->scroll = CR->pos = CR_W0 * 8 + CT_OFF_TITLE - 72; CR->next = 0; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story;
     CR->gc = 0; CR->gs = CR_W0; CR->gl = 0; CR->sc = 0; CR->ss = CR_W0; CR->ts = CR_W0; CR->live = 0; CR->lw = 0xFFFF; CR->rt = 0; CR->pb = STORY_PORTRAIT_BASE; CR->pp = BGPAL_PATRON; CR->pose = 0; CR->pq = 0; CR->sig = 0xFFFF; CR->sig2 = 255;
     CR->k = 0; CR->st = 0; CR->ph = 0; CR->nc = 0; CR->rr = 0;
+#if CT_FLOWFMT
+    cr_flow_init();
+#endif
     SCX_REG = 0; SCY_REG = 0;
     SCY_REG = (uint8_t)CR->scroll;
     story_phase = STORY_PHASE_CREDITS;

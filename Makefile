@@ -41,6 +41,7 @@ GLOW     ?=
 export GLOW
 export CRFONT
 export CRMAP
+export CRFLOW
 ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif

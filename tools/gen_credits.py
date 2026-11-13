@@ -174,6 +174,8 @@ LABELS = ["OWNER"]
 #   CRMAP=B   a title page of its own for each venue (a card before the owner's): the WHOLE building from the story map on the left, the name beside it (2-3 short lines on a stripe)
 CRFONT = os.environ.get("CRFONT", "")
 CRMAP = os.environ.get("CRMAP", "")
+CRFLOW = os.environ.get("CRFLOW", "")       # SMOOTH: no stops: the whole credits move up at one constant speed, set from the tune's length (owner 2026-11-13: "all one long smooth scroll matched to the song length")
+assert CRFLOW in ("", "SMOOTH"), CRFLOW
 assert CRFONT in ("", "A", "B") and CRMAP in ("", "B"), (CRFONT, CRMAP)
 # The whole buildings of the story map (assets/smap/world_c.png), venue order: (col, row, width, height) in the map's cells, every tile of the building (sign, roof, base, its own ground line;
 # the Chrome Cow's milk tank and parked bikes, the factory's roof crates, the space lounge's tower, plane and runway). Neighbouring trees, piles and roads are left out.
@@ -183,6 +185,7 @@ BUILD_BOX = {0: (3, 21, 9, 7), 1: (1, 1, 12, 10), 2: (54, 20, 6, 7), 3: (20, 4, 
 if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the owner's card starts at OWNER; the venue card's rows are LG blank, the building (BH rows), VPAD blank
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, R_VB=4, VPAD=9)
 LAY["MAPFMT"] = {"": 0, "B": 2}[CRMAP]
+LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
