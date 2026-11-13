@@ -172,9 +172,9 @@ PRACTICE_ART_DIRS ?= assets/art/practice
 $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c $(BUILD)/practice_art.h $(BUILD)/practice_art.json &: tools/gen_practice_art.py $(foreach d,$(PRACTICE_ART_DIRS),$(wildcard $(d)/*.png)) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_practice_art.py $(BUILD) $(OUT)/preview --dirs $(PRACTICE_ART_DIRS)
 
-# The Boss Rush list's portraits (src/rush.c): each boss's sprite centred by its drawn pixels -> build/rush_portraits.h (tools/gen_rush_portraits.py)
+# The Boss Rush list's portraits (src/rush.c): each boss's whole figure (topper and body) centred by its drawn pixels -> build/rush_portraits.h (tools/gen_rush_portraits.py)
 BONUS_H  += $(BUILD)/rush_portraits.h
-$(BUILD)/rush_portraits.h: tools/gen_rush_portraits.py assets/tiles/story.txt $(BOSS_H) | $(BUILD)
+$(BUILD)/rush_portraits.h: tools/gen_rush_portraits.py assets/tiles/story.txt src/boss.c $(BOSS_H) | $(BUILD)
 	python3 tools/gen_rush_portraits.py $(BUILD)
 
 BONUS_H  += $(BUILD)/cameo_art.h
