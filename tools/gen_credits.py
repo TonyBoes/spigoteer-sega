@@ -177,9 +177,11 @@ CRMAP = os.environ.get("CRMAP", "")
 assert CRFONT in ("", "A", "B") and CRMAP in ("", "B"), (CRFONT, CRMAP)
 # The whole buildings of the story map (assets/smap/world_c.png), venue order: (col, row, width, height) in the map's cells, every tile of the building (sign, roof, base, its own ground line;
 # the Chrome Cow's milk tank and parked bikes, the factory's roof crates, the space lounge's tower, plane and runway). Neighbouring trees, piles and roads are left out.
+SCENE_W, SCENE_H = 16, 12                           # every venue's picture: this many cells of the map (the stadium, the largest building, is 12 x 10), the building inside it
+SCENE_AT = {9: (3, 36)}                             # (the scene's first cell where it is not centred on the building: the Space Lounge's shows its UFO and the mountain)
 BUILD_BOX = {0: (3, 21, 9, 7), 1: (1, 1, 12, 10), 2: (54, 20, 6, 7), 3: (20, 4, 9, 7), 4: (51, 5, 8, 7), 5: (52, 36, 10, 9), 6: (50, 55, 12, 9), 7: (24, 55, 10, 7), 8: (6, 54, 8, 7), 9: (4, 36, 7, 7)}
 if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the owner's card starts at OWNER; the venue card's rows are LG blank, the building (BH rows), VPAD blank
-    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, R_VB=LAY_LG, VPAD=9)
+    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, R_VB=4, VPAD=9)
 LAY["MAPFMT"] = {"": 0, "B": 2}[CRMAP]
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
@@ -381,6 +383,8 @@ def main():
         solid = [tile_of([[k] * 160 for _ in range(8)], 0) for k in range(4)]     # (the four flat tiles: BG ids 77-80 on both machines, loaded once)
         ids["SOLID"] = solid
         for v in range(10):
+            if v == 5:
+                POOL_SPLIT, ROW_SPLIT = len(POOL), len(ROWS)    # (venues 0-4 in credits_text2.c, 5-9 in credits_text3.c: a bank holds 16 KB)
             c0, r0, bwc, bhc = BUILD_BOX[v]
             pals = {}
             for cy in range(bhc):
@@ -389,50 +393,28 @@ def main():
                     pals[pn] = pals.get(pn, 0) + 1
             pn = max(pals, key=pals.get)
             BLD_COL.append([rgb555("#%02x%02x%02x" % tuple(c)) for c in wj["pal_rgb"][wj["pal_names"][ord(pn) - 48]]])
-            bpx = [[wim.getpixel((c0 * 8 + x, r0 * 8 + y)) for x in range(8 * bwc)] for y in range(8 * bhc)]   # the map's own pixels, indices 0-3 light to dark
-            words = VENUES[v].split()
-            best = None
-            for cuts in ([2], [1], [1, 2] if len(words) > 2 else [1], [2, 3] if len(words) > 3 else [1]):   # line breaks after these word counts
-                pass
-            opts = []                                      # the splits of the name into 2 or 3 lines (words kept whole), fewest lines first
-            for n1 in range(1, len(words)):
-                opts.append([" ".join(words[:n1]), " ".join(words[n1:])])
-            if len(words) >= 3:
-                opts.append(words[:1] + [" ".join(words[1:2])] + [" ".join(words[2:])])
-                opts.append([words[0], words[1], " ".join(words[2:])])
-            def wid(t):
-                return strip(t)[2] - strip(t)[1] + 1
-            lines = None
-            for cand in sorted(opts, key=lambda c: (len(c), max(wid(t) for t in c))):
-                nw = max(wid(t) for t in cand)
-                if len(cand) > 3:
-                    continue
-                total = 8 * bwc + nw + 8                  # (the stripe starts at the building's edge: the name stands in it with 4 px each side)
-                if total <= 160:
-                    lines = cand
-                    break
-            assert lines, (VENUES[v], "the name does not fit beside the building")
-            nw = max(wid(t) for t in lines) + 8
-            bc0 = max(0, (160 - 8 * bwc - nw) // 16)                  # the building's first column: half the slack, cell aligned (the stripe runs on to the screen's edge)
-            sc = bc0 + bwc                                           # the stripe's first column
-            nl = len(lines)
-            j0 = (bhc - nl) // 2
+            # the scene: ONE size for every venue (SCENE_W x SCENE_H cells of the map), the building in it with the map's own ground and props around it (map pixels only); the name on a stripe under it
+            bx0, by0 = SCENE_AT.get(v, (c0 + bwc // 2 - SCENE_W // 2, r0 + bhc // 2 - SCENE_H // 2))
+            bx0 = max(0, min(wj["cw"] - SCENE_W, bx0))
+            by0 = max(0, min(wj["ch"] - SCENE_H, by0))
+            assert bx0 <= c0 and c0 + bwc <= bx0 + SCENE_W and by0 <= r0 and r0 + bhc <= by0 + SCENE_H, (VENUES[v], "the building is not inside its scene")
+            bpx = [[wim.getpixel((bx0 * 8 + x, by0 * 8 + y)) for x in range(8 * SCENE_W)] for y in range(8 * SCENE_H)]   # the map's own pixels, indices 0-3 light to dark
+            bc0 = (20 - SCENE_W) // 2
+            name = VENUES[v]
+            tx, t0, t1 = strip(name)
+            assert t1 - t0 + 1 <= 152, (name, t1 - t0 + 1)
             ids_first = len(ROWS)
-            for j in range(bhc):
+            slot_of = {}                                   # a tile of the scene is put in the ring once: its later cells name that slot (0xFE00 + the slot's number in the scene)
+            for j in range(SCENE_H + 1):
                 full = [[BAND] * 160 for _ in range(8)]
-                is_s = j0 <= j < j0 + nl
-                if is_s:
+                if j < SCENE_H:
                     for y in range(8):
-                        for x in range(8 * sc, 160):
-                            full[y][x] = 2
-                for y in range(8):
-                    for x in range(8 * bwc):
-                        full[y][8 * bc0 + x] = bpx[8 * j + y][x]
-                if is_s:
-                    t = lines[j - j0]
-                    tx, t0, t1 = strip(t)
-                    cxm = (8 * sc + 160) // 2 - (t0 + t1 + 1) // 2
-                    assert 8 * sc + 4 <= t0 + cxm and t1 + cxm < 156, (VENUES[v], t, t0 + cxm, t1 + cxm, sc)
+                        for x in range(8 * SCENE_W):
+                            full[y][8 * bc0 + x] = bpx[8 * j + y][x]
+                else:
+                    for y in range(8):
+                        full[y] = [2] * 160
+                    cxm = 80 - (t0 + t1 + 1) // 2
                     for y in range(8):
                         for x in range(len(tx[0])):
                             if tx[y][x] != BAND:
@@ -441,19 +423,23 @@ def main():
                 for tx_ in range(20):
                     px_ = [full[y][8 * tx_:8 * tx_ + 8] for y in range(8)]
                     flat = {p for rw in px_ for p in rw}
-                    inb = bc0 <= tx_ < sc
-                    if inb and len(flat) == 1:
-                        cells.append(0xFF00 + flat.pop())                       # a flat tile of the building: a fixed BG tile, no ring
-                    elif len(flat) == 1 and flat == ({2} if (is_s and tx_ >= sc) else {BAND}):
+                    if j < SCENE_H and bc0 <= tx_ < bc0 + SCENE_W and len(flat) == 1:
+                        cells.append(0xFF00 + flat.pop())                       # a flat tile of the scene (the ground's colour above all): a fixed BG tile, no ring slot
+                    elif len(flat) == 1 and flat == ({2} if j == SCENE_H else {BAND}):
                         cells.append(0xFFFF)                                     # the stripe (prefilled) or the page
                     else:
-                        cells.append(tile_of(full, tx_))
+                        ti = tile_of(full, tx_)
+                        if ti in slot_of:
+                            cells.append(0xFE00 + slot_of[ti])
+                        else:
+                            slot_of[ti] = len(slot_of)
+                            cells.append(ti)
                 live = [k for k, c in enumerate(cells) if c != 0xFFFF]
                 a0, a1 = (live[0], live[-1]) if live else (0, -1)
                 cl = cells[a0:a1 + 1]
                 ROWS.append((f"BLD{v}_{j}", a0, cl))
                 EXTRA[f"BLD{v}_{j}"] = {"col": a0, "n": len(cl), "cells": cl}
-            BLD_INFO.append((ids_first - ids["BLD0"], bhc, j0, nl, bc0, sc, lines))
+            BLD_INFO.append((ids_first - ids["BLD0"], SCENE_H + 1, SCENE_H, 1, bc0, 0, [name]))
     # the stripe's colour on Color: the venue's stage palette colour 2 (biker: its bar's colour 2, the stage's is a bright green)
     vd = ROOT / "assets/approved/venues"
     band_col = []
@@ -463,7 +449,7 @@ def main():
     # the cast's text ring: the most tiles any 32 consecutive world rows hold (credits.c builds up to 30 rows ahead of the screen's top)
     L = LAY
     def n(name):
-        return sum(1 for c in EXTRA.get(name, INFO.get(name))["cells"] if c < 0xFF00)
+        return sum(1 for c in EXTRA.get(name, INFO.get(name))["cells"] if c < 0xFE00)
     world = {}
     def put(y, name):
         world[y] = world.get(y, 0) + n(name)
@@ -537,7 +523,7 @@ def main():
          "// pool tile idx to BG tile `to` (one tile: a library write with the LCD on takes a twentieth of a frame)",
          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED {",
          "#ifdef CREDITS_SCROLL",
-         (f"    if (idx >= {bp}) {{ credits_tile_put3(idx - {bp}, to); return; }}" if CRMAP else ""),
+         (f"    if (idx >= {POOL_SPLIT}) {{ credits_tile_put4(idx - {POOL_SPLIT}, to); return; }}\n    if (idx >= {bp}) {{ credits_tile_put3(idx - {bp}, to); return; }}" if CRMAP else ""),
          f"    if (idx >= {n_base_pool}) {{ set_bkg_data(to, 1, ct_pool2 + ((idx - {n_base_pool}) << 4)); return; }}",
          "#endif",
          "    set_bkg_data(to, 1, ct_pool + (idx << 4));", "}", "",
@@ -547,7 +533,7 @@ def main():
          "    uint16_t *d = (uint16_t *)(dst + 2);",
          "    const uint16_t *s;",
          "#ifdef CREDITS_SCROLL",
-         (f"    if (r >= {br}) return credits_row_get3(r - {br}, dst);" if CRMAP else ""),
+         (f"    if (r >= {ROW_SPLIT}) return credits_row_get4(r - {ROW_SPLIT}, dst);\n    if (r >= {br}) return credits_row_get3(r - {br}, dst);" if CRMAP else ""),
          f"    if (r >= {n_base_rows}) {{",
          f"        r -= {n_base_rows};",
          "        n = ct_len2[r]; s = ct_cell2 + ct_off2[r]; dst[0] = ct_col2[r]; dst[1] = n;",
@@ -561,13 +547,17 @@ def main():
          "    return n;", "}", ""]
     (out / "credits_text.c").write_text(resolve_scroll("\n".join(c)))
     if CRMAP:
-        c3 = ["// generated by tools/gen_credits.py -- do not edit (CRMAP: the buildings' tiles and rows, a bank of their own)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
-              arr("ct_pool3", pool_b[bp * 16:]), arr("ct_off3", [o - f_br for o in offs[br:]], "uint16_t"), arr("ct_cell3", flat_all[f_br:], "uint16_t"),
-              arr("ct_col3", [r[1] for r in ROWS[br:]]), arr("ct_len3", lens[br:]), "",
-              "void credits_tile_put3(uint16_t idx, uint8_t to) BANKED { set_bkg_data(to, 1, ct_pool3 + (idx << 4)); }", "",
-              "uint8_t credits_row_get3(uint8_t r, uint8_t *dst) BANKED {", "    uint8_t i, n = ct_len3[r];", "    uint16_t *d = (uint16_t *)(dst + 2);", "    const uint16_t *s = ct_cell3 + ct_off3[r];",
-              "    dst[0] = ct_col3[r]; dst[1] = n;", "    for (i = 0; i != n; i++) d[i] = s[i];", "    return n;", "}", ""]
-        (out / "credits_text2.c").write_text("\n".join(c3))
+        def bld_file(name, tag, p0, p1, r0_, r1_):
+            f0, f1 = offs[r0_], (offs[r1_] if r1_ < len(offs) else len(flat_all))
+            c3 = ["// generated by tools/gen_credits.py -- do not edit (CRMAP: the buildings' scenes, a bank of their own)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
+                  arr("ct_pool" + tag, pool_b[p0 * 16:p1 * 16]), arr("ct_off" + tag, [o - f0 for o in offs[r0_:r1_]], "uint16_t"), arr("ct_cell" + tag, flat_all[f0:f1], "uint16_t"),
+                  arr("ct_col" + tag, [r[1] for r in ROWS[r0_:r1_]]), arr("ct_len" + tag, lens[r0_:r1_]), "",
+                  f"void credits_tile_put{tag}(uint16_t idx, uint8_t to) BANKED {{ set_bkg_data(to, 1, ct_pool{tag} + (idx << 4)); }}", "",
+                  f"uint8_t credits_row_get{tag}(uint8_t r, uint8_t *dst) BANKED {{", f"    uint8_t i, n = ct_len{tag}[r];", "    uint16_t *d = (uint16_t *)(dst + 2);", f"    const uint16_t *s = ct_cell{tag} + ct_off{tag}[r];",
+                  f"    dst[0] = ct_col{tag}[r]; dst[1] = n;", "    for (i = 0; i != n; i++) d[i] = s[i];", "    return n;", "}", ""]
+            (out / name).write_text("\n".join(c3))
+        bld_file("credits_text2.c", "3", bp, POOL_SPLIT, br, ROW_SPLIT)
+        bld_file("credits_text3.c", "4", POOL_SPLIT, len(POOL), ROW_SPLIT, len(ROWS))
     h = ["// generated by tools/gen_credits.py -- do not edit", "#ifndef CREDITS_TEXT_H", "#define CREDITS_TEXT_H", "#include <stdint.h>", "",
          f"#define CT_POOL_TILES {n_base_pool}   // unique tiles ({n_base_pool * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
     for key in ("TITLE", "SAL", "DREGS"):
@@ -582,7 +572,7 @@ def main():
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
           "static const uint8_t ct_lp[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in lp) + " }" for lp in LOOK_PAL) + " };   // each look's OBJ palette (Color): 1 + the index here (OBJ 0 is the Spigoteer's, kept for the roll)",
           "static const uint16_t ct_pcol[10][7][3] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in (pc + [0, 0, 0])[:3]) + " }" for pc in pcs + [[]] * (7 - len(pcs))) + " }" for pcs in PAL_COLS) + " };   // the palettes' colours 1-3 (RGB555, before BRIGHTEN)",
-          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put3(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get3(uint8_t r, uint8_t *dst) BANKED;", ""]
+          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put3(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get3(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put4(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get4(uint8_t r, uint8_t *dst) BANKED;", ""]
     h += ["#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and layout (rows of the world: tools/gen_credits.py LAY)",
           f"#define CT_LBL {ids['LBL0']}   // the label OWNER",
           f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",

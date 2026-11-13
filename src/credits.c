@@ -430,7 +430,7 @@ static void cr_attr_hud(void) { uint8_t i; if (is_cgb) for (i = 0; i < 20; i++) 
 #define CR_RES ((CR->pos ^ CR->sig) & 0x1FFF ? 45 : 0)
 static uint8_t cr_room(uint8_t lines) {
     uint8_t ly = LY_REG;
-    if (CR->next < (CR->scroll >> 3) + 21) return 1;     // (the rows are wanted: the screen shows up to scroll/8 + 19)
+    if (CR->next < (CR->scroll >> 3) + 19) return 1;     // (the rows are wanted: the screen shows up to scroll/8 + 19)
     return ly >= 144 || (uint16_t)ly + lines + CR_RES <= 96;
 }
 
@@ -461,6 +461,14 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
         if (cell[i] >= 0xFF00) {                       // a flat tile of a building: a fixed BG tile (CR_SOLID_ID + shade), no ring slot, no cost
             CR->row[CR_BUF[0] + i] = CR_SOLID_ID + (uint8_t)(cell[i] & 3);
             if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_BLD_PAL;
+            continue;
+        }
+        if (cell[i] >= 0xFE00) {                       // a tile the scene has put in the ring already: its slot is the scene's first ring slot (CR->lr) + its number
+            id = CR->lr + (uint8_t)(cell[i] & 255);
+            if (id >= (is_cgb ? CR_TXT_CN : CT_RING_N)) id -= is_cgb ? CR_TXT_CN : CT_RING_N;
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_BLD_PAL : 0) | 8;
+            else id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
+            CR->row[CR_BUF[0] + i] = id;
             continue;
         }
 #endif
@@ -505,6 +513,7 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
         else if (r == 3 + h || r == 5 + h) tr = (kd == CK_SPIGOTEER ? CT_SAL : CT_DREGS) + ((r - 3 - h) >> 1);
 #if CT_MAPFMT
     } else if (kd == CK_VENUE) {
+        if (r == CT_R_VB && CR->lw != CR->next) CR->lr = CR->rt;     // (the scene's rows are built one after the other: its ring slots start here)
         if (r >= CT_R_VB && r < CT_R_VB + ct_bh[v]) { tr = CT_BLD + ct_boff[v] + r - CT_R_VB; tk = ((uint8_t)(r - CT_R_VB - ct_bs0[v]) < ct_bnl[v] ? 4 : 3) | (v << 4); }
     } else if (kd == CK_OWNER) {
         if (r == CT_R_OLBL) { tr = CT_LBL; tk = 1; }
