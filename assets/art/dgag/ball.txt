@@ -1,12 +1,13 @@
-; Art: PROPOSAL (new, unapproved: pending owner approval). Dregs curled up and tumbling (the gags' toss), 16x16, drawn flipped in four ways so it reads as rolling. Palette of the Pour-Off's Dregs.
+; Art: APPROVED by the owner 2026-11-13 (Q57, option B for the slide). Dregs curled up and tumbling (the gags' toss), 16x16, drawn flipped in four ways so it reads as rolling. Palette of the Pour-Off's Dregs.
 ; Revision 2026-10-17: the new face (heavy lids, half-whites, nose tip, a smirk).
+; Revision 2026-11-13: face pass (owner: Dregs's face outdated). Eyes, nose and mouth redrawn toward the approved v8c head (stacked close-set eyes: tick, lid, grey); hat, hair, body, outline unchanged.
 ................
 .....######.....
 ...##########...
 ..####+++#####..
-.#####-----####.
-.##--#+-#+---##.
-##-----------##.
+.######-#--####.
+.##--##-##---##.
+.#----+-+#---##.
 .#+++-###-++++#.
 .#++++++++++++#.
 .###+++++++++###
