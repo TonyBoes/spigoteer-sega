@@ -84,7 +84,12 @@ static const uint8_t bar_slot[4] = { 0, 1, 3, 4 };   // the BG palettes they tak
 #define ARROW_PAL  1                                  // the arrows' gold: the yellow bar's palette
 
 static uint8_t unlocked(uint8_t t) {
+#ifdef TUNES_ALL                                      // playtest builds (make TUNES=ALL): every tune listed and playable
+    (void)t;
+    return 1;
+#else
     return (uint8_t)(tune_unlocked >> t) & 1;
+#endif
 }
 
 static void bar_fill(uint8_t i, uint8_t px, uint8_t a, uint8_t b) {   // bar i's row buffer, tiles a..b of its 15, for a length of px (0-120)

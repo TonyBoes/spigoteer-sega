@@ -51,6 +51,14 @@ ifeq ($(CREDITS),SCROLL)
 LCCFLAGS += -DCREDITS_SCROLL
 endif
 
+# Playtest variant (owner 2026-11-12): every tune playable in BONUS > SOUNDTRACK, for listening to music changes in test ROMs:
+#   make BUILD=out/b_tunes OUT=out/o_tunes TUNES=ALL unlocked
+TUNES    ?=
+export TUNES
+ifeq ($(TUNES),ALL)
+LCCFLAGS += -DTUNES_ALL
+endif
+
 SRC      := $(sort $(wildcard src/*.c))
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patrons_robots_x.c $(BUILD)/patrons_divers_x.c $(BUILD)/patrons_punks_x.c $(BUILD)/patrons_ninjas_x.c $(BUILD)/patron_load.c
