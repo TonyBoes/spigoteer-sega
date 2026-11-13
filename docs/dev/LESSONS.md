@@ -115,3 +115,6 @@ See `tools/artifacts/README.md` for the review pages' links and how to republish
 I put kick C on the page as "a low boom, RECOMMENDED" from the builder's period figure (103 Hz). The owner heard a cymbal: a 7-bit noise
 kick's bright LFSR clock is what the ear hears. Agents cannot listen. Describe a sound only from measured spectra (centroid, energy
 under 200/500 Hz), and never mark one RECOMMENDED on how it "should" sound.
+
+## 2026-11-13: a face update must replace every feature, most prominent first
+The Dregs face pass changed the eyes and left the old long nose, the old design's most recognisable feature (owner Q57). When matching a pose to a new design, list the features by prominence (silhouette-breaking ones first: nose, hat line, beard) and check each against the reference before reporting.
