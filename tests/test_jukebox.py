@@ -517,3 +517,37 @@ def test_mountain_starts_on_its_pickup_and_the_loop_is_unchanged(srom):
     assert (srom.mem("hUGE_current_order"), srom.mem("hUGE_row")) == (6, 63)
 
 
+
+
+def harmony_trace(rom, frames):
+    """Per frame: (real harmony note start, old NR12 rising edge, ch1 bar level). A real start is a frame where music.c's harmony pointer h_ptr stepped
+    to a note (h_sound); the old meter's start was NR12's volume going from 0 to non-zero."""
+    out, ptr, nr12 = [], rom.mem16("h_ptr"), 0
+    for _ in range(frames):
+        rom.run(1)
+        p, v = rom.mem16("h_ptr"), rom.mem(0xFF12) & 0xF0
+        out.append((p != ptr and rom.mem("h_sound") == 1, bool(v and not nr12), levels(rom)[0]))
+        ptr, nr12 = p, v
+    return out
+
+
+@pytest.mark.parametrize("tune", [4, 6, 9])
+def test_the_dmg_channel_1_bar_moves_on_the_harmony_s_note_starts(tune):
+    """DMG: channel 1 is music.c's harmony voice, not the driver's. Its bar jumps to full on each harmony note start (h_ptr steps on to a note), also a
+    note straight after another one, which NR12 (the volume, written the same each time) never showed."""
+    from test_sound import make_rom
+    rom = make_rom("dmg", v7_image([], tunes=ALL))
+    rom.run(120)
+    try:
+        to_jukebox(rom)
+        goto_tune(rom, tune)
+        tap(rom, "a")
+        tr = harmony_trace(rom, 600)
+        starts = [i for i, t in enumerate(tr) if t[0]]
+        old = sum(1 for t in tr if t[1])
+        full = sum(1 for i in starts if max(t[2] for t in tr[i:i + 2]) == 120)
+        print(f"TUNE {tune}: harmony starts {len(starts)}, old NR12 starts {old}, bar full on {full}")
+        assert len(starts) >= 8, "the tune has a harmony line"
+        assert full == len(starts), f"every harmony note start sends the bar to full ({full} of {len(starts)})"
+    finally:
+        rom.stop()
