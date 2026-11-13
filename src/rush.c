@@ -272,12 +272,18 @@ static void menu_open(uint8_t s) {               // LCD off
 #define RL_COLS         6        // the backdrop's width in tiles
 #define RL_TILES        (RL_COLS * 2)
 #define RL_T0           136      // BG ids of the portraits, RL_TILES for each built boss: 136-255 for ten
+#ifdef RUSHPIC_A                 // PROPOSAL A (docs/dev/concepts/rush_portraits_2026-11-13): the whole figure, content-packed tiles + a map a boss
+#define RL_PIC_MASK     (15 << (RL_K_WIN + 1))   // the window's four backdrop rows (window rows 1-4) are the picture's
+#endif
 #define RL_NONE         0xFF
 #define RL_PER_FRAME    2        // rows built and queued a frame (a row is ~10k cycles: three ran the frame past its VBlank when mashed)
 #define LIST_JUMP       5        // UP / DOWN: this many bosses
 #define RL_BACK         RGB15(27, 22, 14)
 #define RL_SILHOUETTE   RGB15(3, 1, 1)
 #define RL_PAL          1        // the window's BG palette (the wall look uses 2-7)
+#ifdef RUSHPIC_A
+typedef char rl_fits[(RL_T0 + RUSH_TILE_N <= 256 && RUSH_PORTRAITS == BOSS_COUNT && RUSH_MAP_W == 4 * RL_COLS) ? 1 : -1];
+#else
 typedef char rl_fits[(RL_T0 + RL_TILES * BOSS_COUNT <= 256 && RUSH_PORTRAITS == BOSS_COUNT) ? 1 : -1];
 
 static uint8_t tile_base(uint8_t v) {            // the first of boss v's window tiles
@@ -285,6 +291,7 @@ static uint8_t tile_base(uint8_t v) {            // the first of boss v's window
     for (u = 0; u < v; u++) n += built(u);
     return RL_T0 + RL_TILES * n;
 }
+#endif
 
 static void list_pal(uint8_t v) {                // CGB BG palette RL_PAL: the backdrop and his three colours (a silhouette when locked)
     uint16_t p[4];
@@ -294,6 +301,14 @@ static void list_pal(uint8_t v) {                // CGB BG palette RL_PAL: the b
     for (i = 0; i < 3; i++) p[1 + i] = unlocked(v) ? rush_colour[3 * v + i] : RL_SILHOUETTE;
     set_bkg_palette(RL_PAL, 1, p);
 }
+
+#ifdef RUSHPIC_A
+static void list_pic(uint8_t k, uint8_t v) {     // PROPOSAL A: picture row k (window rows 1-4): the 6 backdrop tiles from his map (0: the plain backdrop)
+    const uint8_t *m = rush_map + RUSH_MAP_W * (is_cgb || unlocked(v) ? v : RUSH_PORTRAITS) + RL_COLS * (k - RL_K_WIN - 1);
+    uint8_t *r = ROW(k) + RL_WIN_COL + 1, i;
+    for (i = 0; i < RL_COLS; i++) r[i] = m[i] ? RL_T0 - 1 + m[i] : OL_T_BACK;
+}
+#endif
 
 static void list_build(uint8_t k, uint8_t v) {   // row buffer k for the selected boss, whose venue is v
     uint8_t *r = ROW(k), ok = unlocked(v), br, i, t;
@@ -321,10 +336,14 @@ static void list_build(uint8_t k, uint8_t v) {   // row buffer k for the selecte
     r[RL_WIN_COL] = br == 0 ? OL_T_BOX : br == RL_WIN_H - 1 ? OL_T_BOX + 5 : OL_T_BOX + 3;
     r[RL_WIN_COL + RL_WIN_W - 1] = br == 0 ? OL_T_BOX + 2 : br == RL_WIN_H - 1 ? OL_T_BOX + 7 : OL_T_BOX + 4;
     for (i = 1; i <= RL_COLS; i++) r[RL_WIN_COL + i] = br == 0 ? OL_T_BOX + 1 : br == RL_WIN_H - 1 ? OL_T_BOX + 6 : OL_T_BACK;
+#ifdef RUSHPIC_A
+    if (br >= 1 && br <= RL_WIN_H - 2) list_pic(k, v);
+#else
     if (br == RL_BODY || br == RL_BODY + 1) {
         t = tile_base(v);
         for (i = 0; i < RL_COLS; i++) r[RL_WIN_COL + 1 + i] = t + 2 * i + (br - RL_BODY);
     }
+#endif
 }
 
 static uint8_t list_row(uint8_t k) {             // the screen row of the list's row buffer k
@@ -344,11 +363,18 @@ static void list_open(void) {                    // LCD off
     ol_load();
     ol_band(SKIN_PAL_BTN);
     music_pump();
+#ifdef RUSHPIC_A
+    for (k = 0; k < RUSH_TILE_N; k += 32) {      // every picture tile of every boss (and the "??"), once, packed by content
+        set_bkg_data(RL_T0 + k, RUSH_TILE_N - k < 32 ? RUSH_TILE_N - k : 32, rush_tiles + 16 * (uint16_t)k);
+        music_pump();
+    }
+#else
     for (v = 0; v < BOSS_COUNT; v++) {           // every built boss's window tiles, once (a locked boss on a DMG: the "??")
         if (!built(v)) continue;
         set_bkg_data(tile_base(v), RL_TILES, is_cgb || unlocked(v) ? rush_body + RL_TILES * 16 * v : rush_quest);
         music_pump();
     }
+#endif
     if (RUSH->list_sel >= lines()) RUSH->list_sel = 0;
     RUSH->pal_for = RL_NONE;
     v = nth_built(RUSH->list_sel);
@@ -378,7 +404,11 @@ static uint8_t list_update(uint8_t pressed) {
     v = nth_built(s);
     if (s != old) {
         RUSH->list_sel = s;
+#ifdef RUSHPIC_A
+        RUSH->dirty |= (1 << RL_K_NAME) | (1 << RL_K_HEAD) | RL_PIC_MASK | (1 << RL_K_VENUE) | (1 << RL_K_BEST);
+#else
         RUSH->dirty |= (1 << RL_K_NAME) | (1 << RL_K_HEAD) | (3 << (RL_K_WIN + RL_BODY)) | (1 << RL_K_VENUE) | (1 << RL_K_BEST);
+#endif
         if (unlocked(v) != unlocked(nth_built(old))) RUSH->dirty |= 1 << RL_K_HINT;
     }
     if (pressed & (J_A | J_START)) {
@@ -387,12 +417,24 @@ static uint8_t list_update(uint8_t pressed) {
         menu_open(1);
         return 1;
     }
+#ifdef RUSHPIC_A
+    if (RUSH->dirty & RL_PIC_MASK) {             // his picture first, the four rows in one frame, the 6 tiles of each (the palette follows next frame)
+        for (k = RL_K_WIN + 1; k <= RL_K_WIN + RL_WIN_H - 2; k++) {
+            list_pic(k, v);
+            vq_add(0, ROW(k) + RL_WIN_COL + 1, RL_WIN_COL + 1, list_row(k), RL_COLS);
+        }
+        RUSH->dirty &= ~RL_PIC_MASK;
+        RUSH->pal_for = v;
+        q = 2;
+    }
+#else
     if (RUSH->dirty & (3 << (RL_K_WIN + RL_BODY))) {   // his body first, both rows in one frame (the palette follows next frame)
         for (k = RL_K_WIN + RL_BODY; k <= RL_K_WIN + RL_BODY + 1; k++) { list_build(k, v); vq_add(0, ROW(k), 0, list_row(k), 20); }
         RUSH->dirty &= ~(3 << (RL_K_WIN + RL_BODY));
         RUSH->pal_for = v;
         q = 2;
     }
+#endif
     for (k = 0; k < RL_ROWS && q < RL_PER_FRAME; k++) {
         if (!(RUSH->dirty & (1 << k))) continue;
         RUSH->dirty &= ~(1 << k);
