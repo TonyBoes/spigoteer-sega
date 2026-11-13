@@ -6,7 +6,7 @@
 //
 // The music is the credits tune (TUNE_CREDITS), started by credits_enter while the screen is built (BONUS' own tune stops there). The whole
 // roll runs on its own clock (the frames on the screen, CR->t; owner 2026-11-05: the tune is not changed to fit): every boundary below is a share
-// (units of 1/392) of CR_PIC_FRAMES, 9692 frames (162 s). The tune is 8732 frames (146 s): it starts with the roll and runs out 16 s before it ends,
+// (units of 1/392) of CR_PIC_FRAMES, 9692 frames (162 s). The tune (the Easy Winners, music batch 5) is 9986 frames (166 s): it starts with the roll and runs 4.9 s past its picture clock (the last words wait for it: its ending is never cut),
 // in silence, with no loop or restart; the cards and the roll go on at the same pace to the end.
 //
 //   units  0-6     "CAST OF CHARACTERS"
@@ -80,7 +80,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define CR_SHARE      392     // the tune's units: 1/392 of it (24.7 frames of the 162 s tune)
 #define CR_UNIT_PAT    11     // a patron card's units (owner Q80: held longer, to read all eight names); the other cards 7
 #define CR_UNIT_END   362     // the roll ends at this unit, "THANKS FOR PLAYING!" fills the rest
-#define CR_PIC_FRAMES 9692    // the cast and the roll run on their own clock: this many frames (162 s). The tune is shorter (8732 frames, 146 s) and runs out in silence (owner 2026-11-05: no music change)
+#define CR_PIC_FRAMES 9692    // the cast and the roll run on their own clock: this many frames (162 s). The tune is 9986 frames (166 s): the roll waits for it to end (credits_update; owner 2026-11-05: the tune is never stretched to fit)
 
 // state in story_scratch
 #ifdef CREDITS_SCROLL
@@ -985,7 +985,7 @@ void credits_enter(uint8_t from_story) BANKED {
 #endif
     story_phase = STORY_PHASE_CREDITS;
     game_state = GS_STORY;
-    music_load_now();                                 // the tune's first notes sound with the picture
+    music_load_now_p();                               // the tune's first notes sound with the picture
     DISPLAY_ON;
 }
 
@@ -1020,7 +1020,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     CR->ls = (uint8_t)sys_time;
     f = CR->t;                                                             // (the frames on the screen: the tune may have run out; its silence changes nothing)
     CR->f = f;
-    if (f >= CR->T) { cr_leave(); return 1; }                              // (the roll's own end)
+    if (f >= CR->T && (!sound_on || cur_tune != TUNE_CREDITS)) { cr_leave(); return 1; }   // (the roll's own end, and the tune over: the Easy Winners, 9986 frames, outlasts the roll's 9692 by 4.9 s, and its ending (the ritard, the ringing chord, the bass fading) must not be cut)
     if (f < CR->roll) {                                                    // the cast
         if (f < CR->e_title) c = 0;
         else {

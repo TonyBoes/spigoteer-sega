@@ -180,6 +180,16 @@ void music_init(void) BANKED {
     loaded[1] = loaded[2] = ld_tune = TUNE_NONE;
 }
 
+// A DRUM TRACK (the credits tune: tools/gen_music.py track_rows): a groove whose header's first byte is TRACK_MARK; its header table is the identity 0..6, so
+// groove_row below reads the drum straight from g_pos, which holds the byte of the row about to start.  The track is one byte a row in the tune's own bank,
+// after its pattern blob (orders * STREAM_ORDER_BYTES on): trk_fetch reads the byte of row `idx` there (row 0 is always silent: start_song zeroes g_pos), on tick TRACK_TICK of every row
+// (a plain tick: the row's own call, the dearest, reads nothing from a bank).  No new variable: g_pos is a groove's row counter, which a track has no use for.
+static void trk_fetch(uint8_t tune, uint16_t idx) {
+    const tune_t *c = &tunes[tune];
+    uint16_t n = *c->song->order_cnt;       // 2 a pattern pair: the blob is n * 192 bytes (STREAM_ORDER_BYTES / 2 = 3 * 64: shifts, no 16-bit multiply, which cost 450 M-cycles)
+    g_pos = (uint8_t)harm_peek(c->bank, c->blob + ((n + (n << 1)) << 6) + idx);   // (the harmony's unbanked read: two bytes, the low one is the row's; the track has a byte of padding after it)
+}
+
 static void start_song(uint8_t tune) {
     uint8_t keep = hUGE_mute_mask & TK_HOLD;    // Taiko Pour's flags (src/tk.c) outlive a tune restart
     hUGE_init(tunes[tune].song);    // clears the driver's channel mute mask
@@ -438,6 +448,8 @@ static void tick(void) {
         }
         if (groove && !--g_cnt) groove_row();
         else if (g_step) groove_step();
+        else if (hUGE_tick == TRACK_TICK && groove && groove[0] == TRACK_MARK)   // a drum track: the next row's byte, on a plain tick (not tick 3: the stream copy's)
+            trk_fetch(cur_tune, ((uint16_t)(hUGE_current_order >> 1) << 6) + hUGE_row + 1);
         if (harm) {
             if (voice[0].busy || h_cnt == 1 || !h_sound) harm_tick();
             else h_cnt--;

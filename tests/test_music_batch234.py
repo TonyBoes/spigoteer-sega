@@ -29,7 +29,7 @@ PROARR_DIGEST = {
     "sakura": "d3a39e5f2bf42079605b27f1ece40c10507758089dfbe8a30e0d5a4118c5d381",
     "weasel": "62003ef4dba02adea51b7a60e7429f8ab61b3fdb22ebcd498cdf1731162296bf",
     "danube": "249a3ca10289d9d88ccdf887c83f2a5543a54540e6b2438404eb0cfc0282db3a",
-    "credits": "f9f63964c029d1113e9349535c857255968f41cc0cb71192c457456ac9724689",       # the brass lead (CREDITS_B4=1)
+    "credits": "127161fcc82b52e261fd079d5da4e8a8e56b23c1a51d437b0e5581c61ec0bdfc",       # batch 5: the Easy Winners (the brass lead; its notes equal the audition's rags_data, tests/test_music_batch5.py)
     "clear": "e1f92054abecbb3bcee2ff89143b8104948dc2802619f258fb7b6b6e7b8a6f4d",
     "over": "beab595b30400ce1bc0b809751e64f53aa3cfc155b235ca90248d4105950e133",
     "bonus": "94c3c54eae1e17b52607d882063f37d46fd0125541a4383d7cddb56a385e5898",
@@ -100,7 +100,7 @@ def test_the_credits_are_proarrs_brass_lead_with_the_held_bass_and_the_one_line_
     assert digest("credits", dict(t, inst=1)) != PROARR_DIGEST["credits"], "the lead is in the digest: the one-line fallback (CREDITS_LEAD) changes the rows"
     b = gm.build("credits", t, False)
     assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} == {gm.BASS_HELD}, "every bass note is the held one"
-    assert t["fx_map"] == {574: [(3, 0xC05)], 576: [(3, 0xC02)]}
+    assert t["fx_map"] == {702: [(3, 0xC05)], 704: [(3, 0xC02)]}
 
 
 def test_the_arrangements_have_no_harmony_clash_and_the_basses_follow_the_chords():
@@ -219,10 +219,10 @@ def test_the_sailor_plays_at_the_last_calls_tempo_and_the_groove_keeps_in_step(m
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
-    """The held bass keeps NR32 at 100 % (0x20) through the tune; at rows 574 and 576 the last chord steps to 50 % (0x40) and 25 % (0x60); the tune ends."""
+    """The held bass keeps NR32 at 100 % (0x20) through the tune; at rows 702 and 704 the last chord steps to 50 % (0x40) and 25 % (0x60) (frames 9881 and 9925); the tune ends."""
     t = songs.SONGS["credits"]
-    start, cur = [0], 15
-    for r in range(579):
+    start, cur = [0], 14
+    for r in range(707):
         cur = t["tempo_map"].get(r, cur)
         start.append(start[-1] + cur)
     with make_rom(model) as gb:         # (sound emulated: the APU registers are only live then)
@@ -234,7 +234,7 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         assert gb.mem("cur_tune") == 15
         raw, frames = [], 0
         c0 = gb.pb._cycles()
-        while gb.mem("cur_tune") == 15 and frames < 9100:
+        while gb.mem("cur_tune") == 15 and frames < 10100:
             raw.append((gb.mem(0xFF1C) & 0x60, frames))           # (NR32 bits 5-6: the wave channel's output level, 1 = 100 %, 2 = 50 %, 3 = 25 %)
             gb.run(1)
             frames = int((gb.pb._cycles() - c0) / 70224)
@@ -245,6 +245,7 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         vols = [v for v, _ in seq]
         assert vols[0] == 0x20 and 0x40 in vols and 0x60 in vols and vols.index(0x40) < vols.index(0x60), seq
         assert set(vols[:vols.index(0x40)]) <= {0x20, 0x00} and 0x40 not in vols[:vols.index(0x40)], "100 % (the held bass) all the way to the last chord"
-        assert not any(v in (0x40, 0x60) for v, f in seq if f < start[574] - 6), "no pluck steps before the last chord"
+        assert not any(v in (0x40, 0x60) for v, f in seq if f < start[702] - 6), "no pluck steps before the last chord"
         steps = {v: f for v, f in seq}
-        assert abs(steps[0x40] - start[574]) <= 6 and abs(steps[0x60] - start[576]) <= 6, (seq, start[574], start[576])
+        assert abs(steps[0x40] - start[702]) <= 6 and abs(steps[0x60] - start[704]) <= 6, (seq, start[702], start[704])
+        assert start[702] == 9876 and start[704] == 9920 and 9985 <= frames <= 9990, "the fade rows (the audition's 9881 and 9925 are 5 frames of start-up later) and the stop at 9986"

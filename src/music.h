@@ -29,9 +29,11 @@ typedef struct {
     uint8_t  bank;          // ROM bank of the pattern blob
     const uint8_t *blob;    // pattern blob (buffer != 0)
     uint16_t bytes;         // its size
-    const uint8_t *groove;  // NULL, or a drum loop src/music.c plays on channel 4: {rows, frames per row (over 15: a swing mask, bit n = the rows n mod 8 are a frame shorter than the song's tempo), one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
+    const uint8_t *groove;  // NULL, a DRUM TRACK (first byte TRACK_MARK: see src/music.c trk_fetch), or a drum loop src/music.c plays on channel 4: {rows, frames per row (over 15: a swing mask, bit n = the rows n mod 8 are a frame shorter than the song's tempo), one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
     uint8_t  start;         // row of the song (0-255) the first play begins on (tools/songs.py song(start=)); the loop wraps to row 0
 } tune_t;
+#define TRACK_MARK 255      // tools/gen_music.py TRACK_MARK: a groove header starting with it is a drum track (the credits tune)
+#define TRACK_TICK 5        // the tick of a row (after the driver's tick counter reads it) a track's next byte is read on: a plain one that is not STREAM_TICK; the tune's rows are 6 frames or more
 extern const tune_t tunes[TUNE_ALL];
 // The title tune (20 orders, looping) and the credits tune (10 orders, once) are longer than buffer A (a streamed tune: tune_t.buf 3; the buffer
 // holds four orders of a melody and a bass pattern). Each has a bank of its own (tune_t.bank) with its blob, one pattern pair per order in order,

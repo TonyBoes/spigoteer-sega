@@ -1241,4 +1241,4 @@ def test_which_tunes_have_no_drums_so_their_pause_mix_is_the_bass_alone():
     import songs
     none = sorted(n for n, j in gm.JINGLES.items() if not j.get("ch4"))
     none += sorted(n for n, s in songs.SONGS.items() if not s["ch4"] and not s["groove"])
-    assert none == ["clear", "over", "credits"]
+    assert none == ["clear", "over", "credits"]   # (the credits tune's drums are a track, not a groove or a pattern: it is never paused either)

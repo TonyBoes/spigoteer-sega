@@ -374,7 +374,7 @@ MAP_BANK = 25
 STREAMED = {"title": TITLE_BANK, CREDITS: CREDITS_BANK, MAP: MAP_BANK}
 STREAM_BUF = 3                # tune_t.buf of a streamed tune (buffer A, always copied afresh, order tables wrap at 8 patterns)
 STREAM_PRELOAD = 8            # patterns in the first copy (the buffer's size)
-CREDITS_ORDERS = 10
+CREDITS_ORDERS = 12
 JINGLE_BANK = 24              # the jingles' patterns (batch 1 moved them out of bank 2): copied to buffer A like any tune's (a jingle starts 1-4 frames later)
 PAT_BANKS = BLOB_BANKS + tuple(STREAMED.values()) + (JINGLE_BANK,)     # one build/music_pat<bank>.c each (the Makefile's GEN lists the same; tools/music_rig.py copies these only)
 TUNES = ORDER + [CREDITS, MAP]
@@ -546,6 +546,21 @@ def groove_rows(name, t):
     return rows
 
 
+TRACK_MARK = 255     # a groove header whose first byte is this is a DRUM TRACK (src/music.h tune_t.groove): the header's table is the identity 0..6
+
+
+def track_rows(name, t, total, n_orders):
+    """A tune's drum track (songs.song(...).update(track=tokens): the groove's tokens, one per row of the whole tune) as one byte a row (0 none, 1-6 the
+    kit), padded with 0 to a whole number of 64-row orders: it is stored after the tune's pattern blob in the tune's own bank."""
+    rows = []
+    for tok in t["track"].split():
+        k, n = tok.split(":")
+        rows += [DRUM_ID.get(k, 0)] + [0] * (int(n) - 1)
+    assert len(rows) == total, f"{name}: the drum track is {len(rows)} rows, the tune {total}"
+    assert rows[0] == 0, f"{name}: a drum track starts on a silent row (src/music.c reads row 1 first; g_pos = 0 is row 0's byte)"
+    return rows + [0] * (n_orders * 64 - len(rows))
+
+
 def row_text(key):
     out = []
     for i in range(0, 64, 4):
@@ -650,7 +665,7 @@ def main():
         if ev:
             harms[name] = harm_bytes(t, ev, t.get("start", 0))
             if name in STREAMED:     # (src/music.c start_song: tunes[tune].buf == 3 ? tunes[tune].bank : HARM_BANK)
-                assert len(harms[name]) + len(slots[name]) * SLOT_BYTES <= 16384, f"the {name} bank"
+                assert len(harms[name]) + len(slots[name]) * SLOT_BYTES + built[name]["n_orders"] * 64 * bool(songs.SONGS[SOURCE[name]].get("track")) <= 16384, f"the {name} bank"
             else:
                 used[HARM_BANK] += len(harms[name])
     assert used[HARM_BANK] <= 16384, used
@@ -675,6 +690,11 @@ def main():
                 f.write(f"const unsigned char blob_{name}[] = {{   // {SOURCE.get(name, name)}: {len(slots[name])} patterns\n")
                 for key in blob_keys(name):
                     f.write(row_text(key))
+                if songs.SONGS.get(SOURCE.get(name), {}).get("track"):          # (the drum track follows the patterns: src/music.c reads it at blob + orders * STREAM_ORDER_BYTES)
+                    tr = track_rows(name, songs.SONGS[SOURCE[name]], built[name]["total"], built[name]["n_orders"])
+                    f.write(f"    // the drum track: {len(tr)} bytes, one a row\n")
+                    for i in range(0, len(tr), 32):
+                        f.write("    " + ",".join(str(x) for x in tr[i:i + 32]) + ",\n")
                 f.write("};\n\n")
             for name, hb in harms.items():
                 if b != (bank_of[name] if name in STREAMED else HARM_BANK):    # (a streamed tune's harmony: its blob's bank)
@@ -704,9 +724,13 @@ def main():
                 continue
             t = songs.SONGS[SOURCE[name]]
             g = groove_rows(name, t)
-            if g:
+            if t.get("track"):
+                assert name in STREAMED and not g and not t.get("swing") and t["tempo"] < 256
+                grooves[name] = [0]
+                f.write(f"static const unsigned char groove_{name}[] = {{{TRACK_MARK}, 0, 0, 1, 2, 3, 4, 5, 6}};   // a drum track: its row byte (0-6) read as the groove's own\n")
+            elif g:
                 assert built[name]["total"] % len(g) == 0, f"{name}: {built[name]['total']} rows is not a whole number of {len(g)}-row grooves"
-                assert len(g) < 256 and t["tempo"] < 256
+                assert len(g) < TRACK_MARK and t["tempo"] < 256
                 grooves[name] = g
                 f.write(f"static const unsigned char groove_{name}[] = {{{len(g)}, {t.get('swing', 0) or t['tempo']}, "
                         + ", ".join(str(x) for x in g) + "};\n")

@@ -887,9 +887,99 @@ CR_FX_MAP = {574: [(3, 0xC05)], 576: [(3, 0xC02)]}   # the last bass chord: 50 %
 # only in the last chord; the lead is the brass one (the notes, the ending and the fade are untouched).  CREDITS_LEAD = LEAD_PRO is the owner's
 # brass lead; DUTY_SONG_LEAD (1) is the old song lead: if the brass version's streaming call ever goes over 18 lines, one line changes it.
 CREDITS_LEAD = LEAD_PRO
-CR_BASS_HELD = with_inst(CR_BASS, BASS_HELD)
-song("credits", 15, "A", CR_MEL, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
-SONGS["credits"].update(ch1=CR_HARM, ch1_inst=("harm50", "ring50"))
+# ---------------------------------------------------------------------------------------------
+# THE CREDITS TUNE (music batch 5, owner-approved 2026-11-13): "The Easy Winners" (Scott Joplin, 1901, public domain), slow, every strain once, ONE pass
+# of 707 rows at 14 frames a row (a quarter = 64 a minute), 9986 frames = 166.4 s, then it stops by itself.  The text below is the audition generator's
+# output byte for byte (rags_data.easywinners_credits_r5(join="pickup", bass="upper", voice="voice", lead="brass") on the audition branch): the tune
+# on the brass lead, the counter-melody on channel 1 in every strain ("voice", the last chord on "ring50"), strain D an octave lower with the pickup
+# join into it, the bass (the score's left hand, held) with its notes under E2 an octave up.  The ending is as the old credits tune's: a ritard on the
+# last bars (tempo_map), the ringing chord on the ring lead, the bass fading to 50 % and 25 % (fx_map) and the tune over at frame 9990.
+# The drums are a THROUGH-COMPOSED TRACK (EWC_DRUMS, kit letters as the groove: one byte a row, 707 rows, tools/gen_music.py): src/music.c reads a
+# byte a row from the tune's own bank on a plain tick and plays it with the groove player's hit code.  The kick is the click alone: no kick body on
+# this tune (its bass notes name their instrument).  It replaces the first credits tune (CR_*, whose notes the title still reads).
+EWC_MEL = (
+    "D#4:2 C5:3 A#4:1 G#4:1 G4:1 F4:1 D#4:2 C#4:1 C4:2 A#3:1 G#3:1 G3:1 G#3:1 A#3:1 C4:1 C#4:1 D#4:1 F4:1 G4:1 G#4:2 "
+    "r:6 C5:2 C5:4 D#5:2 F5:1 D#5:2 F5:1 D#5:1 F5:1 D#5:2 A#5:1 G#5:2 A#5:1 G#5:1 A#5:1 G#5:1 D#5:1 ~:8 C5:2 C5:4 "
+    "D#5:2 F5:1 D#5:2 F5:1 D#5:1 D#5:1 D#5:2 D#5:1 A#4:2 D#5:1 D5:1 D#5:1 F5:2 D#5:5 D#4:1 G4:1 C#5:1 C5:2 C5:4 D#5:2 "
+    "F5:1 D#5:2 F5:1 D#5:1 F5:1 D#5:2 A#5:1 G#5:2 A#5:1 G#5:1 G#5:1 A#5:1 C6:1 ~:6 G5:1 G#5:1 A#5:1 G#5:2 A#5:1 G#5:1 "
+    "A#5:1 G#5:1 D#5:1 ~:1 F5:1 D#5:1 C#5:1 C5:1 D#5:2 D#5:1 D#5:1 C#5:2 D#5:1 C#5:1 C5:1 A#4:2 G#4:4 G#5:2 D#4:1 "
+    "E4:1 F4:1 F#4:1 G4:1 A#4:2 D#5:1 C#5:1 A#4:1 F4:1 F#4:1 G4:1 C5:2 A#4:1 F4:1 G4:1 G#4:1 D#4:1 F4:1 G4:1 G#4:1 "
+    "A4:1 A#4:1 B4:1 C5:1 B4:1 C5:1 F5:2 D#5:1 A#4:1 C5:1 C#5:1 A#5:2 C5:1 C#5:1 A#5:2 C5:1 C#5:1 A#5:2 G#5:1 G5:1 "
+    "F5:1 D#5:1 C#5:1 C5:1 G#5:2 B4:1 C5:1 G#5:2 B4:1 C5:1 G#5:2 F5:1 D#5:1 C5:1 A#4:1 G#4:1 G4:1 G#4:1 A4:1 F5:2 "
+    "D#5:1 C5:1 A4:1 G4:1 G#4:1 A4:1 F5:2 D#5:1 F5:1 D#5:1 C#5:1 C5:1 C#5:1 F4:2 A4:1 A#4:1 C#5:1 F5:1 C5:1 C#5:1 "
+    "A#4:2 F4:1 C#4:1 A#3:1 B3:1 D4:1 F4:1 G#4:1 B4:1 B4:2 B4:1 ~:1 D5:1 F5:1 G#5:1 B5:2 r:2 C6:1 G#5:1 D#5:1 C5:1 "
+    "C5:1 G#4:1 C4:1 D#4:1 A#4:1 A#4:2 G#4:3 D#4:2 C5:2 C5:4 D#5:2 F5:1 D#5:2 F5:1 D#5:1 F5:1 D#5:2 A#5:1 G#5:2 A#5:1 "
+    "G#5:1 A#5:1 G#5:1 D#5:1 ~:8 C5:2 C5:4 D#5:2 F5:1 D#5:2 F5:1 D#5:1 D#5:1 D#5:2 D#5:1 A#4:2 D#5:1 D5:1 D#5:1 F5:2 "
+    "D#5:5 D#4:1 G4:1 C#5:1 C5:2 C5:4 D#5:2 F5:1 D#5:2 F5:1 D#5:1 F5:1 D#5:2 A#5:1 G#5:2 A#5:1 G#5:1 G#5:1 A#5:1 C6:1 "
+    "~:6 G5:1 G#5:1 A#5:1 G#5:2 A#5:1 G#5:1 A#5:1 G#5:1 D#5:1 ~:1 F5:1 D#5:1 C#5:1 C5:1 D#5:2 D#5:1 D#5:1 C#5:2 D#5:1 "
+    "C#5:1 C5:1 A#4:2 G#4:4 G#5:2 r:2 C#5:2 C#5:3 G#4:1 C#5:1 D#5:1 F5:2 F5:3 G#4:1 C#5:1 F5:1 G#5:1 C6:2 A#5:2 G#5:1 "
+    "C5:2 C#5:2 r:4 G#4:1 A4:1 A#4:1 F#5:2 D#5:1 A4:1 F#5:2 D#5:1 G#4:1 C#5:1 F5:1 A#5:2 G#5:1 F5:1 C#5:1 C5:1 G#5:1 "
+    "D#5:1 C5:1 A#4:1 C5:2 G#4:1 C#5:1 C#5:1 F5:1 G#5:1 C#6:1 A#5:1 G#5:1 F5:1 A#4:1 F#5:2 D#5:1 A4:1 F#5:2 D#5:1 "
+    "G#4:1 C#5:1 F5:1 A#5:2 G#5:1 F5:1 C#5:1 D#5:1 F5:1 D#5:1 C#5:1 C5:1 C#5:2 A#4:1 G#4:2 F5:1 D#5:1 G#5:2 B4:2 "
+    "A#4:1 F#5:2 D#5:1 A4:1 F#5:2 D#5:1 r:1 G#4:1 C#5:1 F5:1 A#5:1 G#5:1 F5:1 C#5:1 C5:1 G#5:1 D#5:1 C5:1 A#4:1 C5:2 "
+    "G#4:1 r:1 C#5:1 F5:1 G#5:1 C#6:1 A#5:1 G#5:1 F5:1 A#4:1 F#5:2 D#5:1 A4:1 F#5:2 D#5:1 r:1 G#4:1 C#5:1 F5:1 A#5:1 "
+    "G#5:1 F5:1 G#4:1 G4:1 C#5:3 F#4:1 D#5:2 C#5:1 ~:4 C#5:1 G#4:1 A#4:1 B4:1 C5:2 G#4:1 A#4:5 C5:2 G#4:1 A#4:2 G#4:1 "
+    "A#4:1 C5:1 C#5:2 G#4:1 A#4:5 C#5:2 G#4:1 A#4:5 r:2 A#4:1 G#4:5 r:2 A#4:1 G#4:5 r:2 A#4:1 G#4:5 r:2 A#4:1 G#4:2 "
+    "G#4:1 A#4:1 B4:1 C5:2 G#4:1 A#4:5 C5:2 G#4:1 A#4:2 G#4:1 A#4:1 C5:1 C#5:2 G#4:1 A#4:5 r:1 C#4:1 F4:1 G#4:1 C#5:1 "
+    "A#4:1 G#4:1 F4:1 A#3:1 F#4:2 D#4:1 A3:1 F#4:2 D#4:1 r:1 G#3:1 C#4:1 F4:1 A#4:1 G#4:1 F4:1 G#3:1 G3:1 C#4:3 F#3:1 "
+    "D#4:2 C#4:1 ~:4 C#5:6/5 r:1"
+)
+
+EWC_BASS = (
+    "D#3:2 C4:3 A#3:1 G#3:1 G3:1 F3:1 D#3:2 C#3:1 C3:2 A#2:1 G#2:1 D#3:4 D#3:1 C#3:1 C3:1 A#2:1 G#2:4 D#3:4 G#2:4 "
+    "D#3:4 G#2:4 D#3:4 C#3:4 C#3:4 G#2:4 D#3:4 G#2:4 D#3:4 G#2:4 A2:4 A#2:4 A#2:4 D#3:2 C#3:2 C3:2 A#2:2 G#2:4 D#3:4 "
+    "G#2:4 D#3:4 C#3:4 C#3:2 C#3:2 C3:2 G2:2 C3:2 r:2 C#3:4 C#3:4 G#2:4 G#2:4 D#3:4 D#3:2 D#3:2 G#2:2 D#3:2 G#2:2 r:2 "
+    "D#3:4 G2:4 A#2:4 A#2:2 B2:2 C3:4 D#3:4 G#2:4 D#3:4 A#2:4 D#3:4 A#2:4 D#3:2 G3:2 G#2:4 D#3:4 G#2:4 D#3:4 F2:4 "
+    "A2:4 C3:4 F2:4 A#2:4 C#3:4 A#2:8 D2:1 F2:1 G#2:1 B2:1 D3:1 D3:2 D3:1 D3:1 F3:1 G#3:1 B3:1 D4:2 r:2 G#3:2 r:6 "
+    "D#3:2 D#3:2 G#2:2 r:2 G#2:4 D#3:4 G#2:4 D#3:4 C#3:4 C#3:4 G#2:4 D#3:4 G#2:4 D#3:4 G#2:4 A2:4 A#2:4 A#2:4 D#3:2 "
+    "C#3:2 C3:2 A#2:2 G#2:4 D#3:4 G#2:4 D#3:4 C#3:4 C#3:2 C#3:2 C3:2 G2:2 C3:2 r:2 C#3:4 C#3:4 G#2:4 G#2:4 D#3:4 "
+    "D#3:2 D#3:2 G#2:2 D#3:2 G#2:2 r:2 C#3:2 C#3:3 G#2:1 C#3:1 D#3:1 F3:2 F3:3 G#2:1 C#3:1 F3:1 G#2:4 G#2:2 G#2:2 "
+    "C#3:2 C#3:2 D#3:2 F3:2 F#2:4 D#3:2 E3:2 F3:4 C#3:4 G#2:4 D#3:2 E3:2 F3:2 C#3:2 G#2:2 F2:2 F#2:4 D#3:2 E3:2 F3:4 "
+    "C#3:4 A#2:4 D#3:4 G#2:2 D3:1 D#3:1 G#2:4 F#2:4 D#3:2 E3:2 F3:4 C#3:4 G#2:4 D#3:2 E3:2 F3:2 C#3:2 G#2:2 F2:2 "
+    "F#2:2 A#2:2 D#3:2 F#3:2 F3:2 C#3:2 G#2:2 C#3:2 A#2:2 D#3:2 G#2:4 C#3:2 G#2:2 C#3:2 r:2 D#3:4 G#2:4 D#3:4 D#3:1 "
+    "G#2:1 G2:1 F#2:1 F2:4 C#3:4 F2:4 C#3:2 D3:2 D#3:4 G#2:4 C3:4 G#2:4 C#3:4 G#2:4 C#3:4 F3:2 E3:2 D#3:4 G#2:4 D#3:4 "
+    "D#3:1 G#2:1 G2:1 F#2:1 F2:4 C#3:4 F3:2 C#3:2 G#2:2 F2:2 F#2:2 A#2:2 D#3:2 F#3:2 F3:2 C#3:2 G#2:2 C#3:2 A#2:2 "
+    "D#3:2 G#2:4 C#3:4 C#2:6 r:1"
+)
+
+EWC_HARM = (
+    "G3:2 D#4:3 C#4:1 C4:1 A#3:1 G#3:1 G3:2 F3:1 D#3:2 C#3:1 C3:1 r:2 G3:2 A#3:4 r:2 C4:1 D#4:1 r:2 D#4:1 C4:1 C4:4 "
+    "D#4:4 C4:4 G#3:4 F3:4 G#3:4 r:2 D#4:1 F4:1 G4:1 G#4:1 A#4:1 B4:1 C4:4 D#4:2 C4:2 G#3:4 A3:2 C4:2 A#3:4 G#3:4 "
+    "C4:2 A#3:2 G#3:2 G3:2 G#3:4 C4:4 C4:2 A#3:2 G#3:4 F3:4 G#3:2 A#3:2 r:1 C5:1 E5:1 G5:1 C5:2 r:2 C#4:4 G#3:4 G#3:4 "
+    "C4:4 A#3:4 G3:4 C4:2 D#4:2 C4:2 r:2 C#4:4 A#3:4 A#3:4 G3:2 r:2 G#3:4 C4:4 D#4:4 C4:4 A#3:4 G3:4 A#3:4 G3:2 A#3:2 "
+    "G#3:4 D#4:4 D#4:4 C4:4 C4:4 A3:4 D#4:4 C4:4 A#3:4 C#4:4 C#4:4 F3:4 F3:1 G#3:1 B3:1 D4:1 F4:2 D4:2 F3:1 G#3:1 "
+    "B3:1 D4:1 F4:2 r:2 D#4:2 r:2 C4:2 G#3:2 G3:2 C#4:2 C4:2 r:2 C4:4 D#4:4 C4:4 G#3:4 F3:4 G#3:4 r:2 D#4:1 F4:1 G4:1 "
+    "G#4:1 A#4:1 B4:1 C4:4 D#4:2 C4:2 G#3:4 A3:2 C4:2 A#3:4 G#3:4 C4:2 A#3:2 G#3:2 G3:2 G#3:4 C4:4 C4:2 A#3:2 G#3:4 "
+    "F3:4 G#3:2 A#3:2 r:1 C5:1 E5:1 G5:1 C5:2 r:2 C#4:4 G#3:4 G#3:4 C4:4 A#3:4 G3:4 C4:2 D#4:2 C4:2 r:2 F4:2 F4:3 "
+    "F4:1 F4:1 F#4:1 C#4:2 C#4:3 F4:1 F4:1 C#4:1 C4:2 D#4:2 F#4:2 D#4:2 F3:2 F3:2 F#3:2 G#3:2 A#3:4 C4:2 C#4:2 C#4:4 "
+    "F4:4 D#4:4 F#4:4 C#4:2 G#3:2 F3:2 C#3:2 F#4:4 D#4:2 C#4:2 F4:4 C#4:4 A#3:4 G3:4 C4:2 r:2 D#4:2 F4:2 F#4:4 D#4:2 "
+    "C#4:2 G#3:4 C#4:4 D#4:4 F#4:4 C#4:2 G#3:2 F3:2 B3:2 A#3:2 C#4:2 F#4:2 D#4:2 C#4:2 F4:4 C#4:2 A#3:2 G3:2 C4:4 "
+    "F3:2 G#3:2 F3:2 r:2 D#4:4 r:2 F#3:1 G#3:1 D#4:4 F#3:1 C4:1 A#3:2 G#3:4 r:2 F3:1 C#4:1 C#4:4 F3:2 F#3:2 F#3:4 r:2 "
+    "C4:1 D#4:1 F#3:2 D#4:2 r:2 D#4:1 C4:1 F3:2 C#4:2 r:2 G#3:1 C#4:1 F3:2 C#4:2 G#3:2 C#4:2 D#4:4 r:2 G#3:1 F#3:1 "
+    "D#4:4 F#3:1 C4:1 A#3:2 G#3:4 r:2 C#4:1 F3:1 G#3:2 F3:2 C#3:2 B3:2 C#4:2 A#3:2 C4:4 F3:2 G#3:4 F3:2 A#3:2 G3:2 "
+    "C4:4 F3:4 G#4:6/2 r:1"
+)
+
+EWC_DRUMS = (
+    "r:8 r:8 r:8 r:4 x:2 x:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:2 b:2 "
+    "t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 r:2 "
+    "b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 o:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:2 "
+    "b:2 t:2 n:2 t:1 t:1 b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:1 t:1 b:2 t:2 n:2 t:2 b:2 t:2 "
+    "n:2 t:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:1 t:1 b:2 t:2 n:2 t:2 b:2 t:2 n:1 n:1 r:2 b:2 r:2 m:2 m:2 b:2 t:2 n:2 r:2 "
+    "b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 "
+    "t:2 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 r:2 b:2 t:2 x:2 t:2 b:2 t:2 "
+    "x:2 t:2 b:2 t:2 x:2 t:2 b:2 t:2 x:2 o:2 b:2 t:2 t:2 t:2 b:2 t:2 t:2 t:2 b:2 t:2 n:2 n:2 b:2 m:2 m:2 o:2 b:2 t:2 "
+    "x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 "
+    "b:2 t:2 x:2 t:1 t:1 b:2 t:2 n:2 o:2 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 "
+    "t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 x:2 t:1 t:1 b:2 t:2 n:2 t:2 b:2 t:2 n:1 n:1 o:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 b:2 "
+    "b:2 t:2 n:2 t:2 b:2 t:2 n:2 o:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 b:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 o:2 b:2 t:2 n:2 t:2 "
+    "b:2 t:2 n:2 b:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 o:2 b:2 t:2 n:2 t:2 b:2 t:2 n:2 b:2 b:2 t:2 n:2 r:2 b:2 r:2 o:1 r:6"
+)
+EWC_TEMPO_MAP = {688: 15, 692: 16, 696: 18, 698: 20, 700: 22}
+EWC_FX_MAP = {702: [(3, 0xC05)], 704: [(3, 0xC02)]}   # the last bass chord: 50 %, then 25 % (the low nibble of Cxy is the wave channel's volume)
+CR_BASS_HELD = with_inst(EWC_BASS, BASS_HELD)
+song("credits", 14, "A", EWC_MEL, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=EWC_TEMPO_MAP, fx_map=EWC_FX_MAP)
+SONGS["credits"].update(ch1=EWC_HARM, ch1_inst=("voice", "ring50"), track=EWC_DRUMS)
 
 # ---------------------------------------------------------------------------------------------
 # The title tune (owner-approved 2026-10-17: music batch 1's title, then "the whole Entertainer, looping", the second B strain an

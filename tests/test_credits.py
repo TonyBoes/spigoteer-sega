@@ -15,7 +15,7 @@ from test_mg import GLYPH_CH
 SP_CREDITS = 8
 TUNE_CREDITS = 15                          # src/music.h: after the 15 listed tunes
 TUNE_NONE_ = 255
-TUNE_FRAMES = 8732                         # the credits tune: 8732 frames (146 s); the pictures run on 960 frames (16 s) longer, in silence (TOTAL)
+TUNE_FRAMES = 9986                         # the credits tune (Easy Winners, batch 5): 9986 frames (166.4 s); the pictures' own clock is 9692 (TOTAL): the last words wait for the tune's end
 CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c)
 SCROLL, CARD, NEXT, T, PHASE, FROM_STORY, F, STEP = 20, 22, 23, 24, 26, 27, 28, 30
 TUNE_T, E_TITLE, CARD_LEN, ROLL_AT, F1_AT, K_AT, BN, BP, POSE = 39, 41, 43, 45, 47, 49, 50, 51, 52      # the timeline's fields (u16 each, K a byte), the boss card's
@@ -401,12 +401,13 @@ def test_the_roll_ends_on_thanks_for_playing_alone(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_roll_runs_with_the_tune_and_ends_within_a_second_of_it(model):
+    # (batch 5: the tune, 9986 frames, now outlasts the picture clock, 9692: the last words wait for it)
     with roll_from_bonus(model) as gb:
         start = cr_t(gb)
         ended = left = f0 = None
         frames = 0
         c0 = gb.pb._cycles()
-        while frames < TOTAL + 300:
+        while frames < TUNE_FRAMES + 300:
             gb.run(1)
             frames = wall(gb, c0)
             if ended is None and gb.mem("cur_tune") != TUNE_CREDITS:
@@ -415,15 +416,12 @@ def test_the_roll_runs_with_the_tune_and_ends_within_a_second_of_it(model):
                 left = frames
                 break
             f = gb.mem16("music_frames")
-            if ended is not None and cr_f(gb) < TOTAL - 4:   # (before the roll leaves: the title tune starts then)
-                f0 = f if f0 is None else f0
-                assert gb.mem("cur_tune") == 255 and f == f0, "after the tune: silence, no restart, no loop"
             assert frames > TUNE_FRAMES - 10 or -2 <= (frames + start) - f <= 9, ("the music keeps wall time (the fades and builds make up their ticks)", f, frames)
             if frames == 7000:                                  # mid-roll: the scroll is what the position says
                 assert 0.8 * SCROLL_FRAC(f) <= scroll(gb) <= 1.2 * SCROLL_FRAC(f), (scroll(gb), SCROLL_FRAC(f))
         assert ended is not None and left is not None
         assert TUNE_FRAMES - 5 <= ended <= TUNE_FRAMES + start + 5, ended   # the 146 s tune (the roll was 2+ frames in when `start` was taken)
-        assert TOTAL - 60 <= left <= TOTAL + 60 and left - ended >= 900, (ended, left)   # the roll runs on by its own frame count, 16 s past the tune
+        assert TOTAL - 60 <= left and 0 <= left - ended <= 70, (ended, left)   # the roll's own frame count is 9692: the tune (9986) is the later end, the roll leaves within a second of it
         assert state(gb) == TITLE and gb.mem("title_menu") == TM_BONUS and menu_items(gb)[gb.mem("title_sel")] == K_CREDITS
         assert gb.regs()["SCY"] == 0
 
@@ -434,7 +432,11 @@ def test_the_last_screen_stays_in_silence_until_the_rolls_own_end(model):
         run_until(gb, lambda: cr_f(gb) >= SCROLL_END + 60, 10500)
         assert lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
         run_until(gb, lambda: cr_f(gb) >= TOTAL - 100, 1000)
-        assert gb.mem("cur_tune") == 255 and state(gb) == GS_STORY and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"], "the tune has run out; the last words stay, silent"
+        assert gb.mem("cur_tune") == TUNE_CREDITS and state(gb) == GS_STORY and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"], "the last words stay while the tune plays out (the roll's own end is 9692, the tune 9986)"
+        run_until(gb, lambda: gb.mem("cur_tune") != TUNE_CREDITS, 500)
+        end = gb.pb._cycles()
+        run_until(gb, lambda: state(gb) != GS_STORY, 120)
+        assert (gb.pb._cycles() - end) / 70224 <= 70, "the tune has run out: the roll (its own clock is long over) leaves within about a second"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -518,14 +520,14 @@ def test_the_story_credits_lead_into_the_roll_and_then_the_score_entry(model):
         assert gb.read("story_scratch", 32)[FROM_STORY] == 1
         assert gb.mem("cur_tune") == TUNE_CREDITS, "the STORY ending runs the credits tune"
         run_until(gb, lambda: cr_f(gb) >= SCROLL_END + 60, 10500)
-        assert gb.mem("cur_tune") == 255 and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]   # (the tune ran out; the last words stay)
-        run_until(gb, lambda: state(gb) != GS_STORY, 900)        # it ends by itself, on its own clock
+        assert gb.mem("cur_tune") == TUNE_CREDITS and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]   # (the tune plays on to 9986; the last words stay)
+        run_until(gb, lambda: state(gb) != GS_STORY, 1200)      # it ends by itself, on its own clock
         gb.run(2)
         assert state(gb) in (GS_INITIALS, GS_SCORES), state(gb)
         assert gb.mem("score_tbl") == 1 and gb.regs()["SCY"] == 0
 
 
-# ---- the credits tune (draft "D3c": The Entertainer, intro / A / B / trio / bridge / D, ending on a ringing chord; tools/songs.py "credits") ------
+# ---- the credits tune (batch 5: The Easy Winners, slow, one pass with a drum track, ending on a ringing chord; tools/songs.py "credits") ------
 import filecmp
 import sys
 
@@ -535,9 +537,10 @@ import songs                 # noqa: E402
 
 BUILD = ROOT / "build"
 BANK_BYTES = 0x4000
-ORDERS = 10
+ORDERS = 12
+ROWS = 707
 ORDER_BYTES = 2 * gm.SLOT_BYTES                            # a melody and a bass pattern
-FRAMES = 8732                                              # 579 rows x 15 frames and the last bar's ritard (17, 19, 20 frames a row)
+FRAMES = 9986                                              # 707 rows x 14 frames and the last bars' ritard (15, 16, 18, 20, 22 frames a row from rows 688, 692, 696, 698, 700)
 
 
 def noi_addr(name):
@@ -569,20 +572,20 @@ def credits_patterns():
     return b, [b["per"][c][o] for o in range(b["n_orders"]) for c in (2, 3)]
 
 
-def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch):
+def test_the_credits_tune_in_the_rom_is_the_generators_output(tmp_path, monkeypatch):
     t = songs.SONGS["credits"]
     b, pats = credits_patterns()
-    assert (b["total"], b["n_orders"], t["tempo"], len(pats)) == (579, ORDERS, 15, 2 * ORDERS), "the whole piece and its ending"
-    assert not t["ch4"] and t["ch1_inst"] == ("harm50", "ring50") and "credits" not in gm.ORDER, "no drums, not a listed tune"
+    assert (b["total"], b["n_orders"], t["tempo"], len(pats)) == (ROWS, ORDERS, 14, 2 * ORDERS), "the whole piece and its ending"
+    assert not t["ch4"] and t["ch1_inst"] == ("voice", "ring50") and "credits" not in gm.ORDER, "no drum patterns (a drum track), not a listed tune"
     assert all(k != gm.EMPTY for k in pats) and b["per"][1] == [gm.EMPTY] * ORDERS and b["per"][4] == [gm.EMPTY] * ORDERS
-    # the melody is the audition's: starts on the intro's D E C, ends on the ringing C chord (instrument 5, the ring) and a rest
+    # the melody is the audition's: starts on the intro's D flat, ends on the ringing D flat 5 chord (instrument 5, the ring) and a rest
     toks = gm.merge_ties(t["ch2"]).split()
-    assert toks[:3] == ["D5:1", "E5:1", "C5:1"] and toks[-2:] == ["C6:6/5", "r:1"] and sum(int(x.split(":")[1].split("/")[0]) for x in toks) == 579
+    assert toks[:3] == ["D#4:2", "C5:3", "A#4:1"] and toks[-2:] == ["C#5:6/5", "r:1"] and sum(int(x.split(":")[1].split("/")[0]) for x in toks) == ROWS
     assert len(gm.DUTY) >= 7 and gm.DUTY[songs.DUTY_RING - 1] == (0x08, 0x80, 0xC7) and gm.HARM_INST["ring50"] == (0x80, 0x97)
-    # the length is the real frames: Fxx tempo changes counted (rows 568-571 at 17 and 19, then 20 a row to the end)
-    assert t["tempo_map"] == {568: 17, 570: 19, 572: 20}
-    assert gm.pass_frames(579, 15, 0, t["tempo_map"]) == FRAMES == 579 * 15 + 2 * 2 + 2 * 4 + 7 * 5
-    assert gm.pass_frames(579, 15) == 579 * 15
+    # the length is the real frames: Fxx tempo changes counted (rows 688-691 at 15, 692-695 at 16, 696-697 at 18, 698-699 at 20, then 22 a row to the end)
+    assert t["tempo_map"] == {688: 15, 692: 16, 696: 18, 698: 20, 700: 22}
+    assert gm.pass_frames(ROWS, 14, 0, t["tempo_map"]) == FRAMES == ROWS * 14 + 4 * 1 + 4 * 2 + 2 * 4 + 2 * 6 + 7 * 8
+    assert gm.pass_frames(ROWS, 14) == ROWS * 14
     # build/ is what the generator makes from the sources now
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
@@ -593,30 +596,39 @@ def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch
     for c, name in ((2, "credits_order2"), (3, "credits_order3")):
         want = ", ".join("&mus_buf_a[%d]" % (((o & 3) * 2 + c - 2) * gm.SLOT_BYTES) for o in range(ORDERS))
         assert f"{name}[] = {{{want}}}" in data, name
-    assert "{&song_credits, 0, %d, 3, 22, blob_credits, 1536, NULL, 0}" % FRAMES in data, "a jingle (once), the real frames, 8 patterns first, bank 22, streamed (buf 3)"
+    assert "{&song_credits, 0, %d, 3, 22, blob_credits, 1536, groove_credits, 0}" % FRAMES in data, "a jingle (once), the real frames, 8 patterns first, bank 22, streamed (buf 3), a drum track"
+    assert "groove_credits[] = {255, 0, 0, 1, 2, 3, 4, 5, 6}" in data, "the track's header: the mark and the identity table src/music.c's groove row reads the drum from"
     # the pattern data and the harmony are in ROM bank 22 (a bank of its own; the other tunes' harmony is in bank 24, with the jingles)
     assert rom_bank("blob_credits") == rom_bank("harm_credits") == 22 == gm.CREDITS_BANK
     assert rom_bank("harm_title") == rom_bank("blob_title") == gm.TITLE_BANK == 23, "the streamed title: its own bank too"
     assert rom_bank("harm_venue0") == gm.HARM_BANK == 24
     assert rom_bytes("blob_credits", len(pats) * gm.SLOT_BYTES) == b"".join(dn(k) for k in pats)
+    # the drum track follows the patterns in the blob: one byte a row (0 none, 1-6 the kit b n t o m x), 707 rows, padded to the 12 orders; 352 hits, 88 kicks
+    track = rom_bytes("blob_credits", len(pats) * gm.SLOT_BYTES + ORDERS * 64 + 2)[len(pats) * gm.SLOT_BYTES:]
+    want = []
+    for tok in t["track"].split():
+        k, n = tok.split(":")
+        want += [gm.DRUM_ID.get(k, 0)] + [0] * (int(n) - 1)
+    assert list(track[:ORDERS * 64]) == want + [0] * (ORDERS * 64 - ROWS) and len(want) == ROWS
+    assert sum(1 for x in want if x) == 352 and want.count(gm.DRUM_ID["b"]) == 88 and not any(want[:28]) and want[700] == gm.DRUM_ID["o"] and not any(want[701:])
     h = bytes(gm.harm_bytes(t, gm.harm_events("credits", t, b["total"])))
-    assert len(h) == 762 and rom_bytes("harm_credits", len(h)) == h
-    # the harmony and the tune's length agree: the last events are the ringing E and a rest
-    assert h[-6:] == bytes([gm.note_no("E5") | 0x80, 6, gm.HARM_REST, 1, 0, 0])
+    assert len(h) == 586 and rom_bytes("harm_credits", len(h)) == h
+    # the harmony and the tune's length agree: the last events are the ringing A flat and a rest
+    assert h[-6:] == bytes([gm.note_no("G#4") | 0x80, 6, gm.HARM_REST, 1, 0, 0])
 
 
 def test_the_generator_stores_a_repeated_pattern_again(tmp_path, monkeypatch):
     """The credits blob has one slot per order and channel, so an order that plays the same pattern as an earlier one (a repeated strain)
     is stored again, and the order tables point at the buffer slot of each order."""
     src = dict(songs.SONGS["credits"])
-    src.update(ch2=" ".join(["C4:64"] * ORDERS), ch3=" ".join(["C3:64"] * ORDERS), ch1="", tempo_map=None, fx_map=None)
+    src.update(ch2=" ".join(["C4:64"] * ORDERS), ch3=" ".join(["C3:64"] * ORDERS), ch1="", tempo_map=None, fx_map=None, track=None)
     monkeypatch.setitem(songs.SONGS, "credits", src)
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
     blob = (tmp_path / "music_pat22.c").read_text()
-    assert "blob_credits[] = {   // credits: 20 patterns" in blob and "harm_credits" not in blob
+    assert "blob_credits[] = {   // credits: 24 patterns" in blob and "harm_credits" not in blob
     assert blob.count("DN(") == 2 * ORDERS * 64, "all 2 x ORDERS slots are written out"
-    assert f"{{&song_credits, 0, {64 * 15 * ORDERS}, 3, 22, blob_credits, 1536, NULL, 0}}" in (tmp_path / "music_data.c").read_text()
+    assert f"{{&song_credits, 0, {64 * 14 * ORDERS}, 3, 22, blob_credits, 1536, NULL, 0}}" in (tmp_path / "music_data.c").read_text()
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -655,16 +667,16 @@ def test_the_credits_play_the_tune_and_the_buffer_holds_the_blob_at_every_order(
         assert checks >= 2 * ORDERS - 2 and done >= set(range(ORDERS - 1)), (checks, done)
         assert FRAMES - 12 <= frames <= FRAMES + 2, "the jingle stop counts the tune's real frames (the ritard included)"
         assert gb.mem("cur_tune") == TUNE_NONE_ and state(gb) == GS_STORY, "the tune ended; the roll goes on in silence"
-        run_until(gb, lambda: state(gb) == TITLE, TOTAL - FRAMES + 120)   # (to its own end, 960 frames on)
+        run_until(gb, lambda: state(gb) == TITLE, 400)   # (the roll's last words wait for the tune's end: it leaves within a second of it)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_tune_stops_after_the_final_chord_has_rung_out(model):
-    """Rows 572-577 are the final chord (6 rows at 20 frames), row 578 a rest: the tune stops when the rest ends, about 2 s after the
-    chord was struck and with nothing cut short; the row starts follow the tempo changes (17, 19, 20 frames a row)."""
+    """Rows 700-705 are the final chord (6 rows at 22 frames), row 706 a rest: the tune stops when the rest ends, about 2.4 s after the
+    chord was struck and with nothing cut short; the row starts follow the tempo changes (15, 16, 18, 20, 22 frames a row)."""
     t = songs.SONGS["credits"]
-    start, cur = [0], 15
-    for r in range(579):
+    start, cur = [0], 14
+    for r in range(ROWS):
         cur = t["tempo_map"].get(r, cur)
         start.append(start[-1] + cur)
     with roll_from_bonus(model) as gb:
@@ -674,10 +686,10 @@ def test_the_tune_stops_after_the_final_chord_has_rung_out(model):
             seen.setdefault((gb.mem("hUGE_current_order") // 2, gb.mem("hUGE_row")), frames)
             gb.run(1)
             frames = wall(gb, c0)
-        for r in range(500, 579):
+        for r in range(600, ROWS):
             assert abs(seen[(r // 64, r % 64)] - start[r]) <= 3, f"row {r} starts at frame {seen[(r // 64, r % 64)]}, the generator says {start[r]}"
-        assert frames >= start[578] + 15, "the last row (a rest) is played out before the tune is cut"
-        assert start[579] - start[572] == 6 * 20 + 20, "the chord rings for six rows, then the rest"
+        assert frames >= start[707] - 4, "the last row (a rest) is played out before the tune is cut"
+        assert start[707] - start[700] == 6 * 22 + 22, "the chord rings for six rows, then the rest"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -1000,10 +1012,11 @@ def test_the_roll_returns_to_its_caller_within_a_second_of_the_tune_with_the_scr
             page_ready(gb)
             gb.press("start", 2)
             run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 30)
-        run_until(gb, lambda: cr_f(gb) >= TOTAL - 40, TOTAL + 300)    # (the roll runs by its own frame count: the tune ran out 16 s earlier)
+        run_until(gb, lambda: cr_f(gb) >= TOTAL - 40, TOTAL + 300)    # (the roll runs by its own frame count: the tune, 294 frames longer, ends after it)
+        run_until(gb, lambda: gb.mem("cur_tune") != TUNE_CREDITS, 500)
         end = gb.pb._cycles()
         run_until(gb, lambda: state(gb) != GS_STORY, 120)
-        assert (gb.pb._cycles() - end) / FRAME <= 70, "the roll leaves within about a second of its own end (the picture timeline), the tune long silent"
+        assert (gb.pb._cycles() - end) / FRAME <= 70, "the roll leaves within about a second of the tune's end (the picture timeline is done)"
         gb.run(120)                                                  # (the drink or the fade, then the next screen)
         assert gb.pb.memory[0xFF40] & 0x80, "the LCD is on"
         assert len(gb.image().convert("RGB").getcolors(10000)) >= 3, "a screen, not a blank one"
