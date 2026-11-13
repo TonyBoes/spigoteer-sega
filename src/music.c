@@ -38,11 +38,11 @@ static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
 extern const uint16_t hUGE_note_table[];   // the driver's 72 periods (exported for this: CREDITS.md)
 static const uint8_t *harm;           // the running tune's channel-1 harmony track (bank HARM_BANK; a streamed tune's: its blob's bank), NULL: none
-static const uint8_t *h_ptr;          // its next event
+const uint8_t *h_ptr;                 // its next event (not static: the soundtrack player's DMG bar for channel 1 reads it)
 static uint8_t h_inst[5];             // duty A, envelope A, duty B, envelope B (the track's header), then the track's ROM bank
 static uint8_t h_note;                // the current event's note byte (HARM_REST: a rest)
 static uint8_t h_rows, h_cnt;         // rows left in the event, frames left in the row
-static uint8_t h_sound;               // 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
+uint8_t h_sound;                      // (also read by src/jukebox.c) 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
 #define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_COUNT)   // the tunes a story twist can speed up (not the credits tune)

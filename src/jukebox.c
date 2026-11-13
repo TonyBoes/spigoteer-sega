@@ -14,7 +14,7 @@
 // seen and falls CGB_FALL px a frame. DMG (no such registers): a note-start meter read from the driver's own state, with no hook in it and nothing added to
 // music_tick: when hUGE_row has changed, each channel's pattern cell for that row (the four pattern pointers sit in the 8 bytes before hUGE_ticks_per_row)
 // says whether a note starts (channels 2-4; the pattern pointers of channel 1 are not read: it is src/music.c's harmony voice, which the driver never plays, so its
-// bar follows the volume NR12 holds: a note after a rest is a start); that channel's bar jumps to full and falls DMG_FALL px a frame. The drum groove, which
+// bar follows music.c's harmony pointer: a new event that sounds is a start); that channel's bar jumps to full and falls DMG_FALL px a frame. The drum groove, which
 // src/music.c plays outside the patterns, kicks the noise bar through g_step. All of it runs in this screen's update.
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene runs while this screen shows), at most
 // JB_ROWS_PER_FRAME a frame, and a bar that moved is queued as the run of its tiles that changed (a fall is two or three).
@@ -32,6 +32,8 @@
 
 extern uint8_t overlay_on, joy, g_step;
 extern unsigned char hUGE_ticks_per_row, hUGE_row;
+extern const uint8_t *h_ptr;                     // src/music.c: the harmony track's next event
+extern uint8_t h_sound;                          // 1: a harmony note sounds on channel 1
 
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
 #define PCM12 (*(volatile uint8_t *)0xFF76)     // CGB: channels 1 (low nibble) and 2 (high) digital output
@@ -63,7 +65,7 @@ struct jb_meter {
     uint8_t peak[4];            // DMG: a note start's level (JB_BAR_PX), falling DMG_FALL a frame
     uint8_t row;                // DMG: the driver's row as of the last frame
     uint8_t step;               // DMG: g_step as of the last frame
-    uint8_t nr12;               // DMG: channel 1's start volume (NR12's top nibble) as of the last frame
+    const uint8_t *hptr;        // DMG: music.c's harmony pointer (its next event) as of the last frame: it moves on at each harmony note start
 };
 #define JB ((struct jb_meter *)(story_scratch + JB_ROWS * 20))
 typedef char jb_scratch_fits[(JB_ROWS * 20 + sizeof(struct jb_meter) <= STORY_SCRATCH) ? 1 : -1];
@@ -180,8 +182,8 @@ static void meters(void) {
                 for (i = 1; i < 4; i++) if (pat[i] >= 0xC000 && *(const uint8_t *)(pat[i] + 3 * (uint16_t)row) < 72) m->peak[i] = JB_BAR_PX;
             }
             if (step && !m->step) m->peak[3] = JB_BAR_PX;
-            if ((NR12_REG & 0xF0) && !m->nr12) m->peak[0] = JB_BAR_PX;       // channel 1 is src/music.c's harmony voice (the driver never plays it): its envelope register
-            m->nr12 = NR12_REG & 0xF0;                                          // reads back what was written: a note after a rest or silence is a start
+            if (h_ptr != m->hptr && h_sound) m->peak[0] = JB_BAR_PX;         // channel 1 is src/music.c's harmony voice (the driver never plays it): h_ptr steps on at each event
+            m->hptr = h_ptr;                                                    // (a note straight after a note leaves NR12 as it was: the envelope register showed no start)
         }
         m->row = row; m->step = step;
     }
