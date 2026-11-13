@@ -20,6 +20,9 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 
+BANKREF_EXTERN(art_tiles)
+extern const uint8_t coin_tiles[];
+
 uint8_t venue_id;               // theme loaded now (= patron group of the level; 0 saloon on the title)
 
 // Theme t's tiles, palettes and the bars' base picture (render.c restores it under the patrons). LCD off.
@@ -37,6 +40,7 @@ void load_venue(uint8_t t) BANKED {
     spr_data_far(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT, venue.drink_tiles + (MUG_TILE_COUNT + MUG_FILL_TILE_COUNT) * 16, venue_bank);
     spr_data_far(OBJ_GLASS, GLASS_TILE_COUNT, venue.drink_tiles + VENUE_DRINK_TILES * 16, venue_bank);   // its crash
     spr_data_far(OBJ_DANCER, DANCER_TILE_COUNT, venue.show_tiles, venue_bank);
+    spr_data_far(OBJ_COIN, COIN_TILE_COUNT, coin_tiles, BANK(art_tiles));   // (the tip's coin is written at boot; the story's pictures and portraits borrow BG ids 92-95, the same VRAM: put it back)
     if (is_cgb && (venue.show_band & 0x20)) show_pool_load();    // (the Color show's bank 1 tiles, src/show_ext.c)
     music_pump();
     // (P6: BASE_W wide; columns 20.. plain wall, the wall rows' columns 2.., for a slanted bar's window; the counter row's

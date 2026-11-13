@@ -71,3 +71,25 @@ def test_coin_tiles_after_the_soundtrack_then_arcade(model):
         assert vram_coin(rom) == coin_art(), "coin tiles in ARCADE after the soundtrack"
     finally:
         rom.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_coin_tiles_after_the_story_intro_and_map(model):
+    """The owner's report (11-13): a new STORY game, the intro's pictures and portraits and the map borrow BG ids 92-95, the coin's VRAM:
+    at the first shift the coin tiles are the art again (the venue load puts them back)."""
+    from test_story import start_story, through_the_map, skip_scene, SP_MAP, GS_STORY, GS_GOAL, state
+    gb = start_story(model)
+    try:
+        for _ in range(40):
+            if state(gb) == GS_GOAL:
+                break
+            if gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY:
+                through_the_map(gb)
+            else:
+                skip_scene(gb)
+        assert state(gb) == GS_GOAL, "the first shift's banner"
+        gb.press("a", 2)
+        gb.run(30)
+        assert vram_coin(gb) == coin_art(), "coin tiles at the first story shift"
+    finally:
+        gb.stop()
