@@ -19,12 +19,13 @@ from gen_art import blocks, png, tile_bytes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADER = "; Art: PROPOSAL (new, unapproved: pending owner approval)"
+APPROVED = "; Art: APPROVED by the owner"
 OK = set(".-+#")
 
 
 def grab(path, n, w, h, header=None):
     path = Path(path)
-    if header and not path.read_text().startswith(header):
+    if header and not path.read_text().startswith((header, APPROVED)):
         sys.exit(f"gen_dgag: {path.name}: the first line must start with '{header}'")
     fr = [r for _, r in blocks(path)]
     if len(fr) < n or not all(len(f) == h and all(len(r) == w and set(r) <= OK for r in f) for f in fr):
