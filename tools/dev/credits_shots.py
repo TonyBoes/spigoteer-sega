@@ -40,19 +40,21 @@ def main():
     ap.add_argument("outdir")
     ap.add_argument("tag")
     ap.add_argument("--venues", default="0,4,9")
-    ap.add_argument("--cards", default="owner,patrons,boss")
+    ap.add_argument("--cards", default="venue,owner,patrons,boss")
     ap.add_argument("--at", type=int, default=100, help="frames into the hold")
     ap.add_argument("--glide", action="store_true")
+    ap.add_argument("--map", action="store_true", help="the CRMAP build: four cards a venue (venue, owner, patrons, boss)")
     ap.add_argument("--models", default="dmg,cgb")
     a = ap.parse_args()
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
     kinds = a.cards.split(",")
     want = {}
+    kds = ("venue", "owner", "patrons", "boss") if a.map else ("owner", "patrons", "boss")
     for v in map(int, a.venues.split(",")):
-        for j, kd in enumerate(("owner", "patrons", "boss")):
+        for j, kd in enumerate(kds):
             if kd in kinds:
-                want[3 + 3 * v + j] = (v, kd)
+                want[3 + len(kds) * v + j] = (v, kd)
     for model in a.models.split(","):
         with start(a.rom, model) as gb:
             done = set()

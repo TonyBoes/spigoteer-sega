@@ -12,6 +12,7 @@ Writes (build/):
   credits_text.json  every row's text and ink box (tests)
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -163,10 +164,27 @@ LAY_G, LAY_LG = 2, 12
 # Owner 2026-11-13: no spigot icon over a venue's title ("It just reads as garbage scrolling by so fast"), and no REGULARS or BOSS label ("That's implied"): the band
 # is where the divider was (the venue's card is 3 rows shorter), the first line of patrons' names is on row R_PA (the label's 2 rows and the blank above it are gone: the card
 # is 2 rows shorter), the boss is 3 rows up (H_BOSS 11). R_DIV is the card's row its loads wait for (credits.c cr_lrow), no longer a drawn row.
-LAY = dict(G=LAY_G, LG=LAY_LG, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG, R_OLBL=LAY_LG + 5, R_PORT=LAY_LG + 7, R_ONAME=LAY_LG + 15,
+LAY = dict(G=LAY_G, LG=LAY_LG, MAPFMT=0, FONTFMT=0, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG, R_OLBL=LAY_LG + 5, R_PORT=LAY_LG + 7, R_ONAME=LAY_LG + 15,
            H_OWN=LAY_LG + 16, R_PA=3, R_PN=5, H_PAT=14, R_BBODY=3, R_BNAME=7, H_BOSS=11,
            OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 8), OFF_PAT=56, OFF_BOSS=40)
 LABELS = ["OWNER"]
+# Proposals, off by default (owner 2026-11-13, nothing goes into the default build until he picks): make BUILD=out/b_crA OUT=out/o_crA CRFONT=A CRMAP=A unlocked
+#   CRFONT=A  the venue's name in the HUD font as the story map's panel and the menus set it, 8x8, on the 3-row stripe (middle row)
+#   CRFONT=B  the same, on a 1-row stripe (the story map's chapter tag: a ribbon), the stripe's other two rows blank
+#   CRMAP=A   a title page of its own for each venue (a card before the owner's): the building from the story map above the name
+#   CRMAP=B   the same page with the building beside the name (the name in two lines on a 2-row stripe)
+CRFONT = os.environ.get("CRFONT", "")
+CRMAP = os.environ.get("CRMAP", "")
+assert CRFONT in ("", "A", "B") and CRMAP in ("", "A", "B"), (CRFONT, CRMAP)
+if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the owner's card starts at OWNER
+    BH = 4
+    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4,
+               H_VEN=LAY_LG + (BH + 1 + 3 + 6 if CRMAP == "A" else BH + 9), R_VB=LAY_LG, R_VBAND=LAY_LG + BH + 1, OFF_VEN=8 * (LAY_LG + (4 if CRMAP == "A" else 2)))
+# the building crops: the story map's own cells (assets/smap/world_c.png, a venue's sign and facade, 6 x 4 cells, native size), each in the map's palette of its cells
+BUILD_CROP = {0: (4, 21), 1: (3, 2), 2: (54, 21), 3: (22, 4), 4: (52, 6), 5: (54, 39), 6: (54, 57), 7: (24, 55), 8: (7, 54), 9: (4, 38)}   # (col, row) in the map's cells, venue order
+BUILD_W = 6
+LAY["MAPFMT"] = {"": 0, "A": 1, "B": 2}[CRMAP]
+LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
 ROLL_POOL = 160                                      # the roll's BG ids (credits.c CR_RING): the most tiles of 21 consecutive rows it may need
@@ -337,19 +355,67 @@ def main():
     ids["BAND0"] = len(ROWS)
     for v in range(10):                               # the venue band: the name's letters 8 px wide, 16 tall, on a stripe (colour 2); three rows of tiles
         px, x0, x1 = strip(VENUES[v])
-        big = [px[y // 2] for y in range(16)]
-        ys = [y for y in range(16) if any(c != BAND for c in big[y])]
-        top = (BAND_H - (ys[-1] - ys[0] + 1)) // 2 - ys[0]
         dx = 80 - (x0 + x1 + 1) // 2
         assert x0 + dx >= 8 and x1 + dx < 152, (VENUES[v], x0 + dx, x1 + dx)
         img = [[2] * 160 for _ in range(BAND_H)]
-        for y in range(16):
-            for x in range(len(px[0])):
-                if big[y][x] != BAND:
-                    img[y + top][x + dx] = big[y][x]
+        if CRFONT:                                    # the HUD font as it is (8x8, the pixel rows as drawn), on the middle row of the stripe
+            for y in range(8):
+                for x in range(len(px[0])):
+                    if px[y][x] != BAND:
+                        img[8 + y][x + dx] = px[y][x]
+        else:
+            big = [px[y // 2] for y in range(16)]
+            ys = [y for y in range(16) if any(c != BAND for c in big[y])]
+            top = (BAND_H - (ys[-1] - ys[0] + 1)) // 2 - ys[0]
+            for y in range(16):
+                for x in range(len(px[0])):
+                    if big[y][x] != BAND:
+                        img[y + top][x + dx] = big[y][x]
         for j in range(3):
             cut_row(f"BAND{v}_{j}", img[8 * j:8 * j + 8], 2, EXTRA)
     stripe = tile_of([[2] * 160 for _ in range(8)], 0)
+    BLD_COL = []                                      # each venue's building palette: the story map's palette of the crop's cells (the commonest), colours light to dark
+    if CRMAP:
+        from PIL import Image
+        wj = json.loads((ROOT / "assets/smap/world.json").read_text())
+        wim = Image.open(ROOT / "assets/smap/world_c.png")
+        ids["BLD0"] = len(ROWS)
+        for v in range(10):
+            c0, r0 = BUILD_CROP[v]
+            pals = {}
+            for cy in range(4):
+                for cx in range(BUILD_W):
+                    pn = wj["cell_pal"][r0 + cy][c0 + cx]
+                    pals[pn] = pals.get(pn, 0) + 1
+            pn = max(pals, key=pals.get)
+            BLD_COL.append([rgb555("#%02x%02x%02x" % tuple(c)) for c in wj["pal_rgb"][wj["pal_names"][ord(pn) - 48]]])
+            bpx = [[wim.getpixel((c0 * 8 + x, r0 * 8 + y)) for x in range(8 * BUILD_W)] for y in range(32)]   # the map's own pixels, indices 0-3 light to dark
+            ox = 56 if CRMAP == "A" else 8
+            lines = ["THE", VENUES[v][4:]] if len(VENUES[v].split()) == 2 else [VENUES[v].split()[0] + " " + VENUES[v].split()[1], " ".join(VENUES[v].split()[2:])]
+            for j in range(4):
+                full = [[BAND] * 160 for _ in range(8)]
+                bg = BAND
+                if CRMAP == "B" and j in (1, 2):
+                    for y in range(8):
+                        full[y] = [2] * 160            # the stripe (colour 2) right of the building
+                    bg = 2
+                for y in range(8):
+                    for x in range(8 * BUILD_W):
+                        full[y][ox + x] = bpx[8 * j + y][x]
+                if CRMAP == "B" and j in (1, 2):
+                    tx, t0, t1 = strip(lines[j - 1])
+                    cxm = 108 - (t0 + t1 + 1) // 2
+                    assert 64 <= t0 + cxm and t1 + cxm < 156, (lines, t0 + cxm, t1 + cxm)
+                    for y in range(8):
+                        for x in range(len(tx[0])):
+                            if tx[y][x] != BAND:
+                                full[y][x + cxm] = tx[y][x]
+                    for k in range(BUILD_W):
+                        assert any(full[y][ox + 8 * k + x] != 2 for y in range(8) for x in range(8)), "a building cell is all stripe"
+                if CRMAP == "A":
+                    for k in range(BUILD_W):
+                        assert any(full[y][ox + 8 * k + x] != BAND for y in range(8) for x in range(8)), f"venue {v}: a building cell is all colour 3 (it would be cut as blank)"
+                cut_row(f"BLD{v}_{j}", full, bg, EXTRA)
     # the stripe's colour on Color: the venue's stage palette colour 2 (biker: its bar's colour 2, the stage's is a bright green)
     vd = ROOT / "assets/approved/venues"
     band_col = []
@@ -378,7 +444,17 @@ def main():
         yy = y0
         cnt = dict(world)
         for v in range(10):
-            for off, name in [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]:
+            if CRMAP:
+                items = [(L["R_VB"] + j, f"BLD{v}_{j}") for j in range(4)]
+                if CRMAP == "A":
+                    items += [(L["R_VBAND"] + j, f"BAND{v}_{j}") for j in range(3)]
+                for off, name in items:
+                    cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
+                yy += L["H_VEN"] + L["G"]
+                items = [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
+            else:
+                items = [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
+            for off, name in items:
                 cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
             yy += L["H_OWN"] + L["G"]
             for k, nm in enumerate("ABC"):
@@ -463,6 +539,9 @@ def main():
           f"#define CT_LBL {ids['LBL0']}   // the label OWNER",
           f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",
           "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
+    if CRMAP:
+        h += [f"#define CT_BLD {ids['BLD0']}   // the building rows: four a venue, CT_BLD + 4 v + j",
+              "static const uint16_t ct_bldcol[10][4] = { " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in BLD_COL) + " };   // the building's palette (RGB555, before BRIGHTEN), light to dark"]
     h += [f"#define CT_{k} {v}" for k, v in LAY.items()]
     h += [f"#define CT_ROLL2_N {len(roll2)}   // the scroll's roll: a blank row after each line of an entry", f"#define CT_ROLL2_BAND {band2}   // its sprites' band (the roll's row 14, moved)",
           "static const uint8_t ct_roll2[CT_ROLL2_N] = { " + ", ".join(str(r) for r in roll2) + " };"]

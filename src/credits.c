@@ -48,7 +48,8 @@ extern uint8_t overlay_on, joy, story_phase;
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
-#define CR_CARDS      33      // the title, the Spigoteer, Dregs, then three cards for each of the ten venues
+#define CR_BLD_PAL    6     // CRMAP: the building's BG palette (a venue's title page: the portraits' 2-4, the boss's 5 are not on it)
+#define CR_CARDS      (CT_MAPFMT ? 43 : 33)      // the title, the Spigoteer, Dregs, then three cards for each of the ten venues (CRMAP proposal: four, the venue's title page first)
 #define CR_SHARE      392     // the tune's units: 1/392 of it (24.7 frames of the 162 s tune)
 #define CR_UNIT_PAT    11     // a patron card's units (owner Q80: held longer, to read all eight names); the other cards 7
 #define CR_UNIT_END   362     // the roll ends at this unit, "THANKS FOR PLAYING!" fills the rest
@@ -210,9 +211,14 @@ static void cr_fig(uint8_t n, int16_t y, uint8_t x, uint8_t base, uint8_t prop, 
 // Writing VRAM with the LCD on is slow (the library waits for the picture's blanking for every byte): a card is built in UNITS, CR_UNITS a
 // frame (a row, a few tiles), so that no frame runs over its VBlank and the tune never loses a tick. Stage 1 blanks the rows the last card
 // used, stage 2 loads, stage 3 writes the rows; then the card fades in.
-enum { CK_TITLE, CK_SPIGOTEER, CK_DREGS, CK_OWNER, CK_PATRONS, CK_BOSS };
+enum { CK_TITLE, CK_SPIGOTEER, CK_DREGS, CK_OWNER, CK_PATRONS, CK_BOSS, CK_VENUE };
+#if CT_MAPFMT
+static const uint8_t cr_kt[CR_CARDS] = { 0, 1, 2, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5, 6, 3, 4, 5 };
+static const uint8_t cr_vt[CR_CARDS] = { 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9 };
+#else
 static const uint8_t cr_kt[CR_CARDS] = { 0, 1, 2, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 5 };   // (tables: the scroll asks every frame, and a divide by 3 is 300 cycles)
 static const uint8_t cr_vt[CR_CARDS] = { 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9 };
+#endif
 static uint8_t cr_kind(uint8_t c, uint8_t *v) { *v = cr_vt[c]; return cr_kt[c]; }
 
 
@@ -234,6 +240,22 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
     uint8_t v = 0, k, n, nch, kd = cr_kind(c, &v), *buf = CR_BUF;
     uint16_t p[4], bg;
     portrait_t *pt = CR_PT;
+#if CT_MAPFMT
+    if (kd == CK_VENUE) {                          // its palettes: BG 6 the building's, BG 0 the band's colour (the label's gold) as the owner's card will have it
+        if (i == 0 && is_cgb) {
+            for (n = 0; n < 4; n++) p[n] = ct_bldcol[v][n];
+            cr_pal(0, CR_BLD_PAL, p);
+            return 0;
+        }
+        if (i == 1 && is_cgb) {
+            uint16_t *q = (uint16_t *)CR_PAL, *hq = (uint16_t *)(CR_PAL + 8 * BGPAL_HUD);
+            q[0] = hq[0]; q[1] = BRIGHTEN(COL_GOLD); q[2] = BRIGHTEN(ct_bandcol[v]); q[3] = hq[3];
+            if (CR->live) cr_hw(0, 0);
+            return 0;
+        }
+        return 1;
+    }
+#endif
     if (kd == CK_SPIGOTEER || kd == CK_DREGS || kd == CK_OWNER) {
         k = cr_spk(kd, v);
         if (i < 2) { portrait_part(k, i, pt); return 0; }   // the portrait: its header and map, its attributes (portrait_get pumps the timer for over a frame)
@@ -364,6 +386,9 @@ static uint8_t cr_hgt(uint8_t c) {                // a card's rows
     uint8_t v = 0, kd;
     if (c >= CR_CARDS) return 0;
     kd = cr_kind(c, &v);
+#if CT_MAPFMT
+    if (kd == CK_VENUE) return CT_H_VEN;
+#endif
     return kd == CK_TITLE ? CT_H_TITLE : kd <= CK_DREGS ? CT_H_SD : kd == CK_OWNER ? CT_H_OWN : kd == CK_BOSS ? CT_H_BOSS : CT_H_PAT;
 }
 
@@ -371,6 +396,9 @@ static uint8_t cr_gap(uint8_t c) { return c == CR_CARDS - 1 ? CR_LASTGAP : c ? C
 
 static uint8_t cr_off(uint8_t c) {                // the px from the card's top to the middle of its stop's block
     uint8_t v = 0, kd = cr_kind(c, &v);
+#if CT_MAPFMT
+    if (kd == CK_VENUE) return CT_OFF_VEN;
+#endif
     return kd == CK_TITLE ? CT_OFF_TITLE : kd <= CK_DREGS ? CT_OFF_SD : kd == CK_OWNER ? CT_OFF_OWN : kd == CK_BOSS ? CT_OFF_BOSS : CT_OFF_PAT;
 }
 
@@ -399,7 +427,11 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
         CR->lw = CR->next; CR->ld = 0;
         cr_blank(); cr_attr_hud();
         if (kd && is_cgb) for (i = 0; i < 20; i++) CR_ATT[i] = 0;
+#if CT_MAPFMT
+        if (kd == 2 || kd == 4) for (i = 0; i < 20; i++) CR->row[i] = CR_STRIPE_ID;
+#else
         if (kd == 2) for (i = 0; i < 20; i++) CR->row[i] = CR_STRIPE_ID;
+#endif
         credits_row_get(r, CR_BUF);
     }
     n = CR_BUF[1];
@@ -410,7 +442,11 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
             id = CR->rt;
             if (++CR->rt == CR_TXT_CN) CR->rt = 0;
             VBK_REG = VBK_BANK_1; credits_tile_put(cell[i], id); VBK_REG = VBK_BANK_0;
+#if CT_MAPFMT
+            CR_ATT[CR_BUF[0] + i] = (kd == 3 || (kd == 4 && CR_BUF[0] + i < 7) ? CR_BLD_PAL : kd ? 0 : BGPAL_HUD) | 8;
+#else
             CR_ATT[CR_BUF[0] + i] = (kd ? 0 : BGPAL_HUD) | 8;
+#endif
         } else {
             id = CR->rt;
             if (++CR->rt == CT_RING_N) CR->rt = 0;
@@ -441,11 +477,21 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
     else if (kd == CK_SPIGOTEER || kd == CK_DREGS) {
         if (r >= 1 && r < 1 + h) i = r - 1;
         else if (r == 3 + h || r == 5 + h) tr = (kd == CK_SPIGOTEER ? CT_SAL : CT_DREGS) + ((r - 3 - h) >> 1);
+#if CT_MAPFMT
+    } else if (kd == CK_VENUE) {
+        if (r >= CT_R_VB && r < CT_R_VB + 4) { tr = CT_BLD + 4 * v + r - CT_R_VB; tk = CT_MAPFMT == 2 && (r == CT_R_VB + 1 || r == CT_R_VB + 2) ? 4 : 3; }
+        else if (CT_MAPFMT == 1 && r >= CT_R_VBAND && r < CT_R_VBAND + 3 && !(CT_FONTFMT == 2 && r != CT_R_VBAND + 1)) { tr = CT_BAND + 3 * v + r - CT_R_VBAND; tk = 2; }
     } else if (kd == CK_OWNER) {
-        if (r >= CT_R_BAND && r < CT_R_BAND + 3) { tr = CT_BAND + 3 * v + r - CT_R_BAND; tk = 2; }
+        if (r == CT_R_OLBL) { tr = CT_LBL; tk = 1; }
+        else if (r >= CT_R_PORT && r < CT_R_PORT + h) i = r - CT_R_PORT;
+        else if (r == CT_R_PORT + h + 1) tr = CT_OWNER + v;
+#else
+    } else if (kd == CK_OWNER) {
+        if (r >= CT_R_BAND && r < CT_R_BAND + 3) { if (!(CT_FONTFMT == 2 && r != CT_R_BAND + 1)) { tr = CT_BAND + 3 * v + r - CT_R_BAND; tk = 2; } }   // (CRFONT=B: the ribbon, one row of stripe)
         else if (r == CT_R_OLBL) { tr = CT_LBL; tk = 1; }
         else if (r >= CT_R_PORT && r < CT_R_PORT + h) i = r - CT_R_PORT;
         else if (r == CT_R_PORT + h + 1) tr = CT_OWNER + v;
+#endif
     } else if (kd == CK_PATRONS) {
         if (is_cgb) { k = r - CT_R_PA; if (r >= CT_R_PA && k % CT_R_PN == 0 && k < 3 * CT_R_PN) tr = CT_PATA + 10 * (k / CT_R_PN) + v; }
         else if (r == CT_R_PA + CT_R_PN) tr = CT_PATA + v;
@@ -564,7 +610,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                 } else { y = y0 + 8 * (CT_R_PA + CT_R_PN) - 4; pose = CR_T_P + 6 * k; n = 0; }
                 cr_oam(8 + 2 * k, y - bob, cx[k], pose, n);
                 cr_oam(9 + 2 * k, y - bob, cx[k] + 8, pose + 2, n);
-                if (k == 3) music_pump();                               // (a card of eight patrons is a long frame on Color: the tick falls due in the middle)
+                if ((k & 1) && k != 7) music_pump();                               // (a card of eight patrons is a long frame on Color: the tick falls due in the middle)
             }
         }
         cs += cr_hgt(c) + cr_gap(c);

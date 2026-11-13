@@ -39,6 +39,8 @@ endif
 #                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)
 GLOW     ?=
 export GLOW
+export CRFONT
+export CRMAP
 ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
