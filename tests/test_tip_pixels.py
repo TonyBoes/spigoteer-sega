@@ -43,3 +43,31 @@ def test_coin_tiles_every_venue(gb, group):
     goto_group(gb, group)
     gb.run(400)
     assert vram_coin(gb) == coin_art(), f"venue {group}: the coin's tiles in VRAM are not the art"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_coin_tiles_after_the_soundtrack_then_arcade(model):
+    """The owner's path (11-13): the SOUNDTRACK player, a tune playing, B back to the title, then ARCADE: the coin is still the art."""
+    from test_arcade import booted, title_arcade, state, run_until, hold_stage_anim, GS_GOAL
+    from test_jukebox import to_jukebox, tap
+    from test_flow import TITLE
+    from conftest import MENU_SETTLE
+    rom = booted(model, None)
+    try:
+        hold_stage_anim(rom)
+        to_jukebox(rom)
+        tap(rom, "a")
+        rom.run(120)
+        tap(rom, "a")
+        tap(rom, "b")
+        run_until(rom, lambda: state(rom) == TITLE, 30)
+        rom.run(MENU_SETTLE)
+        tap(rom, "b")
+        rom.run(MENU_SETTLE)
+        assert vram_coin(rom) == coin_art(), "coin tiles after the soundtrack"
+        title_arcade(rom)
+        run_until(rom, lambda: state(rom) == GS_GOAL, 60)
+        rom.run(200)
+        assert vram_coin(rom) == coin_art(), "coin tiles in ARCADE after the soundtrack"
+    finally:
+        rom.stop()
