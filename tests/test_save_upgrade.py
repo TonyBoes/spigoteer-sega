@@ -29,7 +29,7 @@ def views(request):
 @pytest.mark.only_model('dmg')
 def test_the_full_image_reads_as_written(views):
     model, full, blank = views
-    assert full["progress"] == 2 and full["reached"] == 0 and full["tunes"] == 0x2345 | 1 and full["keep"] == 0x80 and full["debug"] == 1
+    assert full["progress"] == 2 and full["reached"] == 0 and full["tunes"] == (0x2345 & 0xFFF1) | 1 and full["keep"] == 0x80 and full["debug"] == 1
     assert full["mg_unlocked"] == 0x1FF and full["mg_best"][:3] == bytes([0x1B, 2, 1])
     assert full["bonus"] == bonus_expect("GOLD", "GOLD", "SILVER") and full["continue"] == 777
     assert full["scores"][:8] == (9000).to_bytes(4, "little") + (800).to_bytes(4, "little")

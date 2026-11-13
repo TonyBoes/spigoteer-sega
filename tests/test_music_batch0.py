@@ -132,7 +132,7 @@ def test_the_credits_last_chord_fades_100_50_25_percent():
         while gb.mem16("music_frames") < start - 3:
             gb.run(1)
         seq = []
-        while gb.mem("cur_tune") == 15 and gb.mem16("music_frames") < gm.pass_frames(707, 14, 0, t["tempo_map"]) - 2:
+        while gb.mem("cur_tune") == 16 and gb.mem16("music_frames") < gm.pass_frames(707, 14, 0, t["tempo_map"]) - 2:
             gb.run(1)
             v = gb.mem(NR32) & 0x60
             if not seq or seq[-1] != v:

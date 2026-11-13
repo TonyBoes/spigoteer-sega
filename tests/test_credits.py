@@ -13,7 +13,7 @@ from test_flow import GS_INITIALS, GS_SCORES, GS_STORY, TITLE, most_per_scanline
 from test_mg import GLYPH_CH
 
 SP_CREDITS = 8
-TUNE_CREDITS = 15                          # src/music.h: after the 15 listed tunes
+TUNE_CREDITS = 16                          # src/music.h: TUNE_MAP 15, TUNE_CREDITS 16, TUNE_EWFAST 17
 TUNE_NONE_ = 255
 TUNE_FRAMES = 9986                         # the credits tune (Easy Winners, batch 5): 9986 frames (166.4 s); the pictures' own clock is 9692 (TOTAL): the last words wait for the tune's end
 CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c)
@@ -576,7 +576,7 @@ def test_the_credits_tune_in_the_rom_is_the_generators_output(tmp_path, monkeypa
     t = songs.SONGS["credits"]
     b, pats = credits_patterns()
     assert (b["total"], b["n_orders"], t["tempo"], len(pats)) == (ROWS, ORDERS, 14, 2 * ORDERS), "the whole piece and its ending"
-    assert not t["ch4"] and t["ch1_inst"] == ("voice", "ring50") and "credits" not in gm.ORDER, "no drum patterns (a drum track), not a listed tune"
+    assert not t["ch4"] and t["ch1_inst"] == ("voice", "ring50") and gm.ORDER[16] == "credits", "no drum patterns (a drum track); a listed tune since the soundtrack player lists it (batch 5)"
     assert all(k != gm.EMPTY for k in pats) and b["per"][1] == [gm.EMPTY] * ORDERS and b["per"][4] == [gm.EMPTY] * ORDERS
     # the melody is the audition's: starts on the intro's D flat, ends on the ringing D flat 5 chord (instrument 5, the ring) and a rest
     toks = gm.merge_ties(t["ch2"]).split()
@@ -589,7 +589,7 @@ def test_the_credits_tune_in_the_rom_is_the_generators_output(tmp_path, monkeypa
     # build/ is what the generator makes from the sources now
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
-    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c", "music_pat25.c"):
+    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c", "music_pat25.c", "music_pat26.c"):
         assert filecmp.cmp(tmp_path / f, BUILD / f, shallow=False), f + " is stale"
     # the order tables: orders 0-3 use patterns 0-7 of the buffer, order j >= 4 sits over order j & 3
     data = (BUILD / "music_data.c").read_text()

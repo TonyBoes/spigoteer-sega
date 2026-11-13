@@ -16,9 +16,13 @@ extern uint8_t is_cgb;
 
 // TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, punks,
 // ninjas, zoo, aliens: tools/songs.py VENUES); TUNE_SHOW plays while a show runs.
-// TUNE_COUNT: the tunes the soundtrack player lists and the save unlocks (bits of tune_unlocked); TUNE_CREDITS (the credits roll's
-// tune, src/credits.c) comes after them and is in neither; TUNE_ALL sizes the tune tables.
-enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 10, TUNE_CREDITS = TUNE_COUNT, TUNE_MAP, TUNE_ALL, TUNE_NONE = 255 };
+// TUNE_MAP is the story map's tune (Swipesy), TUNE_CREDITS the credits roll's (The Easy Winners, src/credits.c), TUNE_EWFAST a faster Easy Winners that only the soundtrack
+// player plays. TUNE_COUNT: the tunes the soundtrack player lists and TUNE_ALL sizes the tune tables (the same 18). Unlocks (src/save.c tune_open): the title always; the
+// stored bits of tune_unlocked (16 bits: tunes 0-15, TUNE_STORED) for the show tune, the ten venues and the map; Level Clear, Game Over, Bonus Round, the credits tune and
+// the fast Easy Winners (TUNE_DERIVED: no bit) once the story's credits are reached (save.c credits_reached: the story complete).
+enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_VENUE_END = TUNE_VENUE0 + 10, TUNE_MAP = TUNE_VENUE_END, TUNE_CREDITS, TUNE_EWFAST,
+       TUNE_COUNT, TUNE_ALL = TUNE_COUNT, TUNE_NONE = 255 };
+#define TUNE_DERIVED(t) (((t) >= TUNE_CLEAR && (t) <= TUNE_BONUS) || (t) >= TUNE_CREDITS)   // unlocked by the story's end, not by a stored bit
 enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_EXTRA, SFX_DON, SFX_KA, SFX_REV, SFX_WHOOSH, SFX_SWISH, SFX_PERFECT, SFX_COUNT };   // (15 of the 16 request bits)
 
 typedef struct {
@@ -125,6 +129,7 @@ uint8_t debug_unlocked(void) BANKED;                   // the DEBUG MENU is unlo
 void debug_unlock(void) BANKED;                        // ... and kept (src/debug.c's trigger on the title)
 void venue_score_put(uint8_t ch, uint32_t s) BANKED;     // a venue was entered with score s: kept for CONTINUE (not in a debug / ARCADE run)
 uint32_t venue_score_get(uint8_t ch) BANKED;             // CONTINUE: the score kept for chapter ch (0 when none)
+uint8_t tune_open(uint8_t t) BANKED;        // the soundtrack player: is tune t unlocked (save.c)
 extern uint16_t tune_unlocked;              // bonus menu: bit t = tune t playable in the soundtrack player (SRAM v5 on)
 extern uint8_t  save_lock;                  // 1: a debug-select story run writes nothing to SRAM (title_enter clears it)
 void tune_heard(uint8_t t) BANKED;          // music_play in story mode: unlock tune t (saved by the next TUNE_FLUSH / story_save when heard in a shift, at once elsewhere)

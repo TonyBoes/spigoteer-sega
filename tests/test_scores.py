@@ -14,9 +14,12 @@ V3_SUM = 36          # M11b: version 3 = version 2's table + the story progress 
 V4_SUM = 36          # story shifts: version 4 = version 3 with the step reached at 35 (was reserved)
 V5_SUM = 38          # bonus menu: version 5 = version 4's bytes + the unlocked tunes at 36-37 (LE), checksum at 38
 V6_SUM = 38          # the 10th venue: version 6 = version 5's bytes, the chapters (0..10) and tunes in the new order
-TUNE_COUNT = 15      # music.h (title, clear, over, bonus, show, ten venue tunes)
+TUNE_COUNT = 18      # music.h (title, clear, over, bonus, show, ten venue tunes, the map's Swipesy, the credits tune, the bonus Easy Winners)
 TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
-JINGLES = (1 << TUNE_CLEAR) | (1 << TUNE_OVER) | (1 << TUNE_BONUS) | (1 << TUNE_SHOW)
+TUNE_MAP, TUNE_CREDITS, TUNE_EWFAST = TUNE_VENUE0 + 10, TUNE_VENUE0 + 11, TUNE_VENUE0 + 12
+DERIVED = (TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_CREDITS, TUNE_EWFAST)   # unlocked by the story's end (save.c tune_open), no stored bit
+STORED = 0xFFF1      # save.c TUNE_STORED: the title (0), the show tune (4), the ten venues (5-14), the map (15)
+JINGLES = 1 << TUNE_SHOW     # what clearing chapter 1 stores of the old jingles
 
 
 # ---- SRAM images --------------------------------------------------------------------------------
@@ -272,7 +275,7 @@ def test_a_version_6_save_keeps_its_story_and_starts_the_tables_fresh(model):
     """Q4 (owner 2026-10-11): the old arcade's top 5 is dropped; the story progress and the unlocks are kept, written
     back as version 7 at once (the main block and three empty tables)."""
     tunes = 1 | 1 << 5 | 1 << 6 | 0x1E
-    want = tunes | progress_unlocks(2, 2)                # (plus what the progress implies, as every migration; the old 3 is 2 in the new order, src/order.h)
+    want = (tunes | progress_unlocks(2, 2)) & STORED                # (plus what the progress implies, as every migration; the old 3 is 2 in the new order, src/order.h)
     with booted(model, v6_image(FIVE, story=3, step=2, tunes=tunes)) as rom:
         assert rom.mem("save_migrated") == 6
         assert table(rom) == EMPTY and table(rom, MODE_STORY) == EMPTY and table(rom, MODE_CLASSIC) == EMPTY

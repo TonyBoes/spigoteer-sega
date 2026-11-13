@@ -45,7 +45,7 @@ static uint8_t h_rows, h_cnt;         // rows left in the event, frames left in 
 uint8_t h_sound;                      // (also read by src/jukebox.c) 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
-#define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_COUNT)   // the tunes a story twist can speed up (not the credits tune)
+#define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_VENUE_END)   // the tunes a story twist can speed up (not the credits tune)
 // The frame timer counts CPU clocks / 1024: 4096 Hz in normal speed (68.6 counts a frame), 8192 Hz in a Color's double speed (137.2; no slower
 // setting exists), where its 8 bits wrap every 1.87 frames, not 3.7. A wrap sets IF bit 2 (nothing is enabled to take it) and reloads TIMA from TMA:
 // the pumps read that flag and carry the lost 256 counts in a 16-bit sum, so a gap of up to ~3.7 frames costs no tick on either speed.

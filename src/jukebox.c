@@ -8,7 +8,8 @@
 // top; A on the tune that is playing stops it; B always leaves for the BONUS submenu (the title's own tune takes over). A locked tune shows "? ? ?" and does
 // not play (the hint row then has no A). The names come from tools/songs.py SOUNDTRACK (build/jukebox_names.h), sized by TUNE_COUNT.
 // MUSIC OFF: a tune chosen here plays all the same (the player turns the music on); leaving puts it off again.
-// The unlocks are save.c's (tune_unlocked, SRAM v5): the title tune always, the rest as the story is played.
+// The unlocks are save.c's (tune_open): the title tune always; the show tune, the venues' and the map's as the story plays them (tune_unlocked); Level Clear,
+// Game Over, Bonus Round, the credits tune and the bonus Easy Winners once the story's credits are reached.
 //
 // The bars. Color: the sound chip's own PCM12 / PCM34 registers (the channels' digital outputs, 4 bits each), read once a frame: a bar jumps to the highest value
 // seen and falls CGB_FALL px a frame. DMG (no such registers): a note-start meter read from the driver's own state, with no hook in it and nothing added to
@@ -90,7 +91,7 @@ static uint8_t unlocked(uint8_t t) {
     (void)t;
     return 1;
 #else
-    return (uint8_t)(tune_unlocked >> t) & 1;
+    return tune_open(t);
 #endif
 }
 

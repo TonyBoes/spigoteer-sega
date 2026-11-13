@@ -22,7 +22,7 @@ import gen_music as gm      # noqa: E402
 
 RIG = ROOT / "out" / "rig"
 LINE = 114
-DEFAULT = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(10)] + ["credits", "map"]
+DEFAULT = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(10)] + ["credits", "map", "ewfast"]
 
 
 def build():

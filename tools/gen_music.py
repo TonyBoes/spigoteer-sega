@@ -352,7 +352,7 @@ TUNES["bonus"]["ch2"] = " ".join(t + "/4" if ":" in t and not t.startswith("r:")
 
 # ---- tune table: the order is music.h's TUNE_* enum ----------------------------------------------
 JINGLES = {"clear": TUNES["clear"], "over": TUNES["over"], "bonus": TUNES["bonus"]}
-ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(len(songs.VENUES))]
+ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(len(songs.VENUES))] + ["map", "credits", "ewfast"]   # (music.h's TUNE_* enum, the soundtrack player's order)
 SOURCE = {"title": "entertainer", "show": "galop"}
 SOURCE.update({f"venue{i}": n for i, n in enumerate(songs.VENUES)})
 BLOB_BANKS = (10,)      # a bank of their own (the autobanker only places `#pragma bank 255` files)
@@ -371,15 +371,18 @@ CREDITS_BANK = 22
 TITLE_BANK = 23
 MAP = "map"                  # the story map's tune (Swipesy Cake Walk, tools/songs.py "swipesy"): looping, streamed like the title; TUNE_MAP follows TUNE_CREDITS
 MAP_BANK = 25
-STREAMED = {"title": TITLE_BANK, CREDITS: CREDITS_BANK, MAP: MAP_BANK}
+EWFAST = "ewfast"            # The Easy Winners, the quick draft: a soundtrack-only tune (TUNE_EWFAST), streamed like the title
+EWFAST_BANK = 26
+STREAMED = {"title": TITLE_BANK, CREDITS: CREDITS_BANK, MAP: MAP_BANK, EWFAST: EWFAST_BANK}
 STREAM_BUF = 3                # tune_t.buf of a streamed tune (buffer A, always copied afresh, order tables wrap at 8 patterns)
 STREAM_PRELOAD = 8            # patterns in the first copy (the buffer's size)
 CREDITS_ORDERS = 12
 JINGLE_BANK = 24              # the jingles' patterns (batch 1 moved them out of bank 2): copied to buffer A like any tune's (a jingle starts 1-4 frames later)
 PAT_BANKS = BLOB_BANKS + tuple(STREAMED.values()) + (JINGLE_BANK,)     # one build/music_pat<bank>.c each (the Makefile's GEN lists the same; tools/music_rig.py copies these only)
-TUNES = ORDER + [CREDITS, MAP]
+TUNES = ORDER
 SOURCE[CREDITS] = CREDITS
 SOURCE[MAP] = "swipesy"
+SOURCE[EWFAST] = "ewfast"
 BUF_ID = {"A": 1, "B": 2}
 
 
@@ -786,8 +789,9 @@ def main():
 
 
 # ---- the soundtrack player's names (songs.SOUNDTRACK) -> build/jukebox_names.h, #included by src/jukebox.c ----------
-JB_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?'-:")
+JB_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?'-:/")
 JB_W = 18
+JB_W_LINE = 20      # the credit and "where" lines: rows 6 and 7 have no arrows, the whole 20-tile row is free
 
 
 def wrap(s, w=JB_W):
@@ -814,8 +818,8 @@ def jukebox_entries():
             raise SystemExit(f"gen_music: {key}: the full title needs more than two lines of {JB_W}")
         lines = title + [""] * (2 - len(title)) + [credit, where]
         for s in [short] + lines:
-            if len(s) > JB_W or not set(s) <= JB_CHARS:
-                raise SystemExit(f"gen_music: {key}: '{s}' is longer than {JB_W} or has a character with no glyph")
+            if len(s) > (JB_W_LINE if s in lines[2:] else JB_W) or not set(s) <= JB_CHARS:
+                raise SystemExit(f"gen_music: {key}: '{s}' is too long or has a character with no glyph")
         out.append((key, short, lines))
     return out
 
@@ -828,7 +832,7 @@ def write_jukebox_names(out):
              "typedef char jb_count_check[JB_TUNES == TUNE_COUNT ? 1 : -1];   // songs.SOUNDTRACK / ORDER = music.h's tunes",
              f"static const char jb_name[JB_TUNES][{JB_W + 1}] = {{"]
     lines += [f"    {q(s)},   // {k}" for k, s, _ in e] + ["};",
-              f"static const char jb_info[JB_TUNES][4][{JB_W + 1}] = {{   // the full title (2 lines), credit, where"]
+              f"static const char jb_info[JB_TUNES][4][{JB_W_LINE + 1}] = {{   // the full title (2 lines), credit, where"]
     lines += ["    { " + ", ".join(q(s) for s in l) + " }," for _, _, l in e] + ["};", ""]
     (out / "jukebox_names.h").write_text("\n".join(lines))
 

@@ -231,10 +231,10 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         title_pick(gb, K_BONUS, K_CREDITS)
         run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
         gb.run(2)
-        assert gb.mem("cur_tune") == 15
+        assert gb.mem("cur_tune") == 16
         raw, frames = [], 0
         c0 = gb.pb._cycles()
-        while gb.mem("cur_tune") == 15 and frames < 10100:
+        while gb.mem("cur_tune") == 16 and frames < 10100:
             raw.append((gb.mem(0xFF1C) & 0x60, frames))           # (NR32 bits 5-6: the wave channel's output level, 1 = 100 %, 2 = 50 %, 3 = 25 %)
             gb.run(1)
             frames = int((gb.pb._cycles() - c0) / 70224)

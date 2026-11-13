@@ -22,7 +22,7 @@ def built():
 
 # ("map": Swipesy, warm only: it never starts cold, the title tune has run before it and loaded the show tune; cold its first calls reach 2176 M-cycles, 19.1 lines,
 # with the kick body on its bass, 2048 without it: the song dict key "no_kick_body" in tools/songs.py is the switch)
-TUNES = [("title", 3), ("clear", 1), ("over", 1), ("bonus", 4), ("show", 2)] + [(f"venue{i}", 2) for i in range(10)] + [("credits", 1), ("map", 2)]
+TUNES = [("title", 3), ("clear", 1), ("over", 1), ("bonus", 4), ("show", 2)] + [(f"venue{i}", 2) for i in range(10)] + [("credits", 1), ("map", 2), ("ewfast", 2)]
 
 
 @pytest.mark.parametrize("tune,passes", TUNES)
