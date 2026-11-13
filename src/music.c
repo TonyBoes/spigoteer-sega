@@ -404,6 +404,7 @@ static void sfx_dispatch(uint16_t req) {
 static uint8_t load_step(void) {
     const tune_t *t = &tunes[ld_tune];
     uint16_t n = t->bytes - ld_pos;
+    if (!ld_play && mus_active && hUGE_tick < 3) return 0;   // a preload (the show tune, under a tune that is playing) copies on ticks 3 and up of a row only: the first ticks of a row, the tune's first row above all (the table steps of its kick body, the lead's, the harmony's), are the dear ones; a tune started cold stays at 18 lines
     uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
     if (n > cap) n = cap;
     if (n) mus_copy(t->bank, t->blob + ld_pos, (t->buf == 2 ? mus_buf_b : mus_buf_a) + ld_pos, n);

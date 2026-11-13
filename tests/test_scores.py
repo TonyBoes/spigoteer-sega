@@ -140,11 +140,11 @@ def tbl_block(entries, t):
     return bytes(r)
 
 
-def v7_image(arcade=(), story=0, step=0, tunes=1, story_tbl=(), classic=(), size=0x2000):
+def v7_image(arcade=(), story=0, step=0, tunes=1, story_tbl=(), classic=(), size=0x2000, fin=False):
     """A version-7 save (today's): the main block and the three tables."""
     r = bytearray(size)
     r[0:4] = b"TPR7"
-    r[4], r[5] = story, step | STEP_STAMP
+    r[4], r[5] = story | (0x20 if fin else 0), step | STEP_STAMP      # (bit 5 of byte 4: the story was finished once, src/save.c FIN_BIT)
     r[6:8] = tunes.to_bytes(2, "little")
     c = (0x5A + sum(r[:V7_SUM])) & 255
     r[V7_SUM], r[V7_SUM + 1] = c, c ^ 0xFF
@@ -154,11 +154,11 @@ def v7_image(arcade=(), story=0, step=0, tunes=1, story_tbl=(), classic=(), size
 
 
 def main_block(ram):
-    """A version-7 save's main block, checked: (progress, step, tunes)."""
+    """A version-7 save's main block, checked: (progress, step, tunes); byte 4 without bit 5, the finished-once bit (src/save.c FIN_BIT)."""
     assert ram[:4] == b"TPR7"
     c = (0x5A + sum(ram[:V7_SUM])) & 255
     assert ram[V7_SUM] == c and ram[V7_SUM + 1] == c ^ 0xFF, "checksum"
-    return ram[4], ram[5] & ~STEP_STAMP, int.from_bytes(ram[6:8], "little")
+    return ram[4] & ~0x20, ram[5] & ~STEP_STAMP, int.from_bytes(ram[6:8], "little")
 
 
 def saved_tunes(ram):

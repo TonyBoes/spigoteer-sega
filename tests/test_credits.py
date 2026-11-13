@@ -525,6 +525,7 @@ def test_the_story_credits_lead_into_the_roll_and_then_the_score_entry(model):
         gb.run(2)
         assert state(gb) in (GS_INITIALS, GS_SCORES), state(gb)
         assert gb.mem("score_tbl") == 1 and gb.regs()["SCY"] == 0
+        assert gb.mem16("tune_unlocked") & 2, "the finale done: the finished-once fact (tune_unlocked bit 1, saved in byte 4 bit 5) that opens Level Clear, Game Over, Bonus Round and both Easy Winners"
 
 
 # ---- the credits tune (batch 5: The Easy Winners, slow, one pass with a drum track, ending on a ringing chord; tools/songs.py "credits") ------
