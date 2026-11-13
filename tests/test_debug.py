@@ -271,7 +271,11 @@ def test_a_starts_that_level_from_scratch(boot, lvl):
     for _ in range(lvl - 1):
         boot.press("right", 2)
     boot.press("a", 2)
-    boot.run(20 if boot.model_name == "cgb" and lvl == 5 else 15)       # the level load takes a few frames (LCD off); the Igloo on Color (level 5) loads a bank-1 show pool, like bistro, factory and space: 17 frames
+    # the level load takes a few frames (LCD off); the Igloo on Color (level 5) loads a bank-1 show pool, like bistro, factory and space: 17 frames.
+    # Level 1 on Color: 16 frames since the new drum kit (2026-11-12; was 15): the title tune is still playing when A is pressed and its tick on that
+    # frame (a kick with the kick body, 2048 M-cycles, was 1920) pushes the first loader frame past a VBlank, so music_frames lags one frame from the
+    # start and the load ends one frame later; the load's own work is unchanged (measured: same 6 pattern-load frames, same worst call, deterministic).
+    boot.run(20 if boot.model_name == "cgb" and lvl == 5 else 16 if boot.model_name == "cgb" and lvl == 1 else 15)
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == PLAYING
     assert boot.mem("level") == lvl and boot.mem("cur_group") == (lvl - 1) % 10, "its venue"
     assert boot.mem("lives") == 3 and boot.mem("score") == 0 and boot.mem("overlay_on") == 0
