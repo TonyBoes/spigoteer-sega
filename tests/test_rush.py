@@ -388,7 +388,7 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
             if k == 2:
                 check_golden(gb, "rush_list_locked")
             tap(gb, "right")
-            gb.run(8)
+            gb.run(40)                                    # (his tiles stream in, 3 a frame, then the picture swaps: settled by about 12 frames)
         assert R(gb, LIST_SEL) == 0
         tap(gb, "a")
         gb.run(5)
@@ -404,7 +404,7 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         i = BUILT.index(2)                                # the Sasquatch
         for _ in range(i):
             tap(gb, "right")
-        gb.run(8)
+        gb.run(40)                                        # (the Sasquatch's picture streams in first)
         assert selection(gb) == "SASQUATCH" and line(gb, 12).strip() == "THE LUMBER LODGE" and line(gb, 13).strip() == "BEST 1:01"
         assert hint(gb) == "@ PLAY   $ BACK"
         check_golden(gb, "ol_rush_unlocked")
