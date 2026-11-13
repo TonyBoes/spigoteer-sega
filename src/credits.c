@@ -49,6 +49,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
+#define CR_SOLID_ID  77     // CRMAP: the four flat tiles of the buildings (BG ids 77-80, both machines)
 #define CR_BLD_PAL    6     // CRMAP: the building's BG palette (a venue's title page: the portraits' 2-4, the boss's 5 are not on it)
 #define CR_CARDS      (CT_MAPFMT ? 43 : 33)      // the title, the Spigoteer, Dregs, then three cards for each of the ten venues (CRMAP proposal: four, the venue's title page first)
 #define CR_SHARE      392     // the tune's units: 1/392 of it (24.7 frames of the 162 s tune)
@@ -390,7 +391,7 @@ static uint8_t cr_hgt(uint8_t c) {                // a card's rows
     if (c >= CR_CARDS) return 0;
     kd = cr_kind(c, &v);
 #if CT_MAPFMT
-    if (kd == CK_VENUE) return CT_H_VEN;
+    if (kd == CK_VENUE) return CT_R_VB + ct_bh[v] + CT_VPAD;
 #endif
     return kd == CK_TITLE ? CT_H_TITLE : kd <= CK_DREGS ? CT_H_SD : kd == CK_OWNER ? CT_H_OWN : kd == CK_BOSS ? CT_H_BOSS : CT_H_PAT;
 }
@@ -400,7 +401,7 @@ static uint8_t cr_gap(uint8_t c) { return c == CR_CARDS - 1 ? CR_LASTGAP : c ? C
 static uint8_t cr_off(uint8_t c) {                // the px from the card's top to the middle of its stop's block
     uint8_t v = 0, kd = cr_kind(c, &v);
 #if CT_MAPFMT
-    if (kd == CK_VENUE) return CT_OFF_VEN;
+    if (kd == CK_VENUE) return 8 * CT_R_VB + 4 * ct_bh[v];
 #endif
     return kd == CK_TITLE ? CT_OFF_TITLE : kd <= CK_DREGS ? CT_OFF_SD : kd == CK_OWNER ? CT_OFF_OWN : kd == CK_BOSS ? CT_OFF_BOSS : CT_OFF_PAT;
 }
@@ -436,6 +437,10 @@ static uint8_t cr_room(uint8_t lines) {
 static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
     uint8_t n, i, id, m = 2;   // (2 tiles a frame: three left the frame with 4 % to spare, and a pattern copy at an order boundary pushed it past its VBlank: a tick 1.6 frames late)
     uint16_t *cell = (uint16_t *)(CR_BUF + 2);
+#if CT_MAPFMT
+    uint8_t vv = kd >> 4;                          // (a building row: the venue rides in the high bits)
+    kd &= 15;
+#endif
     if (CR->lw != CR->next) {
         if (!cr_room(26)) return 0;
         CR->lw = CR->next; CR->ld = 0;
@@ -452,12 +457,19 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
     while (CR->ld < n && m && cr_room(10)) {
         i = CR->ld++;
         if (cell[i] == 0xFFFF) continue;
+#if CT_MAPFMT
+        if (cell[i] >= 0xFF00) {                       // a flat tile of a building: a fixed BG tile (CR_SOLID_ID + shade), no ring slot, no cost
+            CR->row[CR_BUF[0] + i] = CR_SOLID_ID + (uint8_t)(cell[i] & 3);
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_BLD_PAL;
+            continue;
+        }
+#endif
         if (is_cgb) {
             id = CR->rt;
             if (++CR->rt == CR_TXT_CN) CR->rt = 0;
             VBK_REG = VBK_BANK_1; credits_tile_put(cell[i], id); VBK_REG = VBK_BANK_0;
 #if CT_MAPFMT
-            CR_ATT[CR_BUF[0] + i] = (kd == 3 || (kd == 4 && CR_BUF[0] + i < 7) ? CR_BLD_PAL : kd ? 0 : BGPAL_HUD) | 8;
+            CR_ATT[CR_BUF[0] + i] = (kd == 3 || (kd == 4 && CR_BUF[0] + i < ct_bc1[vv]) ? CR_BLD_PAL : kd ? 0 : BGPAL_HUD) | 8;
 #else
             CR_ATT[CR_BUF[0] + i] = (kd ? 0 : BGPAL_HUD) | 8;
 #endif
@@ -493,8 +505,7 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
         else if (r == 3 + h || r == 5 + h) tr = (kd == CK_SPIGOTEER ? CT_SAL : CT_DREGS) + ((r - 3 - h) >> 1);
 #if CT_MAPFMT
     } else if (kd == CK_VENUE) {
-        if (r >= CT_R_VB && r < CT_R_VB + 4) { tr = CT_BLD + 4 * v + r - CT_R_VB; tk = CT_MAPFMT == 2 && (r == CT_R_VB + 1 || r == CT_R_VB + 2) ? 4 : 3; }
-        else if (CT_MAPFMT == 1 && r >= CT_R_VBAND && r < CT_R_VBAND + 3 && !(CT_FONTFMT == 2 && r != CT_R_VBAND + 1)) { tr = CT_BAND + 3 * v + r - CT_R_VBAND; tk = 2; }
+        if (r >= CT_R_VB && r < CT_R_VB + ct_bh[v]) { tr = CT_BLD + ct_boff[v] + r - CT_R_VB; tk = ((uint8_t)(r - CT_R_VB - ct_bs0[v]) < ct_bnl[v] ? 4 : 3) | (v << 4); }
     } else if (kd == CK_OWNER) {
         if (r == CT_R_OLBL) { tr = CT_LBL; tk = 1; }
         else if (r >= CT_R_PORT && r < CT_R_PORT + h) i = r - CT_R_PORT;
@@ -734,6 +745,9 @@ void credits_enter(uint8_t from_story) BANKED {
     music_pump();
     cr_layout();
     credits_tile_put(CT_STRIPE, CR_STRIPE_ID);        // (LCD off)
+#if CT_MAPFMT
+    for (y = 0; y < 4; y++) credits_tile_put(ct_solid[y], CR_SOLID_ID + y);
+#endif
     if (is_cgb) for (y = 0; y < 8; y++) CR_SAVE[y] = o[64 + y];    // (OBJ 0, the Spigoteer's: the bosses' topper wears it in the cast)
     else o[2] = DMG_HAT_OBP1;                          // (OBP1: the topper's, for the whole cast; cr_leave puts it back)
     CR->scroll = CR->pos = CR_W0 * 8 + CT_OFF_TITLE - 72; CR->next = 0; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story;
