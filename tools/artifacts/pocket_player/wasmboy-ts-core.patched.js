@@ -1,9 +1,11 @@
 /* WasmBoy 0.7.1 TypeScript core (https://github.com/torch2424/wasmBoy), (c) Aaron Turner, GPL-3.0.
-   MODIFIED, two small fixes (search "PATCH" / the CPL line):
+   MODIFIED, three small fixes (search "PATCH" / the CPL line):
    1. CPL (0x2F) masks A to 8 bits: `Cpu.registerA = ~Cpu.registerA & 0xff;`. The stock core leaves a negative A,
       which its Uint8ClampedArray memory clamps to 0 on the next store: every GBDK joypad() read came back empty.
    2. Read traps for VBK (0xFF4F, reads 0xFE|bank) and BCPD/OCPD (0xFF69/0xFF6B, read the palette byte): the stock core
       returns the raw last-written byte, so a game that tests VBK or reads palette RAM back sees garbage.
+   3. Read traps for PCM12 / PCM34 (0xFF76 / 0xFF77, Color only): each nibble is that channel's current 4-bit output, taken from the
+      sound accumulator's last sample (the stock core returns 0). The game's soundtrack player draws its bars from them.
    Licence: https://www.gnu.org/licenses/gpl-3.0.html */
 var WasmBoyTsCore = (function () {
   'use strict';
@@ -7349,6 +7351,16 @@ var WasmBoyTsCore = (function () {
     if (Cpu.GBCEnabled) {
       // PATCH 2 (Spigoteer Pocket Player): the stock core has no read traps for these three Color registers.
       if (offset === 0xff4f) return eightBitLoadFromGBMemory(0xff4f) | 0xfe; // VBK reads 0xFE | bank
+      if (offset === 0xff76 || offset === 0xff77) { // PATCH 3: PCM12 / PCM34, read-only, each nibble is that channel's current 4-bit output
+        batchProcessAudio();
+        var pcmA = SoundAccumulator.channel1Sample, pcmB = SoundAccumulator.channel2Sample;
+        if (offset === 0xff77) { pcmA = SoundAccumulator.channel3Sample; pcmB = SoundAccumulator.channel4Sample; }
+        // The core keeps each sample as 15 +/- output (squares, noise: +volume when high, -volume when low; 15 = off). The real output is volume or 0.
+        // Wave (channel 3) is stored as 15 + the shifted nibble already, so the same subtraction gives its nibble.
+        pcmA = pcmA > 15 ? pcmA - 15 : 0;
+        pcmB = pcmB > 15 ? pcmB - 15 : 0;
+        return (pcmB << 4) | pcmA;
+      }
       if (offset === 0xff69 || offset === 0xff6b) { // BCPD / OCPD read back the palette byte BCPS / OCPS points at
         return loadPaletteByteFromWasmMemory(eightBitLoadFromGBMemory(offset - 1) & 0x3f, offset === 0xff6b);
       }
