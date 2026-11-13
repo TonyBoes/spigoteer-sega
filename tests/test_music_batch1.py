@@ -59,7 +59,7 @@ def digest(name, source):
 CORE_DIGEST = {
     "susanna": "04f13f42965da0c5", "galop": "b9ad7141cc0c712e", "ballgame": "4c0cbee5ef345735", "mountain": "17293e59b9b25754",
     "funicula": "24ad0b34f414109e", "skaters": "c3c9e314c7ed295c", "hall": "4a7bc77821dfd369", "sakura": "94030772e5ccce77",
-    "danube": "1ba75df5a048c12a", "weasel": "8075f61ac9f2a660", "sailor": "a8b08d4bb1b0bfe2", "credits": "f71c63fa2d0b70e5",
+    "danube": "1ba75df5a048c12a", "weasel": "8075f61ac9f2a660", "sailor": "a8b08d4bb1b0bfe2",   # (no credits entry: batch 5 replaced the tune, tests/test_music_batch234.py pins the new one)
     "entertainer": "c6b62e35a1e3d8d4",
 }
 

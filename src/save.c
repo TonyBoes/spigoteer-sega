@@ -119,7 +119,10 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define HI_MAX 999999UL
 #define V7_STORY 4                  // the main block: progress, step, tunes (2), checksum, complement
 #define V7_STEP  5
-#define PROG_MASK 0x3F              // byte 4's bits 0-5 the progress; bits 6-7 the story's difficulty (DIFF_*; 3 reads as NORMAL)
+#define PROG_MASK 0x1F              // byte 4's bits 0-4 the progress (0..10); bit 5 FIN_BIT: the story was finished once (credits reached; set by the finale, never cleared,
+                                    // not even by a new story: an older save has it clear, its progress never reached 32); bits 6-7 the story's difficulty (DIFF_*; 3 reads as NORMAL)
+#define FIN_BIT   0x20
+#define TUNE_FIN  2                 // in memory the finished-once fact is bit 1 of tune_unlocked (the old jingle bit; save_all moves it to FIN_BIT and writes it cleared)
 #define V7_TUNES 6
 #define SV_AT    0x0A               // the venue-start score block (see the top): magic, chapter, score x3, checksum, complement
 #define SV_LEN   6
@@ -150,7 +153,9 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define V3_LEN   36                 // bytes covered by the checksum (versions 3, 4)
 #define V5_TUNES 36                 // 36, 37: the unlocked tunes (versions 5, 6)
 #define V5_LEN   38                 // bytes covered by the checksum (versions 5, 6)
-#define JINGLES  ((1 << TUNE_CLEAR) | (1 << TUNE_OVER) | (1 << TUNE_BONUS) | (1 << TUNE_SHOW))
+#define JINGLES  (1 << TUNE_SHOW)    // (Level Clear, Game Over and Bonus Round left the stored bits: tune_open derives them from the story's end)
+#define TUNE_STORED 0xFFF1           // the bits tune_unlocked keeps: the title (0), the show tune (4), the venues (5-14), the map (15); bits 1-3 were the jingles'
+                                    // (a version 7 save's are dropped on load: they unlock nothing now), 16 and up have no bit
 #define STORY_MAX STORY_CHAPTERS
 #define OLD_STORY_MAX 9             // versions 3-5: nine chapters (the order before the 10th venue)
 #define OLD_KEPT 6                  // their progress p < 6 means the same chapters today; p >= 6 becomes 6, step 0
@@ -503,7 +508,7 @@ void hi_load(void) BANKED {
         if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && (SRAM[V7_STEP] & ~STEP_STAMP) < STEP_SAVED
             && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && (SRAM[V7_STEP] & ~STEP_STAMP) > 1)) {   // (chapter 10 cleared, step 1: the finale is not done yet; CONTINUE returns to the map)
             story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = STEP_CLAMP(SRAM[V7_STEP] & ~STEP_STAMP);
-            tune_unlocked = SRAM[V7_TUNES] | ((uint16_t)SRAM[V7_TUNES + 1] << 8);
+            tune_unlocked = ((SRAM[V7_TUNES] | ((uint16_t)SRAM[V7_TUNES + 1] << 8)) & TUNE_STORED) | (SRAM[V7_STORY] & FIN_BIT ? TUNE_FIN : 0);
             reorder = !(SRAM[V7_STEP] & STEP_STAMP);                     // (a save of the old order: below)
         }
         for (t = 0; t < TOP_TABLES; t++) load_tbl(t);   // each on its own (a bad main block keeps the tables)
@@ -524,8 +529,8 @@ void hi_load(void) BANKED {
     if (b[0] == 'B' && b[1] == 'C' && b[2] == 1 && sum_ok(b, BC_LEN)) level_dirs |= KEEP_POS;
     DISABLE_RAM;
     hi_pick(MODE_ARCADE);
-    if (save_migrated) tune_unlocked = old | progress_unlocks(story_progress, story_reached);
-    tune_unlocked |= 1 << TUNE_TITLE;
+    if (save_migrated) tune_unlocked = (old | progress_unlocks(story_progress, story_reached)) & (save_migrated == 7 ? TUNE_STORED | TUNE_FIN : TUNE_STORED);   // (an older save's bit 1 was a jingle's: dropped; a version 7 save's is the finished-once fact)
+    tune_unlocked = (tune_unlocked | 1 << TUNE_TITLE) & (TUNE_STORED | TUNE_FIN);
     if (save_migrated) hi_save();
 }
 
@@ -640,8 +645,8 @@ static void save_all(uint8_t d) {
     SWITCH_RAM(0);
     if (d == 0xFF) d = magic('7') && sum_ok(SRAM, V7_LEN) ? SRAM[V7_STORY] >> 6 : 0;   // (before the magic is rewritten)
     SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '7';
-    SRAM[V7_STORY] = story_progress | (d == 3 ? 0 : d << 6); SRAM[V7_STEP] = story_reached | STEP_STAMP;
-    SRAM[V7_TUNES] = (uint8_t)tune_unlocked; SRAM[V7_TUNES + 1] = (uint8_t)(tune_unlocked >> 8);
+    SRAM[V7_STORY] = story_progress | (d == 3 ? 0 : d << 6) | (tune_unlocked & TUNE_FIN ? FIN_BIT : 0); SRAM[V7_STEP] = story_reached | STEP_STAMP;
+    SRAM[V7_TUNES] = (uint8_t)tune_unlocked & ~TUNE_FIN; SRAM[V7_TUNES + 1] = (uint8_t)(tune_unlocked >> 8);
     sum_put(SRAM, V7_LEN);
     for (t = 0; t < TOP_TABLES; t++) {
         b = SRAM + TBL_AT(t);
@@ -667,7 +672,7 @@ void hi_save(void) BANKED {
 void story_save(uint8_t chapters, uint8_t step) BANKED {
     if (save_lock) return;
     story_progress = chapters; story_reached = step;
-    if (!EASY_RUN) tune_unlocked |= progress_unlocks(chapters, step);   // (EASY: the progress is kept for CONTINUE, nothing unlocks)
+    if (!EASY_RUN) tune_unlocked |= progress_unlocks(chapters, step) | (chapters == STORY_MAX && !step ? TUNE_FIN : 0);   // (the finale done: the credits were reached, for good)   // (EASY: the progress is kept for CONTINUE, nothing unlocks)
     save_all(RUN_DIFF);                          // (a STORY run: its difficulty goes with the progress)
 }
 
@@ -743,11 +748,23 @@ void sm_put(uint8_t stop, uint8_t flags) BANKED {
     DISABLE_RAM;
 }
 
+// The story's credits are reached at least once: the finale done (story_end saves 10 chapters, step 0) in a story that was not on EASY (it unlocks nothing); a persistent fact. Level Clear, Game Over, Bonus Round, the credits tune and the bonus Easy Winners are unlocked by this and by nothing stored (owner Q52).
+static uint8_t credits_reached(void) {
+    return (uint8_t)tune_unlocked & TUNE_FIN;      // set by the finale of a story not on EASY, saved in byte 4 (FIN_BIT), kept through a new story
+}
+
+// The soundtrack player: tune t unlocked? The title always; the derived tunes by credits_reached; the others by their bit.
+uint8_t tune_open(uint8_t t) BANKED {
+    if (t == TUNE_TITLE) return 1;
+    if (TUNE_DERIVED(t)) return credits_reached();
+    return (uint8_t)(tune_unlocked >> t) & 1;
+}
+
 // music_play, in story mode: tune t was heard. A new unlock heard in a shift (GS_PLAYING .. GS_LEVEL_CLEAR) is marked and saved at the next quiet moment (TUNE_FLUSH: a
 // shift's start, the title, any story_save), not mid-frame: the save takes 113 lines. Elsewhere (scenes, menus) it is saved at once. A power-off before then loses the unlock only.
 void tune_heard(uint8_t t) BANKED {
     uint16_t m;
-    if (save_lock || t >= TUNE_COUNT || EASY_RUN) return;   // (an EASY story unlocks nothing)
+    if (save_lock || t >= TUNE_MAP + 1 || TUNE_DERIVED(t) || EASY_RUN) return;   // (an EASY story unlocks nothing; the derived tunes have no bit)
     m = (uint16_t)1 << t;
     if (tune_unlocked & m) return;
     tune_unlocked |= m;

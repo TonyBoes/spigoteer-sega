@@ -18,22 +18,8 @@ def pending(gb):
     return bool(gb.mem("save_migrated") & DIRTY)
 
 
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_jingle_first_heard_in_a_shift_waits_for_the_shift_clear_save(model):
-    with to_chapter(model, 0) as gb:
-        assert not gb.mem16("tune_unlocked") & 1 << TUNE_CLEAR and not pending(gb)
-        win(gb, 0, 0)
-        run_until(gb, lambda: gb.mem("cur_tune") == TUNE_CLEAR, 30)          # SHIFT CLEAR's jingle, mid-shift
-        assert gb.mem16("tune_unlocked") & 1 << TUNE_CLEAR and pending(gb)
-        ram = save_ram(gb)
-    assert not saved_tunes(ram) & 1 << TUNE_CLEAR, "not written mid-shift"
-    with to_chapter(model, 0) as gb:
-        win(gb, 0, 0)
-        run_until(gb, lambda: gb.mem("cur_tune") == TUNE_CLEAR, 30)
-        run_until(gb, lambda: not pending(gb), 800)                          # story_level_done's story_save
-        assert gb.mem16("tune_unlocked") & 1 << TUNE_CLEAR
-        ram = save_ram(gb)
-    assert saved_tunes(ram) & 1 << TUNE_CLEAR, "saved with the shift's progress"
+# (Level Clear, Game Over and Bonus Round left the stored bits with the soundtrack's 18 tunes (Q52): the only tune a shift can still unlock is the show's,
+# which needs a tip picked up; the deferred save itself is the quit test below, which marks a tune heard in the shift by hand.)
 
 
 def lose_the_shift(gb):
@@ -45,19 +31,13 @@ def lose_the_shift(gb):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_game_over_tune_is_saved_when_the_shift_starts_again(model):
+def test_the_game_over_tune_is_heard_and_stores_nothing(model):
+    """Q52: Game Over is unlocked by the story's end, not by hearing it: no bit, nothing pending, nothing to save."""
     with to_chapter(model, 0) as gb:
         lose_the_shift(gb)
-        assert gb.mem16("tune_unlocked") & 1 << TUNE_OVER and pending(gb)
+        assert not gb.mem16("tune_unlocked") & 1 << TUNE_OVER and not pending(gb)
         ram = save_ram(gb)
-    assert not saved_tunes(ram) & 1 << TUNE_OVER, "not written mid-shift"
-    with to_chapter(model, 0) as gb:
-        lose_the_shift(gb)
-        run_until(gb, lambda: state(gb) == GS_STORY, 200)
-        try_again(gb)                                                        # the venue again: its screen loads with the LCD off
-        assert not pending(gb)
-        ram = save_ram(gb)
-    assert saved_tunes(ram) & 1 << TUNE_OVER
+    assert not saved_tunes(ram) & 1 << TUNE_OVER
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

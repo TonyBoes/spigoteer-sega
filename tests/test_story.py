@@ -1612,8 +1612,8 @@ def test_a_version_3_save_migrates_at_the_chapter_start(model):
         run_until(rom, lambda: state(rom) == GS_STORY, 30)
         assert rom.mem("story_scene") == pre(4) and rom.mem("story_chapter") == 4
         ram = save_ram(rom)
-    # written back as version 7 at once, with the unlocks its progress implies; the PRE scene's venue tune then played
-    assert main_block(ram) == (3, 0, progress_unlocks(3, 0) | 1 << (5 + 4))
+    # written back as version 7 at once, with the unlocks its progress implies; the map's Swipesy (heard on the way, like a venue tune at its PRE scene) and the PRE scene's venue tune then played
+    assert main_block(ram) == (3, 0, progress_unlocks(3, 0) | 1 << (5 + 4) | 1 << 15)
     assert all(parse_save(ram, t) == EMPTY for t in range(3))
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 3

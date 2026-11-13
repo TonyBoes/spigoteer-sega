@@ -303,6 +303,9 @@ def test_a_life_lost_in_the_tell_ends_the_roar(model):
         until(gb, lambda: state(gb) == LIFE_LOST, 4)
         until(gb, lambda: state(gb) == PLAYING, 200)
         frames(gb, 3)
+        # (the "!!" cells are cleared through the VBlank queue within a frame or two of the play resuming: a build whose frames run a little longer clears them one frame
+        # later; the rng and the fight's frame are the same on main and here (rng_state 120, sys_time 22 at the fight's start), only the erase's frame moved)
+        until(gb, lambda: not bang_shown(gb), 2)
         assert (phase(gb), gb.mem("boss_x"), gb.mem("boss_hp"), gb.mem("lives")) == (LP_WALK, R["x"], 14, 2)
         assert not bang_shown(gb) and gb.mem16("boss_special_t") == EVERY
         assert_body(gb, C, A, R["x"], BP_WALK)

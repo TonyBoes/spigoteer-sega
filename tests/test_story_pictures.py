@@ -885,7 +885,7 @@ def mash_scene(model, scene):
         return gb, lambda g: state(g) != GS_STORY
     through_the_pouroff(gb)
     # (FINALE_B, the CREDITS pages, the roll's scroll: the roll then holds its last line until the 88 s credits tune has played)
-    return gb, lambda g: state(g) != GS_STORY or (g.mem("story_phase") == 8 and g.read("story_scratch", 27)[25] > 0)
+    return gb, lambda g: state(g) != GS_STORY or g.mem("story_phase") == 8 and g.mem16("music_frames") > 20     # (the credits roll is up and its tune has begun: the scrolling roll (10000 frames) is not crawled through here)
 
 
 @pytest.mark.parametrize("period", [2, 3, 4, 6])

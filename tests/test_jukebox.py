@@ -12,7 +12,7 @@ from conftest import (K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_PLAY, K_SET
                       hold_stage_anim, menu_items, title_pick)
 from test_flow import (GS_GOAL, GS_STORY, TITLE, most_per_scanline, run_until, settle_title, state, tilemap_row,
                        title_text_row)
-from test_scores import (JINGLES, TUNE_COUNT, TUNE_VENUE0, V4_SUM, V6_SUM, booted, old_progress, old_tunes, parse_save,
+from test_scores import (DERIVED, JINGLES, STORED, TUNE_COUNT, TUNE_CREDITS, TUNE_EWFAST, TUNE_MAP, TUNE_VENUE0, V4_SUM, V6_SUM, booted, old_progress, old_tunes, parse_save,
                          progress_unlocks, saved_tunes, table, v4_image, v5_image, v7_image, EMPTY, V7_SUM,
                          main_block, saved_story)
 from test_sound import save_ram, srom  # noqa: F401  (srom: the sound-on fixture)
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.timeout(240)
 
 GS_JUKEBOX = 14
 TUNE_NONE = 255
-ALL = (1 << TUNE_COUNT) - 1
+ALL = STORED                                 # every stored bit; the derived five (Level Clear, Game Over, Bonus Round, the credits tune, the bonus Easy Winners) need the credits reached: see unlocked_all
 STORY = json.loads((ROOT / "build" / "story.json").read_text())
 GLYPH = STORY["glyphs"]                       # character -> BG tile (HUD glyphs + the story font)
 ART = {m[0]: int(m[1]) for m in re.findall(r"#define (TILE_\w+) (\d+)", (ROOT / "build" / "art.h").read_text())}
@@ -34,6 +34,22 @@ BAR_ROW = 10                                                  # the bars: rows 1
 def tap(rom, b):
     rom.press(b, 2)
     rom.run(1)                                # (the release must be seen before the next press)
+
+
+def opens(rom):
+    """Which of the 18 tunes the player offers (a locked one reads "? ? ?"), by walking the list."""
+    to_jukebox(rom)
+    out = []
+    for _ in range(TUNE_COUNT):
+        settle_rows(rom)
+        out.append(selection(rom) != "? ? ?")
+        tap(rom, "right")
+    return out
+
+
+def credits_reached(rom):
+    """The story finished once: the five derived tunes open (src/save.c tune_open: tune_unlocked bit 1 in memory, byte 4 bit 5 in the save)."""
+    rom.write("tune_unlocked", rom.mem("tune_unlocked") | 2)
 
 
 def to_jukebox(rom):
@@ -55,13 +71,17 @@ def test_the_names_follow_music_h_and_songs_py():
     spec = importlib.util.spec_from_file_location("gen_music", ROOT / "tools" / "gen_music.py")
     gm = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gm)
-    assert len(NAMES) == len(INFO) == TUNE_COUNT == len(gm.ORDER), "one name per tune, sized by TUNE_COUNT"
+    assert len(NAMES) == len(INFO) == TUNE_COUNT == len(gm.ORDER) == 18, "one name per tune, sized by TUNE_COUNT"
     src = [gm.SOURCE.get(n, n) for n in gm.ORDER]
-    assert src[:5] == ["entertainer", "clear", "over", "bonus", "galop"] and src[5:] == gm.songs.VENUES
+    assert src[:5] == ["entertainer", "clear", "over", "bonus", "galop"] and src[5:15] == gm.songs.VENUES and src[15:] == ["swipesy", "credits", "ewfast"]
     for k, name, info in zip(src, NAMES, INFO):
         short, full, credit, where = gm.songs.SOUNDTRACK[k]
         assert name == short and " ".join(i for i in info[:2] if i) == full and info[2:] == [credit, where]
-        assert all(len(s) <= 18 and set(s) <= set(GLYPH) for s in [name] + info)
+        assert all(len(s) <= 18 and set(s) <= set(GLYPH) for s in [name] + info[:2])
+        assert all(len(s) <= 20 and set(s) <= set(GLYPH) | {"/"} for s in info[2:]), "the credit and place lines: the whole 20-tile row"
+    assert NAMES[TUNE_MAP] == "SWIPESY CAKE WALK" and INFO[TUNE_MAP][2:] == ["JOPLIN/MARSHALL 1900", "THE STORY MAP"]
+    assert NAMES[TUNE_CREDITS] == "EASY WINNERS" and INFO[TUNE_CREDITS][2:] == ["SCOTT JOPLIN, 1901", "THE CREDITS"]
+    assert NAMES[TUNE_EWFAST] == "EASY WINNERS FAST" and INFO[TUNE_EWFAST][2:] == ["SCOTT JOPLIN, 1901", "A BONUS TRACK"]
     assert NAMES[0] == "THE ENTERTAINER" and NAMES[TUNE_VENUE0] == "OH! SUSANNA"
 
 
@@ -139,7 +159,7 @@ def test_a_fresh_cartridge_has_only_the_title_tune(boot):
     to_jukebox(boot)
     settle_rows(boot)
     assert boot.mem16("tune_unlocked") == 1
-    assert header(boot) == header_text("SOUNDTRACK", "1 / 15")
+    assert header(boot) == header_text("SOUNDTRACK", "1 / 18")
     assert selection(boot) == "THE ENTERTAINER"
     assert text(boot, 6).strip() == "SCOTT JOPLIN, 1902" and text(boot, 7).strip() == "THE TITLE SCREEN"
     assert hint(boot) == "@ PLAY   $ BACK"
@@ -150,27 +170,27 @@ def test_a_fresh_cartridge_has_only_the_title_tune(boot):
     tap(boot, "a")
     boot.run(3)
     assert boot.mem("cur_tune") == TUNE_NONE, "a locked tune does not play"
-    assert header(boot).endswith("2 / 15")
+    assert header(boot).endswith("2 / 18")
 
 
 @pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_tune_shows_its_name_credit_and_place(model):
-    with booted(model, v7_image([], tunes=ALL)) as rom:
+    with booted(model, v7_image([], story=10, step=0, fin=True, tunes=ALL)) as rom:
         to_jukebox(rom)
         for k in range(TUNE_COUNT):
             settle_rows(rom)
             assert selection(rom) == NAMES[k] and text(rom, 6).strip() == INFO[k][2] and text(rom, 7).strip() == INFO[k][3], k
-            assert header(rom).endswith(f"{k + 1} / 15")
+            assert header(rom).endswith(f"{k + 1} / 18")
             tap(rom, "right")
 
 
 @pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_plays_the_selected_tune_a_again_stops_it_and_b_always_leaves(model):
-    with booted(model, v7_image([], tunes=ALL)) as rom:
+    with booted(model, v7_image([], story=10, step=0, fin=True, tunes=ALL)) as rom:
         to_jukebox(rom)
-        for t in (0, TUNE_VENUE0 + 3, 4):
+        for t in (0, TUNE_VENUE0 + 3, 4, TUNE_MAP, TUNE_CREDITS, TUNE_EWFAST):
             goto_tune(rom, t)
             settle_rows(rom)
             assert hint(rom) == "@ PLAY   $ BACK"
@@ -200,7 +220,7 @@ def test_a_plays_the_selected_tune_a_again_stops_it_and_b_always_leaves(model):
 @pytest.mark.only_model('dmg')
 def test_a_jingle_stops_by_itself_and_the_hint_follows(boot):
     to_jukebox(boot)
-    boot.write("tune_unlocked", 0xFF)
+    credits_reached(boot)
     tap(boot, "right")
     tap(boot, "a")
     assert boot.mem("cur_tune") == 1
@@ -259,7 +279,7 @@ def test_the_dmg_meter_follows_the_notes_and_costs_the_driver_nothing(model="dmg
     """DMG: a note start sends a channel's bar to full, falling 8 px a frame; silent without a tune; the driver's pattern pointers (the 8 bytes before
     hUGE_ticks_per_row) are what it reads (a WRAM address, so a rewrite of the driver's variables breaks this test, not the screen)."""
     from test_sound import make_rom
-    rom = make_rom("dmg", v7_image([], tunes=ALL))          # (sound on: PyBoy reads the sound registers as 0 without it, and channel 1's bar reads NR12)
+    rom = make_rom("dmg", v7_image([], story=10, step=0, fin=True, tunes=ALL))          # (sound on: PyBoy reads the sound registers as 0 without it, and channel 1's bar reads NR12)
     rom.run(120)
     try:
         to_jukebox(rom)
@@ -289,7 +309,7 @@ def test_the_dmg_meter_follows_the_notes_and_costs_the_driver_nothing(model="dmg
 
 def test_the_color_bars_follow_the_pcm_registers():
     from test_sound import make_rom
-    rom = make_rom("cgb", v7_image([], tunes=ALL))
+    rom = make_rom("cgb", v7_image([], story=10, step=0, fin=True, tunes=ALL))
     rom.run(120)
     try:
         to_jukebox(rom)
@@ -318,7 +338,7 @@ def test_the_soundtrack_screen_goldens(model):
         check_golden(rom, "ol_soundtrack")                        # the first tune, nothing playing
         tap(rom, "down")
         tap(rom, "down")
-        tap(rom, "right")                                         # selection 12 of 15: a locked one
+        tap(rom, "right")                                         # selection 12 of 18: a locked one
         rom.run(10)
         check_golden(rom, "ol_soundtrack_locked")
         goto_tune(rom, TUNE_VENUE0)
@@ -337,33 +357,34 @@ def test_a_venue_unlocks_when_its_pre_scene_starts_and_it_is_saved(model):
         skip_scene(rom)                                       # INTRO -> the saloon's PRE scene
         run_until(rom, lambda: state(rom) == GS_STORY and rom.mem("cur_tune") == TUNE_VENUE0, 30)
         assert rom.mem("story_scene") == 1
-        assert rom.mem16("tune_unlocked") == 1 | 1 << TUNE_VENUE0
+        assert rom.mem16("tune_unlocked") == 1 | 1 << TUNE_VENUE0 | 1 << TUNE_MAP, "the saloon's tune, and the map's Swipesy heard on the way"
         ram = save_ram(rom)
-    assert parse_save(ram) == [("   ", 0)] * 5 and saved_tunes(ram) == 1 | 1 << TUNE_VENUE0, "saved at once"
+    assert parse_save(ram) == [("   ", 0)] * 5 and saved_tunes(ram) == 1 | 1 << TUNE_VENUE0 | 1 << TUNE_MAP, "saved at once"
     assert saved_story(ram) == (0, 0), "no story progress yet"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_jingle_unlocks_when_first_heard_in_story(model):
+def test_a_jingle_heard_in_story_stores_nothing(model):
+    """Level Clear, Game Over and Bonus Round are unlocked by the story's end (Q52), not by hearing them: no stored bit."""
     from test_story import to_chapter, win
     with to_chapter(model, 0) as gb:
         assert not gb.mem16("tune_unlocked") & 1 << 1
         win(gb, 0, 0)
         run_until(gb, lambda: gb.mem("cur_tune") == 1, 30)          # SHIFT CLEAR's jingle
-        assert gb.mem16("tune_unlocked") & 1 << 1 and not gb.mem16("tune_unlocked") & 1 << 3
+        assert not gb.mem16("tune_unlocked") & (1 << 1 | 1 << 2 | 1 << 3), "heard, and nothing stored"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_clearing_chapter_1_unlocks_every_jingle(model):
+def test_clearing_chapter_1_unlocks_the_show_tune_only(model):
     from test_story import beat_the_boss, to_shift, win
     with to_shift(model, 0, 2) as gb:
         win(gb, 0, 2)
         beat_the_boss(gb, 0)                                         # (chapter 1 ends with Big Tex once he is built)
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_progress") == 1
-        assert gb.mem16("tune_unlocked") & JINGLES == JINGLES, "BONUS and SHOW too, never heard in the story"
+        assert gb.mem16("tune_unlocked") & JINGLES == JINGLES and not gb.mem16("tune_unlocked") & (1 << 1 | 1 << 2 | 1 << 3), "the show tune (never heard in a story) only: the jingles wait for the credits"
         ram = save_ram(gb)
-    assert saved_tunes(ram) & JINGLES == JINGLES
+    assert saved_tunes(ram) & JINGLES == JINGLES and not saved_tunes(ram) & (1 << 1 | 1 << 2 | 1 << 3)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -371,7 +392,7 @@ def test_unlocks_survive_a_new_story(model):
     """The unlocks are never re-locked: a new story's first save resets the progress, not the soundtrack."""
     from test_story import skip_scene, start_story, to_goal, win
     tunes = progress_unlocks(5, 2)
-    with start_story(model, v7_image([("ABC", 500)], story=5, step=2, tunes=tunes)) as rom:
+    with start_story(model, v7_image([("ABC", 500)], story=5, step=2, tunes=tunes, fin=True)) as rom:
         assert rom.mem("story_scene") == 0, "STORY: a new story from the INTRO"
         skip_scene(rom)
         skip_scene(rom)
@@ -379,18 +400,16 @@ def test_unlocks_survive_a_new_story(model):
         win(rom, 0, 0)
         run_until(rom, lambda: state(rom) == GS_GOAL, 800)          # the happy hour's banner: saved (0, 1)
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (0, 1)
-        assert rom.mem16("tune_unlocked") == tunes, "nothing re-locked"
+        tunes |= 1 << TUNE_MAP                                      # (the map's tune was heard on the way)
+        assert rom.mem16("tune_unlocked") == tunes | 2, "nothing re-locked (bit 1: the story was finished once)"
         ram = save_ram(rom)
     assert saved_story(ram) == (0, 1) and saved_tunes(ram) == tunes and parse_save(ram)[0] == ("ABC", 500)
+    assert ram[4] & 0x20, "the finished-once bit is in byte 4 of the new story's first save"
     with booted(model, ram) as again:
-        assert again.mem16("tune_unlocked") == tunes
-        to_jukebox(again)
-        goto_tune(again, TUNE_VENUE0 + 5)
-        settle_rows(again)
-        assert selection(again) == NAMES[TUNE_VENUE0 + 5], "chapter 6: reached"
-        tap(again, "right")
-        settle_rows(again)
-        assert selection(again) == "? ? ?"
+        assert again.mem16("tune_unlocked") == tunes | 2
+        o = opens(again)
+        assert all(o[t] for t in DERIVED), "finished, then a new story: Level Clear, Game Over, Bonus Round and both Easy Winners stay in the player"
+        assert o[TUNE_VENUE0 + 5] and not o[TUNE_VENUE0 + 6], "chapter 6: reached; the next venue's tune still locked"
 
 
 # ---- SRAM version 7 (the three modes) and the migrations from versions 4 and 5 -----------------------------------------
@@ -428,9 +447,9 @@ V0 = TUNE_VENUE0
 def test_a_version_5_save_s_unlocks_follow_the_new_tune_order(model, old, new):
     assert old_tunes(old) == new
     with booted(model, v5_image([("ABC", 500)], tunes=old)) as rom:
-        assert rom.mem("save_migrated") == 5 and rom.mem16("tune_unlocked") == new
+        assert rom.mem("save_migrated") == 5 and rom.mem16("tune_unlocked") == new & STORED, "the jingles' old bits (1-3) are dropped"
         ram = save_ram(rom)
-    assert saved_tunes(ram) == new and ram[:4] == b"TPR7"
+    assert saved_tunes(ram) == new & STORED and ram[:4] == b"TPR7"
 
 
 @pytest.mark.only_model('dmg')
@@ -441,7 +460,7 @@ def test_a_version_5_save_keeps_its_unlocks_and_gains_its_progress_s(model):
     heard = progress_unlocks(7, 1)                              # old order: venues 0-7 (7 = the space lounge)
     with booted(model, v5_image([], story=7, step=1, tunes=heard)) as rom:
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (6, 0)
-        want = old_tunes(heard) | progress_unlocks(6, 0)
+        want = (old_tunes(heard) | progress_unlocks(6, 0)) & STORED
         assert rom.mem16("tune_unlocked") == want
         assert want & 1 << (V0 + 9) and want & 1 << (V0 + 7) and not want & 1 << (V0 + 6) and not want & 1 << (V0 + 8)
 
@@ -450,17 +469,30 @@ def test_progress_unlocks_rule():
     assert progress_unlocks(0, 0) == 1, "nothing played: the title tune"
     assert progress_unlocks(0, 1) == 1 | 1 << TUNE_VENUE0, "a step of chapter 1 reached: the saloon"
     assert progress_unlocks(1, 0) == 1 | 1 << TUNE_VENUE0 | JINGLES
-    assert progress_unlocks(10, 0) == ALL, "the story complete: everything"
+    assert progress_unlocks(10, 0) == ALL & ~(1 << TUNE_MAP), "the story complete: every stored bit but the map's (heard on the map; the five derived tunes have none)"
 
 
 @pytest.mark.only_model('dmg')
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_version_7_loads_its_unlocks_and_rejects_a_bad_one(model):
     with booted(model, v7_image([("ABC", 500)], story=2, step=1, tunes=0x1234 | 1)) as rom:
-        assert rom.mem("save_migrated") == 0 and rom.mem16("tune_unlocked") == 0x1235, "kept as saved"
+        assert rom.mem("save_migrated") == 0 and rom.mem16("tune_unlocked") == 0x1235 & STORED == 0x1231, "kept as saved (bit 2, Game Over's, is not a stored bit any more)"
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (2, 1)
     with booted(model, v7_image([("ABC", 500)], tunes=0x0100)) as rom:
         assert rom.mem16("tune_unlocked") == 0x0101, "the title tune is always unlocked"
+    with booted(model, v7_image([("ABC", 500)], story=3, step=0, tunes=0x000F | 1 << 4)) as rom:
+        assert rom.mem16("tune_unlocked") == 0x11, "a version 7 save's bits for Level Clear, Game Over and Bonus Round (1-3) are dropped: nothing reuses them, and the credits not reached keep them locked"
+        o = opens(rom)
+        assert not any(o[t] for t in DERIVED) and o[0] and o[4], "the five derived tunes locked, the title and the show tune (a stored bit) open"
+    with booted(model, v7_image([("ABC", 500)], story=10, step=0, fin=True, tunes=0x0001)) as rom:
+        o = opens(rom)
+        assert all(o[t] for t in DERIVED) and sum(o) == 6, "the credits reached (ten chapters, the finale done): the five derived tunes open, whatever the stored bits say"
+    with booted(model, v7_image([("ABC", 500)], story=10, step=1, tunes=0x0001)) as rom:
+        o = opens(rom)
+        assert not any(o[t] for t in DERIVED), "the finale not done yet (no finished-once bit): still locked"
+    with booted(model, v7_image([("ABC", 500)], story=0, step=0, fin=True, tunes=0x0001)) as rom:
+        o = opens(rom)
+        assert all(o[t] for t in DERIVED), "finished once, then a new story (progress 0): the five stay open"
     good = bytearray(v7_image([("ABC", 500)], tunes=0x00F1))
     for name, edit in (("bad checksum", lambda r: r.__setitem__(V7_SUM, r[V7_SUM] ^ 1)),
                        ("unlocks outside the checksum", lambda r: r.__setitem__(6, r[6] ^ 2)),
@@ -531,12 +563,12 @@ def harmony_trace(rom, frames):
     return out
 
 
-@pytest.mark.parametrize("tune", [4, 6, 9])
+@pytest.mark.parametrize("tune", [4, 6, 9, TUNE_MAP, TUNE_CREDITS, TUNE_EWFAST])
 def test_the_dmg_channel_1_bar_moves_on_the_harmony_s_note_starts(tune):
     """DMG: channel 1 is music.c's harmony voice, not the driver's. Its bar jumps to full on each harmony note start (h_ptr steps on to a note), also a
     note straight after another one, which NR12 (the volume, written the same each time) never showed."""
     from test_sound import make_rom
-    rom = make_rom("dmg", v7_image([], tunes=ALL))
+    rom = make_rom("dmg", v7_image([], story=10, step=0, fin=True, tunes=ALL))
     rom.run(120)
     try:
         to_jukebox(rom)

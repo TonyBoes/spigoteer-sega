@@ -136,7 +136,7 @@ def test_the_prompt_does_not_disturb_older_saves():
     menu_tap(r, "a")
     r.run(MENU_SETTLE + 20)
     after = observe(r)
-    assert before == after and after["progress"] == 2 and after["tunes"] == 0x2345 | 1 and after["keep"] == 0x80, "the other blocks read as written"
+    assert before == after and after["progress"] == 2 and after["tunes"] == (0x2345 & 0xFFF1) | 1 and after["keep"] == 0x80, "the other blocks read as written (tune bits masked to the stored ones: bit 2, Game Over's, is derived from the credits now)"
     sav = save_ram(r)
     assert sav[SC_AT:SC_AT + 5] == sc_block(2)
 

@@ -20,7 +20,8 @@ def built():
     assert re.search(r"#define MUSIC_LATEST_LY 120\b", (ROOT / "src" / "music.h").read_text()), "18 lines = 120 + 18 + 4 lines of VBlank"
 
 
-TUNES = [("title", 3), ("clear", 1), ("over", 1), ("bonus", 4), ("show", 2)] + [(f"venue{i}", 2) for i in range(10)] + [("credits", 1)]
+# (the new tunes, Swipesy, the credits tune and the fast Easy Winners, are metered cold AND warm like the title: music.c copies the show tune's preload on ticks 3 and up of a row, not on the first row ticks)
+TUNES = [("title", 3), ("clear", 1), ("over", 1), ("bonus", 4), ("show", 2)] + [(f"venue{i}", 2) for i in range(10)] + [("credits", 1), ("map", 2), ("ewfast", 2)]
 
 
 @pytest.mark.parametrize("tune,passes", TUNES)
@@ -28,7 +29,7 @@ def test_no_call_of_any_tune_is_over_18_lines(built, tune, passes):
     # in the game the show tune is in buffer B before any other tune but the title at power-on starts (a tick that starts its 96-byte preload
     # slices cannot meet another tune's first frames): cold is the title's, and the show's own, case; the rest are measured warm.  (Every tune
     # of the game since music batches 2-4: the sailor's arpeggios, the Hall's and the Mountain's 18.0 / 17.4 included.)
-    for warm in ((False, True) if tune == "title" else (False,) if tune == "show" else (True,)):
+    for warm in ((False, True) if tune in ("title", "map", "credits", "ewfast") else (False,) if tune == "show" else (True,)):
         r = rig.cost_calls(tune, warm=warm, passes=passes)
         assert r["worst_mcycles"] <= LIMIT and not r["calls_over_18_lines"], r
         assert r["mean_lines"] < 12, r        # (a whole pass: the average call is far under the worst)

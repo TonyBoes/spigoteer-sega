@@ -29,7 +29,7 @@ def test_the_show_tune_in_the_rom_is_the_generators_output(tmp_path, monkeypatch
     t, b = galop()
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
-    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c"):
+    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c", "music_pat25.c", "music_pat26.c"):
         assert filecmp.cmp(tmp_path / f, BUILD / f, shallow=False), f + " is stale"
     pats = []
     for c in (1, 2, 3, 4):
@@ -72,7 +72,7 @@ def test_no_other_tune_changed(tmp_path, monkeypatch):
         assert f"{name}_order_cnt" in data
     for g in ("entertainer", "ballgame", "funicula", "skaters", "sakura", "danube", "sailor"):
         assert songs.SONGS[g]["groove"], g
-    assert "static const unsigned char groove_show" not in data and data.count("static const unsigned char groove_") == 7
+    assert "static const unsigned char groove_show" not in data and data.count("static const unsigned char groove_") == 10   # (7, the story map's Swipesy, the credits tune's track header and the bonus Easy Winners)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

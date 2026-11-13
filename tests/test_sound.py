@@ -20,7 +20,7 @@ pytestmark = pytest.mark.timeout(120)
 
 SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_COUNT = range(10)
 TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
-TUNE_COUNT = TUNE_VENUE0 + 10
+TUNE_COUNT = TUNE_VENUE0 + 10          # (the venue tunes' end: TUNE_VENUE_END; music.h's TUNE_COUNT is 18 now)
 TUNE_GAME = TUNE_VENUE0          # level 1: the cowboys' "Oh! Susanna"
 TUNE_NONE = 255
 MUG_EMPTY, PATRON_PUSHED = 2, 2
@@ -1048,9 +1048,11 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     from conftest import ROOT
     src = (ROOT / "build" / "music_data.c").read_text()
     frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+, \d+\}", src)]
-    assert len(frames) == TUNE_COUNT + 1, "the listed tunes, then the credits tune (src/music.h TUNE_CREDITS)"
+    assert len(frames) == TUNE_COUNT + 3, "the title .. venues, then the map's, the credits and the bonus Easy Winners (src/music.h TUNE_MAP, TUNE_CREDITS, TUNE_EWFAST)"
+    assert frames.pop() == gm.pass_frames(704, 9, 0xAA) == 5984, "the bonus Easy Winners: 704 rows with the title's swing, 99.7 s, looping (tests/test_music_batch5.py)"
     t = songs.SONGS["credits"]
-    assert frames.pop() == gm.pass_frames(579, t["tempo"], 0, t["tempo_map"]) == 8732, "the credits tune: 146 s with its ritard, played once (tests/test_credits.py)"
+    assert frames.pop() == gm.pass_frames(707, t["tempo"], 0, t["tempo_map"]) == 9986, "the credits tune: 166.4 s with its ritard, played once (tests/test_credits.py)"
+    assert frames.pop() == 8448, "the story map's Swipesy: 768 rows of 11 frames, 140.8 s, looping (tests/test_music_batch5.py)"
     assert frames[TUNE_TITLE] == gm.pass_frames(1216, 9, 0xAA) == 10336, "the title: the whole Entertainer, 173 s, looping (tests/test_music_batch1.py)"
     frames[TUNE_TITLE] = 60
     assert all(60 <= f <= 2400 for f in frames), frames

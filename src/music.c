@@ -45,7 +45,7 @@ static uint8_t h_rows, h_cnt;         // rows left in the event, frames left in 
 uint8_t h_sound;                      // (also read by src/jukebox.c) 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
-#define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_COUNT)   // the tunes a story twist can speed up (not the credits tune)
+#define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_VENUE_END)   // the tunes a story twist can speed up (not the credits tune)
 // The frame timer counts CPU clocks / 1024: 4096 Hz in normal speed (68.6 counts a frame), 8192 Hz in a Color's double speed (137.2; no slower
 // setting exists), where its 8 bits wrap every 1.87 frames, not 3.7. A wrap sets IF bit 2 (nothing is enabled to take it) and reloads TIMA from TMA:
 // the pumps read that flag and carry the lost 256 counts in a 16-bit sum, so a gap of up to ~3.7 frames costs no tick on either speed.
@@ -178,6 +178,16 @@ void music_init(void) BANKED {
     NR50_REG = 0x77;           // full master volume
     sound_on = 1; cur_tune = TUNE_NONE; mus_active = 0; muted = 0;
     loaded[1] = loaded[2] = ld_tune = TUNE_NONE;
+}
+
+// A DRUM TRACK (the credits tune: tools/gen_music.py track_rows): a groove whose header's first byte is TRACK_MARK; its header table is the identity 0..6, so
+// groove_row below reads the drum straight from g_pos, which holds the byte of the row about to start.  The track is one byte a row in the tune's own bank,
+// after its pattern blob (orders * STREAM_ORDER_BYTES on): trk_fetch reads the byte of row `idx` there (row 0 is always silent: start_song zeroes g_pos), on tick TRACK_TICK of every row
+// (a plain tick: the row's own call, the dearest, reads nothing from a bank).  No new variable: g_pos is a groove's row counter, which a track has no use for.
+static void trk_fetch(uint8_t tune, uint16_t idx) {
+    const tune_t *c = &tunes[tune];
+    uint16_t n = *c->song->order_cnt;       // 2 a pattern pair: the blob is n * 192 bytes (STREAM_ORDER_BYTES / 2 = 3 * 64: shifts, no 16-bit multiply, which cost 450 M-cycles)
+    g_pos = (uint8_t)harm_peek(c->bank, c->blob + ((n + (n << 1)) << 6) + idx);   // (the harmony's unbanked read: two bytes, the low one is the row's; the track has a byte of padding after it)
 }
 
 static void start_song(uint8_t tune) {
@@ -394,6 +404,7 @@ static void sfx_dispatch(uint16_t req) {
 static uint8_t load_step(void) {
     const tune_t *t = &tunes[ld_tune];
     uint16_t n = t->bytes - ld_pos;
+    if (!ld_play && mus_active && hUGE_tick < 3) return 0;   // a preload (the show tune, under a tune that is playing) copies on ticks 3 and up of a row only: the first ticks of a row, the tune's first row above all (the table steps of its kick body, the lead's, the harmony's), are the dear ones; a tune started cold stays at 18 lines
     uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
     if (n > cap) n = cap;
     if (n) mus_copy(t->bank, t->blob + ld_pos, (t->buf == 2 ? mus_buf_b : mus_buf_a) + ld_pos, n);
@@ -438,6 +449,8 @@ static void tick(void) {
         }
         if (groove && !--g_cnt) groove_row();
         else if (g_step) groove_step();
+        else if (hUGE_tick == TRACK_TICK && groove && groove[0] == TRACK_MARK)   // a drum track: the next row's byte, on a plain tick (not tick 3: the stream copy's)
+            trk_fetch(cur_tune, ((uint16_t)(hUGE_current_order >> 1) << 6) + hUGE_row + 1);
         if (harm) {
             if (voice[0].busy || h_cnt == 1 || !h_sound) harm_tick();
             else h_cnt--;
