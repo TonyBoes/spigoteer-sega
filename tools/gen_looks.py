@@ -199,8 +199,9 @@ def render(outdir):
     pk += ["", "// patron_variant byte of a random pick (r: one random byte) among the venue's allowed (look, palette) pairs of group g; boss: a fight",
            "static uint8_t looks_variant(uint8_t g, uint8_t r, uint8_t boss) {", "    switch (g) {", *sw_v, "    }", "    return 0;", "}", "",
            "// the palette rule's tables of the generated groups 1..9 (index g - 1; the Saloon's are in src/mirror.c): per look its allowed palette instances as a bit mask (the combo table's, then a fight's), and its default instance",
-           "static const uint8_t pm_x[9][2][8] = {", *[pm_rows[g] for g in range(1, 10)], "};",
-           "static const uint8_t df_x[9][8] = {", *[df_rows[g] for g in range(1, 10)], "};", ""]
+           "// (as macros: src/mirror.c puts the Saloon's row 0 in front)",
+           "#define LOOKS_PM_X \\", *[pm_rows[g] + " \\" for g in range(1, 10)], "",
+           "#define LOOKS_DF_X \\", *[df_rows[g] + " \\" for g in range(1, 10)], ""]
     c += ["uint8_t looks_insts(uint8_t g, uint8_t *obj, uint8_t *bg) BANKED {",
           "    uint8_t k;",
           "    switch (g) {", *sw_i, "    }",
@@ -216,34 +217,44 @@ def render(outdir):
           "    patron_pal_get(g, pi, dst);", "    return 0;", "}", ""]
     # the Color spawn rule (owner 2026-11-04): a look may not spawn again until 3 others have. The window is 3 because every venue allows at least 4 looks (8, 7 in a fight; asserted here): with fewer it would shrink to (allowed - 1)
     assert all(len({a for a, _ in t[v]["boss"]}) >= 4 and len({a for a, _ in t[v]["combo"]}) >= 4 for v in venues), "src/mirror.c pick_x: the window of 3 needs 4 looks a pick; add the shrinking window"
-    acc = ["// The Color spawn rule's history (scratch.h LOOK_HIST) and palette rule (LOOK_LP1/2, LOOK_G2). looks_reset: a level starts (level.c). looks_sync: the last try_spawn pick is in the history if spawned++ showed he came; called before each pick.",
-           "void looks_reset(void) BANKED {",
-           "    uint8_t *h = LOOK_HIST;",
-           "    h[0] = h[1] = h[2] = h[3] = 255;",
-           "    LOOK_LP1[0] = LOOK_LP1[1] = LOOK_LP2[0] = LOOK_LP2[1] = 255;     // (15: no look has spawned yet, each one's first appearance wears its default palette)",
-           "    LOOK_G2 = 63;                                                    // (7, 7: no palettes yet)",
-           "}", "",
-           "// looks_put: the pick pv (look | palette << 3) stands: the look joins the history, the palette is the one it wore last and one of the last two",
-           "static void looks_put(uint8_t pv) {",
-           "    uint8_t *h = LOOK_HIST, l = pv & 7, p = pv >> 3, *b = (l & 4 ? LOOK_LP2 : LOOK_LP1) + ((l & 3) >> 1);",
-           "    h[2] = h[1]; h[1] = h[0]; h[0] = l;",
-           "    if (boss_on) return;                                              // (a fight keeps the old pick: src/mirror.c pick_x)",
+    acc = ["// The Color spawn rule's history (scratch.h LOOK_HIST) and palette rule (LOOK_LP1/2, LOOK_G2). level.c start_level clears them. looks_sync: the last try_spawn pick is in the history if spawned++ showed he came; called before each pick.",
+           "// looks_pal: the palette p stands for look l: the one it wore last and one of the last two",
+           "static void looks_pal(uint8_t l, uint8_t p) {",
+           "    uint8_t *b = (l & 4 ? LOOK_LP2 : LOOK_LP1) + ((l & 3) >> 1);",
            "    if (l & 1) *b = (*b & 0x0F) | (p << 4); else *b = (*b & 0xF0) | p;     // (no shift loops: a spawn frame)",
            "    LOOK_G2 = ((LOOK_G2 << 3) | p) & 63;",
-           "}", "",
+           "}",
+           "// A boss fight keeps the old history alone (looks_sync / looks_note0 / looks_note1): its spawn frame and the restart after a life lost are counted to the frame (tests/test_boss_in_place.py, tests/test_boss_leo.py).",
            "void looks_sync(void) BANKED {",
+           "    uint8_t *h = LOOK_HIST;",
+           "    if (h[3] != 255 && h[4] != spawned) { h[2] = h[1]; h[1] = h[0]; h[0] = h[3]; }",
+           "    h[3] = 255;", "}", "",
+           "void looks_note0(uint8_t v) BANKED {                             // (try_spawn's pick: in the history once spawned++ shows he came)",
+           "    uint8_t *h = LOOK_HIST;",
+           "    h[3] = v & 7; h[4] = spawned;", "}", "",
+           "void looks_note1(uint8_t v) BANKED {                             // (the start patrons and the show's: in the history at once)",
+           "    uint8_t *h = LOOK_HIST;",
+           "    h[2] = h[1]; h[1] = h[0]; h[0] = v & 7; h[3] = 255;", "}", "",
+           "// The rule's (not in a fight): looks_psync / looks_pnote take pv = look | palette << 3",
+           "void looks_psync(void) BANKED {",
            "    uint8_t *h = LOOK_HIST, pv = h[3];",
            "    h[3] = 255;                                                      // (first: sdcc reused HL, left holding &spawned, for the later h[3] store when the compare skipped the call)",
-           "    if (pv != 255 && h[4] != spawned) looks_put(pv);", "}", "",
-           "// looks_note: the pick pv (look | palette << 3) stands: now (the start patrons, the show's): in the history at once; else try_spawn's, once spawned++ shows he came",
-           "void looks_note(uint8_t pv, uint8_t now) BANKED {",
+           "    if (pv != 255 && h[4] != spawned) {",
+           "        h[2] = h[1]; h[1] = h[0]; h[0] = pv & 7;",
+           "        looks_pal(pv & 7, pv >> 3);",
+           "    }", "}", "",
+           "// looks_pnote: the pick pv stands: now (the start patrons, the show's): in the history at once; else try_spawn's, once spawned++ shows he came",
+           "void looks_pnote(uint8_t pv, uint8_t now) BANKED {",
            "    uint8_t *h = LOOK_HIST;",
            "    if (!now) { h[3] = pv; h[4] = spawned; return; }",
-           "    looks_put(pv); h[3] = 255;", "}", ""]
+           "    h[2] = h[1]; h[1] = h[0]; h[0] = pv & 7; h[3] = 255;",
+           "    looks_pal(pv & 7, pv >> 3);", "}", ""]
     c += acc
-    h.insert(-2, "void looks_reset(void) BANKED;                      // a level starts: the history, each look's last palette (all clear)")
     h.insert(-2, "void looks_sync(void) BANKED;                       // the Color spawn rule (scratch.h LOOK_HIST): before a pick, the last try_spawn pick joins the history if he spawned")
-    h.insert(-2, "void looks_note(uint8_t pv, uint8_t now) BANKED;    // the pick pv (look | palette << 3) stands: in the history at once (now), or once try_spawn has spawned him")
+    h.insert(-2, "void looks_note0(uint8_t v) BANKED;                 // a fight's pick v: try_spawn's, in the history once spawned++ shows he came")
+    h.insert(-2, "void looks_note1(uint8_t v) BANKED;                 // a fight's pick v: placed at once (the start patrons and the show's)")
+    h.insert(-2, "void looks_psync(void) BANKED;                      // the same for the palette rule (not in a fight)")
+    h.insert(-2, "void looks_pnote(uint8_t pv, uint8_t now) BANKED;   // pv = look | palette << 3")
     os.makedirs(outdir, exist_ok=True)
     with open(os.path.join(outdir, "looks.h"), "w") as f:
         f.write("\n".join(h))

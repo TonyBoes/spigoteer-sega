@@ -29,17 +29,17 @@ def pal(v):
 def tables():
     """(pm, df): per group the palette masks (combo, boss) per look and the default palette per look: the generated venues from build/looks_pick.h, the Saloon's from src/mirror.c."""
     pick = (ROOT / "build" / "looks_pick.h").read_text()
+    src = (ROOT / "src" / "mirror.c").read_text()
     pm, df = {}, {}
-    body = re.search(r"pm_x\[9\]\[2\]\[8\] = \{(.*?)\n\};", pick, re.S).group(1)
+    body = re.search(r"#define LOOKS_PM_X(.*?)\n\n", pick, re.S).group(1)
     for g, (a, b) in enumerate(re.findall(r"\{ \{([^}]*)\}, \{([^}]*)\} \}", body), 1):
         pm[g] = [[int(x, 16) for x in a.split(",")], [int(x, 16) for x in b.split(",")]]
-    body = re.search(r"df_x\[9\]\[8\] = \{(.*?)\n\};", pick, re.S).group(1)
+    body = re.search(r"#define LOOKS_DF_X(.*?)(?:\n\n|\Z)", pick, re.S).group(1)
     for g, row in enumerate(re.findall(r"\{([^}]*)\}", body), 1):
         df[g] = [int(x) for x in row.split(",")]
-    src = (ROOT / "src" / "mirror.c").read_text()
-    m = re.search(r"sal_pm\[2\]\[8\] = \{ \{([^}]*)\}, \{([^}]*)\} \}", src)
+    m = re.search(r"pm_a\[10\]\[2\]\[8\] = \{ \{ \{([^}]*)\}, \{([^}]*)\} \}", src)
     pm[0] = [[int(x, 16) for x in m.group(1).split(",")], [int(x, 16) for x in m.group(2).split(",")]]
-    df[0] = [int(x) for x in re.search(r"sal_df\[8\] = \{ ([^}]*)\}", src).group(1).split(",")]
+    df[0] = [int(x) for x in re.search(r"df_a\[10\]\[8\] = \{ \{([^}]*)\}", src).group(1).split(",")]
     return pm, df
 
 
@@ -140,8 +140,9 @@ def one_level(a):
                 gb.write("lives", 9)
             lastsp = sp
             st, v = gb.read("patron_state", 16), gb.read("patron_variant", 16)
-            for i in newp:                                       # (the variant byte is written a little after the slot's state, which a frame can end between: read it a frame later)
-                seen.append(v[i] & 0x7F)
+            for i in newp:                                       # (the variant byte is written a little after the slot's state, which a frame can end between: read it a frame later;
+                if st[i]:                                        # and a patron the add took back at once (lift_spawn failed: "the add can still fail") is not one who came)
+                    seen.append(v[i] & 0x7F)
             newp = []
             for i in range(16):
                 if st[i] and not prev[i]:

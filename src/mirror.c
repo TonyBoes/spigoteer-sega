@@ -313,17 +313,20 @@ uint8_t extra_on(void) BANKED { return extra_on_(); }
 // (so its odds are untouched), its palette is what the table gave unless that is not allowed. A look's first appearance in a level wears its default palette (looks_dflt / sal_df); later ones
 // the next allowed palette (counting up from the picked one, so the picked one when it is fine) that is not the palette this look wore last and not one of the last two that spawned
 // (LOOK_LP1/2, LOOK_G2); when that leaves nothing, only the look's own last palette is avoided. A fight keeps the fight's smaller table (pm_g[1], sal_pm[1]).
-static const uint8_t sal_pm[2][8] = { {0x1F, 0x1B, 0x1B, 0x1F, 0x1F, 0x1F, 0x1B, 0x1B}, {0x0B, 0x0B, 0x00, 0x0B, 0x0B, 0x0B, 0x0B, 0x0B} };   // the Saloon's allowed palette instances per look: sal_combo, sal_boss (tests/test_palette_rule.py checks them)
-static const uint8_t sal_df[8] = { 0, 1, 0, 0, 0, 0, 0, 0 };   // its default instances: Dusty's and Emma's own, the A set for the rest (Gus has no OBJ 2 here)
+// Row 0 is the Saloon's: its allowed palette instances per look (sal_combo, then sal_boss; tests/test_palette_rule.py checks them) and its default instances (Dusty's and Emma's own, the A set for
+// the rest: Gus has no OBJ 2 here); rows 1-9 the generated venues' (build/looks_pick.h).
+static const uint8_t pm_a[10][2][8] = { { {0x1F, 0x1B, 0x1B, 0x1F, 0x1F, 0x1F, 0x1B, 0x1B}, {0x0B, 0x0B, 0x00, 0x0B, 0x0B, 0x0B, 0x0B, 0x0B} },
+    LOOKS_PM_X };
+static const uint8_t df_a[10][8] = { {0, 1, 0, 0, 0, 0, 0, 0},
+    LOOKS_DF_X };
 static const uint8_t bitv[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };   // (1 << n without a shift loop: this runs on a spawn frame, the tightest of a fight)
-static uint8_t pick_pal(uint8_t v) {
-    uint8_t l = v & 7, p = ((v >> 3) ^ v) & 7, m, c, lp, g = cur_group, *b = (l & 4 ? LOOK_LP2 : LOOK_LP1) + ((l & 3) >> 1);
-    m = g ? pm_x[g - 1][boss_on][l] : sal_pm[boss_on][l];
+static uint8_t pick_pal(uint8_t v) {         // (not in a fight: pick_x)
+    uint8_t l = v & 7, p, m, c, lp, g = cur_group, *b = (l & 4 ? LOOK_LP2 : LOOK_LP1) + ((l & 3) >> 1);
     lp = (l & 1) ? *b >> 4 : *b & 15;
-    if (lp == 15) {                              // its first appearance this level
-        c = g ? df_x[g - 1][l] : sal_df[l];
-        if (m & bitv[c]) p = c;
-    } else {
+    if (lp == 15) p = df_a[g][l];                // its first appearance this level (the default is always an allowed one: tests/test_palette_rule.py)
+    else {
+        p = ((v >> 3) ^ v) & 7;
+        m = pm_a[g][0][l];
         c = m & ~(bitv[lp] | bitv[LOOK_G2 & 7] | bitv[LOOK_G2 >> 3]);
         if (!c) c = m & ~bitv[lp];
         if (!c) c = m;
@@ -331,24 +334,49 @@ static uint8_t pick_pal(uint8_t v) {
     }
     return (v & 0xC7) | ((p ^ l) << 3);
 }
-static uint8_t pick_x(uint8_t r, uint8_t now) {
+// A boss fight keeps the old pick (pick_fight, with its history alone): its spawn frame is the tightest there is, tests/test_boss_in_place.py's guard, and the restart after a life lost counts
+// frames (tests/test_boss_leo.py). Not the rule's code with a switch in it: a few cycles more on that path moved the "!!" a frame.
+static uint8_t pick_fight0(uint8_t r) {
     uint8_t v, l, *h = LOOK_HIST;
-    if (!now) looks_sync();                      // (the start patrons and the show's: a pick from before is not committed late, note drops it)
+    looks_sync();
     for (;;) {
-        v = cur_group ? looks_variant(cur_group, r, boss_on) : saloon_variant(r);   // (not extra_variant: one trampoline less on a spawn frame, and looks_variant is in this bank)
+        v = cur_group ? looks_variant(cur_group, r, 1) : saloon_variant(r);   // (not extra_variant: one trampoline less on a spawn frame, and looks_variant is in this bank)
         l = v & 7;
         if (l != h[0] && l != h[1] && l != h[2]) break;
         r += 97;                                 // (not next_rand: the generator's stream stays the one every other draw saw; 97 is odd, so the 256 bytes all come up and the loop ends)
     }
-    if (!boss_on) v = pick_pal(v);               // (a boss fight keeps the old pick: its spawn frame is the tightest there is, tests/test_boss_in_place.py's guard)
-    looks_note(l | ((((v >> 3) ^ v) & 7) << 3), now);
+    looks_note0(v);
     return v;
 }
-uint8_t extra_variant(uint8_t r) BANKED { return pick_x(r, 1); }   // (the start patrons and the show's: placed at once)
+static uint8_t pick_fight1(uint8_t r) {
+    uint8_t v, l, *h = LOOK_HIST;
+    for (;;) {
+        v = cur_group ? looks_variant(cur_group, r, 1) : saloon_variant(r);
+        l = v & 7;
+        if (l != h[0] && l != h[1] && l != h[2]) break;
+        r += 97;
+    }
+    looks_note1(v);
+    return v;
+}
+static uint8_t pick_x(uint8_t r, uint8_t now) {
+    uint8_t v, l, *h = LOOK_HIST;
+    if (!now) looks_psync();
+    for (;;) {
+        v = cur_group ? looks_variant(cur_group, r, 0) : saloon_variant(r);
+        l = v & 7;
+        if (l != h[0] && l != h[1] && l != h[2]) break;
+        r += 97;
+    }
+    v = pick_pal(v);
+    looks_pnote(l | ((((v >> 3) ^ v) & 7) << 3), now);
+    return v;
+}
+uint8_t extra_variant(uint8_t r) BANKED { return boss_on ? pick_fight1(r) : pick_x(r, 1); }   // (the start patrons and the show's: placed at once)
 
 uint8_t spawn_variant(uint8_t r) BANKED {
     if (*(const volatile uint8_t *)0x3FFD) r ^= DIV_REG;   // the pick takes the DIV counter too: the 8-bit generator alone has 255 states, so each pair is followed by only about 5 of the 50 (tests/test_rng.py). ROM byte 0x3FFD is the tests' seed switch (0xFF as built, 0 in every test ROM: the fixed seeds stay reproducible)
-    if (extra_on_()) return pick_x(r, 0);   // (try_spawn: the add can still fail)
+    if (extra_on_()) return boss_on ? pick_fight0(r) : pick_x(r, 0);   // (try_spawn: the add can still fail)
     r = (r >> 4) + (r & 15);                      // r % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     r = (r >> 2) + (r & 3);
     r = (r >> 2) + (r & 3);
