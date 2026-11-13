@@ -3,17 +3,11 @@
 # tools/dev/verify.sh runs tools/dev/skipcheck.py against it: more skips than "count", or a skipped test ID not listed
 # below, shows in the RESULT line (the run still finishes) and the pytest section lists the newly skipped IDs.
 # Lines: "count N", then one test ID per line (from a full green run's out/ptest/<run>/results.txt, lines "skipped <id>").
-count 56
+count 50
 tests/test_asm_equiv.py::test_perf_ly_exhaustive[cgb]
 tests/test_asm_equiv.py::test_perf_ly_exhaustive[dmg]
 tests/test_atlas_page.py::test_full_self_check_against_the_capture
 tests/test_build.py::test_variants_do_not_disturb_each_other
-tests/test_credits_scroll.py::test_a_venue_holds_180_270_180_frames[cgb]
-tests/test_credits_scroll.py::test_a_venue_holds_180_270_180_frames[dmg]
-tests/test_credits_scroll.py::test_no_cell_changes_on_screen_but_by_the_scroll[cgb]
-tests/test_credits_scroll.py::test_no_cell_changes_on_screen_but_by_the_scroll[dmg]
-tests/test_credits_scroll.py::test_the_cast_holds_and_glides_by_frames[cgb]
-tests/test_credits_scroll.py::test_the_cast_holds_and_glides_by_frames[dmg]
 tests/test_double_speed.py::test_milk_runs_hud_row_ends_on_line_7_in_double_speed
 tests/test_fade_hw.py::test_a_cut_off_note_does_not_move_the_pause_menu[cgb]
 tests/test_fade_hw.py::test_a_cut_off_note_does_not_move_the_pause_menu[dmg]
