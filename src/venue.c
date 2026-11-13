@@ -25,6 +25,23 @@ extern const uint8_t coin_tiles[];
 
 uint8_t venue_id;               // theme loaded now (= patron group of the level; 0 saloon on the title)
 
+// The tip's coin is written at boot; the story's pictures and portraits borrow BG ids 92-95, the same VRAM, and nothing else writes it. LCD off.
+// STORY: exact, all 64 bytes against the art (16 at a time through the stack: far_copy), the copy only on a difference. Elsewhere (the level
+// load's frame count is pinned by tests, and the exact compare costs a frame on Color): the coin's two top-half tiles (92, 94) are blank in
+// the art, so four reads of them tell a clean VRAM, and the copy runs if one is not.
+static void coin_restore(void) {
+    uint8_t buf[16], i, j;
+    const volatile uint8_t *v = (const volatile uint8_t *)(0x8000 + 16 * OBJ_COIN);
+    if (play_mode != MODE_STORY) {
+        if (v[0] | v[8] | v[32] | v[40]) spr_data_far(OBJ_COIN, COIN_TILE_COUNT, coin_tiles, BANK(art_tiles));
+        return;
+    }
+    for (i = 0; i < COIN_TILE_COUNT; i++) {
+        far_copy(buf, coin_tiles + 16 * i, 16, BANK(art_tiles));
+        for (j = 0; j < 16; j++) if (v[16 * i + j] != buf[j]) { spr_data_far(OBJ_COIN, COIN_TILE_COUNT, coin_tiles, BANK(art_tiles)); return; }
+    }
+}
+
 // Theme t's tiles, palettes and the bars' base picture (render.c restores it under the patrons). LCD off.
 void load_venue(uint8_t t) BANKED {
     uint8_t r, c, k;
@@ -40,10 +57,7 @@ void load_venue(uint8_t t) BANKED {
     spr_data_far(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT, venue.drink_tiles + (MUG_TILE_COUNT + MUG_FILL_TILE_COUNT) * 16, venue_bank);
     spr_data_far(OBJ_GLASS, GLASS_TILE_COUNT, venue.drink_tiles + VENUE_DRINK_TILES * 16, venue_bank);   // its crash
     spr_data_far(OBJ_DANCER, DANCER_TILE_COUNT, venue.show_tiles, venue_bank);
-    {   // (the tip's coin is written at boot; the story's pictures and portraits borrow BG ids 92-95, the same VRAM. Its two top-half tiles are blank in the art: if they are not, put it back; a clean VRAM costs four reads)
-        const volatile uint8_t *v = (const volatile uint8_t *)(0x8000 + 16 * OBJ_COIN);
-        if (v[0] | v[8] | v[32] | v[40]) spr_data_far(OBJ_COIN, COIN_TILE_COUNT, coin_tiles, BANK(art_tiles));
-    }
+    coin_restore();
     if (is_cgb && (venue.show_band & 0x20)) show_pool_load();    // (the Color show's bank 1 tiles, src/show_ext.c)
     music_pump();
     // (P6: BASE_W wide; columns 20.. plain wall, the wall rows' columns 2.., for a slanted bar's window; the counter row's
