@@ -260,9 +260,9 @@ def shot_story(gba):
 
 
 def shot_credits(gba):
-    from test_credits import CARD_START, at, roll_from_bonus
+    from test_credits import roll_from_bonus
     with gba_hardware(gba, 2), roll_from_bonus("cgb", sound=False) as gb:
-        at(gb, CARD_START[3] + 5)
+        gb.run(900)                                           # (the scrolling credits: the first stops' portraits are up)
         return pal_ram(gb), gb.image()
 
 

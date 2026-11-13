@@ -43,14 +43,6 @@ ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
 
-# Playtest variant (owner 2026-11-05): the credits as one continuous scroll instead of a fade between cards (src/credits.c "the scrolling credits"):
-#   make BUILD=out/b_scroll OUT=out/o_scroll CREDITS=SCROLL unlocked
-CREDITS  ?=
-export CREDITS
-ifeq ($(CREDITS),SCROLL)
-LCCFLAGS += -DCREDITS_SCROLL
-endif
-
 # Playtest variant (owner 2026-11-12): every tune playable in BONUS > SOUNDTRACK, for listening to music changes in test ROMs:
 #   make BUILD=out/b_tunes OUT=out/o_tunes TUNES=ALL unlocked
 TUNES    ?=

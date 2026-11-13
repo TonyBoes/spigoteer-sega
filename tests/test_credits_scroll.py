@@ -1,4 +1,4 @@
-# The scrolling credits variant (make BUILD=out/b_scroll OUT=out/o_scroll CREDITS=SCROLL unlocked; src/credits.c "the scrolling credits").
+# The scrolling credits, the game's only credits (src/credits.c "the scrolling credits"): run against the default ROM.
 # It is a playtest build of its own, not the default ROM: these tests skip when that ROM has not been built.
 #
 #   timeline  the screen holds at each stop for the frames the owner asked for (a venue: 180 band and owner, 270 regulars, 180 boss), glides between
@@ -11,22 +11,21 @@ import os
 import numpy as np
 import pytest
 
-from conftest import K_BONUS, K_CREDITS, ROOT, double_speed, hold_stage_anim, title_pick
+from conftest import K_BONUS, K_CREDITS, ROM, ROOT, double_speed, hold_stage_anim, title_pick
 from gbtools import Rom
 from test_flow import run_until
 
-SCROLL_ROM = ROOT / "out" / "b_scroll" / "game-unlocked.gb"
+SCROLL_ROM = ROM
 # struct cr_state's fields (scroll variant)
 SCROLL, POS, NEXT, T, PH = 20, 22, 24, 26, 38
 GC, GL, LIVE, K, ST = 41, 42, 44, 61, 62
 HOLDS = {0: 120, 1: 180, 2: 180}                       # the title, the Spigoteer, Dregs; then per venue 180, 270, 180
 VENUE_HOLDS = (180, 270, 180)
 
-pytestmark = pytest.mark.skipif(not SCROLL_ROM.exists(), reason="the CREDITS=SCROLL ROM is not built")
 
 
 def lay():
-    p = ROOT / "out" / "b_scroll" / "credits_text.json"
+    p = ROOT / "build" / "credits_text.json"
     return json.loads(p.read_text())["layout"]
 
 
@@ -51,7 +50,7 @@ def u16(st, o):
 def holds_and_glides(gb, frames):
     """one sample per credits_update call (its entry: the state the last update left): (k, st, pos, scroll, SCY). The main loop's updates are the
     frames; a frame's picture is drawn from them, so sampling there is exact (a read after a PyBoy frame can fall before or after that frame's update)."""
-    noi = (ROOT / "out" / "b_scroll" / "game-unlocked.noi").read_text()
+    noi = ROM.with_suffix(".noi").read_text()
     v = int([l for l in noi.splitlines() if l.startswith("DEF _credits_update ")][0].split()[2], 16)
     base = gb.addr("story_scratch")
     out = []
