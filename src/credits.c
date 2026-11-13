@@ -49,7 +49,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
-static const uint8_t cr_scene_slot[5] = { 2, 3, 4, 6, 7 };
+static const uint8_t cr_scene_slot[7] = { 2, 3, 4, 6, 7, 5, 1 };   // a scene's palettes' BG slots: the free ones, then the previous boss's (5) and the HUD's (1), written once his body and name have scrolled off
 #define CR_SOLID_ID  77     // CRMAP: the four flat tiles of the buildings (BG ids 77-80, both machines)
 #define CR_BLD_PAL    6     // CRMAP: the building's BG palette (a venue's title page: the portraits' 2-4, the boss's 5 are not on it)
 #define CR_CARDS      (CT_MAPFMT ? 43 : 33)      // the title, the Spigoteer, Dregs, then three cards for each of the ten venues (CRMAP proposal: four, the venue's title page first)
@@ -169,6 +169,32 @@ static void cr_hw(uint8_t obj, uint8_t i) {
     CRITICAL { if (obj) OCPS_REG = 0x80 | (uint8_t)(i << 3); else BCPS_REG = 0x80 | (uint8_t)(i << 3); }
     for (k = 0; k < 8; k++) CRITICAL { while (STAT_REG & 2) ; if (obj) OCPD_REG = s[k]; else BCPD_REG = s[k]; }
 }
+#if CT_MAPFMT
+static void cr_hw_raw(uint8_t i, const uint16_t *p) {   // BG palette i straight to the hardware, its RAM copy (CR_PAL) left as it is: it is put back when the scene is gone
+    uint8_t k;
+    uint16_t w;
+    CRITICAL { BCPS_REG = 0x80 | (uint8_t)(i << 3); }
+    for (k = 0; k < 4; k++) {
+        w = BRIGHTEN(p[k]);
+        CRITICAL { while (STAT_REG & 2) ; BCPD_REG = (uint8_t)w; }
+        CRITICAL { while (STAT_REG & 2) ; BCPD_REG = (uint8_t)(w >> 8); }
+    }
+}
+#endif
+#if CT_MAPFMT
+static const uint8_t cr_back[5] = { 2, 3, 4, 5, 1 };
+static void cr_restore(void) {                    // one palette of the scene's slots back from its RAM copy (CR->ft bits 5-7: how many are done; 5 and 1 only if the scene took them)
+    uint8_t s = CR->ft >> 5, b;
+    while (s < 5) {
+        b = cr_back[s++];
+        if (b == 5 && !(CR->ft & 2)) continue;
+        if (b == 1 && !(CR->ft & 4)) continue;
+        cr_hw(0, b);
+        break;
+    }
+    CR->ft = s >= 5 ? 0 : (CR->ft & 31) | (uint8_t)(s << 5);
+}
+#endif
 static void cr_pal(uint8_t obj, uint8_t i, const uint16_t *p) {   // CGB: palette i of the BG (obj 0) or OBJ (1) set
     uint16_t *q = (uint16_t *)(CR_PAL + (obj ? 64 : 0) + i * 8);
     q[0] = BRIGHTEN(p[0]); q[1] = BRIGHTEN(p[1]); q[2] = BRIGHTEN(p[2]); q[3] = BRIGHTEN(p[3]);   // (SCREEN BRIGHT: lifted once, here; trans.c fades them in as they are)
@@ -248,8 +274,11 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
 #if CT_MAPFMT
     if (kd == CK_VENUE) {                          // its palettes: BG 6 the building's, BG 0 the band's colour (the label's gold) as the owner's card will have it
         if (i < 5 && is_cgb) {                     // the scene's palettes (the map's own, one for each its cells name: BG 2, 3, 4, 6, 7; the owner's portrait colours wait in RAM until the scene is off the screen)
-            for (n = 0; n < 4; n++) p[n] = ct_scol[v][i][n];
-            cr_pal(0, cr_scene_slot[i], p);
+            if (i < ct_snp[v]) {
+                for (n = 0; n < 4; n++) p[n] = ct_scol[v][i][n];
+                if (!v && i > 2) { uint8_t lv = CR->live; CR->live = 0; cr_pal(0, cr_scene_slot[i], p); CR->live = lv; CR->ft |= 8; }   // (the first scene follows Dregs, whose portrait is BG 5-7: 6 and 7 go to the hardware when he is off)
+                else cr_pal(0, cr_scene_slot[i], p);
+            }
             return 0;
         }
         if (i == 5 && is_cgb) {
@@ -273,7 +302,7 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
                     p[0] = pt->pal[4 * n]; p[1] = pt->pal[4 * n + 1]; p[2] = pt->pal[4 * n + 2]; p[3] = pt->pal[4 * n + 3];
                     if (p[nch] == bg) p[nch] = COL_BAND;
 #if CT_MAPFMT
-                    if (kd == CK_OWNER) { uint8_t lv = CR->live; CR->live = 0; cr_pal(0, PPAL + n, p); CR->live = lv; CR->ft = 1; }   // (BG 2-4 are the venue scene's while it is on the screen: written when it is gone, credits_update)
+                    if (kd == CK_OWNER) { uint8_t lv = CR->live; CR->live = 0; cr_pal(0, PPAL + n, p); CR->live = lv; CR->ft |= 1; }   // (BG 2-4 are the venue scene's while it is on the screen: written when it is gone, credits_update)
                     else
 #endif
                     cr_pal(0, PPAL + n, p);
@@ -400,7 +429,7 @@ static uint8_t cr_hgt(uint8_t c) {                // a card's rows
     if (c >= CR_CARDS) return 0;
     kd = cr_kind(c, &v);
 #if CT_MAPFMT
-    if (kd == CK_VENUE) return CT_R_VB + ct_bh[v] + CT_VPAD;
+    if (kd == CK_VENUE) return ct_vg[v] + ct_bh[v] + CT_VPAD;
 #endif
     return kd == CK_TITLE ? CT_H_TITLE : kd <= CK_DREGS ? CT_H_SD : kd == CK_OWNER ? CT_H_OWN : kd == CK_BOSS ? CT_H_BOSS : CT_H_PAT;
 }
@@ -410,7 +439,7 @@ static uint8_t cr_gap(uint8_t c) { return c == CR_CARDS - 1 ? CR_LASTGAP : c ? C
 static uint8_t cr_off(uint8_t c) {                // the px from the card's top to the middle of its stop's block
     uint8_t v = 0, kd = cr_kind(c, &v);
 #if CT_MAPFMT
-    if (kd == CK_VENUE) return 8 * CT_R_VB + 4 * ct_bh[v];
+    if (kd == CK_VENUE) return 8 * ct_vg[v] + 4 * ct_bh[v];
 #endif
     return kd == CK_TITLE ? CT_OFF_TITLE : kd <= CK_DREGS ? CT_OFF_SD : kd == CK_OWNER ? CT_OFF_OWN : kd == CK_BOSS ? CT_OFF_BOSS : CT_OFF_PAT;
 }
@@ -429,18 +458,30 @@ static void cr_layout(void) {                     // the roll's row: after every
     CR->wroll = w;
 }
 
+#if CT_MAPFMT
+static void cr_attr_hud(void) { uint8_t i; if (is_cgb) for (i = 0; i < 20; i++) CR_ATT[i] = 0; }   // (CRMAP: a blank cell is BG 0's colour 3, which is the page's, as the HUD's is: the HUD palette, BG 1, is the scene's seventh while a scene is on the screen)
+#else
 static void cr_attr_hud(void) { uint8_t i; if (is_cgb) for (i = 0; i < 20; i++) CR_ATT[i] = BGPAL_HUD; }
+#endif
 
 // a pre-rendered text row r (its tiles to the ring, 3 a call); 1: the row is complete in CR->row (CR_ATT: bank 1 on Color). kd 0: the text, the HUD palette; 1: a label, palette 0;
 // 2: a band row, palette 0, the stripe all over but where the name's tiles are
 // A frame's budget: the music's tick (up to 18 lines) must start before line 126, and a frame whose work runs past its VBlank makes the main loop wait out a whole frame, the tune
 // a tick. A step that costs `lines` raster lines (single speed; a Color double-speed frame is twice as long) starts only if it ends by line 118, and not into the lines the sprites'
 // redraw (45) still needs; a refused step is the next frame's.  (In the VBlank, LY 144 and on, there is room.)
+#if CT_FLOWFMT
+#define CR_RES ((CR->pos ^ CR->sig) & 0x1FFF ? 40 : 0)
+#else
 #define CR_RES ((CR->pos ^ CR->sig) & 0x1FFF ? 45 : 0)
+#endif
 static uint8_t cr_room(uint8_t lines) {
     uint8_t ly = LY_REG;
     if (CR->next < (CR->scroll >> 3) + 19) return 1;     // (the rows are wanted: the screen shows up to scroll/8 + 19)
+#if CT_FLOWFMT
+    return ly >= 144 || (uint16_t)ly + lines + CR_RES <= 100;     // (a scene's rows are 46 lines of setup and the redraw 45: line 96 would never let both into a frame)
+#else
     return ly >= 144 || (uint16_t)ly + lines + CR_RES <= 96;
+#endif
 }
 
 static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
@@ -450,7 +491,11 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
     kd &= 15;                                      // (a building row: the venue rides in the high bits, no longer needed)
 #endif
     if (CR->lw != CR->next) {
+#if CT_MAPFMT
+        if (!cr_room(kd >= 3 ? 46 : 26)) return 0;       // (a scene's row: 16 cells from another bank and their attributes, 0.35 frame)
+#else
         if (!cr_room(26)) return 0;
+#endif
         CR->lw = CR->next; CR->ld = 0;
         cr_blank(); cr_attr_hud();
         if (kd && is_cgb) for (i = 0; i < 20; i++) CR_ATT[i] = 0;
@@ -460,9 +505,12 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
         if (kd == 2) for (i = 0; i < 20; i++) CR->row[i] = CR_STRIPE_ID;
 #endif
         credits_row_get(r, CR_BUF);
+#if CT_MAPFMT
+        if (kd >= 3) return 0;                          // (a scene's row: its cells are the next frame's)
+#endif
     }
     n = CR_BUF[1];
-    while (CR->ld < n && m && cr_room(10)) {
+    while (CR->ld < n && m) {
         i = CR->ld++;
         if (cell[i] == 0xFFFF) continue;
 #if CT_MAPFMT
@@ -482,6 +530,7 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
             continue;
         }
 #endif
+        if (!cr_room(10)) { CR->ld--; break; }              // (the flat and repeated cells above cost no frame time to speak of: only a tile put is asked about)
         if (is_cgb) {
             id = CR->rt;
             if (++CR->rt == CR_TXT_CN) CR->rt = 0;
@@ -527,8 +576,8 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
         else if (r == 3 + h || r == 5 + h) tr = (kd == CK_SPIGOTEER ? CT_SAL : CT_DREGS) + ((r - 3 - h) >> 1);
 #if CT_MAPFMT
     } else if (kd == CK_VENUE) {
-        if (r == CT_R_VB && CR->lw != CR->next) CR->lr = CR->rt;     // (the scene's rows are built one after the other: its ring slots start here)
-        if (r >= CT_R_VB && r < CT_R_VB + ct_bh[v]) { tr = CT_BLD + ct_boff[v] + r - CT_R_VB; tk = ((uint8_t)(r - CT_R_VB - ct_bs0[v]) < ct_bnl[v] ? 4 : 3) | (v << 4); }
+        if (r == ct_vg[v] && CR->lw != CR->next) CR->lr = CR->rt;     // (the scene's rows are built one after the other: its ring slots start here)
+        if (r >= ct_vg[v] && r < ct_vg[v] + ct_bh[v]) { tr = CT_BLD + ct_boff[v] + r - ct_vg[v]; tk = ((uint8_t)(r - ct_vg[v] - ct_bs0[v]) < ct_bnl[v] ? 4 : 3) | (v << 4); }
     } else if (kd == CK_OWNER) {
         if (r == CT_R_OLBL) { tr = CT_LBL; tk = 1; }
         else if (r >= CT_R_PORT && r < CT_R_PORT + h) i = r - CT_R_PORT;
@@ -632,12 +681,15 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
     OAM_item_t *oo;
     uint8_t c, k, t = (uint8_t)CR->t, kd, v, pose, bob, n;
     const uint8_t *cx, *lp;
-    uint8_t g2 = CR->gc | (CR->gl == 255 ? 64 : 0) | (CR->pose == 1 ? 128 : 0);
+    uint8_t g2 = CR->gc | (CR->gl == 255 ? 64 : 0) | (CR->pose == 1 ? 128 : 0), adv = CR->sc;
     uint16_t g = sc | (uint16_t)((t >> 4) & 7) << 13, dg = g ^ CR->sig;           // (sig: the scroll in bits 0-12, the animation step above)
-    uint8_t rd = (dg & 0x1FFF) || g2 != CR->sig2, rs = rd || dg;   // rd: the scroll or a card's loads moved: every sprite is written; rs: only an animation step: the sprites that change in it
+    uint8_t rm, rd, rs;
+    while (CR->sc < CR_CARDS && (uint16_t)(CR->ss + cr_hgt(CR->sc) + 1) * 8 <= sc) { CR->ss += cr_hgt(CR->sc) + cr_gap(CR->sc); CR->sc++; }
+    rm = (dg & 0x1FFF) != 0;                      // rm: the scroll moved: every sprite's y; rd: a card's loads or a card left (its sprites go): every sprite is written whole; rs: an animation step: the sprites that change in it
+    rd = g2 != CR->sig2 || adv != CR->sc;
+    rs = (dg >> 13) != 0;
     CR->sig = g; CR->sig2 = g2;
     if (rd) hide_all_sprites();                   // (OAM keeps what it has when nothing it shows has moved: the stage is 0.3 frame, and a frame that runs past its VBlank costs the tune a tick)
-    while (CR->sc < CR_CARDS && (uint16_t)(CR->ss + cr_hgt(CR->sc) + 1) * 8 <= sc) { CR->ss += cr_hgt(CR->sc) + cr_gap(CR->sc); CR->sc++; }
     cs = CR->ss;
     for (c = CR->sc; c < CR_CARDS && c < CR->sc + 3 && cs * 8 < sc + 160; c++) {
         if (c > CR->gc || (c == CR->gc && CR->gl != 255)) break;
@@ -646,20 +698,25 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
         if (kd == CK_SPIGOTEER || kd == CK_DREGS) {
             pose = cr_walk[(t >> 4) & 3];
             y = y0 + 8 * (kd == CK_SPIGOTEER ? CR->txs : CR->txd) + 12;
-            if (!rs) {}
+            if (!(rs || rm || rd)) {}
             else if (kd == CK_SPIGOTEER) cr_fig(0, y, CT_SAL_X, OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
             else cr_fig(4, y, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
         } else if (kd == CK_BOSS) {
             bw = cs + CT_R_BBODY;
             pose = cr_seq[(t >> 4) & 7];
             if ((pose != CR->pose || CR->pq) && !busy && CR->next >= bw + 3 && CR->next - bw <= 32 && (!sound_on || cr_calm()) && cr_room(30)) cr_pose(v, pose, bw);
-            if (rs) cr_oam(24, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
+            if (rs || rm || rd) cr_oam(24, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
         } else if (kd == CK_PATRONS) {
             cx = ct_cx[v]; lp = ct_lp[v];
             ya = y0 + 8 * CT_R_PA - 4; yb = ya + 8 * CT_R_PN; yc = yb + 8 * CT_R_PN;       // (the three name rows' sprite y: a sprite's OAM y is 4 above its name row's top; the pairs are written in place, a call each was 0.1 frame a card)
-            for (k = 0; rs && k < (is_cgb ? 8 : 3); k++) {
-                if (!rd && ((((t >> 4) + k) & 3) > 1)) continue;   // (an animation step moves the two whose bob starts or ends in it)
+            for (k = 0; (rs || rm || rd) && k < (is_cgb ? 8 : 3); k++) {
+                if (!rd && !rm && ((((t >> 4) + k) & 3) > 1)) continue;   // (an animation step moves the two whose bob starts or ends in it)
                 bob = (((t >> 4) + k) & 3) ? 0 : 2;
+                if (!rd) {                                  // (only the scroll or a bob moved: the sprite is in OAM, its y is all that changes: no tile, no palette)
+                    y = (is_cgb ? (k < 3 ? ya : k < 6 ? yb : yc) : yb) - bob;
+                    oo = shadow_OAM + 8 + 2 * k;
+                    if ((uint16_t)(y - 1) < 159 && oo->y) { oo->y = oo[1].y = (uint8_t)y; continue; }
+                }
                 if (is_cgb) {
                     y = k < 3 ? ya : k < 6 ? yb : yc;
                     pose = k < 3 ? CR_T_P + 6 * k : PATRON_X_S0 + 4 * (k - 3);
@@ -668,6 +725,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                 y -= bob;
                 oo = shadow_OAM + 8 + 2 * k;
                 if ((uint16_t)(y - 1) >= 159) { oo->y = 0; oo[1].y = 0; }
+                else if (!rd && oo->y) oo->y = oo[1].y = (uint8_t)y;     // (only the scroll moved: the sprite is there, its y is all that changes)
                 else {
                     oo->y = oo[1].y = (uint8_t)y; oo->x = cx[k]; oo[1].x = cx[k] + 8; oo->tile = pose; oo[1].tile = pose + 2; oo->prop = oo[1].prop = n;
                 }
@@ -676,7 +734,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
         }
         cs += cr_hgt(c) + cr_gap(c);
     }
-    if (rs && CR->gc >= CR_CARDS && CR->gl == 255) {             // the roll's band: the robots bob in turn, the Spigoteer raises a hand now and then
+    if ((rs || rm || rd) && CR->gc >= CR_CARDS && CR->gl == 255) {             // the roll's band: the robots bob in turn, the Spigoteer raises a hand now and then
         y = (int16_t)((CR->wroll + CR_FIRST + CR_BAND) * 8) - (int16_t)sc + 16;
         for (k = 0; k < 3; k++) {
             bob = (((t >> 4) + k) & 3) ? 0 : 2;
@@ -780,12 +838,19 @@ void credits_enter(uint8_t from_story) BANKED {
     cr_blank();
     for (y = 0; y < 32; y++) cr_put(y);               // (a blank screen: the cards come up behind it)
     if (is_cgb) {
+#if CT_MAPFMT
+        for (y = 0; y < 20; y++) CR->row[y] = 0;
+#else
         for (y = 0; y < 20; y++) CR->row[y] = BGPAL_HUD;
+#endif
         VBK_REG = VBK_BANK_1;
         for (y = 0; y < 32; y++) cr_put(y);
         VBK_REG = VBK_BANK_0;
         for (y = 0; y < 64; y++) { BCPS_REG = y; o[y] = BCPD_REG; OCPS_REG = y; o[64 + y] = OCPD_REG; }   // the palettes as they are (LCD off: readable)
         for (y = 0; y < 8; y++) o[8 * BGPAL_HDR + y] = o[8 * BGPAL_HUD + y];   // the header's: the HUD's
+#if CT_MAPFMT
+        for (y = 0; y < 8; y++) o[y] = o[8 * BGPAL_HUD + y];                   // BG 0 starts as the HUD's: the blank cells use it
+#endif
     } else {
         o[0] = BGP_REG; o[1] = OBP0_REG; o[2] = o[3] = OBP1_REG;
         story_scratch[68] = story_scratch[69] = 0;      // (white: the first card fades in)
@@ -862,9 +927,18 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     music_pump();                                          // (after the scroll register: the tick falls due here when the frame began late)
     for (d = (uint8_t)((uint8_t)sys_time - CR->ls), CR->ls = (uint8_t)sys_time; d; d--) { CR->t++; cr_step(); }   // (frames, not the tune's ticks: a lost tick does not stretch it)
 #if CT_MAPFMT
-    if (CR->ft && is_cgb) {                                // the owner's portrait colours (BG 2-4) go to the hardware once the venue scene, which used those slots, has scrolled off
-        d = CR->sc;
-        if (cr_kt[d] != CK_VENUE || CR->pos >= (uint16_t)(CR->ss + CT_R_VB + ct_bh[cr_vt[d]]) * 8) { cr_hw(0, 2); cr_hw(0, 3); cr_hw(0, 4); CR->ft = 0; }
+    d = CR->sc;
+    if (is_cgb && d < CR_CARDS - 1 && (CR->ft || cr_kt[d] == CK_BOSS)) {       // BG palettes the venue scene shares with its neighbours (CR->ft: 1 the owner's portrait colours wait for BG 2-4, 2 and 4 the scene
+                                                           // has taken 5 and 1, 8 the first scene's 6 and 7 wait for Dregs, 16 the scene has been on the screen)
+        if ((CR->ft & 8) && cr_kt[d] > CK_DREGS) { cr_hw(0, 6); cr_hw(0, 7); CR->ft &= ~8; }
+        if (cr_kt[d] == CK_BOSS && cr_kt[d + 1] == CK_VENUE) {      // the previous boss: once his body rows (BG 5) and his name (BG 1) have scrolled off, the scene's extra palettes take their slots
+            if (ct_snp[cr_vt[d + 1]] > 5 && !(CR->ft & 2) && CR->pos >= (uint16_t)(CR->ss + 5) * 8) { cr_hw_raw(5, ct_scol[cr_vt[d + 1]][5]); CR->ft |= 2; }
+            if (ct_snp[cr_vt[d + 1]] > 6 && !(CR->ft & 4) && CR->pos >= (uint16_t)(CR->ss + 8) * 8) { cr_hw_raw(1, ct_scol[cr_vt[d + 1]][6]); CR->ft |= 4; }
+        }
+        if (cr_kt[d] == CK_VENUE) {
+            CR->ft |= 16;
+            if (CR->pos >= (uint16_t)(CR->ss + ct_vg[cr_vt[d]] + ct_bh[cr_vt[d]]) * 8) cr_restore();   // (the scene is gone: the owner's colours, the boss's and the HUD's go back, one palette a frame: a palette is 8 HBlanks)
+        } else if (CR->ft & 17) cr_restore();
     }
 #endif
     if (CR->st == 3 && CR->ph >= CR_END_HOLD && (!sound_on || cur_tune != TUNE_CREDITS)) { cr_leave(); return 1; }   // (the roll's end, and the tune over: it ends on its own, cur_tune goes to TUNE_NONE)

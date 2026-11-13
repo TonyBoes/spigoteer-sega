@@ -179,12 +179,15 @@ assert CRFLOW in ("", "SMOOTH"), CRFLOW
 assert CRFONT in ("", "A", "B") and CRMAP in ("", "B"), (CRFONT, CRMAP)
 # The whole buildings of the story map (assets/smap/world_c.png), venue order: (col, row, width, height) in the map's cells, every tile of the building (sign, roof, base, its own ground line;
 # the Chrome Cow's milk tank and parked bikes, the factory's roof crates, the space lounge's tower, plane and runway). Neighbouring trees, piles and roads are left out.
-SCENE_PALS = 5                                      # the BG palettes a scene may use on Color: slots 2, 3, 4, 6, 7 (credits.c CR_SCENE_SLOT)
+SCENE_PALS = 7                                      # the BG palettes a scene may use on Color: slots 2, 3, 4, 6, 7, then 5 and 1 (credits.c cr_scene_slot)
+SLOT5_ROW, SLOT1_ROW = 4, 7                         # the first scene row a palette may have cells in, to go in slot 5 / slot 1 (the rows enter after the previous boss's body / name have scrolled off)
+VGAP = {0: 20}                                      # the blank rows above a venue's scene (7 after a boss; 20 after Dregs, whose portrait uses BG 5-7)
+VGAP_DEF = 7
 SCENE_W, SCENE_H = 16, 12                           # every venue's picture: this many cells of the map (the stadium, the largest building, is 12 x 10), the building inside it
 SCENE_AT = {9: (3, 36)}                             # (the scene's first cell where it is not centred on the building: the Space Lounge's shows its UFO and the mountain)
 BUILD_BOX = {0: (3, 21, 9, 7), 1: (1, 1, 12, 10), 2: (54, 20, 6, 7), 3: (20, 4, 9, 7), 4: (51, 5, 8, 7), 5: (52, 36, 10, 9), 6: (50, 55, 12, 9), 7: (24, 55, 10, 7), 8: (6, 54, 8, 7), 9: (4, 36, 7, 7)}
 if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the owner's card starts at OWNER; the venue card's rows are LG blank, the building (BH rows), VPAD blank
-    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, R_VB=4, VPAD=16)
+    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, VPAD=16)
 LAY["MAPFMT"] = {"": 0, "B": 2}[CRMAP]
 LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
@@ -377,7 +380,7 @@ def main():
         for j in range(3):
             cut_row(f"BAND{v}_{j}", img[8 * j:8 * j + 8], 2, EXTRA)
     stripe = tile_of([[2] * 160 for _ in range(8)], 0)
-    BLD_COL, BLD_INFO, SCENE_REPORT = [], [], []                       # each venue's building palette: the story map's palette of the building's cells (the commonest), colours light to dark
+    BLD_COL, BLD_INFO, SCENE_REPORT, NPALS = [], [], [], []                       # each venue's building palette: the story map's palette of the building's cells (the commonest), colours light to dark
     if CRMAP:
         from PIL import Image
         wj = json.loads((ROOT / "assets/smap/world.json").read_text())
@@ -399,17 +402,29 @@ def main():
                     pn = wj["pal_names"][ord(wj["cell_pal"][by0 + cy][bx0 + cx]) - 48]
                     pals[pn] = pals.get(pn, 0) + 1
             order = sorted(pals, key=lambda k: -pals[k])
-            kept = order[:SCENE_PALS]
+            minrow = {}
+            for cy in range(SCENE_H):
+                for cx in range(SCENE_W):
+                    nm_ = wj["pal_names"][ord(wj["cell_pal"][by0 + cy][bx0 + cx]) - 48]
+                    minrow[nm_] = min(minrow.get(nm_, 99), cy)
 
             def pcol(nm):
                 return wj["pal_rgb"][nm]
-
-            def dist(a_, b_):
-                return sum((x - y) ** 2 for ca, cb in zip(pcol(a_), pcol(b_)) for x, y in zip(ca, cb))
-            remap = {nm: (nm if nm in kept else min(kept, key=lambda k: dist(nm, k))) for nm in order}
-            SCENE_REPORT.append((VENUES[v], len(order), {nm: (pals[nm], remap[nm]) for nm in order if remap[nm] != nm}))
-            slot_pal = {nm: k for k, nm in enumerate(kept)}                       # the scene's palette number of each kept map palette
+            # BG slots of a scene's palettes (credits.c cr_scene_slot): 2, 3, 4, 6, 7 free when the scene is loaded, then 5 (the previous boss's: written when his body rows have scrolled off the
+            # top) and 1 (the HUD's: when his name has), so a palette that goes there must have no cell above SLOT5_ROW / SLOT1_ROW (the scene's rows that enter only after that)
+            extras = []
+            rest = list(order)
+            for want in ([] if len(order) <= 5 else [SLOT5_ROW] if len(order) == 6 else [SLOT1_ROW, SLOT5_ROW]):
+                cand = [nm for nm in reversed(rest) if minrow[nm] >= want]
+                assert cand, (VENUES[v], "no palette fits slot", want, minrow)
+                extras.append(cand[0])
+                rest.remove(cand[0])
+            kept = rest + extras[::-1]                    # indices 0-4 the free slots (the commonest first), then slot 5's palette, then slot 1's
+            SCENE_REPORT.append((VENUES[v], len(order), {"slot 5": extras[-1] if extras else None, "slot 1": extras[0] if len(extras) > 1 else None}))
+            remap = {nm: nm for nm in order}
+            slot_pal = {nm: k for k, nm in enumerate(kept)}                       # the scene's palette number of each map palette
             BLD_COL.append([[rgb555("#%02x%02x%02x" % tuple(c)) for c in pcol(nm)] for nm in kept] + [[0, 0, 0, 0]] * (SCENE_PALS - len(kept)))
+            NPALS.append(len(kept))
             # the scene: ONE size for every venue (SCENE_W x SCENE_H cells of the map), the building in it with the map's own ground and props around it (map pixels only); the name on a stripe under it
             assert bx0 <= c0 and c0 + bwc <= bx0 + SCENE_W and by0 <= r0 and r0 + bhc <= by0 + SCENE_H, (VENUES[v], "the building is not inside its scene")
             bpx = [[wim.getpixel((bx0 * 8 + x, by0 * 8 + y)) for x in range(8 * SCENE_W)] for y in range(8 * SCENE_H)]   # the map's own pixels, indices 0-3 light to dark
@@ -486,10 +501,10 @@ def main():
         cnt = dict(world)
         for v in range(10):
             if CRMAP:
-                items = [(L["R_VB"] + jj, f"BLD{v}_{jj}") for jj in range(BLD_INFO[v][1])]
+                items = [(VGAP.get(v, VGAP_DEF) + jj, f"BLD{v}_{jj}") for jj in range(BLD_INFO[v][1])]
                 for off, name in items:
                     cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
-                yy += L["R_VB"] + BLD_INFO[v][1] + L["VPAD"] + L["G"]
+                yy += VGAP.get(v, VGAP_DEF) + BLD_INFO[v][1] + L["VPAD"] + L["G"]
                 items = [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
             else:
                 items = [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
@@ -596,7 +611,7 @@ def main():
           "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
     if CRMAP:
         h += [f"#define CT_BLD {ids['BLD0']}   // the building rows (a venue's start: ct_boff)", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)",
-              "static const uint16_t ct_scol[10][5][4] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in sc) + " }" for sc in BLD_COL) + " };   // each scene's palettes (the map's own: RGB555, before BRIGHTEN), light to dark; the cells name them (credits.c CR_SCENE_SLOT)",
+              "static const uint8_t ct_vg[10] = { " + ", ".join(str(VGAP.get(v, VGAP_DEF)) for v in range(10)) + " };   // the blank rows above a venue's scene", "static const uint8_t ct_snp[10] = { " + ", ".join(str(n) for n in NPALS) + " };   // a scene's palettes", "static const uint16_t ct_scol[10][7][4] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in sc) + " }" for sc in BLD_COL) + " };   // each scene's palettes (the map's own: RGB555, before BRIGHTEN), light to dark; the cells name them (credits.c CR_SCENE_SLOT)",
               "static const uint8_t ct_boff[10] = { " + ", ".join(str(b[0]) for b in BLD_INFO) + " };   // a venue's first building row, from CT_BLD",
               "static const uint8_t ct_bh[10] = { " + ", ".join(str(b[1]) for b in BLD_INFO) + " };    // the building's rows",
               "static const uint8_t ct_bs0[10] = { " + ", ".join(str(b[2]) for b in BLD_INFO) + " };   // the first row of the name's stripe, from the building's top",
@@ -612,7 +627,7 @@ def main():
           "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "look_pal": LOOK_PAL, "pal_cols": PAL_COLS, "pool": len(POOL), "ring_peak": peak, "extra": EXTRA, "layout": LAY, "ring_peaks": {str(k): v for k, v in peaks.items()}, "title": TITLE}
     (out / "credits_text.json").write_text(json.dumps(js, indent=1))
     for nm_, np_, mg_ in SCENE_REPORT:
-        print(f"scene {nm_}: {np_} map palettes" + (f", merged into the nearest kept: {mg_}" if mg_ else ""))
+        print(f"scene {nm_}: {np_} map palettes" + (f", extras: {mg_}" if np_ > 5 else ""))
     print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, one row each")
 
 
