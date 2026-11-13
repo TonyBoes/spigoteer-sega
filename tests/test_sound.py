@@ -1112,12 +1112,13 @@ def test_music_mix_balance_bass_and_drums_sit_under_a_quieter_melody():
         assert vol(env) <= (12 if n in (3, 4, songs.DUTY_RING) else 10 if n == gm.LEAD_PRO else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices; the ring is the credits tune's last chord only
     assert vol(gm.DUTY[0][2]) == 8 and vol(gm.DUTY[gm.LEAD_LEGATO - 1][2]) == 8, "lead and the sung tunes' held lead: volume 8"
     # bass: wave output 100% (NR32 0x20), the pro bass wave spans the full 4-bit range (6 dB louder than the old half-height triangle)
-    assert gm.WAVE[0][1] == 0x20 and len(gm.WAVE) == 2, "bass at 100% output; the plucked bass and its held twin"
+    assert gm.WAVE[0][1] == 0x20 and len(gm.WAVE) == 3, "bass at 100% output; the plucked bass, its held twin and the kick body (starts at 50 %)"
+    assert gm.WAVE[2] == (0, 0x40, 0, "sp_kickbass")
     nib = [x for b in gm.WAVES[0] for x in (b >> 4, b & 15)]
     assert len(nib) == 32 and min(nib) <= 3 and max(nib) >= 12, nib
     assert all(abs(a - b) <= 3 for a, b in zip(nib, nib[1:] + nib[:1])), "a smooth wave, no jumps"
     # drums: the one kit b n t o m x (proarr batch 0)
-    assert [vol(gm.NOISE[i][0]) for i in range(6)] == [10, 8, 4, 5, 9, 5]
+    assert [vol(gm.NOISE[i][0]) for i in range(6)] == [7, 9, 6, 5, 8, 7]
     # the generated tables (what the ROM really has) carry the same numbers
     src = (ROOT / "build" / "music_data.c").read_text()
     assert re.search(r"hUGEWaveInstr_t wave_inst\[\] = \{\s*\{0,32,0,", src)

@@ -25,11 +25,12 @@ ORDERS = 20
 FRAMES = 10336               # 1216 rows: 608 of 9 frames and 608 of 8 (swing 0xAA): 173 s
 
 # Pinned digest: sha256 of {rows (channels 2, 3, 4 per order, every instrument resolved to its definition), harmony bytes, groove letters} as proarr.py
-# (promusic, TITLE_B2_8VA=1) built them: gen_music's output for the same tune must be the same notes (tools/music_rig.py dumps are in the commit message)
+# (promusic, TITLE_B2_8VA=1) built them: gen_music's output for the same tune must be the same notes (tools/music_rig.py dumps are in the commit message).
+# Re-pinned 2026-11-12 for the new drum kit (the noise definitions and the kick body's notes); CORE_DIGEST below pins what must NOT change
 PROARR_DIGEST = {
-    "susanna": "a00922535b9bc85bddfc06ba4f6d8aea0665829a8ea6b0a996cba66c0fd7e06b",
-    "ballgame": "945c3f26d1ab7fd8060bdec3d399eb41adbefaf39f5ad9d5bc44b31817ce0c87",
-    "title": "84f7cd65de486d9bfd5ff97a7c43e1f84d43f9fa1e05e2ebcda7b7431948fee8",
+    "susanna": "d04969449832d40ef69929b19faa9c49734c7cc3438ef1b050c8294f1df29ca8",
+    "ballgame": "c09017551e0fb075214d965d72b125f16de7956d2ad27c89cd234b800a769cbf",
+    "title": "548eb8a10578e2fa6846f1800c9f4588215ba671c25fa042f670f9a0d2ae4f34",
 }
 
 
@@ -51,6 +52,33 @@ def digest(name, source):
     d = {"rows": rows, "harm": gm.harm_bytes(t, gm.harm_events(source, t, b["total"])),
          "groove": [letters.get(x) if x else None for x in gm.groove_rows(source, t) or []]}
     return hashlib.sha256(json.dumps(json.loads(json.dumps(d)), sort_keys=True).encode()).hexdigest()
+
+
+# Melody (channel 2), bass (channel 3, the kick body's notes put back: note - 24 on the plucked bass) and harmony of every tune, hashed as
+# they were before the new drum kit (owner 2026-11-12), taken from the generator at that commit: the kit changes drums only.
+CORE_DIGEST = {
+    "susanna": "04f13f42965da0c5", "galop": "b9ad7141cc0c712e", "ballgame": "4c0cbee5ef345735", "mountain": "17293e59b9b25754",
+    "funicula": "24ad0b34f414109e", "skaters": "c3c9e314c7ed295c", "hall": "4a7bc77821dfd369", "sakura": "94030772e5ccce77",
+    "danube": "1ba75df5a048c12a", "weasel": "8075f61ac9f2a660", "sailor": "a8b08d4bb1b0bfe2", "credits": "f71c63fa2d0b70e5",
+    "entertainer": "c6b62e35a1e3d8d4",
+}
+
+
+@pytest.mark.parametrize("name", sorted(CORE_DIGEST))
+def test_the_new_drum_kit_changed_nothing_but_drums(name):
+    t = songs.SONGS[name]
+    b = gm.build(name, t, False)
+    rows = {}
+    for c in (2, 3):
+        out = []
+        for chunk in b["per"][c]:
+            for n, i, e in chunk:
+                if c == 3 and i == gm.KICK_BODY:
+                    n, i = n - 24, gm.BASS_PRO
+                out.append((None if n == gm.REST else n, i, e))
+        rows[c] = out
+    d = {"rows": rows, "harm": gm.harm_bytes(t, gm.harm_events(name, t, b["total"]))}
+    assert hashlib.sha256(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()[:16] == CORE_DIGEST[name]
 
 
 @pytest.mark.parametrize("name,source", [("susanna", "susanna"), ("ballgame", "ballgame"), ("title", "entertainer")])

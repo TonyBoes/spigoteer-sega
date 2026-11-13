@@ -18,20 +18,21 @@ import gen_music as gm       # noqa: E402
 import harmony as H          # noqa: E402
 import songs                 # noqa: E402
 
+# Re-pinned 2026-11-12 for the new drum kit (tests/test_music_batch1.py CORE_DIGEST pins that melody, bass and harmony did not change)
 PROARR_DIGEST = {
-    "mountain": "92568920b5ca9d3cd93f88c90ea72392778c373942ed0a5bd33dbfbde350f217",
-    "funicula": "a9c9e4ffb48e5282f3d89ca225fd07e33717db1e1906ec4ca6a55a05c4b181f9",
-    "skaters": "e254edcadbbac3aff1ce4287a81d8ea672e5f548a791858ab83006283b6e8428",
-    "hall": "c7351846b768a12f0f4b3b14be8a11c7eebff9cea8a4c518c0725659ee5dc284",
-    "sailor_b3": "a8dd610c594f7e03301285b4b7f476a711e0b957566ed9afe75526341928fb93",
-    "sailor_b3d": "28ed6bb0d1f61d4785c0326e424b3844297986ce1ff17df4d37d2e5232931262",
-    "sakura": "38896962c15c6d6069cd557b94c88dd27130c5cec33b9c45ad0d21f193581391",
-    "weasel": "36d160ee8ff12326c5025e6e8cd879226eca636405672eff37b156cbd3124386",
-    "danube": "f5160eb474f328b4be47071e9b57fef897b5ca2755690d84f16b373fc03aae1a",
+    "mountain": "b9395e8b6b4e1f4c0899e86224e3f557d440a3f4f6a1cfeec68e44ffcaeca3f8",
+    "funicula": "31ff31c69c0d8d28ec8f4e0861da9e8746dd68cc1ccbeeb69cf8f706671f89ca",
+    "skaters": "5c425a13b94ed96acd01335bab38a49c2ecc29d06edfc3f0a3b16ee661c0d98e",
+    "hall": "836b4f0b55ae86e8a3df99825caadaab28f14f8c8e502735733c47da4f8abb7e",
+    "sailor_b3": "182b77d55b251544197891352ba24f951b57a7a6e914ceaec7a731a1d79186d6",
+    "sailor_b3d": "2462accd384683484b18cf947c79c6d84562cac5918f06cda27451782c7f0ed2",
+    "sakura": "d3a39e5f2bf42079605b27f1ece40c10507758089dfbe8a30e0d5a4118c5d381",
+    "weasel": "62003ef4dba02adea51b7a60e7429f8ab61b3fdb22ebcd498cdf1731162296bf",
+    "danube": "249a3ca10289d9d88ccdf887c83f2a5543a54540e6b2438404eb0cfc0282db3a",
     "credits": "f9f63964c029d1113e9349535c857255968f41cc0cb71192c457456ac9724689",       # the brass lead (CREDITS_B4=1)
     "clear": "e1f92054abecbb3bcee2ff89143b8104948dc2802619f258fb7b6b6e7b8a6f4d",
     "over": "beab595b30400ce1bc0b809751e64f53aa3cfc155b235ca90248d4105950e133",
-    "bonus": "1a655f3be5e09db68d0d388acdbbe6a137af95ab1ed208f2a1fe7777d58ae4df",
+    "bonus": "94c3c54eae1e17b52607d882063f37d46fd0125541a4383d7cddb56a385e5898",
 }
 GROUP = {n: i for i, n in enumerate(songs.VENUES)}
 

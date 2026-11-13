@@ -49,7 +49,7 @@ def test_the_arrangement_is_the_audition_v2():
     t, b = galop()
     assert t["inst"] == gm.LEAD_PRO and t["groove"] == "" and t["ch1_inst"] == ("voice", "voice")
     assert gm.DUTY[gm.LEAD_PRO - 1] == (0x08, 0x80, 0xA5, "sp_lead") and gm.WAVE[gm.BASS_PRO - 1] == (0, 0x20, 0, "sp_bass")
-    assert [len(gm.SUBPAT[k]) for k in ("sp_lead", "sp_bass", "sp_kick", "sp_snare")] == [16, 16, 3, 2]
+    assert [len(gm.SUBPAT[k]) for k in ("sp_lead", "sp_bass", "sp_kick", "sp_snare")] == [16, 16, 3, 3]
     nib = [x for byte in gm.WAVES[0] for x in (byte >> 4, byte & 15)]
     assert min(nib) <= 3 and max(nib) >= 12, "the new bass wave spans 2..13 of 0..15 (the old triangle 4..11)"
     # the bass's table steps NR32 100 % (7 ticks), 50 % (5), 25 % (3), then off: 0xC05, 0xC02, 0xC00
@@ -89,7 +89,7 @@ def test_the_real_driver_plays_the_tables_and_the_pause_mix_is_bass_and_drums(mo
             nr32.add(gb.mem(NR32) & 0x60); nr21.add(gb.mem(NR21) & 0xC0); nr43.add(gb.mem(NR43))
         assert {0x20, 0x40, 0x60} <= nr32, "the bass pluck: 100, 50 and 25 % (" + str(sorted(nr32)) + ")"
         assert {0x40, 0x80} <= nr21, "the lead starts at 50 % duty and settles to 25 %"
-        assert {0x37, 0x57, 0x77, 0x27, 0x00} <= nr43, sorted(hex(v) for v in nr43)   # the kick drops over three ticks, the snare cracks then has its body
+        assert {0x37, 0x57, 0x77, 0x35, 0x16} <= nr43, sorted(hex(v) for v in nr43)   # the kick drops over three ticks, the snare is three steps
         gb.press("start", 2)
         gb.run(3)
         assert gb.mem("game_state") == 5 and gb.mem(NR51) == 0xCC, "paused: bass and drums only"

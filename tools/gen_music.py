@@ -58,13 +58,13 @@ DRUM_ID = {}        # groove byte -> row of the kit (1-based; 0 = no hit)
 # field, None = free-running), NR43 clock steps without the 7-bit flag: the value written with the hit, then one a frame).  Every value is
 # one the driver can reach from a note number (get_note_poly: no -36), so the pattern route (hUGEDriver's noise instruments and their
 # tables, kit_instruments) and the groove route (src/music.c's rows, drum_kit) write the same bytes.
-KIT = {
-    "b": ("kick",       0xA1, 0, None, [0x37, 0x57, 0x77]),   # 4.7 kHz -> 1.2 kHz -> 292 Hz over three frames: a thump
-    "n": ("snare",      0x82, 0, None, [0x00, 0x27]),         # one frame of 1 MHz white noise (the crack), then the 9.4 kHz body
-    "t": ("hat_closed", 0x41, 1, None, [0x00]),               # 7-bit at the top of the range, 62 ms under its decay: "tss"
-    "o": ("hat_open",   0x52, 1, None, [0x00]),               # the same clock, free-running under a 0.16 s decay
-    "m": ("tom",        0x92, 0, None, [0x57, 0x77, 0x87]),   # a low tom for fills: 1.2 kHz -> 292 -> 146 Hz
-    "x": ("rim",        0x51, 1, 60,   [0x24]),               # a rim click: 7-bit at 32 kHz, 16 ms (the waltzes' light beats)
+KIT = {   # the "-3" research kit with tom R3 and rim R2 (owner 2026-11-12; docs/proarr/batch5/DRUMS_RESEARCH.md on the audition branch)
+    "b": ("kick",       0x71, 0, None, [0x37, 0x57, 0x77]),   # a click: 4.7 kHz -> 1.2 kHz -> 292 Hz over three frames; its body is the wave channel (KICK_BODY)
+    "n": ("snare",      0x91, 0, None, [0x35, 0x57, 0x16]),   # 15-bit: body 6.6 kHz, a low frame 1.2 kHz, a bright tail 22 kHz
+    "t": ("hat_closed", 0x61, 0, 52,   [0x06]),               # 15-bit at 44 kHz, cut by the length counter (NR41 0x34) at 47 ms
+    "o": ("hat_open",   0x53, 0, None, [0x15]),               # 15-bit at 26 kHz, a long fade
+    "m": ("tom",        0x82, 0, 18,   [0x44, 0x55, 0x56]),   # 15-bit, 4.1 -> 1.6 -> 1.4 kHz, cut at 0.18 s (NR41 0x12)
+    "x": ("rim",        0x71, 1, 55,   [0x14]),               # the one 7-bit sound (NR43 0x1C with the flag): 33 kHz, cut at 35 ms (NR41 0x37)
 }
 KIT_ORDER = "bntomx"
 GROOVE_STEPS = 3            # NR43 writes per hit in the groove player's rows (hit, +1 frame, +2 frames)
@@ -169,6 +169,14 @@ BASS_PRO = len(WAVE)
 WAVE.append((0, 0x20, 0))                        # 2 held bass: the same wave, no table (the credits tune's last chord fades by hand)
 BASS_HELD = len(WAVE)
 kit_instruments()
+# THE KICK BODY: a bass note that starts together with a kick plays two octaves up on this instrument and its table steps down to the
+# note's own pitch over three frames (-12, -19, -24 semitones: a pitched thump under the noise click), then fades like the plucked bass.
+# The wave channel starts at 50 % (NR32 0x40) and the second row puts it back to 100 % (Cxx 0xC0A), so the first drop frame is half level.
+# The note in the pattern is the TOP of the drop, so the table's first row (the hit's own call, the dearest) computes no pitch.
+table("sp_kickbass", [(None, 0), (-12, 0xC0A), (-19, 0), (-24, 0)] + [(None, 0)] * 3 + [(None, 0xC05)] + [(None, 0)] * 4
+      + [(None, 0xC02)] + [(None, 0)] * 2 + [(None, 0xC00)])
+WAVE.append((0, 0x40, 0, "sp_kickbass"))         # 3 kick body
+KICK_BODY = len(WAVE)
 # ARPEGGIO CHORD STABS (the first galop audition's technique, kept for other songs; no tune uses it now).  A stab row carries a
 # hardware arpeggio, effect 0xy = the note, +x and +y semitones cycling every frame (0x059 = note, +5, +9).  Give the song
 # songs.song(..., fx_map={row: [(2, 0x059)]}): build() writes it into that row's (free) effect column, so the note's staccato cut
@@ -256,6 +264,9 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all
                 note += 12      # the wave channel sounds an octave below a pulse channel for the same note index
                 assert note < 72, name
             eff = 0
+        if channel == 3 and inst == KICK_BODY:
+            note += 24          # the kick body's table drops from two octaves up to the note (the pitch name stays: the cuts compare names)
+            assert note < 72, name
         out.append((note, inst, eff))
         out += [(REST, 0, 0)] * (n - 1)
     if channel != 4 and not legacy:
@@ -428,6 +439,31 @@ def chunks_of(chan_rows, n_orders):
         yield tuple(chunk + [(REST, 0, 0)] * (64 - len(chunk)))
 
 
+def kick_body(t):
+    """T's ch3 text with the kick body on every bass note that starts on a kick row (the groove's b rows, or the kick rows of the
+    channel-4 pattern line): instrument KICK_BODY (rows_for puts its note two octaves up).  Tied (~), rest and already-instrumented tokens stay."""
+    if t.get("groove"):
+        g = t["groove"].split()
+        period, kicks = len(g), {i for i, tok in enumerate(g) if tok.startswith("b:")}
+    else:
+        period, kicks, r = 1 << 30, set(), 0
+        for tok in t["ch4"].split():
+            nm, rest = tok.split(":", 1)
+            if nm == "b":
+                kicks.add(r)
+            r += int(rest.split("/")[0].rstrip("!"))
+    if not kicks:
+        return t["ch3"]
+    out, r = [], 0
+    for tok in t["ch3"].split():
+        nm, rest = tok.split(":", 1)
+        if nm not in ("r", "R", "~") and "/" not in tok and r % period in kicks:
+            tok = f"{nm}:{rest.rstrip('!')}/{KICK_BODY}" + ("!" if rest.endswith("!") else "")
+        out.append(tok)
+        r += int(rest.split("/")[0].rstrip("!"))
+    return " ".join(out)
+
+
 def build(name, t, legacy):
     """Rows -> orders.  Returns the song's channel chunks (4 channels x n_orders patterns)."""
     tempo = t["tempo"]
@@ -435,7 +471,7 @@ def build(name, t, legacy):
     gap = t.get("gap", True)
     chans = {
         2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all"), t.get("legato"), t.get("swing", 0)),
-        3: rows_for(3, t["ch3"], BASS_PRO, tempo, legacy, gap, swing=t.get("swing", 0)),
+        3: rows_for(3, kick_body(t), BASS_PRO, tempo, legacy, gap, swing=t.get("swing", 0)),
         4: rows_for(4, t["ch4"], 1, tempo, legacy) if t["ch4"] else [],
     }
     total = max(len(v) for v in chans.values())      # the rows played in a pass (the harmony, the groove and the frames count these)

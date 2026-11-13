@@ -17,13 +17,13 @@ import songs                 # noqa: E402
 NR32, NR43 = 0xFF1C, 0xFF22
 
 # letter -> (NR42, 7-bit flag, NR41 length or None, NR43 steps without the flag): the spec's kit (BATCH_0.md)
-SPEC_KIT = {
-    "b": (0xA1, 0, None, [0x37, 0x57, 0x77]),
-    "n": (0x82, 0, None, [0x00, 0x27]),
-    "t": (0x41, 8, None, [0x00]),
-    "o": (0x52, 8, None, [0x00]),
-    "m": (0x92, 0, None, [0x57, 0x77, 0x87]),
-    "x": (0x51, 8, 60, [0x24]),
+SPEC_KIT = {   # the "-3" research kit, tom R3, rim R2 (owner 2026-11-12)
+    "b": (0x71, 0, None, [0x37, 0x57, 0x77]),
+    "n": (0x91, 0, None, [0x35, 0x57, 0x16]),
+    "t": (0x61, 0, 52, [0x06]),
+    "o": (0x53, 0, None, [0x15]),
+    "m": (0x82, 0, 18, [0x44, 0x55, 0x56]),
+    "x": (0x71, 8, 55, [0x14]),
 }
 
 
@@ -51,8 +51,8 @@ def test_the_generated_kit_is_the_spec():
         assert gm.NOISE_NOTE[letter][1] == i + 1
     # the generated C: six groove rows, the noise instruments
     src = (BUILD / "music_data.c").read_text()
-    assert "const unsigned char drum_kit[6][6] = {{0x00,0xA1,0x37,0x80,0x57,0x77}, {0x00,0x82,0x00,0x80,0x27,0x27}, " \
-           "{0x00,0x41,0x08,0x80,0x08,0x08}, {0x00,0x52,0x08,0x80,0x08,0x08}, {0x00,0x92,0x57,0x80,0x77,0x87}, {0x3C,0x51,0x2C,0xC0,0x2C,0x2C}};" in src
+    assert "const unsigned char drum_kit[6][6] = {{0x00,0x71,0x37,0x80,0x57,0x77}, {0x00,0x91,0x35,0x80,0x57,0x16}, " \
+           "{0x34,0x61,0x06,0xC0,0x06,0x06}, {0x00,0x53,0x15,0x80,0x15,0x15}, {0x12,0x82,0x44,0xC0,0x55,0x56}, {0x37,0x71,0x1C,0xC0,0x1C,0x1C}};" in src
     assert "extern const unsigned char drum_kit[6][6];" in (ROOT / "src" / "music.h").read_text()
     assert not (ROOT / "tools" / "gen_music.py").read_text().count("def noise_poly")
 
@@ -70,14 +70,14 @@ def test_the_driver_writes_the_kits_nr43_values_and_the_groove_rows_are_the_same
 def test_every_tune_uses_the_shared_instruments():
     assert (gm.LEAD_PRO, gm.LEAD_LEGATO, gm.BASS_PRO, gm.BASS_HELD) == (6, 7, 1, 2)
     assert gm.DUTY[5] == (0x08, 0x80, 0xA5, "sp_lead") and gm.DUTY[6] == (0x08, 0x80, 0x80, "sp_lead")
-    assert gm.WAVE == [(0, 0x20, 0, "sp_bass"), (0, 0x20, 0)] and len(gm.WAVES) == 1 and len(gm.DUTY) == 7
+    assert gm.WAVE == [(0, 0x20, 0, "sp_bass"), (0, 0x20, 0), (0, 0x40, 0, "sp_kickbass")] and gm.KICK_BODY == 3 and len(gm.WAVES) == 1 and len(gm.DUTY) == 7
     for name, t in songs.SONGS.items():
         assert t["inst"] == (gm.LEAD_LEGATO if t["legato"] else gm.LEAD_PRO), name
         b = gm.build(name, t, False)
-        assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} <= {gm.BASS_PRO, gm.BASS_HELD}, name
+        assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} <= {gm.BASS_PRO, gm.BASS_HELD, gm.KICK_BODY}, name
     for name, t in gm.JINGLES.items():
         b = gm.build(name, t, True)
-        assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} == {gm.BASS_HELD if name == "over" else gm.BASS_PRO}, name   # (batch 4: the game-over bass is held)
+        assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} == {gm.BASS_HELD if name == "over" else gm.KICK_BODY if name == "bonus" else gm.BASS_PRO}, name   # (batch 4: the game-over bass is held; the bonus loop's bass is all on its kicks: the kick body)
     # nothing of the old kits or waves is left
     assert not any(k.startswith("sp_") and k in ("sp_hollow", "sp_old") for k in gm.SUBPAT)
     for letter in "KSHksh":
@@ -102,7 +102,7 @@ def test_the_groove_route_in_the_game_steps_the_kick_and_the_snare(srom):
     assert srom.mem("cur_tune") == 0
     seq = nr43_run(srom, 300)        # the title: kick, hat, snare, hat
     assert contains(seq, [0x37, 0x57, 0x77]), [hex(v) for v in seq]
-    assert contains(seq, [0x00, 0x27]) and 0x08 in seq
+    assert contains(seq, [0x35, 0x57, 0x16]) and 0x06 in seq
 
 
 @pytest.mark.only_model('dmg')
@@ -111,7 +111,7 @@ def test_the_pattern_route_in_the_game_steps_the_kick_and_the_snare(sgb):
     assert sgb.mem("cur_tune") == TUNE_VENUE0
     seq = nr43_run(sgb, 300)         # Oh! Susanna: a pattern tune
     assert contains(seq, [0x37, 0x57, 0x77]), [hex(v) for v in seq]
-    assert contains(seq, [0x00, 0x27])
+    assert contains(seq, [0x35, 0x57, 0x16])
 
 
 def test_the_credits_last_chord_fades_100_50_25_percent():
