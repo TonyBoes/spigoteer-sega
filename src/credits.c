@@ -49,6 +49,7 @@ extern uint8_t overlay_on, joy, story_phase;
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
+static const uint8_t cr_scene_slot[5] = { 2, 3, 4, 6, 7 };
 #define CR_SOLID_ID  77     // CRMAP: the four flat tiles of the buildings (BG ids 77-80, both machines)
 #define CR_BLD_PAL    6     // CRMAP: the building's BG palette (a venue's title page: the portraits' 2-4, the boss's 5 are not on it)
 #define CR_CARDS      (CT_MAPFMT ? 43 : 33)      // the title, the Spigoteer, Dregs, then three cards for each of the ten venues (CRMAP proposal: four, the venue's title page first)
@@ -246,12 +247,12 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
     portrait_t *pt = CR_PT;
 #if CT_MAPFMT
     if (kd == CK_VENUE) {                          // its palettes: BG 6 the building's, BG 0 the band's colour (the label's gold) as the owner's card will have it
-        if (i == 0 && is_cgb) {
-            for (n = 0; n < 4; n++) p[n] = ct_bldcol[v][n];
-            cr_pal(0, CR_BLD_PAL, p);
+        if (i < 5 && is_cgb) {                     // the scene's palettes (the map's own, one for each its cells name: BG 2, 3, 4, 6, 7; the owner's portrait colours wait in RAM until the scene is off the screen)
+            for (n = 0; n < 4; n++) p[n] = ct_scol[v][i][n];
+            cr_pal(0, cr_scene_slot[i], p);
             return 0;
         }
-        if (i == 1 && is_cgb) {
+        if (i == 5 && is_cgb) {
             uint16_t *q = (uint16_t *)CR_PAL, *hq = (uint16_t *)(CR_PAL + 8 * BGPAL_HUD);
             q[0] = hq[0]; q[1] = BRIGHTEN(COL_GOLD); q[2] = BRIGHTEN(ct_bandcol[v]); q[3] = hq[3];
             if (CR->live) cr_hw(0, 0);
@@ -271,6 +272,10 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
                 for (n = 0; n < pt->npal; n++) {
                     p[0] = pt->pal[4 * n]; p[1] = pt->pal[4 * n + 1]; p[2] = pt->pal[4 * n + 2]; p[3] = pt->pal[4 * n + 3];
                     if (p[nch] == bg) p[nch] = COL_BAND;
+#if CT_MAPFMT
+                    if (kd == CK_OWNER) { uint8_t lv = CR->live; CR->live = 0; cr_pal(0, PPAL + n, p); CR->live = lv; CR->ft = 1; }   // (BG 2-4 are the venue scene's while it is on the screen: written when it is gone, credits_update)
+                    else
+#endif
                     cr_pal(0, PPAL + n, p);
                 }
                 if (kd == CK_OWNER) {                  // BG palette 0: the labels (colour 1: gold) and the band (colour 2: the venue's); the HUD's colours 0 and 3 (they are brightened already)
@@ -442,8 +447,7 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
     uint8_t n, i, id, m = 2;   // (2 tiles a frame: three left the frame with 4 % to spare, and a pattern copy at an order boundary pushed it past its VBlank: a tick 1.6 frames late)
     uint16_t *cell = (uint16_t *)(CR_BUF + 2);
 #if CT_MAPFMT
-    uint8_t vv = kd >> 4;                          // (a building row: the venue rides in the high bits)
-    kd &= 15;
+    kd &= 15;                                      // (a building row: the venue rides in the high bits, no longer needed)
 #endif
     if (CR->lw != CR->next) {
         if (!cr_room(26)) return 0;
@@ -462,15 +466,17 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
         i = CR->ld++;
         if (cell[i] == 0xFFFF) continue;
 #if CT_MAPFMT
-        if (cell[i] >= 0xFF00) {                       // a flat tile of a building: a fixed BG tile (CR_SOLID_ID + shade), no ring slot, no cost
+        // a building row's cells (CT_MAPFMT): bits 12-15 tell the kind: 0-4 a tile (first use: put in the ring, the scene palette in bits 12-14), 14 a tile the scene has put in the
+        // ring already (its slot: the scene's first ring slot, CR->lr, plus its number), 15 a flat tile (a fixed BG tile, no ring slot, no cost); bits 8-10 the scene palette
+        if (cell[i] >= 0xF000) {
             CR->row[CR_BUF[0] + i] = CR_SOLID_ID + (uint8_t)(cell[i] & 3);
-            if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_BLD_PAL;
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = cr_scene_slot[(cell[i] >> 8) & 7];
             continue;
         }
-        if (cell[i] >= 0xFE00) {                       // a tile the scene has put in the ring already: its slot is the scene's first ring slot (CR->lr) + its number
+        if (cell[i] >= 0xE000) {
             id = CR->lr + (uint8_t)(cell[i] & 255);
             if (id >= (is_cgb ? CR_TXT_CN : CT_RING_N)) id -= is_cgb ? CR_TXT_CN : CT_RING_N;
-            if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_BLD_PAL : 0) | 8;
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? cr_scene_slot[(cell[i] >> 8) & 7] : 0) | 8;
             else id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
             CR->row[CR_BUF[0] + i] = id;
             continue;
@@ -479,9 +485,9 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
         if (is_cgb) {
             id = CR->rt;
             if (++CR->rt == CR_TXT_CN) CR->rt = 0;
-            VBK_REG = VBK_BANK_1; credits_tile_put(cell[i], id); VBK_REG = VBK_BANK_0;
+            VBK_REG = VBK_BANK_1; credits_tile_put(cell[i] & 0xFFF, id); VBK_REG = VBK_BANK_0;
 #if CT_MAPFMT
-            CR_ATT[CR_BUF[0] + i] = (kd == 3 || (kd == 4 && CR_BUF[0] + i < ct_bc1[vv]) ? CR_BLD_PAL : kd ? 0 : BGPAL_HUD) | 8;
+            CR_ATT[CR_BUF[0] + i] = (kd == 3 ? cr_scene_slot[cell[i] >> 12] : kd ? 0 : BGPAL_HUD) | 8;
 #else
             CR_ATT[CR_BUF[0] + i] = (kd ? 0 : BGPAL_HUD) | 8;
 #endif
@@ -489,7 +495,11 @@ static uint8_t cr_tstep(uint8_t r, uint8_t kd) {
             id = CR->rt;
             if (++CR->rt == CT_RING_N) CR->rt = 0;
             id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
+#if CT_MAPFMT
+            credits_tile_put(cell[i] & 0xFFF, id);
+#else
             credits_tile_put(cell[i], id);
+#endif
         }
         CR->row[CR_BUF[0] + i] = id;
         m--;
@@ -840,6 +850,9 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         if (CR->skipq) { cr_leave(); return 1; }
         if (cr_fade(1, 1)) { cr_leave(); return 1; }
         CR->live = 1;
+#if CT_MAPFMT
+        CR->ft = 0;
+#endif
         CR->ls = (uint8_t)sys_time;                        // (the timeline counts frames from here)
         return 0;
     }
@@ -848,6 +861,12 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     SCY_REG = (uint8_t)CR->scroll;
     music_pump();                                          // (after the scroll register: the tick falls due here when the frame began late)
     for (d = (uint8_t)((uint8_t)sys_time - CR->ls), CR->ls = (uint8_t)sys_time; d; d--) { CR->t++; cr_step(); }   // (frames, not the tune's ticks: a lost tick does not stretch it)
+#if CT_MAPFMT
+    if (CR->ft && is_cgb) {                                // the owner's portrait colours (BG 2-4) go to the hardware once the venue scene, which used those slots, has scrolled off
+        d = CR->sc;
+        if (cr_kt[d] != CK_VENUE || CR->pos >= (uint16_t)(CR->ss + CT_R_VB + ct_bh[cr_vt[d]]) * 8) { cr_hw(0, 2); cr_hw(0, 3); cr_hw(0, 4); CR->ft = 0; }
+    }
+#endif
     if (CR->st == 3 && CR->ph >= CR_END_HOLD && (!sound_on || cur_tune != TUNE_CREDITS)) { cr_leave(); return 1; }   // (the roll's end, and the tune over: it ends on its own, cur_tune goes to TUNE_NONE)
     if (CR->next <= (CR->scroll >> 3) + (CR->next >= CR->wroll ? CR_AHEAD_R : CR_AHEAD_C)) { cr_gen(); busy = 1; }
     music_pump();
