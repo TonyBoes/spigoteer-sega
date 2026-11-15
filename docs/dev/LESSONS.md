@@ -118,3 +118,6 @@ under 200/500 Hz), and never mark one RECOMMENDED on how it "should" sound.
 
 ## 2026-11-13: a face update must replace every feature, most prominent first
 The Dregs face pass changed the eyes and left the old long nose, the old design's most recognisable feature (owner Q57). When matching a pose to a new design, list the features by prominence (silhouette-breaking ones first: nose, hat line, beard) and check each against the reference before reporting.
+
+## 2026-11-14: a composition ask needs a composition spec
+Q62: I relayed "owner in the foreground, venue behind" in one line; the artist kept the portrait boxed in a frame in the middle. For any scene/illustration brief, write the composition as a table (subject size, placement, crop, overlap, depth/values) before sending, per [[think-before-relaying]].
