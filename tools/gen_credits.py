@@ -174,6 +174,8 @@ LABELS = ["OWNER"]
 #   CRMAP=B   a title page of its own for each venue (a card before the owner's): the WHOLE building from the story map on the left, the name beside it (2-3 short lines on a stripe)
 CRFONT = os.environ.get("CRFONT", "")
 CRMAP = os.environ.get("CRMAP", "")
+CRSCENE = os.environ.get("CRSCENE", "")       # 1: the owner scene pages (the artist's round 6, tools/gen_scene_pages.py) replace the OWNER card
+assert CRSCENE in ("", "1"), CRSCENE
 CRFLOW = os.environ.get("CRFLOW", "")       # SMOOTH: no stops: the whole credits move up at one constant speed, set from the tune's length (owner 2026-11-13: "all one long smooth scroll matched to the song length")
 assert CRFLOW in ("", "SMOOTH"), CRFLOW
 assert CRFONT in ("", "A", "B") and CRMAP in ("", "B"), (CRFONT, CRMAP)
@@ -190,6 +192,10 @@ if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the own
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, VPAD=16)
 LAY["MAPFMT"] = {"": 0, "B": 2}[CRMAP]
 LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
+LAY["SCENEFMT"] = 1 if CRSCENE else 0
+SGT, SGB = 26, 24                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
+if CRSCENE:
+    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
@@ -380,6 +386,100 @@ def main():
         for j in range(3):
             cut_row(f"BAND{v}_{j}", img[8 * j:8 * j + 8], 2, EXTRA)
     stripe = tile_of([[2] * 160 for _ in range(8)], 0)
+    CH = []
+    SCN = []                                          # CRSCENE: per (venue, model) the page's data for the engine
+    if CRSCENE:
+        import gen_scene_pages as GSP
+        ids["BLD0"] = len(ROWS)
+        POOL_BLD0 = len(POOL)
+        solid = [tile_of([[k] * 160 for _ in range(8)], 0) for k in range(4)]     # (the four flat tiles: BG ids 77-80 on both machines, loaded once)
+        ids["SOLID"] = solid
+        ids["SCN0"] = len(ROWS)
+
+        def lum(h):
+            r_, g_, b_ = (int(h[k:k + 2], 16) for k in (1, 3, 5))
+            return 3 * r_ + 6 * g_ + b_
+
+        for v in range(10):
+            if v in (0, 4, 7):
+                CH.append((POOL_BLD0, ids["BLD0"]) if v == 0 else (len(POOL), len(ROWS)))        # (three bank files: a bank holds 16 KB)
+            vd = GSP.F.VENUES[v]
+            for m in (0, 1):
+                sc = GSP.scene(vd, bool(m))
+                stage = sc["stage"]
+                ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
+                inkv = ink if m else None
+                slot_of = {}
+                px_, x0_, x1_ = strip(VENUES[v])
+                dxb = 80 - (x0_ + x1_ + 1) // 2
+                big = [px_[y // 2] for y in range(16)]
+                ys = [y for y in range(16) if any(c != BAND for c in big[y])]
+                topb = (BAND_H - (ys[-1] - ys[0] + 1)) // 2 - ys[0]
+                band = [[2] * 160 for _ in range(BAND_H)]
+                for y in range(16):
+                    for x in range(len(px_[0])):
+                        if big[y][x] != BAND:
+                            band[y + topb][x + dxb] = big[y][x] if inkv is None else inkv
+                npx, nx0, nx1 = strip(OWNERS[v])
+                dxn = 80 - (nx0 + nx1 + 1) // 2
+                for j in range(1, 18):
+                    full = [[BAND] * 160 for _ in range(8)]
+                    specs = [None] * 20
+                    if 1 <= j <= 3:
+                        full = [list(rw) for rw in band[8 * (j - 1):8 * j]]
+                        auto = True
+                    elif j == 17:
+                        for y in range(8):
+                            for x in range(len(npx[0])):
+                                if npx[y][x] != BAND:
+                                    full[y][x + dxn] = npx[y][x] if inkv is None else inkv
+                        auto = True
+                    else:
+                        auto = False
+                        for tx_, c in enumerate(sc["cells"][j - 4]):
+                            if c is None:
+                                continue
+                            specs[tx_] = c
+                            if c[0] == "t":
+                                for y in range(8):
+                                    for x in range(8):
+                                        full[y][8 * tx_ + x] = c[1][y][x]
+                            else:
+                                for y in range(8):
+                                    for x in range(8):
+                                        full[y][8 * tx_ + x] = c[1]
+                    cells = []
+                    for tx_ in range(20):
+                        flat = {p for y in range(8) for p in full[y][8 * tx_:8 * tx_ + 8]}
+                        if auto:
+                            pl = 0
+                            if flat == {3}:
+                                cells.append(0xFFFF)
+                                continue
+                            if flat == {2}:
+                                cells.append(0xF000 | 2)
+                                continue
+                        else:
+                            if specs[tx_] is None:
+                                cells.append(0xFFFF)
+                                continue
+                            pl = specs[tx_][2]
+                            if specs[tx_][0] == "f":
+                                cells.append(0xF000 | pl << 8 | specs[tx_][1])
+                                continue
+                        ti = tile_of(full, tx_)
+                        assert ti < 4096
+                        if ti in slot_of:
+                            cells.append(0xE000 | pl << 8 | slot_of[ti])
+                        else:
+                            slot_of[ti] = len(slot_of)
+                            cells.append(ti | pl << 12)
+                    live = [k for k, c in enumerate(cells) if c != 0xFFFF]
+                    a0, a1 = (live[0], live[-1]) if live else (0, -1)
+                    cl = cells[a0:a1 + 1]
+                    ROWS.append((f"SCN{v}_{m}_{j}", a0, cl))
+                    EXTRA[f"SCN{v}_{m}_{j}"] = {"col": a0, "n": len(cl), "cells": cl}
+                SCN.append(dict(v=v, m=m, sc=sc, ink=ink))
     BLD_COL, BLD_INFO, SCENE_REPORT, NPALS = [], [], [], []                       # each venue's building palette: the story map's palette of the building's cells (the commonest), colours light to dark
     if CRMAP:
         from PIL import Image
@@ -506,6 +606,8 @@ def main():
                     cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
                 yy += VGAP.get(v, VGAP_DEF) + BLD_INFO[v][1] + L["VPAD"] + L["G"]
                 items = [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
+            elif CRSCENE:
+                items = [(SGT + j, f"SCN{v}_{0 if dmg else 1}_{j}") for j in range(1, 18)]
             else:
                 items = [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
             for off, name in items:
@@ -522,7 +624,7 @@ def main():
         peaks[dmg] = max(sum(cnt.get(a + i, 0) for i in range(32)) for a in range(0, top))
     assert max(peaks.values()) <= SCROLL_RING, f"the scroll's cast needs {peaks} text tiles at once, the ring has {SCROLL_RING}"
     n_all_rows = len(ROWS)
-    bp, br = (POOL_BLD0, ids["BLD0"]) if CRMAP else (len(POOL), len(ROWS))      # CRMAP: the buildings' tiles and rows are a second file (a bank of their own: the first would hold 20 KB)
+    bp, br = (POOL_BLD0, ids["BLD0"]) if (CRMAP or CRSCENE) else (len(POOL), len(ROWS))      # CRMAP: the buildings' tiles and rows are a second file (a bank of their own: the first would hold 20 KB)
     # (the default build's tables end at n_base_rows / n_base_pool)
     n_rows = n_base_rows
     flat, offs = [], []
@@ -556,16 +658,18 @@ def main():
          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED {",
          "#ifdef CREDITS_SCROLL",
          (f"    if (idx >= {POOL_SPLIT}) {{ credits_tile_put4(idx - {POOL_SPLIT}, to); return; }}\n    if (idx >= {bp}) {{ credits_tile_put3(idx - {bp}, to); return; }}" if CRMAP else ""),
+         ("\n".join(f"    if (idx >= {CH[k][0]}) {{ credits_tile_put{3 + k}(idx - {CH[k][0]}, to); return; }}" for k in (2, 1, 0)) if CRSCENE else ""),
          f"    if (idx >= {n_base_pool}) {{ set_bkg_data(to, 1, ct_pool2 + ((idx - {n_base_pool}) << 4)); return; }}",
          "#endif",
          "    set_bkg_data(to, 1, ct_pool + (idx << 4));", "}", "",
          "// row r's cells: dst[0] the first column, dst[1] the count (0: nothing on the row), then the pool index of each (16 bits, 0xFFFF: empty)",
-         "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED {",
+         "uint8_t credits_row_get(uint16_t r, uint8_t *dst) BANKED {",
          "    uint8_t i, n;",
          "    uint16_t *d = (uint16_t *)(dst + 2);",
          "    const uint16_t *s;",
          "#ifdef CREDITS_SCROLL",
          (f"    if (r >= {ROW_SPLIT}) return credits_row_get4(r - {ROW_SPLIT}, dst);\n    if (r >= {br}) return credits_row_get3(r - {br}, dst);" if CRMAP else ""),
+         ("\n".join(f"    if (r >= {CH[k][1]}) return credits_row_get{3 + k}(r - {CH[k][1]}, dst);" for k in (2, 1, 0)) if CRSCENE else ""),
          f"    if (r >= {n_base_rows}) {{",
          f"        r -= {n_base_rows};",
          "        n = ct_len2[r]; s = ct_cell2 + ct_off2[r]; dst[0] = ct_col2[r]; dst[1] = n;",
@@ -578,7 +682,7 @@ def main():
          "    for (i = 0; i != n; i++) d[i] = s[i];",
          "    return n;", "}", ""]
     (out / "credits_text.c").write_text(resolve_scroll("\n".join(c)))
-    if CRMAP:
+    if CRMAP or CRSCENE:
         def bld_file(name, tag, p0, p1, r0_, r1_):
             f0, f1 = offs[r0_], (offs[r1_] if r1_ < len(offs) else len(flat_all))
             c3 = ["// generated by tools/gen_credits.py -- do not edit (CRMAP: the buildings' scenes, a bank of their own)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
@@ -588,8 +692,56 @@ def main():
                   f"uint8_t credits_row_get{tag}(uint8_t r, uint8_t *dst) BANKED {{", f"    uint8_t i, n = ct_len{tag}[r];", "    uint16_t *d = (uint16_t *)(dst + 2);", f"    const uint16_t *s = ct_cell{tag} + ct_off{tag}[r];",
                   f"    dst[0] = ct_col{tag}[r]; dst[1] = n;", "    for (i = 0; i != n; i++) d[i] = s[i];", "    return n;", "}", ""]
             (out / name).write_text("\n".join(c3))
-        bld_file("credits_text2.c", "3", bp, POOL_SPLIT, br, ROW_SPLIT)
-        bld_file("credits_text3.c", "4", POOL_SPLIT, len(POOL), ROW_SPLIT, len(ROWS))
+        if CRMAP:
+            bld_file("credits_text2.c", "3", bp, POOL_SPLIT, br, ROW_SPLIT)
+            bld_file("credits_text3.c", "4", POOL_SPLIT, len(POOL), ROW_SPLIT, len(ROWS))
+    if CRSCENE:
+        ends = CH[1:] + [(len(POOL), len(ROWS))]
+        for k in range(3):
+            bld_file(f"credits_text{2 + k}.c", str(3 + k), CH[k][0], ends[k][0], CH[k][1], ends[k][1])
+    if CRSCENE:
+        tl, tof, tn, meta, moff, bgp, opp = [], [], [], [], [], [], []
+
+        def t2(grid):
+            out_ = []
+            for y in range(8):
+                lo = hi = 0
+                for x in range(8):
+                    lo |= (grid[y][x] & 1) << (7 - x)
+                    hi |= (grid[y][x] >> 1) << (7 - x)
+                out_ += [lo, hi]
+            return out_
+        for e in SCN:
+            if e["m"] != 1:
+                continue
+            sc = e["sc"]
+            tof.append(len(tl))
+            for o in sc["objs"]:
+                tl += t2(o["top"]) + (t2(o["bot"]) if o["bot"] else [0] * 16)
+            tn.append(len(sc["objs"]) * 2)
+            moff.append(len(meta))
+            assert len(sc["objs"]) <= 40 and len(sc["opals"]) <= 7, (e["v"], len(sc["objs"]), len(sc["opals"]))
+            meta += [len(sc["objs"]), len(sc["opals"]), len(sc["objs"]) * 2]
+            for k, o in enumerate(sc["objs"]):
+                meta += [o["x"] + 8, o["y"], 2 * k, ((1 + o["pal"]) & 7) | o["obp"] << 4]
+            assert len(sc["pals"]) <= 8, (e["v"], "BG palettes", len(sc["pals"]))
+            for k in range(8):
+                pp = sc["pals"][k] if k < len(sc["pals"]) else [None] * 4
+                bgp += [rgb555(h_) if h_ else 0 for h_ in pp]
+            for k in range(7):
+                pp = sc["opals"][k] if k < len(sc["opals"]) else [None] * 3
+                opp += [rgb555(h_) if h_ else 0 for h_ in pp]
+        sf = ["// generated by tools/gen_credits.py -- do not edit (CRSCENE: the scene pages' sprites, tiles and palettes)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
+              arr("ct_stile", tl), arr("ct_stoff", tof, "uint16_t"), arr("ct_smeta", meta), arr("ct_smoff", moff, "uint16_t"), arr("ct_sbg", bgp, "uint16_t"), arr("ct_sop", opp, "uint16_t"), "",
+              "// kind 0: object tile i (16 bytes); 1: BG palette i (4 words); 2: OBJ palette i (3 words: colours 1-3); 3: the scene's meta (n objects, OBJ palettes, tiles, then x, y in the picture, tile, flags a object); returns the tile count",
+              "uint8_t credits_scene_get(uint8_t v, uint8_t kind, uint8_t i, uint8_t *dst) BANKED {",
+              "    uint8_t k, n;", "    const uint8_t *s;",
+              "    if (kind == 0) { s = ct_stile + ct_stoff[v] + ((uint16_t)i << 4); for (k = 0; k != 16; k++) dst[k] = s[k]; return 0; }",
+              "    if (kind == 1) { s = (const uint8_t *)(ct_sbg + v * 32 + i * 4); for (k = 0; k != 8; k++) dst[k] = s[k]; return 0; }",
+              "    if (kind == 2) { s = (const uint8_t *)(ct_sop + v * 21 + i * 3); for (k = 0; k != 6; k++) dst[k] = s[k]; return 0; }",
+              "    s = ct_smeta + ct_smoff[v]; n = 3 + 4 * s[0]; k = s[2]; s += (uint16_t)i << 5;   // (32 bytes a call: a unit of the credits' loads is a fraction of a frame)",
+              "    n -= i << 5; if (n > 32) n = 32;", "    for (i = 0; i != n; i++) dst[i] = s[i];", "    return k;", "}", ""]
+        (out / "credits_scene.c").write_text("\n".join(sf))
     h = ["// generated by tools/gen_credits.py -- do not edit", "#ifndef CREDITS_TEXT_H", "#define CREDITS_TEXT_H", "#include <stdint.h>", "",
          f"#define CT_POOL_TILES {n_base_pool}   // unique tiles ({n_base_pool * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
     for key in ("TITLE", "SAL", "DREGS"):
@@ -604,11 +756,13 @@ def main():
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
           "static const uint8_t ct_lp[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in lp) + " }" for lp in LOOK_PAL) + " };   // each look's OBJ palette (Color): 1 + the index here (OBJ 0 is the Spigoteer's, kept for the roll)",
           "static const uint16_t ct_pcol[10][7][3] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in (pc + [0, 0, 0])[:3]) + " }" for pc in pcs + [[]] * (7 - len(pcs))) + " }" for pcs in PAL_COLS) + " };   // the palettes' colours 1-3 (RGB555, before BRIGHTEN)",
-          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put3(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get3(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put4(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get4(uint8_t r, uint8_t *dst) BANKED;", ""]
+          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint16_t r, uint8_t *dst) BANKED;", "void credits_tile_put3(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get3(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put4(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get4(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put5(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get5(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put6(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get6(uint8_t r, uint8_t *dst) BANKED;", "uint8_t credits_scene_get(uint8_t v, uint8_t kind, uint8_t i, uint8_t *dst) BANKED;", ""]
     h += ["#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and layout (rows of the world: tools/gen_credits.py LAY)",
           f"#define CT_LBL {ids['LBL0']}   // the label OWNER",
           f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",
           "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
+    if CRSCENE:
+        h += [f"#define CT_SCN {ids['SCN0']}   // the scene pages' rows: 17 a (venue, model), CT_SCN + 17 (2 v + is_cgb) + j - 1", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)"]
     if CRMAP:
         h += [f"#define CT_BLD {ids['BLD0']}   // the building rows (a venue's start: ct_boff)", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)",
               "static const uint8_t ct_vg[10] = { " + ", ".join(str(VGAP.get(v, VGAP_DEF)) for v in range(10)) + " };   // the blank rows above a venue's scene", "static const uint8_t ct_snp[10] = { " + ", ".join(str(n) for n in NPALS) + " };   // a scene's palettes", "static const uint16_t ct_scol[10][7][4] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in sc) + " }" for sc in BLD_COL) + " };   // each scene's palettes (the map's own: RGB555, before BRIGHTEN), light to dark; the cells name them (credits.c CR_SCENE_SLOT)",

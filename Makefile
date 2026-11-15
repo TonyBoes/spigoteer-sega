@@ -42,6 +42,7 @@ export GLOW
 export CRFONT
 export CRMAP
 export CRFLOW
+export CRSCENE
 ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
@@ -67,6 +68,9 @@ PRACTICE_C := $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c
 # CRMAP (the credits' venue title pages with the story map's buildings, a proposal): the buildings' tiles are a second generated file, a bank of its own
 ifneq ($(CRMAP),)
 CRMAP_GEN := $(BUILD)/credits_text2.c $(BUILD)/credits_text3.c
+endif
+ifneq ($(CRSCENE),)
+CRMAP_GEN := $(BUILD)/credits_text2.c $(BUILD)/credits_text3.c $(BUILD)/credits_text4.c $(BUILD)/credits_scene.c
 endif
 GEN      := $(CRMAP_GEN) $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/looks.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(BUILD)/music_pat25.c $(BUILD)/music_pat26.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
@@ -214,7 +218,7 @@ $(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_worl
 # `make -B` and comparing with the rules). Without them an incremental `make` kept stale generated files after editing one of these.
 $(BUILD)/art.c: assets/tiles/story.txt src/layout.h tools/artifacts/palette_plan/plan_slots.json
 $(BUILD)/boss_art.h: $(wildcard assets/approved/venues/*_tilt.txt)
-$(BUILD)/credits_text2.c $(BUILD)/credits_text3.c: $(BUILD)/credits_text.c
+$(BUILD)/credits_text2.c $(BUILD)/credits_text3.c $(BUILD)/credits_text4.c $(BUILD)/credits_scene.c: $(BUILD)/credits_text.c
 	@test -f $@
 
 $(BUILD)/credits_text.c: $(wildcard assets/approved/venues/*_pal.json) $(wildcard assets/art/patrons/*_x.txt) $(wildcard tools/artifacts/palette_plan/*.py) tools/artifacts/palette_plan/plan_slots.json
