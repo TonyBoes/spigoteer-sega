@@ -270,6 +270,11 @@ static void cr_remap(uint8_t *b, uint8_t n) {     // DMG: n bytes of tiles with 
 
 static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c == CK_DREGS ? 1 : cr_owner[v]; }
 
+#define CR_TXT_D    204
+#define CR_TXT_DN    52
+#define CR_TXT_CN   127
+#define CR_NPRE 96                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest)
+#define CR_PT_NP 127                                  // (CR_PT_B[127]: how many of them this page has)
 #define CR_PT_B ((uint8_t *)story_scratch + 200)       // CRSCENE: the scene page's meta (n objects, OBJ palettes, tiles, then 4 bytes an object), where the owner's portrait used to be
 #define PBASE (CR->pb)
 #define PPAL  (CR->pp)
@@ -300,13 +305,27 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
 #if CT_SCENEFMT
     if (kd == CK_OWNER) {                          // the scene page's loads: unit 0 its meta (RAM: the sprites' x, y, tile, flags), then its sprite tiles, then (Color) its OBJ palettes
         uint8_t tn = CR_PT_B[2], nm;
-        if (i == 0) { credits_scene_get(v, 3, 0, CR_PT_B); return 0; }
+        if (i == 0) { credits_scene_get(v, 3, 0, CR_PT_B); CR->ft &= ~8; return 0; }
         nm = (3 + 4 * CR_PT_B[0] + 31) >> 5;           // (the meta comes in 32-byte units)
         if (i < nm) { credits_scene_get(v, 3, i, CR_PT_B + 32 * i); return 0; }
         i -= nm;
         tn = CR_PT_B[2];
         if (i < tn) { credits_scene_get(v, 0, i, buf); set_sprite_data(i, 1, buf); return 0; }
         i -= tn;
+        {                                          // the page's first CR_NPRE tiles into the ring now, in the order its rows first use them: the rows then need no tile put (CR->rt stays where the page's rows will start)
+            uint8_t np = credits_scene_get(2 * v + (is_cgb ? 1 : 0), 4, 0, buf), id;
+            if (np > CR_NPRE) np = CR_NPRE;
+            CR_PT_B[CR_PT_NP] = np;
+            if (i < np) {
+                credits_scene_get(2 * v + (is_cgb ? 1 : 0), 4, i, buf);
+                id = CR->rt + i;
+                if (id >= CR_TXT_CN) id -= CR_TXT_CN;
+                if (is_cgb) { VBK_REG = VBK_BANK_1; credits_tile_put(buf[0] | buf[1] << 8, id); VBK_REG = VBK_BANK_0; }
+                else { id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1; credits_tile_put(buf[0] | buf[1] << 8, id); }
+                return 0;
+            }
+            i -= np;
+        }
         if (is_cgb && i < CR_PT_B[1]) {
             credits_scene_get(v, 2, i, buf);
             p[0] = 0; p[1] = buf[0] | buf[1] << 8; p[2] = buf[2] | buf[3] << 8; p[3] = buf[4] | buf[5] << 8;
@@ -486,7 +505,7 @@ static uint8_t cr_lrow(uint8_t c) { return cr_kt[c] == CK_OWNER ? CT_R_DIV - 6 :
 static uint16_t cr_hold(uint8_t c) {              // frames
     uint8_t kd = cr_kt[c];
 #if CT_SCENEFMT
-    return kd == CK_TITLE ? 120 : kd == CK_PATRONS ? 225 : kd == CK_OWNER ? 130 : 135;       // (the scene pages' roll is longer: 50 blank rows a page; the holds are shorter so the tune ends a little after the roll)
+    return kd == CK_TITLE ? 120 : kd == CK_PATRONS ? 245 : kd == CK_OWNER ? 150 : 145;       // (the scene pages' roll is longer: 50 blank rows a page; the holds are shorter so the tune ends a little after the roll)
 #else
     return kd == CK_TITLE ? 120 : kd == CK_PATRONS ? 270 : 180;
 #endif
@@ -533,7 +552,7 @@ static void cr_attr_hud(void) { uint8_t i; if (is_cgb) for (i = 0; i < 20; i++) 
 #else
 #if CT_SCENEFMT
 static uint8_t cr_res(void) {                       // (a scene page on the screen: its 25 sprites' y is 75 lines, not 45)
-    if (!((CR->pos ^ CR->sig) & CR_SIGM) || (CR->pr && !CR->pq && CR->st == 1)) return 0;     // (the step waited: no sprite stage runs)
+    if (!((CR->pos ^ CR->sig) & CR_SIGM) || (CR->phase > 1 && CR->st == 1)) return 0;     // (the step waited: no sprite stage runs)
     if (cr_kt[CR->sc] == CK_OWNER && CR->pos + 144 > (uint16_t)(CR->ss + CT_SGT) * 8 && CR->pos < (uint16_t)(CR->ss + CT_SGT + 18) * 8) return 45 + 3 * CR_PT_B[0];
     return 45;
 }
@@ -596,6 +615,16 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
             id = CR->lr + (uint8_t)(cell[i] & 255);
             if (id >= (is_cgb ? CR_TXT_CN : CT_RING_N)) id -= is_cgb ? CR_TXT_CN : CT_RING_N;
             if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT((cell[i] >> 8) & 7) : 0) | 8;
+            else id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
+            CR->row[CR_BUF[0] + i] = id;
+            continue;
+        }
+#endif
+#if CT_SCENEFMT
+        if (kd == 3 && (uint8_t)(CR->rt >= CR->lr ? CR->rt - CR->lr : CR->rt + CR_TXT_CN - CR->lr) < CR_PT_B[CR_PT_NP]) {     // (one of the page's preloaded tiles: its ring slot is next, no put)
+            id = CR->rt;
+            if (++CR->rt == CR_TXT_CN) CR->rt = 0;
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_SLOT(cell[i] >> 12) | 8;
             else id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
             CR->row[CR_BUF[0] + i] = id;
             continue;
@@ -689,15 +718,17 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
 // the next world row (CR->next): what loads it needs (a few units a call), then the row; 1: it is queued
 static uint8_t cr_gen(void) {
     uint16_t w = CR->next;
-    uint8_t c = CR->gc, m, i, v = 0, kd;
+    uint8_t c = CR->gc, m, i, v = 0, kd, gate = 0;
     while (c < CR_CARDS && w >= CR->gs + cr_hgt(c) + cr_gap(c)) { CR->gs += cr_hgt(c) + cr_gap(c); c++; CR->gl = 0; }
     CR->gc = c;
     if (c < CR_CARDS && w >= CR->gs && w < CR->gs + cr_hgt(c)) {          // a card's row
-        if (CR->gl != 255 && w - CR->gs >= cr_lrow(c)) {
+#if CT_SCENEFMT
+        gate = CR->gl != 255 && cr_kt[c] == CK_OWNER && (CR->lw == CR->next || (CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP] && CR->sc < c));          // (no load while a row is in progress: the units use CR_BUF too; the scene's OBJ palettes wait until the card before it is off the screen: its rows do not)
+#endif
+        if (CR->gl != 255 && w - CR->gs >= cr_lrow(c) && !gate) {
             if (!CR->gl) { CR->pb = c == 2 ? CR_T_BOSS : STORY_PORTRAIT_BASE; CR->pp = c == 2 ? BGPAL_STAGE : BGPAL_PATRON; CR->pose = 0; }
             if (!cr_room(CR->gl < 3 && cr_kt[c] != CK_BOSS && cr_kt[c] != CK_PATRONS ? 52 : 28)) return 0;   // (a portrait's header, map and palettes: 0.3 frame in one call)
 #if CT_SCENEFMT
-            if (cr_kt[c] == CK_OWNER && CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] && CR->sc < c) return 0;          // (the scene's OBJ palettes wait until the card before it is off the screen)
             if (is_cgb && cr_kt[c] == CK_PATRONS && CR->gl >= 38 && (CR->sc < c - 1 || (CR->sc == c - 1 && CR->pos < (uint16_t)(CR->ss + CT_SGT + 18) * 8) || (CR->bp == 99 + c && CR->bn < 11))) return 0;   // (the patrons' OBJ palettes: after the scene page is off)
 #endif
             for (m = 0; m < 1; m++) {
@@ -775,11 +806,18 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
     uint8_t rm, rd, rs;
     while (CR->sc < CR_CARDS && (uint16_t)(CR->ss + cr_hgt(CR->sc) + 1) * 8 <= sc) { CR->ss += cr_hgt(CR->sc) + cr_gap(CR->sc); CR->sc++; }
 #if CT_SCENEFMT
-    if (CR->pr && !CR->pq && CR->st == 1) {         // (this frame's step waited for a page's rows: the screen shows no sprite, the frame is the rows'; the page's sprites get their x, tile and flags now, hidden, so the frame it comes on the screen needs only their y)
+    if (CR->phase > 1 && CR->st == 1) {         // (this frame's step waited for a page's rows: the screen shows no sprite, the frame is the rows'; the page's sprites get their x, tile and flags now, hidden, so the frame it comes on the screen needs only their y)
         const uint8_t *so = CR_PT_B + 3;
         uint8_t nobj = CR_PT_B[0];
-        if (nobj && (shadow_OAM[0].x != so[0] || shadow_OAM[0].tile != so[2] || shadow_OAM[0].prop != so[3] || shadow_OAM[nobj - 1].tile != so[4 * nobj - 2])) {
-            for (oo = shadow_OAM, k = nobj; k; k--, so += 4, oo++) { oo->y = 0; oo->x = so[0]; oo->tile = so[2]; oo->prop = so[3]; }
+        if (nobj && !(CR->ft & 8)) {                // (eight objects a frame, hidden: the frame the page comes on the screen is only its y)
+            n = 8;
+            for (oo = shadow_OAM, k = nobj; k; k--, so += 4, oo++) {
+                if (oo->tile != so[2] || oo->x != so[0] || oo->prop != so[3]) {
+                    if (!n--) break;
+                    oo->y = 0; oo->x = so[0]; oo->tile = so[2]; oo->prop = so[3];
+                }
+            }
+            if (!k) CR->ft |= 8;
         }
         return;
     }
@@ -787,8 +825,8 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
     rm = (dg & CR_SIGM) != 0;                      // rm: the scroll moved: every sprite's y; rd: a card's loads or a card left (its sprites go): every sprite is written whole; rs: an animation step: the sprites that change in it
     rd = g2 != CR->sig2 || adv != CR->sc;
 #if CT_SCENEFMT
-    rs = (dg >> 14) != 0 || (CR->ft ^ ((t >> 4) & 4)) != 0;
-    CR->ft = (t >> 4) & 4;
+    rs = (dg >> 14) != 0 || ((CR->ft ^ (t >> 4)) & 4) != 0;
+    CR->ft = ((t >> 4) & 4) | (CR->ft & 8);            // (bit 3: the page's sprites' x, tile and flags are in OAM)
 #else
     rs = (dg >> 13) != 0;
 #endif
@@ -820,10 +858,9 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                 uint8_t nobj = CR_PT_B[0];
                 y = y0 + 8 * (CT_SGT + 4) + 16;
                 oo = shadow_OAM;
-                // (x, tile and flags go in when OAM was cleared (rd) or the page has just come on the screen: the last frame's scroll (in sig) put it off)
-                ya = y0 + (int16_t)(sc - ((g ^ dg) & 0x3FFF));
-                rm = rd || ya + 8 * (CT_SGT + 1) >= 160 || ya + 8 * (CT_SGT + 18) <= 0;
-                if (rm && !rd) rm = shadow_OAM[0].x != so[0] || shadow_OAM[0].tile != so[2] || shadow_OAM[0].prop != so[3] || shadow_OAM[nobj - 1].tile != so[4 * nobj - 2] || shadow_OAM[nobj - 1].prop != so[4 * nobj - 1];
+                // (x, tile and flags: written in the frames the scroll waits (above), else here, once)
+                rm = !(CR->ft & 8);
+                CR->ft |= 8;
                 for (k = nobj; k; k--, so += 4, oo++) {
                     if (rm) { oo->x = so[0]; oo->tile = so[2]; oo->prop = so[3]; }
                     ya = y + so[1];
@@ -937,8 +974,8 @@ static void cr_step(void) {                       // one frame
         break;
     case 1:
 #if CT_SCENEFMT
-        if (!CR->pq && cr_stalled() && CR->pr < 250) { CR->pr++; break; }
-        if (!CR->pq) CR->pr = 0;
+        if (CR->phase && cr_stalled() && CR->phase < 251) { CR->phase++; break; }       // (CR->phase: 1 after the first screen, 1 + the frames the step has waited)
+        if (CR->phase) CR->phase = 1;
 #endif
         CR->pos += cr_speed((uint8_t)CR->ph);
         if (++CR->ph >= 2 * CR_VMAX * CR_VLEN + CR->nc + (CR->rr != 0)) {

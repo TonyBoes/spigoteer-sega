@@ -23,7 +23,7 @@ BX, BY, BW, BH = F.BX, F.BY, F.BW, F.BH
 
 def _pack(maps):
     pals = []
-    for m in sorted(set(tuple(sorted(m.items())) for m in maps), key=lambda t: -len(t)):
+    for m in sorted(set(tuple(sorted(m.items())) for m in maps), key=lambda t: (-len(t), t)):
         m = dict(m)
         for p in pals:
             if all(p.get(s, h) == h for s, h in m.items()):
