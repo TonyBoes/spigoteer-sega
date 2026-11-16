@@ -50,6 +50,9 @@ ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
 LCCFLAGS += $(CRCFLAGS)
+ifeq ($(CRSPLIT),1)
+LCCFLAGS += -DCR_SPLIT_BUILD
+endif
 
 # Playtest variant (owner 2026-11-12): every tune playable in BONUS > SOUNDTRACK, for listening to music changes in test ROMs:
 #   make BUILD=out/b_tunes OUT=out/o_tunes TUNES=ALL unlocked
