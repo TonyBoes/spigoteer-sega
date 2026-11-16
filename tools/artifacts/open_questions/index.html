@@ -61,8 +61,20 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">One question per card. Each choice has its picture right under it.</p>
-    <p class="stamp">0 open · updated 2026-11-12</p>
+    <p class="stamp">1 open · updated 2026-11-12</p>
   </header>
+
+  <section class="card" id="q64">
+    <span class="tag">Q64</span>
+    <h2>Credits with owner scenes: speed and gaps</h2>
+    <p>New test ROM in the Pocket Player ("Credits with owner scenes, smooth scroll"). Fixed: the patrons' sprites are in place before their card scrolls in. Gaps around each scene are now about 0.8 s of blank screen each side (the screen holds blank while the scene's colours and sprites load, then the next part scrolls in). The scroll is only a little slower than before: with the music's length fixed, the scenes add so much height that the roll has to move about 30 % faster than the credits did without them.</p>
+    <p class="ask">How to get the slower scroll you want?</p>
+    <div class="opt"><h3>A: slow the music a bit more</h3><p>Every extra step of slowness lets the scroll slow by the same share (the music has been slowed once already).</p></div>
+    <div class="opt"><h3>B: let the credits run on after the music ends</h3><p>Slow scroll; the last part plays in silence.</p></div>
+    <div class="opt"><h3>C: make the scenes shorter</h3><p>Less blank above and below the room in each scene, or a shorter box.</p></div>
+    <div class="opt"><h3>D: keep as it is</h3></div>
+    <p class="how">Q64) A / B / C / D (and are the 0.8 s gaps acceptable?)</p>
+  </section>
 
 
 
