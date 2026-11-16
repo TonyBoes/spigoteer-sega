@@ -100,26 +100,24 @@ struct cr_state {
 #ifndef CR_ISRRES
 #define CR_ISRRES 40
 #endif
-#define CR_SH_DIRTY 200                                // CRSPLIT: the card set's RAM copy (CR_PAL) is ahead of the hardware
-#define CR_SH_HW 201                                   //          which set the hardware holds at the end of the frame: 0 the cards', 1 the page's
-#define CR_SH_TOP 202                                  //          which set the top of the screen shows this frame
-#define CR_SH_LINE 203                                 //          the line the interrupt swaps at (255: none)
-#define CR_SH_LO 205                                   //          the page's objects on the screen: from, up to (in the order they enter)
-#define CR_SH_HI 206
-#define CR_SH_V 207                                    //          the first venue whose page the plan has not left behind
-#define CR_SH_DIR 204                                  //          0: cards' -> page's, 1: page's -> cards'
+#define CR_SH_DIRTY 212                                // CRSPLIT: the card set's RAM copy (CR_PAL) is ahead of the hardware
+#define CR_SH_HW 213                                   //          which set the hardware holds at the end of the frame: 0 the cards', 1 the page's
+#define CR_SH_TOP 214                                  //          which set the top of the screen shows this frame
+#define CR_SH_LINE 215                                 //          the line the interrupt swaps at (255: none)
+#define CR_SH_LO 217                                   //          the page's objects on the screen: from, up to (in the order they enter)
+#define CR_SH_HI 218
+#define CR_SH_V 219                                    //          the first venue whose page the plan has not left behind
+#define CR_SH_DIR 216                                  //          0: cards' -> page's, 1: page's -> cards'
 #if CT_SPLIT
 // CRCFLAGS=-DCR_DBG: empty banked calls at the split's steps, for tools/dev/credits_split_trace.py (a hook on each logs LY); nothing in a build without it
 #ifdef CR_DBG
-void cr_dbg_a(void) BANKED; void cr_dbg_b(void) BANKED; void cr_dbg_c(void) BANKED; void cr_dbg_d(void) BANKED; void cr_dbg_e(void) BANKED; void cr_dbg_f(void) BANKED; void cr_dbg_g(void) BANKED;
+void cr_dbg_a(void) BANKED; void cr_dbg_b(void) BANKED; void cr_dbg_c(void) BANKED; void cr_dbg_d(void) BANKED; void cr_dbg_e(void) BANKED;
 #else
 #define cr_dbg_a()
 #define cr_dbg_b()
 #define cr_dbg_c()
 #define cr_dbg_d()
 #define cr_dbg_e()
-#define cr_dbg_f()
-#define cr_dbg_g()
 #endif
 void cr_split_isr(void) NONBANKED;
 void cr_split_isr_b(void) BANKED;
@@ -326,7 +324,7 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 #endif
 #define CR_SWAPN 1                                  // CRSCENE: palettes a frame while the screen is blank (a load or a swap)
 #define CR_SH_BG 100                                   // CRSCENE: the page's BG palettes (8 x 8 bytes) and OBJ palettes (6 x 6: colours 1-3), as the hardware takes them, in the portrait area (meta 3 + 3 per object: 93 at most; to 200 of its 227)
-#define CR_SH_OB 164
+#define CR_SH_OB 164                                   // (six OBJ palettes of eight bytes: colour 0 is 0, as the hardware takes them; to 211)
 #define CR_NPRE (CT_SPLIT ? 100 : 96)                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest)
 #define CR_PT_NP 96                                  // (CR_PT_B[96]: how many of them this page has)
 #define PBASE (CR->pb)
@@ -389,10 +387,10 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
         }
         i -= 8;
         if (is_cgb && i < CR_PT_B[1]) {
-            uint16_t *q = (uint16_t *)(CR_PT_B + CR_SH_OB + 6 * i);
+            uint16_t *q = (uint16_t *)(CR_PT_B + CR_SH_OB + 8 * i);
             credits_scene_get(v, 2, i, buf);
             p[0] = 0; p[1] = buf[0] | buf[1] << 8; p[2] = buf[2] | buf[3] << 8; p[3] = buf[4] | buf[5] << 8;
-            q[0] = BRIGHTEN(p[1]); q[1] = BRIGHTEN(p[2]); q[2] = BRIGHTEN(p[3]);       // (and its OBJ palettes' colours 1-3)
+            q[0] = 0; q[1] = BRIGHTEN(p[1]); q[2] = BRIGHTEN(p[2]); q[3] = BRIGHTEN(p[3]);       // (and its OBJ palettes' colours 1-3)
 #if !CT_SPLIT
             cr_pal(1, 1 + i, p);
 #endif
@@ -775,6 +773,9 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
     } else if (r == CT_R_BNAME) tr = CT_BOSS + v;
     if (tr != 0xFFFF) return cr_tstep(tr, tk);
     cr_blank(); cr_attr_hud();
+#if CT_SPLIT && CT_SCENEFMT
+    if (is_cgb && kd == CK_OWNER && i == 255) for (k = 0; k < 20; k++) { CR->row[k] = CR_SOLID_ID + 3; CR_ATT[k] = CR_SLOT(ct_sbp[v]); }      // (the page card's rows around the page: flat navy in the BG palette whose colour 3 is navy in the page's set and in the cards': the strip's palette swap changes nothing on them)
+#endif
     if (i != 255) {                                // a portrait row
         L = (20 - w) >> 1;
         for (k = 0; k < w; k++) {
@@ -1219,7 +1220,7 @@ static void cr_leave(void) {
 
 
 #ifdef CR_DBG
-void cr_dbg_a(void) BANKED {} void cr_dbg_b(void) BANKED {} void cr_dbg_c(void) BANKED {} void cr_dbg_d(void) BANKED {} void cr_dbg_e(void) BANKED {} void cr_dbg_f(void) BANKED {} void cr_dbg_g(void) BANKED {}
+void cr_dbg_a(void) BANKED {} void cr_dbg_b(void) BANKED {} void cr_dbg_c(void) BANKED {} void cr_dbg_d(void) BANKED {} void cr_dbg_e(void) BANKED {}
 #endif
 // story_update, every frame of the roll (GS_STORY). 1: the screen changed.
 #if CT_SPLIT
@@ -1229,79 +1230,31 @@ void cr_dbg_a(void) BANKED {} void cr_dbg_b(void) BANKED {} void cr_dbg_c(void) 
 #if ASM_CR_SPLIT
 // The writers run one auto-incrementing index (BCPS / OCPS, set by the caller) through a whole set: bytes at 4 cycles each, no per-palette setup (the C version took ~100 cycles a palette:
 // 23 lines for a set in the VBlank, and in the interrupt a palette's writes ran past its HBlank into the next line's drawing, where the hardware ignores them).
-static void cr_bg64(const uint8_t *s) __naked {    // 64 bytes at DE to BCPD (the VBlank: no STAT to wait for): 8 x 8 unrolled
+static void cr_ob64(const uint8_t *s) __naked {    // 64 bytes at DE to OCPD (the VBlank: no STAT to wait for)
     (void)s;
 __asm
-    ld   h, d
-    ld   l, e
+    ld   c, #0x6B
+    ld   b, #16
+    jr   _cr_wn
+__endasm;
+}
+static void cr_bg64(const uint8_t *s) __naked {    // the same to BCPD
+    (void)s;
+__asm
     ld   c, #0x69
-    ld   b, #8
-1$:
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    dec  b
-    jr   nz, 1$
-    ret
+    ld   b, #16
+    jr   _cr_wn
 __endasm;
 }
-static void cr_ob64(const uint8_t *s) __naked {    // the same to OCPD
+static void cr_ob48(const uint8_t *s) __naked {    // 48 bytes (six OBJ palettes) to OCPD; B x 4 bytes from DE to the port in C: the others come in here
     (void)s;
 __asm
+    ld   c, #0x6B
+    ld   b, #12
+_cr_wn:
     ld   h, d
     ld   l, e
-    ld   c, #0x6B
-    ld   b, #8
 1$:
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    dec  b
-    jr   nz, 1$
-    ret
-__endasm;
-}
-static void cr_ob36(const uint8_t *s) __naked {    // six OBJ palettes from 36 bytes at DE (colours 1-3; colour 0, transparent, is 0) to OCPD
-    (void)s;
-__asm
-    ld   h, d
-    ld   l, e
-    ld   c, #0x6B
-    ld   b, #6
-1$:
-    xor  a, a
-    ldh  (c), a
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
     ld   a, (hl+)
     ldh  (c), a
     ld   a, (hl+)
@@ -1317,17 +1270,16 @@ __endasm;
 }
 // The interrupt's: the same, a palette (eight writes) in each line's HBlank. The wait is for the end of a line's drawing (STAT mode 2/3: bit 1 set), then for the next HBlank (bit 1 clear): a palette is written
 // only inside one, however late the interrupt came (the writes are 32 cycles, 8 more to see the mode; an HBlank without sprites is 51). BCPS / OCPS go on counting by themselves from the index the caller set.
-static void cr_sw_bg(const uint8_t *s) __naked {   // BG: 8 palettes of 8 bytes at DE, one a line (BCPS = 0x80: set here)
+static void cr_sw1(const uint8_t *s) __naked {     // BG: ONE palette, the eight bytes at DE to BCPD (the index is set by the caller), in the next HBlank
     (void)s;
 __asm
     ld   h, d
     ld   l, e
-    ld   c, #0x68
-    ld   a, #0x80
-    ldh  (c), a
-    inc  c
-    ld   b, #8
+    ld   c, #0x69
 1$:
+    ldh  a, (0x44)
+    cp   a, #144
+    jr   nc, 3$
     ld   a, (#0xFF41)
     bit  1, a
     jr   z, 1$
@@ -1335,6 +1287,7 @@ __asm
     ld   a, (#0xFF41)
     bit  1, a
     jr   nz, 2$
+3$:
     ld   a, (hl+)
     ldh  (c), a
     ld   a, (hl+)
@@ -1351,8 +1304,6 @@ __asm
     ldh  (c), a
     ld   a, (hl+)
     ldh  (c), a
-    dec  b
-    jr   nz, 1$
     ret
 __endasm;
 }
@@ -1367,6 +1318,9 @@ __asm
     inc  c
     ld   b, #6
 1$:
+    ldh  a, (0x44)
+    cp   a, #144
+    jr   nc, 3$
     ld   a, (#0xFF41)
     bit  1, a
     jr   z, 1$
@@ -1374,47 +1328,10 @@ __asm
     ld   a, (#0xFF41)
     bit  1, a
     jr   nz, 2$
+3$:
     ld   a, (hl+)
     ldh  (c), a
     ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    ld   a, (hl+)
-    ldh  (c), a
-    dec  b
-    jr   nz, 1$
-    ret
-__endasm;
-}
-static void cr_sw_ob6(const uint8_t *s) __naked {  // OBJ 1-6 from 36 bytes at DE (colour 0 is 0): a palette a line (OCPS = 0x88)
-    (void)s;
-__asm
-    ld   h, d
-    ld   l, e
-    ld   c, #0x6A
-    ld   a, #0x88
-    ldh  (c), a
-    inc  c
-    ld   b, #6
-1$:
-    ld   a, (#0xFF41)
-    bit  1, a
-    jr   z, 1$
-2$:
-    ld   a, (#0xFF41)
-    bit  1, a
-    jr   nz, 2$
-    xor  a, a
-    ldh  (c), a
     ldh  (c), a
     ld   a, (hl+)
     ldh  (c), a
@@ -1436,22 +1353,13 @@ __endasm;
 #else
 static void cr_bg64(const uint8_t *s) { uint8_t k; for (k = 0; k < 64; k++) BCPD_REG = s[k]; }
 static void cr_ob64(const uint8_t *s) { uint8_t k; for (k = 0; k < 64; k++) OCPD_REG = s[k]; }
-static void cr_ob36(const uint8_t *s) { uint8_t k; for (k = 0; k < 36; k++) { if (k % 6 == 0) { OCPD_REG = 0; OCPD_REG = 0; } OCPD_REG = s[k]; } }
+static void cr_ob48(const uint8_t *s) { uint8_t k; for (k = 0; k < 48; k++) OCPD_REG = s[k]; }
 static void cr_hb(void) { while (!(STAT_REG & 2)) ; while (STAT_REG & 2) ; }          // (the next HBlank)
-static void cr_sw_bg(const uint8_t *s) {
-    uint8_t p;
-    BCPS_REG = 0x80;
-    for (p = 0; p < 8; p++, s += 8) { cr_hb(); BCPD_REG = s[0]; BCPD_REG = s[1]; BCPD_REG = s[2]; BCPD_REG = s[3]; BCPD_REG = s[4]; BCPD_REG = s[5]; BCPD_REG = s[6]; BCPD_REG = s[7]; }
-}
+static void cr_sw1(const uint8_t *s) { uint8_t k; cr_hb(); for (k = 0; k < 8; k++) BCPD_REG = s[k]; }
 static void cr_sw_ob8(const uint8_t *s) {
-    uint8_t p;
+    uint8_t p, k;
     OCPS_REG = 0x88;
-    for (p = 0; p < 6; p++, s += 8) { cr_hb(); OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3]; OCPD_REG = s[4]; OCPD_REG = s[5]; OCPD_REG = s[6]; OCPD_REG = s[7]; }
-}
-static void cr_sw_ob6(const uint8_t *s) {
-    uint8_t p;
-    OCPS_REG = 0x88;
-    for (p = 0; p < 6; p++, s += 6) { cr_hb(); OCPD_REG = 0; OCPD_REG = 0; OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3]; OCPD_REG = s[4]; OCPD_REG = s[5]; }
+    for (p = 0; p < 6; p++) { cr_hb(); for (k = 0; k < 8; k++) OCPD_REG = *s++; }
 }
 #endif
 
@@ -1460,14 +1368,12 @@ static void cr_pset(uint8_t scene) {              // one whole set to the hardwa
         OBP0_REG = scene ? 0x90 : CR_PAL[1]; OBP1_REG = scene ? 0xE4 : CR_PAL[2];
         return;
     }
-    cr_dbg_f();
     CRITICAL {                                       // (the palette interrupt does not come in the middle: it shares the index registers)
         BCPS_REG = 0x80;
         cr_bg64(scene ? CR_PT_B + CR_SH_BG : CR_PAL);
-        if (scene) { OCPS_REG = 0x88; cr_ob36(CR_PT_B + CR_SH_OB); }
+        if (scene) { OCPS_REG = 0x88; cr_ob48(CR_PT_B + CR_SH_OB); }
         else { OCPS_REG = 0x80; cr_ob64(CR_PAL + 64); }
     }
-    cr_dbg_g();
 }
 
 static void cr_split_plan(void) {                 // this frame's top set, and the line (if any) the interrupt swaps at, from the scroll the frame shows
@@ -1475,10 +1381,10 @@ static void cr_split_plan(void) {                 // this frame's top set, and t
     uint8_t v = CR_PT_B[CR_SH_V], top = 0, line = 255, dir = 0;      // (the roll only goes forward: the venues behind the screen are not asked again, a scan from the first cost 5 lines)
     if (v && sc < (uint16_t)(ct_ostart[v - 1] + CT_SGT + 19) * 8) v = 0;
     for (; v < 10; v++) {
-        u = (ct_ostart[v] - 3) * 8;                  // the strip before the page: the cards' set above, the page's below
+        u = (ct_ostart[v] + CT_SGT) * 8;             // the swap line before the page: the top of its row 0 (flat navy in a palette that is navy in both sets, 8 lines: the page set goes in by the time its band begins), the cards set above, the page set below
         w = (ct_ostart[v] + CT_SGT + 19) * 8;        // the strip after it
-        if (sc < u) { if (u - sc <= 118) { line = (uint8_t)(u - sc); dir = 0; } break; }
-        if (sc < w) { top = 1; if (w - sc <= 118) { line = (uint8_t)(w - sc); dir = 1; } break; }
+        if (sc < u) { if (u - sc <= 135) { line = (uint8_t)(u - sc); dir = 0; } break; }          // (the page's band starts 8 lines below the line: its stage palette must be in before; the swap ends by line 144 from 124 up (a palette a line, 14 of them), else the OBJ ones wait for the next frame)
+        if (sc < w) { top = 1; if (w - sc <= 124) { line = (uint8_t)(w - sc); dir = 1; } break; }
     }
     CR_PT_B[CR_SH_V] = v;
     if (line < (KEY1_REG & 0x80 ? 2 : 12)) { if (!dir) top = 1; else top = 0; line = 255; }          // (the strip is at the top: the interrupt could not come in time (a late frame) and the lines before it are blank: the other set from the start)
@@ -1496,6 +1402,7 @@ static void cr_split_sync(void) {
 
 void cr_split_isr_b(void) BANKED {
     uint8_t ly = LYC_REG, sl = CR_PT_B[CR_SH_LINE], dir = CR_PT_B[CR_SH_DIR], p, q;
+    const uint8_t *sp;
     cr_dbg_c();
     if (!is_cgb) {                                   // (the DMG: the header's BGP at 0 and 16 as main.c cast_isr, and the page's shade registers at the split line)
         uint8_t nx = 0;
@@ -1508,8 +1415,13 @@ void cr_split_isr_b(void) BANKED {
         return;
     }
     if (ly != sl) { LYC_REG = 255; return; }
-    if (dir) { cr_sw_bg(CR_PAL); cr_sw_ob8(CR_PAL + 72); }           // BG 0-7, then OBJ 1-6: a palette a line, in its HBlank (the strip is blank: no sprites, the longest HBlank)
-    else { cr_sw_bg(CR_PT_B + CR_SH_BG); cr_sw_ob6(CR_PT_B + CR_SH_OB); }
+    q = dir ? 0 : 1;
+    sp = q ? CR_PT_B + CR_SH_BG : CR_PAL;
+    BCPS_REG = 0x80; cr_sw1(sp);                     // BG 0 and 7 first (the stage palette: the band and the name; the Chrome Cow's band is BG 7's), then 1-6, then OBJ 1-6: a palette a line, in its HBlank
+    BCPS_REG = 0xB8; cr_sw1(sp + 56);
+    BCPS_REG = 0x88;
+    for (p = 1; p < 7; p++) cr_sw1(sp + 8 * p);
+    if (sl <= 124) cr_sw_ob8(dir ? CR_PAL + 72 : CR_PT_B + CR_SH_OB);
     CR_PT_B[CR_SH_HW] = !dir;
     LYC_REG = 255;
     cr_dbg_d();

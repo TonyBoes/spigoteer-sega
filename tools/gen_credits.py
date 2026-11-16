@@ -405,6 +405,7 @@ def main():
         import numpy as np
         import scenes_lib as SL
         PAGES = {}
+        SBP = [0] * 10                                              # CRSPLIT, Color: the BG palette whose colour 3 is the page's blank (navy, as the cards' blank)
         for v in range(10):
             if v in (0, 4, 7):
                 CH.append((POOL_BLD0, ids["BLD0"]) if v == 0 else (len(POOL), len(ROWS)))        # (three bank files: a bank holds 16 KB)
@@ -412,11 +413,38 @@ def main():
             for m in (0, 1):
                 sc = GSP.scene(vd, bool(m))
                 stage = sc["stage"]
+                BLANKC = None                                          # CRSPLIT, Color: the page's blank cells (and the card's blank rows around the page: credits.c cr_card_row) are flat navy in ONE palette entry that is navy in the cards' set too
+                if CRSPLIT == "1" and m:                               # (BG 6 / 7 colour 3 are the cards' navy all roll long: a palette of the page whose colour 3 the art does not use. Where the palette's colour 0 is the free one, 0 and 3 swap in its tiles: the same picture)
+                    pls = sc["pals"]
+                    cands = []
+                    for cand in (6, 7):                                # (the cards' BG 6 and 7 have colour 3 navy all roll long; a palette that needs no swap first, then the one with the fewest cells)
+                        ncl = sum(1 for crow in sc["cells"] for c_ in crow if c_ and c_[2] == cand)
+                        if cand >= len(pls) or pls[cand][3] is None:
+                            cands.append((0, ncl, cand, False))
+                        elif pls[cand][0] is None:
+                            cands.append((1, ncl, cand, True))
+                    pn = perm = None
+                    if cands:
+                        pn, perm = min(cands)[2:]
+                    assert pn is not None, (vd.key, "no BG palette with a free entry to swap")
+                    while len(pls) <= pn:
+                        pls.append([None] * 4)
+                    if perm:
+                        sw_ = {0: 3, 1: 1, 2: 2, 3: 0}
+                        pls[pn][0], pls[pn][3] = pls[pn][3], pls[pn][0]
+                        for crow in sc["cells"]:
+                            for ci_, c_ in enumerate(crow):
+                                if c_ and c_[2] == pn:
+                                    crow[ci_] = (c_[0], sw_[c_[1]] if c_[0] == "f" else [[sw_[x_] for x_ in r_] for r_ in c_[1]], c_[2])
+                    assert pls[pn][3] is None and len(pls) <= 8
+                    pls[pn][3] = "#181040"
+                    BLANKC = 0xF000 | pn << 8 | 3
+                    SBP[v] = pn; print("CRSPLIT blank palette", vd.key, "BG", pn, "swap 0/3" if perm else "free")
                 ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
                 inkv = ink if m else None
                 slot_of = {}
                 page_img = np.zeros((144, 160, 3), np.uint8)          # the expected page as the check (tools/dev/credits_roll_check.py) sees it: the generated rows, the palettes as intended, no sprites
-                bg_rgb = SL.cc(SL.hexrgb(SL.q5(sc["pals"][0][3]))) if m else SL.DMG_GRAY[3]
+                bg_rgb = SL.cc(SL.hexrgb(SL.q5("#181040" if BLANKC is not None else sc["pals"][0][3]))) if m else SL.DMG_GRAY[3]
                 page_img[:, :] = bg_rgb
                 bpl = 7 if (m and vd.key == "biker") else 0       # the band and the name: the stage palette (slot 0); the Chrome Cow's band is its bar's magenta, which BG 7 holds as colour 2 (the artist's VENUE_BAND)
                 if bpl:
@@ -465,14 +493,14 @@ def main():
                         if auto:
                             pl = bpl
                             if flat == {3}:
-                                cells.append(0xFFFF)
+                                cells.append(BLANKC if BLANKC is not None else 0xFFFF)
                                 continue
                             if flat == {2}:
                                 cells.append(0xF000 | bpl << 8 | 2)
                                 continue
                         else:
                             if specs[tx_] is None:
-                                cells.append(0xFFFF)
+                                cells.append(BLANKC if BLANKC is not None else 0xFFFF)
                                 continue
                             pl = specs[tx_][2]
                             if specs[tx_][0] == "f":
@@ -490,6 +518,9 @@ def main():
                     cl = cells[a0:a1 + 1]
                     for tx_, ce_ in enumerate(cells):
                         if ce_ == 0xFFFF:
+                            continue
+                        if BLANKC is not None and ce_ == BLANKC:
+                            page_img[8 * j:8 * j + 8, 8 * tx_:8 * tx_ + 8] = bg_rgb
                             continue
                         pl_ = bpl if auto else specs[tx_][2]
                         for y_ in range(8):
@@ -806,6 +837,8 @@ def main():
             zones, zskip = [0, 0], 0
         h += [f"#define CT_ZN {0 if (CRTIGHT or CRSPLIT == '1') else 20}", "#define CT_ZD 32", f"#define CT_SPLIT {1 if CRSPLIT == '1' else 0}", "static const uint16_t ct_ostart[10] = { " + ", ".join(str(x) for x in ostart) + " };   // the world row each owner card (scene page) starts at", f"#define CT_ZSKIP {zskip}", f"static const uint16_t ct_zone[{len(zones)}] = {{ " + ", ".join(str(z) for z in zones) + " };   // from, to (world px) of each stretch: a venue's in, then out"]
         h += [f"#define CT_SCN {ids['SCN0']}   // the scene pages' rows: 17 a (venue, model), CT_SCN + 17 (2 v + is_cgb) + j - 1", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)"]
+        if CRSPLIT == "1":
+            h += ["static const uint8_t ct_sbp[10] = { " + ", ".join(str(x) for x in SBP) + " };   // CRSPLIT, Color: each page's BG palette whose colour 3 is navy: the blank cells of the page and the blank rows of its card around it"]
     if CRMAP:
         h += [f"#define CT_BLD {ids['BLD0']}   // the building rows (a venue's start: ct_boff)", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)",
               "static const uint8_t ct_vg[10] = { " + ", ".join(str(VGAP.get(v, VGAP_DEF)) for v in range(10)) + " };   // the blank rows above a venue's scene", "static const uint8_t ct_snp[10] = { " + ", ".join(str(n) for n in NPALS) + " };   // a scene's palettes", "static const uint16_t ct_scol[10][7][4] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in sc) + " }" for sc in BLD_COL) + " };   // each scene's palettes (the map's own: RGB555, before BRIGHTEN), light to dark; the cells name them (credits.c CR_SCENE_SLOT)",
