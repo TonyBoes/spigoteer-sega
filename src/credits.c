@@ -995,7 +995,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             ya = y0 + 8 * CT_R_PA - 4; yb = ya + 8 * CT_R_PN; yc = yb + 8 * CT_R_PN;       // (the three name rows' sprite y: a sprite's OAM y is 4 above its name row's top; the pairs are written in place, a call each was 0.1 frame a card)
             for (k = 0; (rs || rm || rd) && k < (is_cgb ? 8 : 3); k++) {
 #if CT_SPLIT
-                if (is_cgb && c > 0 && cr_kt[c - 1] == CK_OWNER && CR_PT_B[0] > 24) {          // (the page above still has its first objects to leave in OAM 24-29, the pairs' slots: they keep them until they have gone)
+                if (is_cgb && c == CR->sc + 1 && cr_kt[c - 1] == CK_OWNER && CR_PT_B[0] > 24) {          // (the page above (the card the screen's top is in) still has its first objects to leave in OAM 24-29, the pairs' slots: they keep them until they have gone)
                     uint8_t m24 = CR_PT_B[0] - 24, lo = CR_PT_B[CR_SH_LO];
                     if ((2 * k < m24 && 2 * k >= lo) || (2 * k + 1 < m24 && 2 * k + 1 >= lo)) continue;
                 }
