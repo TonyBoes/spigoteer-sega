@@ -121,3 +121,6 @@ The Dregs face pass changed the eyes and left the old long nose, the old design'
 
 ## 2026-11-14: a composition ask needs a composition spec
 Q62: I relayed "owner in the foreground, venue behind" in one line; the artist kept the portrait boxed in a frame in the middle. For any scene/illustration brief, write the composition as a table (subject size, placement, crop, overlap, depth/values) before sending, per [[think-before-relaying]].
+
+## 2026-11-15: carry the owner's standing choices into every new brief
+The owner had asked for the credits as one smooth scroll; when I briefed the owner-scene wiring I wrote only about the scenes, and the agent kept the glide/hold flow. Before each brief on a feature, list the owner's decisions on it from QUEUE.md and put them in.
