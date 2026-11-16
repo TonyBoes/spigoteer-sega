@@ -273,6 +273,13 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 #define CR_TXT_D    204
 #define CR_TXT_DN    52
 #define CR_TXT_CN   127
+#if CT_SCENEFMT
+#define CR_OAM_PAT 24                                // CRSCENE: the patrons' OAM entries 24-39 (the page's objects take 0-29: the first to leave the screen share 24-29), the boss's topper 12
+#define CR_OAM_HAT 12
+#else
+#define CR_OAM_PAT 8
+#define CR_OAM_HAT 24
+#endif
 #define CR_SWAPN 1                                  // CRSCENE: palettes a frame while the screen is blank (a load or a swap)
 #define CR_NPRE 96                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest)
 #define CR_PT_NP 127                                  // (CR_PT_B[127]: how many of them this page has)
@@ -878,7 +885,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             bw = cs + CT_R_BBODY;
             pose = cr_seq[(t >> 4) & 7];
             if ((pose != CR->pose || CR->pq) && !busy && CR->next >= bw + 3 && CR->next - bw <= 32 && (!sound_on || cr_calm()) && cr_room(30)) cr_pose(v, pose, bw);
-            if (rs || rm || rd) cr_oam(24, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
+            if (rs || rm || rd) cr_oam(CR_OAM_HAT, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
 #if CT_SCENEFMT
         } else if (kd == CK_OWNER) {                   // the scene page's sprites (the owner's edge cells): x, tile and flags when all are written (rd), the y when the scroll moved
             if (c == CR->sc && !(y0 + 8 * (CT_SGT + 1) < 160 && y0 + 8 * (CT_SGT + 18) > 0)) cr_page_pre(6);          // (the page is not on the screen yet: its objects go in, hidden, in the blank before it)
@@ -909,7 +916,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                 bob = (((t >> 4) + k) & 3) ? 0 : 2;
                 if (!rd) {                                  // (only the scroll or a bob moved: the sprite is in OAM, its y is all that changes: no tile, no palette)
                     y = (is_cgb ? (k < 3 ? ya : k < 6 ? yb : yc) : yb) - bob;
-                    oo = shadow_OAM + 8 + 2 * k;
+                    oo = shadow_OAM + CR_OAM_PAT + 2 * k;
                     if ((uint16_t)(y - 1) < 159 && oo->y) { oo->y = oo[1].y = (uint8_t)y; continue; }
                 }
                 if (is_cgb) {
@@ -918,7 +925,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                     n = (1 + lp[k]) | (k < 3 ? 0 : 8);
                 } else { y = yb; pose = CR_T_P + 6 * k; n = 0; }
                 y -= bob;
-                oo = shadow_OAM + 8 + 2 * k;
+                oo = shadow_OAM + CR_OAM_PAT + 2 * k;
                 if ((uint16_t)(y - 1) >= 159) { oo->y = 0; oo[1].y = 0; }
                 else if (!rd && oo->y) oo->y = oo[1].y = (uint8_t)y;     // (only the scroll moved: the sprite is there, its y is all that changes)
                 else {

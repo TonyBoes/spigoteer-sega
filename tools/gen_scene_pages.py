@@ -147,6 +147,9 @@ def scene(v, cgb):
                 if any(any(rw) for rw in top + bot):
                     objs.append(dict(x=(BX * 8) + v.perf[i][0] + c * 8, y=BY * 8 + 16 + r0, top=top, bot=bot if any(any(rw) for rw in bot) else None, obp=1, pal=len(opals) - 1))
     objs = _spread(objs)
+    objs.sort(key=lambda o: (o["y"], o["x"]))                    # the objects in the order of their OAM slots (the engine's slot is the object's number): the first to leave the screen, the page's top, take the highest slots, which the patrons' sixteen also take: the two never show together
+    m = max(0, len(objs) - 24)
+    objs = [objs[s + m] if s < 24 else objs[s - 24] for s in range(len(objs))]
     return dict(cells=out, pals=[[p.get(s) for s in range(4)] for p in pals], objs=objs, opals=opals, stage=stage, r=r, page=page)
 
 
