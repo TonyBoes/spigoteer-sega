@@ -69,6 +69,7 @@ def run(rom, build, model, shots, max_frames):
     else:                                          # (a build without scene pages: the scan only)
         meta, sgt, exp, owners = {"objs": [], "split": False}, 0, [], []
     bad = {"scan": [], "page": [], "sprites": []}
+    crops = {}
     bgs = None                                             # the page's colours, the cards' and the pages': in a shared screen the blank rows change colour at the strip, which is by design
     with start(rom, model) as gb:
         pb = gb.pb
@@ -87,6 +88,11 @@ def run(rom, build, model, shots, max_frames):
             pos = st[POS] | st[POS + 1] << 8
             shist = (shist + [scroll, pos])[-6:]
             hist.append(sprite_mask(oam))
+            for nm_, slot_, cd_ in (("spigoteer", 32 if meta.get("split") else 0, cards[1]), ("dregs", 36 if meta.get("split") else 4, cards[2])):      # the Spigoteer's and Dregs's sprites, pixel for pixel: the crop under their four OAM entries, every frame they are whole on the screen
+                es = [(oam[4 * k], oam[4 * k + 1]) for k in range(slot_, slot_ + 4)]
+                if cd_[0] * 8 - 144 < scroll < (cd_[0] + cd_[1]) * 8 and all(16 < oy <= 144 and 8 < ox < 160 for oy, ox in es):
+                    y0, y1, x0, x1 = min(oy for oy, _ in es) - 16, max(oy for oy, _ in es), min(ox for _, ox in es) - 8, max(ox for _, ox in es)
+                    crops.setdefault(nm_, {}).setdefault((y1 - y0, x1 - x0, img[y0:y1, x0:x1].astype(np.uint8).tobytes()), n)
             hist[:] = hist[-3:]
             if n >= SKIP:
                 tag = None
@@ -182,6 +188,7 @@ def run(rom, build, model, shots, max_frames):
                     Path(shots).mkdir(parents=True, exist_ok=True)
                     Image.fromarray(img.astype(np.uint8)).save(Path(shots) / f"{model}_{n}_{tag}.png")
             prev = img
+    bad["crops"] = crops
     return n, bad, cards_seen, cards, bosses, owners, meta.get("split", False), bgs
 
 
@@ -198,8 +205,11 @@ def main():
     fail = False
     for model in a.models.split(","):
         frames, bad, seen, cards, bosses, owners, split, bgset = run(Path(a.rom), Path(a.build), model, a.shots, a.max_frames)
+        crops = bad.pop("crops")
         if a.ref_rom:
-            _, _, rseen, rcards, rbosses, _, _, _ = run(Path(a.ref_rom), Path(a.ref_build), model, None, a.max_frames)
+            _, rbad, rseen, rcards, rbosses, _, _, _ = run(Path(a.ref_rom), Path(a.ref_build), model, None, a.max_frames)
+            rcrops = rbad.pop("crops")
+            bad["spritepix"] = [(nm_, n_) for nm_, cs_ in crops.items() for (h_, w_, b_), n_ in cs_.items() if (h_, w_, b_) not in rcrops.get(nm_, {})]      # (the Spigoteer's / Dregs's sprites, every frame, are one of the reference roll's pictures of them)
             bad["cards"] = []
             bad["sprites_late"] = []
             for (ci, rel), (img, mask, scroll, nvis) in sorted(seen.items()):

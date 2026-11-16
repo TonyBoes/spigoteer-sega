@@ -398,11 +398,67 @@ def main():
         ids["SOLID"] = solid
         ids["SCN0"] = len(ROWS)
 
+        def free_palette(sc, keep, tgt):                       # BG palette tgt wholly free: the cells outside the kept palettes are packed again into the other palettes by their colours (a cell's shades and pixels are renumbered: the same colours)
+            import random
+            pls0 = sc["pals"]
+            fixed = sorted(keep)
+            cellsl = [(cy, cx, c_) for cy, crow in enumerate(sc["cells"]) for cx, c_ in enumerate(crow) if c_ and c_[2] not in keep]
+            def colset(c_):
+                sh = {c_[1]} if c_[0] == "f" else {x for r_ in c_[1] for x in r_}
+                return {x: pls0[c_[2]][x] for x in sh}
+            infos = [(cy, cx, c_, colset(c_)) for cy, cx, c_ in cellsl]
+            slots = [i for i in range(8) if i not in keep and i != tgt]
+            uniq = sorted({frozenset(i[3].values()) for i in infos}, key=lambda f: (-len(f), sorted(f)))
+            bins = []
+            import sys as _s
+            _s.setrecursionlimit(10000)
+            calls = [0]
+
+            def dfs(k):
+                calls[0] += 1
+                if calls[0] > 2000000:
+                    return False
+                if k == len(uniq):
+                    return True
+                f = uniq[k]
+                for bn in bins:
+                    add = [x for x in f if x not in bn]
+                    if len(bn) + len(add) <= 4:
+                        bn += add
+                        if dfs(k + 1):
+                            return True
+                        del bn[len(bn) - len(add):]
+                if len(bins) < len(slots):
+                    bins.append(list(f))
+                    if dfs(k + 1):
+                        return True
+                    bins.pop()
+                return False
+            if not dfs(0):
+                raise ValueError(f"{vd.key}: the page cells do not pack into {len(slots)} palettes ({calls[0]} tries, {len(uniq)} colour sets, {len({c for f in uniq for c in f})} colours)")
+            while len(bins) < len(slots):
+                bins.append([])
+            newp = {i: [None] * 4 for i in slots}
+            for bi, i in enumerate(slots):
+                for j, col in enumerate(bins[bi]):
+                    newp[i][j] = col
+            for cy, cx, c_, cl in infos:
+                f = set(cl.values())
+                bi = next(bi for bi, bn in enumerate(bins) if f <= set(bn))
+                i = slots[bi]
+                mp = {sh: newp[i].index(col) for sh, col in cl.items()}
+                sc["cells"][cy][cx] = (c_[0], mp[c_[1]], i) if c_[0] == "f" else (c_[0], [[mp[x] for x in r_] for r_ in c_[1]], i)
+            for i in slots:
+                pls0[i] = newp[i]
+            pls0[tgt] = [None] * 4
+            return tgt
+
         def lum(h):
             r_, g_, b_ = (int(h[k:k + 2], 16) for k in (1, 3, 5))
             return 3 * r_ + 6 * g_ + b_
 
         import numpy as np
+        import copy
         import scenes_lib as SL
         PAGES = {}
         SBP = [0] * 10                                              # CRSPLIT, Color: the BG palette whose colour 3 is the page's blank (navy, as the cards' blank)
@@ -413,33 +469,44 @@ def main():
             for m in (0, 1):
                 sc = GSP.scene(vd, bool(m))
                 stage = sc["stage"]
-                BLANKC = None                                          # CRSPLIT, Color: the page's blank cells (and the card's blank rows around the page: credits.c cr_card_row) are flat navy in ONE palette entry that is navy in the cards' set too
-                if CRSPLIT == "1" and m:                               # (BG 6 / 7 colour 3 are the cards' navy all roll long: a palette of the page whose colour 3 the art does not use. Where the palette's colour 0 is the free one, 0 and 3 swap in its tiles: the same picture)
-                    pls = sc["pals"]
-                    cands = []
-                    for cand in (6, 7):                                # (the cards' BG 6 and 7 have colour 3 navy all roll long; a palette that needs no swap first, then the one with the fewest cells)
-                        ncl = sum(1 for crow in sc["cells"] for c_ in crow if c_ and c_[2] == cand)
-                        if cand >= len(pls) or pls[cand][3] is None:
-                            cands.append((0, ncl, cand, False))
-                        elif pls[cand][0] is None:
-                            cands.append((1, ncl, cand, True))
-                    pn = perm = None
-                    if cands:
-                        pn, perm = min(cands)[2:]
-                    assert pn is not None, (vd.key, "no BG palette with a free entry to swap")
-                    while len(pls) <= pn:
+                FALLBACK = False
+                BLANKC = None                                          # CRSPLIT, Color: ONE whole BG palette of the page (6 or 7: the cards' BG 6 / 7 have colour 3 navy all roll long) is [cream, the band's colour, free, navy]:
+                if CRSPLIT == "1" and m:                               # the page's blank cells (and the card's blank rows around the page: credits.c cr_card_row) are its flat colour 3 (navy in the page's set and in the cards': the swap changes
+                    pls = sc["pals"]                                   # nothing on them), the venue name's and the owner name's letters are cream on the band / on navy, as the approved composites have them
+                    bpl0 = 7 if vd.key == "biker" else 0
+                    while len(pls) < 8:
                         pls.append([None] * 4)
-                    if perm:
-                        sw_ = {0: 3, 1: 1, 2: 2, 3: 0}
-                        pls[pn][0], pls[pn][3] = pls[pn][3], pls[pn][0]
-                        for crow in sc["cells"]:
-                            for ci_, c_ in enumerate(crow):
-                                if c_ and c_[2] == pn:
-                                    crow[ci_] = (c_[0], sw_[c_[1]] if c_[0] == "f" else [[sw_[x_] for x_ in r_] for r_ in c_[1]], c_[2])
-                    assert pls[pn][3] is None and len(pls) <= 8
-                    pls[pn][3] = "#181040"
+                    tgt = 6 if bpl0 == 7 else 7
+                    sc0 = copy.deepcopy(sc)
+                    try:
+                        free_palette(sc, {0, bpl0}, tgt)
+                        pn = tgt
+                    except ValueError as e_:                            # (more colours than the 6 other palettes hold: the letters keep the stage palette's ink, the blank palette is the one with a free colour 0 / 3: colours 0 and 3 trade places in its cells)
+                        print("CRSPLIT", e_)
+                        sc.clear()
+                        sc.update(sc0)
+                        pls = sc["pals"]
+                        cands = []
+                        for cand in (6, 7):
+                            ncl = sum(1 for crow in sc["cells"] for c_ in crow if c_ and c_[2] == cand)
+                            if cand >= len(pls) or pls[cand][3] is None:
+                                cands.append((0, ncl, cand, False))
+                            elif pls[cand][0] is None:
+                                cands.append((1, ncl, cand, True))
+                        pn, perm = min(cands)[2:]
+                        if perm:
+                            sw_ = {0: 3, 1: 1, 2: 2, 3: 0}
+                            pls[pn][0], pls[pn][3] = pls[pn][3], pls[pn][0]
+                            for crow in sc["cells"]:
+                                for ci_, c_ in enumerate(crow):
+                                    if c_ and c_[2] == pn:
+                                        crow[ci_] = (c_[0], sw_[c_[1]] if c_[0] == "f" else [[sw_[x_] for x_ in r_] for r_ in c_[1]], c_[2])
+                        pls[pn][3] = "#181040"
+                        FALLBACK = True
+                    if not FALLBACK:
+                        pls[pn] = ["#f8e8b0", pls[bpl0][2], None, "#181040"]
                     BLANKC = 0xF000 | pn << 8 | 3
-                    SBP[v] = pn; print("CRSPLIT blank palette", vd.key, "BG", pn, "swap 0/3" if perm else "free")
+                    SBP[v] = pn
                 ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
                 inkv = ink if m else None
                 slot_of = {}
@@ -453,7 +520,7 @@ def main():
                 dxb = 80 - (x0_ + x1_ + 1) // 2
                 big = [px_[y // 2] for y in range(16)]
                 ys = [y for y in range(16) if any(c != BAND for c in big[y])]
-                topb = (BAND_H - (ys[-1] - ys[0] + 1)) // 2 - ys[0]
+                topb = 4                                              # (the approved composite: the 16 lines of the name start 4 below the band's top, tools/credits_scenes/scenes_lib.py page_card)
                 band = [[2] * 160 for _ in range(BAND_H)]
                 for y in range(16):
                     for x in range(len(px_[0])):
@@ -488,6 +555,7 @@ def main():
                                     for x in range(8):
                                         full[y][8 * tx_ + x] = c[1]
                     cells = []
+                    cellpl = {}
                     for tx_ in range(20):
                         flat = {p for y in range(8) for p in full[y][8 * tx_:8 * tx_ + 8]}
                         if auto:
@@ -498,6 +566,13 @@ def main():
                             if flat == {2}:
                                 cells.append(0xF000 | bpl << 8 | 2)
                                 continue
+                            if BLANKC is not None and not FALLBACK:                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
+                                mp_ = {inkv: 0, 2: 1, 3: 3}
+                                for y_ in range(8):
+                                    for x_ in range(8 * tx_, 8 * tx_ + 8):
+                                        full[y_][x_] = mp_[full[y_][x_]]
+                                pl = (BLANKC >> 8) & 7
+                                cellpl[tx_] = pl
                         else:
                             if specs[tx_] is None:
                                 cells.append(BLANKC if BLANKC is not None else 0xFFFF)
@@ -522,7 +597,7 @@ def main():
                         if BLANKC is not None and ce_ == BLANKC:
                             page_img[8 * j:8 * j + 8, 8 * tx_:8 * tx_ + 8] = bg_rgb
                             continue
-                        pl_ = bpl if auto else specs[tx_][2]
+                        pl_ = cellpl.get(tx_, bpl) if auto else specs[tx_][2]
                         for y_ in range(8):
                             for x_ in range(8):
                                 sh_ = full[y_][8 * tx_ + x_]
