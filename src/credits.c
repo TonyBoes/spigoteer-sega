@@ -273,6 +273,7 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 #define CR_TXT_D    204
 #define CR_TXT_DN    52
 #define CR_TXT_CN   127
+#define CR_SWAPN 1                                  // CRSCENE: palettes a frame while the screen is blank (a load or a swap)
 #define CR_NPRE 96                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest)
 #define CR_PT_NP 127                                  // (CR_PT_B[127]: how many of them this page has)
 #define CR_PT_B ((uint8_t *)story_scratch + 200)       // CRSCENE: the scene page's meta (n objects, OBJ palettes, tiles, then 4 bytes an object), where the owner's portrait used to be
@@ -745,7 +746,7 @@ static uint8_t cr_gen(void) {
 #if CT_SCENEFMT
             if (is_cgb && cr_kt[c] == CK_PATRONS && CR->gl >= 38 && (CR->sc < c - 1 || (CR->sc == c - 1 && CR->pos < (uint16_t)(CR->ss + CT_SGT + 18) * 8) || (CR->txs == 99 + c && CR->txd < 11))) return 0;   // (the patrons' OBJ palettes: after the scene page is off)
 #endif
-            for (m = 0; m < 1; m++) {
+            for (m = 0; m < (CT_SCENEFMT && is_cgb && ((cr_kt[c] == CK_PATRONS && CR->gl >= 38) || (cr_kt[c] == CK_OWNER && CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP])) ? CR_SWAPN : 1); m++) {        // (the scene's and the patrons' OBJ palettes: the screen is blank, four a frame)
                 if (cr_load_unit(c, CR->gl)) { CR->gl = 255; break; }
                 CR->gl++;
                 music_pump();                                  // (a unit is a fraction of a frame, a call of three more: the tune's tick falls due in between, not a frame late)
@@ -1115,17 +1116,17 @@ static void cr_leave(void) {
 // the screen) and the three the cards use (0, 1, 5) come back from their RAM copies once the page has gone; the DMG's OBJ shade registers likewise. CR->bp = 100 + card marks whose
 // state CR->bn is (0-7 palettes in, 8-10 coming back, 11 done), whatever a boss left in them.
 static void cr_scene_swap(void) {
-    uint8_t d = CR->sc, st, tmp[8];
+    uint8_t d = CR->sc, st, n, tmp[8];
     if (d >= CR_CARDS || cr_kt[d] != CK_OWNER) return;
     if (CR->txs != 100 + d) { CR->txs = 100 + d; CR->txd = 0; }
     st = CR->txd;
     if (st < 8) {
-        if ((CR->gc > d || (CR->gc == d && CR->gl == 255)) && CR->pos + 144 <= (uint16_t)(CR->ss + CT_SGT) * 8) {
-            if (is_cgb) { credits_scene_get(cr_vt[d], 1, st, tmp); cr_hw_raw(st, (const uint16_t *)tmp); CR->txd = st + 1; }
+        if ((CR->gc > d || (CR->gc == d && CR->gl == 255)) && CR->pos + 144 <= (uint16_t)(CR->ss + CT_SGT) * 8 && (CT_ZN || CR->pos >= (uint16_t)(CR->ss - 2) * 8)) {         // (the card before has left the screen: its last blank row would change colour)
+            if (is_cgb) { for (n = 0; n < CR_SWAPN && CR->txd < 8; n++) { credits_scene_get(cr_vt[d], 1, CR->txd, tmp); cr_hw_raw(CR->txd, (const uint16_t *)tmp); CR->txd++; } }      // (a blank screen: three palettes a frame, 8 lines each)
             else { OBP0_REG = 0x90; OBP1_REG = 0xE4; CR->txd = 8; }      // (idx 1-3 = shades 0-2, and 1-3: the artist's two OBJ palettes)
         }
     } else if (st < 11 && CR->pos >= (uint16_t)(CR->ss + CT_SGT + 19) * 8) {         // (a row after the page: the frame that shows its last row has been drawn)
-        if (is_cgb) { cr_hw(0, st == 8 ? 0 : st == 9 ? 1 : 5); CR->txd = st + 1; }
+        if (is_cgb) { for (n = 0; n < CR_SWAPN && CR->txd < 11; n++) { st = CR->txd; cr_hw(0, st == 8 ? 0 : st == 9 ? 1 : 5); CR->txd = st + 1; } }
         else { OBP0_REG = CR_PAL[1]; OBP1_REG = CR_PAL[2]; CR->txd = 11; }
     }
 }

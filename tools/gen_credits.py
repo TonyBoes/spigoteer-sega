@@ -193,7 +193,8 @@ if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the own
 LAY["MAPFMT"] = {"": 0, "B": 2}[CRMAP]
 LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
 LAY["SCENEFMT"] = 1 if CRSCENE else 0
-SGT, SGB = 19, 19                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
+CRTIGHT = os.environ.get("CRTIGHT", "")           # 1: the scene pages' gaps as small as the palette swap needs (no jump, no hold), the swap several palettes a frame
+SGT, SGB = (int(CRTIGHT), int(CRTIGHT)) if CRTIGHT else (19, 19)                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
 if CRSCENE:
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
@@ -797,7 +798,9 @@ def main():
             zones += [(zy - 4) * 8, (pt - 17) * 8, (pt + 19) * 8, (zy + SGT + 18 + SGB + LAY["G"] - 15) * 8]        # in: from the previous card's ink (the boss's name, Dregs's sprite: 4 rows short of the page's card) to the page about to enter; out: from the page's end to the next card about to enter
             zy += LAY["H_OWN"] + LAY["G"] + LAY["H_PAT"] + LAY["G"] + LAY["H_BOSS"] + LAY["G"]
         zskip = sum(zones[2 * i + 1] - zones[2 * i] for i in range(20))
-        h += [f"#define CT_ZN 20", "#define CT_ZD 32", f"#define CT_ZSKIP {zskip}", "static const uint16_t ct_zone[40] = { " + ", ".join(str(z) for z in zones) + " };   // from, to (world px) of each stretch: a venue's in, then out"]
+        if CRTIGHT:
+            zones, zskip = [0, 0], 0
+        h += [f"#define CT_ZN {0 if CRTIGHT else 20}", "#define CT_ZD 32", f"#define CT_ZSKIP {zskip}", f"static const uint16_t ct_zone[{len(zones)}] = {{ " + ", ".join(str(z) for z in zones) + " };   // from, to (world px) of each stretch: a venue's in, then out"]
         h += [f"#define CT_SCN {ids['SCN0']}   // the scene pages' rows: 17 a (venue, model), CT_SCN + 17 (2 v + is_cgb) + j - 1", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)"]
     if CRMAP:
         h += [f"#define CT_BLD {ids['BLD0']}   // the building rows (a venue's start: ct_boff)", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)",

@@ -43,6 +43,7 @@ export CRFONT
 export CRMAP
 export CRFLOW
 export CRSCENE
+export CRTIGHT
 ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
