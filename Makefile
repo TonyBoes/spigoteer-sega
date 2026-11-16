@@ -38,15 +38,18 @@ endif
 #   make BUILD=out/b_glowA OUT=out/o_glowA GLOW=A unlocked  GLOW=A: the bistro oven's CGB palette pulse (src/glow.c); GLOW=B: a halo in the BG tiles
 #                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)
 GLOW     ?=
+CRCFLAGS ?=
 export GLOW
 export CRFONT
 export CRMAP
 export CRFLOW
 export CRSCENE
 export CRTIGHT
+export CRSPLIT
 ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
+LCCFLAGS += $(CRCFLAGS)
 
 # Playtest variant (owner 2026-11-12): every tune playable in BONUS > SOUNDTRACK, for listening to music changes in test ROMs:
 #   make BUILD=out/b_tunes OUT=out/o_tunes TUNES=ALL unlocked
@@ -110,7 +113,7 @@ $(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md a
 	python3 tools/gen_story.py $(BUILD) $(OUT)/preview
 
 # The credits' pre-rendered text (src/credits.c): every cast label and roll line cut into centred tiles -> build/credits_text.c (banked), .h, .json (tests)
-$(BUILD)/credits_text.c $(BUILD)/credits_text.h: tools/gen_credits.py tools/gen_art.py assets/tiles/bar.txt assets/tiles/story.txt | $(BUILD)
+$(BUILD)/credits_text.c $(BUILD)/credits_text.h: tools/gen_credits.py tools/gen_art.py tools/gen_scene_pages.py $(wildcard tools/credits_scenes/*.py) assets/tiles/bar.txt assets/tiles/story.txt | $(BUILD)
 	python3 tools/gen_credits.py $(BUILD)
 
 # Perfect pour (story): per-venue sparkle / overflow frames and the catch cue -> build/pour_art.h (src/pour.c's bank),

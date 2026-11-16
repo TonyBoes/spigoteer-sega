@@ -48,7 +48,7 @@ def layout(build):
     return lay, owners, bosses, cards
 
 
-def sprite_mask(oam, pad=3):
+def sprite_mask(oam, pad=4):
     m = np.zeros((144, 160), bool)
     for k in range(40):
         oy, ox = oam[4 * k], oam[4 * k + 1]
@@ -67,8 +67,9 @@ def run(rom, build, model, shots, max_frames):
         sgt = meta["sgt"]
         exp = [pages[f"p{v}_{m}"].astype(np.int16) for v in range(10)]
     else:                                          # (a build without scene pages: the scan only)
-        meta, sgt, exp, owners = {"objs": []}, 0, [], []
+        meta, sgt, exp, owners = {"objs": [], "split": False}, 0, [], []
     bad = {"scan": [], "page": [], "sprites": []}
+    bgs = None                                             # the page's colours, the cards' and the pages': in a shared screen the blank rows change colour at the strip, which is by design
     with start(rom, model) as gb:
         pb = gb.pb
         prev = None
@@ -89,17 +90,18 @@ def run(rom, build, model, shots, max_frames):
             hist[:] = hist[-3:]
             if n >= SKIP:
                 tag = None
-                for ci, (cs, ch, own) in enumerate(cards):          # (every other card at every 8 px of its own scroll: what the reference build shows)
-                    rel = scroll - cs * 8
-                    if not own and -143 <= rel <= ch * 8 and rel % 8 == 0 and (ci, rel) not in cards_seen:
-                        cards_seen[(ci, rel)] = (img.astype(np.uint8), hist[2].copy(), scroll, sum(1 for k in range(40) if 0 < oam[4 * k] < 160 and 0 < oam[4 * k + 1] < 168))
+                if bgs is None:
+                    u_, c_ = np.unique(img.reshape(-1, 3), axis=0, return_counts=True)
+                    bgs = [tuple(int(x) for x in u_[c_.argmax()])] + [tuple(int(x) for x in exp[v][0, 0]) for v in range(len(exp))]
+                inbg = lambda im: np.isin(im.astype(np.int64) @ np.array([65536, 256, 1]), [a_ * 65536 + b_ * 256 + c2_ for a_, b_, c2_ in bgs]) if meta.get("split") else np.zeros(im.shape[:2], bool)
                 # scan: the previous frame, shifted by 0..3 px, with the sprites of the last three frames masked
                 if prev is not None and len(hist) == 3:
                     best = None
                     for d in range(4):
                         a, b = img[0:144 - d], prev[d:144]
                         mk = hist[2][0:144 - d] | hist[1][d:144] | hist[0][d:144]
-                        diff = (np.abs(a - b).sum(axis=2) > 0) & ~mk
+                        diff = (np.abs(a - b).sum(axis=2) > 0) & ~mk & ~(inbg(a) & inbg(b))
+                        diff[:2] = False
                         for lo, hi in bosses:
                             y0 = lo - scroll
                             diff[max(0, y0 - 16):max(0, y0 + 40)] = False
@@ -112,6 +114,7 @@ def run(rom, build, model, shots, max_frames):
                         bad["scan"].append((n, scroll, best[0], int(ys.min()), int(ys.max()), int(xs.min()), int(xs.max())))
                         tag = tag or "scan"
                 # page and sprites
+                pvis = 0
                 for v, ro in enumerate(owners):
                     pt = (ro + sgt) * 8
                     best = None
@@ -121,12 +124,16 @@ def run(rom, build, model, shots, max_frames):
                             continue
                         e = np.empty((144, 160, 3), np.int16)
                         e[:, :] = exp[v][0, 0]
+                        rows = np.zeros(144, bool)
                         for y in range(144):
                             cy = y - off
                             if 0 <= cy < 144:
                                 e[y] = exp[v][cy]
-                        diff = (np.abs(img - e).sum(axis=2) > 0) & ~hist[2]
-                        diff[0] = False                            # (line 0 is drawn with the DMG header's BGP: cast_isr, src/main.c)
+                                rows[y] = True
+                        diff = (np.abs(img - e).sum(axis=2) > 0) & ~hist[2] & ~(inbg(img) & inbg(e))
+                        if meta.get("split"):                       # (the cards above and below share the screen: the rows of the page are the page's, the others are the cards' (the cards check))
+                            diff &= rows[:, None]
+                        diff[:2] = False                           # (the first lines: the DMG header's BGP (cast_isr, src/main.c), and a sprite's last row at the top)
                         c = int(diff.sum())
                         if best is None or c < best[0]:
                             best = (c, sc, diff)
@@ -140,30 +147,42 @@ def run(rom, build, model, shots, max_frames):
                             Image.fromarray(np.where(best[2][:, :, None], 255, 0).astype(np.uint8).repeat(3, axis=2)).save(Path(shots) / f"{model}_{n}_pagediff.png")
                         tag = tag or "page"
                     objs = meta["objs"][v]
-                    ok = False
-                    for sc in set(shist):
-                        off = pt - sc
-                        good = True
-                        for k in range(40):
-                            oy, ox, ot, op = oam[4 * k:4 * k + 4]
-                            if k < len(objs):
-                                ya = off + 32 + 16 + objs[k][1]
-                                want = ya if 0 < ya < 160 else None
-                                if want is None:
-                                    good &= not (0 < oy < 160)
-                                else:
-                                    good &= (oy, ox, ot, op) == (want, objs[k][0], objs[k][2], objs[k][3])
+                    ok = True
+                    nn = len(objs)
+                    slots = [24 + kk if nn > 24 and kk < nn - 24 else [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 12][kk - (nn - 24) if nn > 24 else kk] for kk in range(nn)]
+                    pvis = 0
+                    for kk in range(nn):                        # (each object against the scroll of this frame or of the last frames: the sprite stage writes for the next frame's scroll)
+                        oy, ox, ot, op = oam[4 * slots[kk]:4 * slots[kk] + 4]
+                        match = False
+                        for sc in set(shist):
+                            ya = pt - sc + 48 + objs[kk][1]
+                            if 0 < ya < 160:
+                                match |= (oy, ox, ot, op) == (ya, objs[kk][0], objs[kk][2], objs[kk][3])
+                            elif not meta.get("split"):
+                                match |= not (0 < oy < 160)         # (in a shared screen a hidden object's slot may show the card above's or below's sprite)
                             else:
-                                good &= not (0 < oy < 160)
-                        ok |= good
+                                match = True
+                        if not match and len(bad["sprites"]) < 3:
+                            print("  sprite mismatch frame", n, "object", kk, "slot", slots[kk], "actual", (oy, ox, ot, op), "want y", [pt - sc + 48 + objs[kk][1] for sc in set(shist)], objs[kk])
+                        ok &= match
+                        if 0 < pt - scroll + 48 + objs[kk][1] < 160:
+                            pvis += 1
+                    if not meta.get("split"):
+                        for k in range(40):
+                            if k not in slots:
+                                ok &= not (0 < oam[4 * k] < 160)
                     if not ok:
                         bad["sprites"].append((n, v))
                         tag = tag or "sprites"
+                for ci, (cs, ch, own) in enumerate(cards):          # (every other card at every 8 px of its own scroll: what the reference build shows)
+                    rel = scroll - cs * 8
+                    if not own and -143 <= rel <= ch * 8 and rel % 8 == 0 and (ci, rel) not in cards_seen:
+                        cards_seen[(ci, rel)] = (img.astype(np.uint8), sprite_mask(oam, 10), scroll, sum(1 for k in range(40) if 0 < oam[4 * k] < 160 and 0 < oam[4 * k + 1] < 168) - pvis)
                 if tag and shots and sum(len(x) for x in bad.values()) < 40:
                     Path(shots).mkdir(parents=True, exist_ok=True)
                     Image.fromarray(img.astype(np.uint8)).save(Path(shots) / f"{model}_{n}_{tag}.png")
             prev = img
-    return n, bad, cards_seen, cards, bosses
+    return n, bad, cards_seen, cards, bosses, owners, meta.get("split", False), bgs
 
 
 def main():
@@ -178,9 +197,9 @@ def main():
     a = ap.parse_args()
     fail = False
     for model in a.models.split(","):
-        frames, bad, seen, cards, bosses = run(Path(a.rom), Path(a.build), model, a.shots, a.max_frames)
+        frames, bad, seen, cards, bosses, owners, split, bgset = run(Path(a.rom), Path(a.build), model, a.shots, a.max_frames)
         if a.ref_rom:
-            _, _, rseen, rcards, rbosses = run(Path(a.ref_rom), Path(a.ref_build), model, None, a.max_frames)
+            _, _, rseen, rcards, rbosses, _, _, _ = run(Path(a.ref_rom), Path(a.ref_build), model, None, a.max_frames)
             bad["cards"] = []
             bad["sprites_late"] = []
             for (ci, rel), (img, mask, scroll, nvis) in sorted(seen.items()):
@@ -191,11 +210,16 @@ def main():
                     bad["sprites_late"].append((ci, rel, nvis, rnvis))
                 cs, ch, _ = cards[ci]
                 diff = (np.abs(img.astype(np.int16) - rimg.astype(np.int16)).sum(axis=2) > 0) & ~mask & ~rmask
+                if split:
+                    inb = lambda im: np.isin(im.astype(np.int64) @ np.array([65536, 256, 1]), [a_ * 65536 + b_ * 256 + c2_ for a_, b_, c2_ in bgset])
+                    diff &= ~(inb(img) & inb(rimg))
                 own = np.zeros(144, bool)
                 for y in range(144):
                     own[y] = cs * 8 <= scroll + y < (cs + ch) * 8
+                    if split and any((ro - 3) * 8 <= scroll + y < (ro - 1) * 8 or (ro + 19) * 8 <= scroll + y < (ro + 21) * 8 for ro in owners):
+                        own[y] = False                              # (the strips: a blank palette change)
                 diff &= own[:, None]
-                diff[0] = False
+                diff[:2] = False
                 for lo, hi in bosses:
                     y0 = lo - scroll
                     diff[max(0, y0 - 16):max(0, y0 + 40)] = False
