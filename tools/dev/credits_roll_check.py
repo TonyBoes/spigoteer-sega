@@ -88,9 +88,9 @@ def run(rom, build, model, shots, max_frames):
             pos = st[POS] | st[POS + 1] << 8
             shist = (shist + [scroll, pos])[-6:]
             hist.append(sprite_mask(oam))
-            for nm_, slot_, cd_ in (("spigoteer", 32 if meta.get("split") else 0, cards[1]), ("dregs", 36 if meta.get("split") else 4, cards[2])):      # the Spigoteer's and Dregs's sprites, pixel for pixel: the crop under their four OAM entries, every frame they are whole on the screen
+            for nm_, slot_, cd_ in (("spigoteer", 32 if meta.get("split") else 0, cards[1]), ("dregs", 36 if meta.get("split") else 4, cards[2]), ("endcard", 0, None)):      # the Spigoteer's and Dregs's sprites, pixel for pixel: the crop under their four OAM entries, every frame they are whole on the screen
                 es = [(oam[4 * k], oam[4 * k + 1]) for k in range(slot_, slot_ + 4)]
-                if cd_[0] * 8 - 144 < scroll < (cd_[0] + cd_[1]) * 8 and all(16 < oy <= 144 and 8 < ox < 160 for oy, ox in es):
+                if (scroll >= (cards[-1][0] + cards[-1][1]) * 8 if cd_ is None else cd_[0] * 8 - 144 < scroll < (cd_[0] + cd_[1]) * 8) and all(16 < oy <= 144 and 8 < ox < 160 for oy, ox in es):
                     y0, y1, x0, x1 = min(oy for oy, _ in es) - 16, max(oy for oy, _ in es), min(ox for _, ox in es) - 8, max(ox for _, ox in es)
                     crops.setdefault(nm_, {}).setdefault((y1 - y0, x1 - x0, img[y0:y1, x0:x1].astype(np.uint8).tobytes()), n)
             hist[:] = hist[-3:]

@@ -603,3 +603,26 @@ def test_no_frame_of_the_roll_runs_past_its_vblank(model):
         s = stamps[n0:][3:]
         span = (s[-1] - s[0]) / FRAME
         assert abs(span - (len(s) - 1)) <= 2, ("the tune's length follows the frames", span, len(s))
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_sals_pictures_are_in_obj_vram_at_the_end_card_and_after_the_credits(model):
+    """The scene pages load their sprite tiles into OBJ 0-49, where Sal's pictures are, and nothing loaded his back: the end card's Spigoteer and the title were garbage.
+    Sal's tiles (OBJ 0-55) as they are on the title before the credits are the same once the roll's band shows the Spigoteer and again after the return to the title."""
+    with Rom(ROM, model) as gb:
+        gb.run(120)
+        gb.model_name = model
+        hold_stage_anim(gb)
+
+        def sal():
+            return bytes(gb.pb.memory[0, 0x8000:0x8000 + 56 * 16])      # (bank 0: the Color looks are in bank 1)
+        before = sal()
+        title_pick(gb, K_BONUS, K_CREDITS)
+        run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
+        run_until(gb, lambda: gb.read("story_scratch", 70)[62] == 3, TUNE_FRAMES + 200)      # (the roll's end: CR->st 3, the band with the Spigoteer is on the screen)
+        gb.run(60)
+        assert sal() == before, "the end card's Spigoteer (the roll's band) has his pictures"
+        run_until(gb, lambda: state(gb) == TITLE, 1500)
+        gb.run(60)
+        assert state(gb) == TITLE
+        assert sal() == before, "the title after the credits has Sal's pictures"

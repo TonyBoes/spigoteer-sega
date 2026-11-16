@@ -27,6 +27,11 @@
 #include "story.h"
 #include "credits_text.h"
 #include "asm_cfg.h"
+BANKREF_EXTERN(art_tiles)
+extern const uint8_t bartender_tiles[];
+static void cr_sal(uint8_t n) {                    // Sal's picture n back into OBJ 0-54: the scene pages' sprite tiles (set_sprite_data from 0) and nothing else loads them again, for the roll's end card and for the title
+    spr_data_far(OBJ_BARTENDER + n * BARTENDER_TILES_PER_FRAME, BARTENDER_TILES_PER_FRAME, bartender_tiles + (uint16_t)n * BARTENDER_TILES_PER_FRAME * 16, BANK(art_tiles));
+}
 #ifndef CT_SPLIT
 #define CT_SPLIT 0                                         // (credits_text.h: CRSPLIT=1)
 #endif
@@ -879,6 +884,7 @@ static uint8_t cr_gen(void) {
                 if (i < 18) load_patron_pose0(5, CR_T_P + 6 * (i / 6), i / 6, i % 6);
                 else if (is_cgb && i < 21) { patron_pal_get(5, i - 18, (uint16_t *)CR->row); ((uint16_t *)CR->row)[0] = 0; cr_pal(1, OBJPAL_ROBOT + i - 18, (uint16_t *)CR->row); }
                 else if (is_cgb && i == 21) { for (v = 0; v < 8; v++) CR_PAL[64 + v] = CR_SAVE[v]; cr_hw(1, 0); }
+                else if (i - (is_cgb ? 22 : 18) < BARTENDER_FRAMES) cr_sal(i - (is_cgb ? 22 : 18));      // (Sal's pictures, one a frame: the end card's Spigoteer)
                 else { CR->gl = 255; break; }
                 CR->gl++;
                 cr_pump();
@@ -1241,6 +1247,7 @@ static void cr_leave(void) {
         LYC_REG = BANNER_LYC;
     }
 #endif
+    { uint8_t n; for (n = 0; n < BARTENDER_FRAMES; n++) cr_sal(n); }
     trans_cast_set(CR_PAL);                           // the card's own colours, whatever the fade was doing
     TRANS_WANT();                                     // (src/trans.c: the next screen comes up behind the drink)
     SCY_REG = 0;                                      // (the roll's last scroll: the next screen is built from the top; the story's score entry did not reset it)
