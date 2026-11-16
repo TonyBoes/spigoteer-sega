@@ -127,7 +127,10 @@ void cr_dbg_a(void) BANKED; void cr_dbg_b(void) BANKED; void cr_dbg_c(void) BANK
 #endif
 void cr_split_isr(void) NONBANKED;
 void cr_split_isr_b(void) BANKED;
+static void cr_pump(void);
 static void cr_pset(uint8_t scene);
+#else
+#define cr_pump() music_pump()
 #endif
 #define CR_BUF ((uint8_t *)story_scratch + 200 + sizeof(portrait_t))    // 64 bytes: four tiles on their way, the owner's name
 #define CR_ATT (CR_BUF + 64)      // the row's CGB attributes (20 bytes), then the Spigoteer's OBJ palette 0 (8 bytes)
@@ -750,7 +753,7 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
         }
         CR->row[CR_BUF[0] + i] = id;
         m--;
-        music_pump();                                  // (a tile is 0.06 frame: a tick due in the middle of a row is struck then, not at the frame's end, where the pump's clock would lose its lateness)
+        cr_pump();                                  // (a tile is 0.06 frame: a tick due in the middle of a row is struck then, not at the frame's end, where the pump's clock would lose its lateness)
     }
     return CR->ld >= n;
 }
@@ -760,7 +763,7 @@ static void cr_pose_fill(uint8_t *d, uint8_t v, uint8_t pose, uint8_t r) {    //
     for (k = 0; k < 20; k++) d[k] = TILE_HUD_BLANK;
     for (k = 0; k < CR->bn; k++) {
         d[L + k] = CR_T_BOSS + 2 * cr_boss(v, 1, pose, k, 0) + r;
-        if ((k & 3) == 3) music_pump();                  // (a pose's row is 0.2 frame: a tick due in it is struck within 0.1, not at its end)
+        if ((k & 3) == 3) cr_pump();                  // (a pose's row is 0.2 frame: a tick due in it is struck within 0.1, not at its end)
     }
 }
 
@@ -845,7 +848,7 @@ static uint8_t cr_gen(void) {
             for (m = 0; m < (CT_SPLIT && c == 3 ? (is_cgb ? 6 : 3) : CT_SPLIT && cr_kt[c] == CK_OWNER && (CR->gl < ((3 + 3 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] || CR->gl > ((3 + 3 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP]) ? 2 : CT_SCENEFMT && is_cgb && ((cr_kt[c] == CK_PATRONS && CR->gl >= 38) || (cr_kt[c] == CK_OWNER && CR->gl > ((3 + 3 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP] + 8)) ? CR_SWAPN : 1); m++) {        // (the scene's and the patrons' OBJ palettes: the screen is blank, four a frame)
                 if (cr_load_unit(c, CR->gl)) { CR->gl = 255; break; }
                 CR->gl++;
-                music_pump();                                  // (a unit is a fraction of a frame, a call of three more: the tune's tick falls due in between, not a frame late)
+                cr_pump();                                  // (a unit is a fraction of a frame, a call of three more: the tune's tick falls due in between, not a frame late)
             }
 #if CT_SCENEFMT
             if (CR->gl != 255 && !cr_page_rows_ok(c, w)) return 0;       // (a scene card's loads take their frames beside its blank rows, which the screen reaches first)
@@ -865,9 +868,9 @@ static uint8_t cr_gen(void) {
         if (CR->gl != 255 && !cr_page_rows_ok(c, w)) return 0;      // (the loads wait for a free frame: the page's own rows do not go before its tiles)
         if (w > (CR->scroll >> 3) + CR_AHEAD_C) return 0;           // (a scene card's loads are called a frame at a time, its rows only as far ahead of the screen as the map holds)
 #endif
-        music_pump();
+        cr_pump();
         if (!cr_card_row(c, (uint8_t)(w - CR->gs))) return 0;
-        music_pump();
+        cr_pump();
     } else if (w >= CR->wroll) {                           // the roll
         if (w == CR->wroll) { CR->rt = 0; CR->lr = 255; }
         if (CR->gl != 255 && w >= CR->wroll + 8) {          // its robots (the last boss and patrons are off), the Spigoteer's colours back
@@ -878,13 +881,13 @@ static uint8_t cr_gen(void) {
                 else if (is_cgb && i == 21) { for (v = 0; v < 8; v++) CR_PAL[64 + v] = CR_SAVE[v]; cr_hw(1, 0); }
                 else { CR->gl = 255; break; }
                 CR->gl++;
-                music_pump();
+                cr_pump();
             }
             if (CR->gl != 255) return 0;
         }
-        music_pump();
+        cr_pump();
         if (!cr_roll_step((uint8_t)(w - CR->wroll), 3)) return 0;
-        music_pump();
+        cr_pump();
         cr_attr_hud();
     } else { cr_blank(); cr_attr_hud(); }                  // between the cards
     if (CR->live) {                                        // (the queue is the main loop's: it drains it at the frame's end)
@@ -903,7 +906,7 @@ static void cr_pose(uint8_t v, uint8_t pose, uint16_t bw) {    // the boss's two
     if (!CR->pq) { CR->pq = pose + 1; CR->pr = 0; }
     cr_pose_fill(d, v, CR->pq - 1, CR->pr);
     set_bkg_tiles(0, (uint8_t)(bw + CR->pr) & 31, 20, 1, d);
-    music_pump();
+    cr_pump();
     if (++CR->pr == 2) { CR->pose = CR->pq - 1; CR->pq = 0; CR->sig2 = 255; }
 }
 
@@ -1046,7 +1049,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                 else {
                     oo->y = oo[1].y = (uint8_t)y; oo->x = cx[k]; oo[1].x = cx[k] + 8; oo->tile = pose; oo[1].tile = pose + 2; oo->prop = oo[1].prop = n;
                 }
-                if ((k & 1) && k != 7) music_pump();                               // (a card of eight patrons is a long frame on Color: the tick falls due in the middle)
+                if ((k & 1) && k != 7) cr_pump();                               // (a card of eight patrons is a long frame on Color: the tick falls due in the middle)
             }
         }
         cs += cr_hgt(c) + cr_gap(c);
@@ -1161,12 +1164,12 @@ void credits_enter(uint8_t from_story) BANKED {
     DISPLAY_OFF;
     CR->lr = 255;
     music_play(TUNE_CREDITS);                         // (BONUS' or the story's tune stops here; copied while the screen is built: music_load_now below finishes it)
-    music_pump();
+    cr_pump();
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0;
     hide_all_sprites();
     story_font_load();                                // the punctuation (over the patron range: the next screen's load puts it back)
-    music_pump();
+    cr_pump();
     cr_blank();
     for (y = 0; y < 32; y++) cr_put(y);               // (a blank screen: the cards come up behind it)
     if (is_cgb) {
@@ -1197,7 +1200,7 @@ void credits_enter(uint8_t from_story) BANKED {
     LYC_REG = is_cgb ? 255 : 0;
 #endif
     cr_white();                                       // (the screen white until the first card fades in)
-    music_pump();
+    cr_pump();
     cr_layout();
     credits_tile_put(CT_STRIPE, CR_STRIPE_ID);        // (LCD off)
 #if CT_MAPFMT || CT_SCENEFMT
@@ -1451,6 +1454,10 @@ void cr_split_isr_b(void) BANKED {
 }
 
 void cr_split_isr(void) NONBANKED { cr_split_isr_b(); }       // (ROM0: the interrupt's own stub; the body is in this file's bank, the banked call puts the interrupted code's bank back)
+static void cr_pump(void) {                       // the music's pump, and a guard: its interrupts-off read-modify-write of IF can swallow the LYC flag when it falls inside it (a hardware race): a swap line that has passed with the interrupt still armed is done now
+    music_pump();
+    if (is_cgb && LYC_REG != 255 && LY_REG > LYC_REG && LY_REG < 144) cr_split_isr_b();
+}
 #endif
 
 #if CT_SCENEFMT
@@ -1502,7 +1509,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         CR->ls = (uint8_t)sys_time;                        // (the timeline counts frames from here)
         return 0;
     }
-    if (is_cgb) music_pump();                              // (Color: the frame's tick first, so the main loop's own never has to be the late one)
+    if (is_cgb) cr_pump();                              // (Color: the frame's tick first, so the main loop's own never has to be the late one)
     if (LY_REG >= 144) CR->scroll = CR->pos;               // (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
     SCY_REG = (uint8_t)CR->scroll;
 #if CT_SPLIT
@@ -1513,7 +1520,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     cr_split_sync();
     cr_dbg_b();
 #endif
-    music_pump();                                          // (after the scroll register: the tick falls due here when the frame began late)
+    cr_pump();                                          // (after the scroll register: the tick falls due here when the frame began late)
     for (d = (uint8_t)((uint8_t)sys_time - CR->ls), CR->ls = (uint8_t)sys_time; d; d--) { CR->t++; cr_step(); }   // (frames, not the tune's ticks: a lost tick does not stretch it)
 #if CT_SCENEFMT && !CT_SPLIT
     cr_scene_swap();
@@ -1545,8 +1552,8 @@ uint8_t credits_update(uint8_t pressed) BANKED {
 #endif
         { cr_gen(); busy = 1; }
         }
-    music_pump();
+    cr_pump();
     cr_sprites_v(busy);
-    music_pump();
+    cr_pump();
     return 0;
 }
