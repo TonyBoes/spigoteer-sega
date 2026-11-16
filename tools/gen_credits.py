@@ -200,6 +200,7 @@ if CRSCENE:
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
+SCROLL_CGB = 127
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
 ROLL_POOL = 160                                      # the roll's BG ids (credits.c CR_RING): the most tiles of 21 consecutive rows it may need
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
@@ -407,7 +408,8 @@ def main():
                 sh = {c_[1]} if c_[0] == "f" else {x for r_ in c_[1] for x in r_}
                 return {x: pls0[c_[2]][x] for x in sh}
             infos = [(cy, cx, c_, colset(c_)) for cy, cx, c_ in cellsl]
-            slots = [i for i in range(8) if i not in keep and i != tgt]
+            slots = sorted((i for i in range(8) if i not in keep and i != tgt), key=lambda i: (i in (6, 7, 1, 2, 3, 4), i))      # (BG 5 first: its colour 3 is not the cards' navy; 6 and 7 last)
+            # (tgt None: every other palette is a slot, packed as tight as the search finds)
             uniq = sorted({frozenset(i[3].values()) for i in infos}, key=lambda f: (-len(f), sorted(f)))
             bins = []
             import sys as _s
@@ -450,7 +452,8 @@ def main():
                 sc["cells"][cy][cx] = (c_[0], mp[c_[1]], i) if c_[0] == "f" else (c_[0], [[mp[x] for x in r_] for r_ in c_[1]], i)
             for i in slots:
                 pls0[i] = newp[i]
-            pls0[tgt] = [None] * 4
+            if tgt is not None:
+                pls0[tgt] = [None] * 4
             return tgt
 
         def lum(h):
@@ -478,35 +481,51 @@ def main():
                         pls.append([None] * 4)
                     tgt = 6 if bpl0 == 7 else 7
                     sc0 = copy.deepcopy(sc)
+                    okfree = False
                     try:
                         free_palette(sc, {0, bpl0}, tgt)
-                        pn = tgt
+                        pn, okfree = tgt, True
                     except ValueError as e_:                            # (more colours than the 6 other palettes hold: the letters keep the stage palette's ink, the blank palette is the one with a free colour 0 / 3: colours 0 and 3 trade places in its cells)
                         print("CRSPLIT", e_)
                         sc.clear()
                         sc.update(sc0)
                         pls = sc["pals"]
                         cands = []
-                        for cand in (6, 7):
+                        for cand in (6, 7, 1, 2, 3, 4):                 # (the cards' BG 1-4, 6 and 7 have colour 3 navy all roll long)
+                            if cand == bpl0 or cand >= len(pls):
+                                continue
                             ncl = sum(1 for crow in sc["cells"] for c_ in crow if c_ and c_[2] == cand)
-                            if cand >= len(pls) or pls[cand][3] is None:
-                                cands.append((0, ncl, cand, False))
-                            elif pls[cand][0] is None:
-                                cands.append((1, ncl, cand, True))
-                        pn, perm = min(cands)[2:]
-                        if perm:
-                            sw_ = {0: 3, 1: 1, 2: 2, 3: 0}
-                            pls[pn][0], pls[pn][3] = pls[pn][3], pls[pn][0]
+                            if pls[cand][3] is None:
+                                cands.append((0, ncl, cand, 3))
+                            elif None in pls[cand]:
+                                cands.append((1, ncl, cand, pls[cand].index(None)))
+                        if not cands:                                   # (all full: pack the cells again by colour into every palette, and see)
+                            free_palette(sc, {0, bpl0}, None)
+                            for cand in (6, 7, 1, 2, 3, 4):
+                                if cand != bpl0 and cand < len(pls) and None in pls[cand]:
+                                    cands.append((0 if pls[cand][3] is None else 1, 0, cand, 3 if pls[cand][3] is None else pls[cand].index(None)))
+                        if not cands:                                   # (every palette full: this venue keeps the stage-coloured blank, with the colour step at the swap line: BG 0 colour 3)
+                            print("CRSPLIT", vd.key, "has no free palette entry: blank cells stay the stage colour")
+                            sc.clear()
+                            sc.update(sc0)
+                            BLANKC, SBP[v], FALLBACK = None, 255, True
+                    if SBP[v] != 255 and not okfree:
+                        _, _, pn, fj = min(cands)
+                        if fj != 3:
+                            sw_ = {i_: i_ for i_ in range(4)}
+                            sw_[fj], sw_[3] = 3, fj
+                            pls[pn][fj], pls[pn][3] = pls[pn][3], pls[pn][fj]
                             for crow in sc["cells"]:
                                 for ci_, c_ in enumerate(crow):
                                     if c_ and c_[2] == pn:
                                         crow[ci_] = (c_[0], sw_[c_[1]] if c_[0] == "f" else [[sw_[x_] for x_ in r_] for r_ in c_[1]], c_[2])
                         pls[pn][3] = "#181040"
                         FALLBACK = True
-                    if not FALLBACK:
-                        pls[pn] = ["#f8e8b0", pls[bpl0][2], None, "#181040"]
-                    BLANKC = 0xF000 | pn << 8 | 3
-                    SBP[v] = pn
+                    if SBP[v] != 255:
+                        if not FALLBACK:
+                            pls[pn] = ["#f8e8b0", pls[bpl0][2], None, "#181040"]
+                        BLANKC = 0xF000 | pn << 8 | 3
+                        SBP[v] = pn
                 ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
                 inkv = ink if m else None
                 slot_of = {}
@@ -749,7 +768,7 @@ def main():
             yy += L["H_BOSS"] + L["G"]
         top = max(cnt)
         peaks[dmg] = max(sum(cnt.get(a + i, 0) for i in range(32)) for a in range(0, top))
-    assert max(peaks.values()) <= SCROLL_RING, f"the scroll's cast needs {peaks} text tiles at once, the ring has {SCROLL_RING}"
+    assert peaks[0] <= (SCROLL_CGB if CRSCENE else SCROLL_RING) and peaks[1] <= SCROLL_RING, f"the scroll's cast needs {peaks} text tiles at once (Color, DMG), the rings have {SCROLL_CGB if CRSCENE else SCROLL_RING}, {SCROLL_RING}"
     n_all_rows = len(ROWS)
     bp, br = (POOL_BLD0, ids["BLD0"]) if (CRMAP or CRSCENE) else (len(POOL), len(ROWS))      # CRMAP: the buildings' tiles and rows are a second file (a bank of their own: the first would hold 20 KB)
     # (the default build's tables end at n_base_rows / n_base_pool)

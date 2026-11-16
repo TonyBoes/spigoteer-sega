@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE / "credits_scenes"))
+import os
+sys.path.insert(0, str(HERE / ("credits_scenes8" if os.environ.get("CRART") == "8" else "credits_scenes")))      # (CRART=8: the artist's round 8, outlines as a BG ring: its pages need more text tiles than the ring holds, see tools/dev/credits_pages_vs_approved.py)
 sys.path.insert(0, str(HERE))
 from scenes_lib import q5, hexrgb, PAGE_BG   # noqa: E402
 import scenes_f as F                         # noqa: E402

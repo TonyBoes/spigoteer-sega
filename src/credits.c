@@ -97,6 +97,9 @@ struct cr_state {
 #define CR_PAL ((uint8_t *)story_scratch + 72)                          // the card's colours (CGB: 128 bytes; DMG: BGP, OBP0, OBP1, the first OBP1)
 #define CR_PT  ((portrait_t *)(story_scratch + 200))                    // the owner's portrait (while a venue card is built)
 #define CR_PT_B ((uint8_t *)story_scratch + 200)       // CRSCENE: the scene page's meta (n objects, OBJ palettes, tiles, then 3 bytes an object), where the owner's portrait used to be
+#ifndef CR_RING_C
+#define CR_RING_C 127                                  // CRSCENE, Color: the text ring is bank 1 ids 0-126 (BG ids 128-255 of bank 1 are the OBJ tiles 128-255 there: the Color looks)
+#endif
 #ifndef CR_NOGATE
 #define CR_NOGATE 0
 #endif
@@ -313,7 +316,8 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 
 #define CR_TXT_D    204
 #define CR_TXT_DN    52
-#define CR_TXT_CN   127
+#define CR_DMGID(id) ((id) < CR_TXT_DN ? CR_TXT_D + (id) : (id) - CR_TXT_DN < 54 ? (id) - CR_TXT_DN : (id) - CR_TXT_DN + 1)
+#define CR_TXT_CN   CR_RING_C
 #if CT_SCENEFMT
 #define CR_OAM_PAT 24                                // CRSCENE: the patrons' OAM entries 24-39 (the page's objects take 0-29: the first to leave the screen share 24-29), the boss's topper 12
 #define CR_OAM_HAT 12
@@ -378,7 +382,7 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
                 id = CR->rt + i;
                 if (id >= CR_TXT_CN) id -= CR_TXT_CN;
                 if (is_cgb) { VBK_REG = VBK_BANK_1; credits_tile_put(buf[0] | buf[1] << 8, id); VBK_REG = VBK_BANK_0; }
-                else { id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1; credits_tile_put(buf[0] | buf[1] << 8, id); }
+                else { id = CR_DMGID(id); credits_tile_put(buf[0] | buf[1] << 8, id); }
                 return 0;
             }
             i -= np;
@@ -528,6 +532,7 @@ static void cr_white(void) {                      // LCD off: every palette whit
 #define CR_STRIPE_ID 76     // the stripe's tile
 #define CR_TXT_D    204     // the DMG's text ring: ids 204-255, then 0-75 but 54
 #define CR_TXT_DN    52
+#define CR_DMGID(id) ((id) < CR_TXT_DN ? CR_TXT_D + (id) : (id) - CR_TXT_DN < 54 ? (id) - CR_TXT_DN : (id) - CR_TXT_DN + 1)
 #define CR_TXT_CN   127     // Color: ids 0-126 of bank 1
 #define CR_W0         8     // the world row of the first card (the title): blank rows above it
 #define CR_VMAX       4     // the glide's cruise speed (px a frame); the ramps take CR_VLEN frames at each speed 1..CR_VMAX
@@ -692,7 +697,7 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
             id = CR->lr + (uint8_t)(cell[i] & 255);
             if (id >= (is_cgb ? CR_TXT_CN : CT_RING_N)) id -= is_cgb ? CR_TXT_CN : CT_RING_N;
             if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT((cell[i] >> 8) & 7) : 0) | 8;
-            else id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
+            else id = CR_DMGID(id);
             CR->row[CR_BUF[0] + i] = id;
             continue;
         }
@@ -702,7 +707,7 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
             id = CR->rt;
             if (++CR->rt == CR_TXT_CN) CR->rt = 0;
             if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_SLOT(cell[i] >> 12) | 8;
-            else id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
+            else id = CR_DMGID(id);
             CR->row[CR_BUF[0] + i] = id;
             continue;
         }
@@ -720,7 +725,7 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
         } else {
             id = CR->rt;
             if (++CR->rt == CT_RING_N) CR->rt = 0;
-            id = id < CR_TXT_DN ? CR_TXT_D + id : id - CR_TXT_DN < 54 ? id - CR_TXT_DN : id - CR_TXT_DN + 1;
+            id = CR_DMGID(id);
 #if CT_MAPFMT || CT_SCENEFMT
             credits_tile_put(cell[i] & 0xFFF, id);
 #else
@@ -780,7 +785,7 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
     if (tr != 0xFFFF) return cr_tstep(tr, tk);
     cr_blank(); cr_attr_hud();
 #if CT_SPLIT && CT_SCENEFMT
-    if (is_cgb && kd == CK_OWNER && i == 255) for (k = 0; k < 20; k++) { CR->row[k] = CR_SOLID_ID + 3; CR_ATT[k] = CR_SLOT(ct_sbp[v]); }      // (the page card's rows around the page: flat navy in the BG palette whose colour 3 is navy in the page's set and in the cards': the strip's palette swap changes nothing on them)
+    if (is_cgb && kd == CK_OWNER && i == 255 && ct_sbp[v] != 255) for (k = 0; k < 20; k++) { CR->row[k] = CR_SOLID_ID + 3; CR_ATT[k] = CR_SLOT(ct_sbp[v]); }      // (the page card's rows around the page: flat navy in the BG palette whose colour 3 is navy in the page's set and in the cards': the strip's palette swap changes nothing on them)
 #endif
     if (i != 255) {                                // a portrait row
         L = (20 - w) >> 1;
