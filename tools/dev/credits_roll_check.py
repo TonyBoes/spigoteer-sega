@@ -92,7 +92,7 @@ def run(rom, build, model, shots, max_frames):
                 for ci, (cs, ch, own) in enumerate(cards):          # (every other card at every 8 px of its own scroll: what the reference build shows)
                     rel = scroll - cs * 8
                     if not own and -143 <= rel <= ch * 8 and rel % 8 == 0 and (ci, rel) not in cards_seen:
-                        cards_seen[(ci, rel)] = (img.astype(np.uint8), hist[2].copy(), scroll)
+                        cards_seen[(ci, rel)] = (img.astype(np.uint8), hist[2].copy(), scroll, sum(1 for k in range(40) if 0 < oam[4 * k] < 160 and 0 < oam[4 * k + 1] < 168))
                 # scan: the previous frame, shifted by 0..3 px, with the sprites of the last three frames masked
                 if prev is not None and len(hist) == 3:
                     best = None
@@ -106,7 +106,7 @@ def run(rom, build, model, shots, max_frames):
                         c = int(diff.sum())
                         if best is None or c < best[0]:
                             best = (c, d, diff)
-                    flat = lambda im: len(np.unique(im.reshape(-1, 3), axis=0)) <= 2           # (a palette swap while the screen shows nothing but the page colour, in one frame or two: allowed, the rule is that it only happens then)
+                    flat = lambda im: len(np.unique(im.reshape(-1, 3), axis=0)) <= 3           # (a palette swap while the screen shows nothing but the page colour, in one frame or two: allowed, the rule is that it only happens then)
                     if best[0] and not (flat(img) and flat(prev)):
                         ys, xs = np.nonzero(best[2])
                         bad["scan"].append((n, scroll, best[0], int(ys.min()), int(ys.max()), int(xs.min()), int(xs.max())))
@@ -182,10 +182,13 @@ def main():
         if a.ref_rom:
             _, _, rseen, rcards, rbosses = run(Path(a.ref_rom), Path(a.ref_build), model, None, a.max_frames)
             bad["cards"] = []
-            for (ci, rel), (img, mask, scroll) in sorted(seen.items()):
+            bad["sprites_late"] = []
+            for (ci, rel), (img, mask, scroll, nvis) in sorted(seen.items()):
                 if (ci, rel) not in rseen:
                     continue
-                rimg, rmask, rscroll = rseen[(ci, rel)]
+                rimg, rmask, rscroll, rnvis = rseen[(ci, rel)]
+                if nvis != rnvis:                              # (every sprite of a card is there from its first visible row, as in the roll without pages)
+                    bad["sprites_late"].append((ci, rel, nvis, rnvis))
                 cs, ch, _ = cards[ci]
                 diff = (np.abs(img.astype(np.int16) - rimg.astype(np.int16)).sum(axis=2) > 0) & ~mask & ~rmask
                 own = np.zeros(144, bool)
