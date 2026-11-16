@@ -77,7 +77,7 @@ USERS = {
     "jukebox.ROWS": (0, 9 * 20, "jukebox.c JB_ROW(k)"), "jukebox.METER": (180, 190, "jukebox.c struct jb_meter: the bars' levels and the DMG note-start state"),
     # the credits: CR (struct cr_state), the DMG header's two BGPs (main.c cast_isr), the card's colours, the owner's portrait, a staging buffer
     "credits.CR": (0, 68, "credits.c struct cr_state"), "credits.BGP": (68, 70, "cast_isr: header BGP, card BGP"),
-    "credits.PAL": (72, 200, "CR_PAL: 128 bytes"), "credits.PT": (200, 427, "CR_PT: portrait_t (227 bytes, credits.c cr_fits)"),
+    "credits.PAL": (72, 200, "CR_PAL: 128 bytes"), "credits.PT": (200, 427, "CR_PT: portrait_t (227 bytes, credits.c cr_fits); CRSCENE: the page meta 200-293, np 296, BG palette shadow 300-363, OBJ shadow 364-399"),
     "credits.BUF": (427, 491, "CR_BUF: 64 bytes after the portrait"),
     # a picture scene (the INTRO, the finale's pictures): story.c PS_* and the generated burst (gen_story.py)
     "pic.FX_W": (0, 2, "PS_FX, PS_W"), "pic.ROWS": (2, 38, "PS_ROWS"), "pic.TILES": (40, 88, "PS_TILES"), "pic.PALS": (88, 128, "PS_PALS"),

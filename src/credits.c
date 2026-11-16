@@ -281,8 +281,10 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 #define CR_OAM_HAT 24
 #endif
 #define CR_SWAPN 1                                  // CRSCENE: palettes a frame while the screen is blank (a load or a swap)
+#define CR_SH_BG 100                                   // CRSCENE: the page's BG palettes (8 x 8 bytes) and OBJ palettes (6 x 6: colours 1-3), as the hardware takes them, in the portrait area (meta 3 + 3 per object: 93 at most; to 200 of its 227)
+#define CR_SH_OB 164
 #define CR_NPRE 96                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest)
-#define CR_PT_NP 127                                  // (CR_PT_B[127]: how many of them this page has)
+#define CR_PT_NP 96                                  // (CR_PT_B[96]: how many of them this page has)
 #define CR_PT_B ((uint8_t *)story_scratch + 200)       // CRSCENE: the scene page's meta (n objects, OBJ palettes, tiles, then 4 bytes an object), where the owner's portrait used to be
 #define PBASE (CR->pb)
 #define PPAL  (CR->pp)
@@ -314,7 +316,7 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
     if (kd == CK_OWNER) {                          // the scene page's loads: unit 0 its meta (RAM: the sprites' x, y, tile, flags), then its sprite tiles, then (Color) its OBJ palettes
         uint8_t tn = CR_PT_B[2], nm;
         if (i == 0) { credits_scene_get(v, 3, 0, CR_PT_B); CR->ft &= 7; return 0; }
-        nm = (3 + 4 * CR_PT_B[0] + 31) >> 5;           // (the meta comes in 32-byte units)
+        nm = (3 + 3 * CR_PT_B[0] + 31) >> 5;           // (the meta comes in 32-byte units)
         if (i < nm) { credits_scene_get(v, 3, i, CR_PT_B + 32 * i); return 0; }
         i -= nm;
         tn = CR_PT_B[2];
@@ -334,9 +336,20 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
             }
             i -= np;
         }
+        if (i < 8) {                               // the page's eight BG palettes into RAM (CR_SH_BG: the colours as the hardware takes them), where the swap and the split read them: no ROM read, no bank, at the swap
+            if (is_cgb) {
+                uint16_t *q = (uint16_t *)(CR_PT_B + CR_SH_BG + 8 * i);
+                credits_scene_get(v, 1, i, buf);
+                for (k = 0; k < 4; k++) q[k] = BRIGHTEN(((uint16_t *)buf)[k]);
+            }
+            return 0;
+        }
+        i -= 8;
         if (is_cgb && i < CR_PT_B[1]) {
+            uint16_t *q = (uint16_t *)(CR_PT_B + CR_SH_OB + 6 * i);
             credits_scene_get(v, 2, i, buf);
             p[0] = 0; p[1] = buf[0] | buf[1] << 8; p[2] = buf[2] | buf[3] << 8; p[3] = buf[4] | buf[5] << 8;
+            q[0] = BRIGHTEN(p[1]); q[1] = BRIGHTEN(p[2]); q[2] = BRIGHTEN(p[3]);       // (and its OBJ palettes' colours 1-3)
             cr_pal(1, 1 + i, p);
             return 0;
         }
@@ -731,7 +744,7 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
 #if CT_SCENEFMT
 static uint8_t cr_page_rows_ok(uint8_t c, uint16_t w) {   // a scene card's rows while its loads are not all done: its blank rows, and the page's rows once its tiles are in the ring
     if (cr_kt[c] != CK_OWNER) return 0;
-    return w - CR->gs <= CT_SGT || CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP];
+    return w - CR->gs <= CT_SGT || CR->gl > ((3 + 3 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP];
 }
 #endif
 
@@ -745,7 +758,7 @@ static uint8_t cr_gen(void) {
     CR->gc = c;
     if (c < CR_CARDS && w >= CR->gs && w < CR->gs + cr_hgt(c)) {          // a card's row
 #if CT_SCENEFMT
-        gate = CR->gl != 255 && cr_kt[c] == CK_OWNER && (CR->lw == CR->next || (CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP] && CR->sc < c));          // (no load while a row is in progress: the units use CR_BUF too; the scene's OBJ palettes wait until the card before it is off the screen: its rows do not)
+        gate = CR->gl != 255 && cr_kt[c] == CK_OWNER && (CR->lw == CR->next || (CR->gl > ((3 + 3 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP] + 8 && CR->sc < c));          // (no load while a row is in progress: the units use CR_BUF too; the scene's OBJ palettes wait until the card before it is off the screen: its rows do not)
 #endif
         if (CR->gl != 255 && w - CR->gs >= cr_lrow(c) && !gate) {
             if (!CR->gl) { CR->pb = c == 2 ? CR_T_BOSS : STORY_PORTRAIT_BASE; CR->pp = c == 2 ? BGPAL_STAGE : BGPAL_PATRON; CR->pose = 0; }
@@ -753,7 +766,7 @@ static uint8_t cr_gen(void) {
 #if CT_SCENEFMT
             if (is_cgb && cr_kt[c] == CK_PATRONS && CR->gl >= 38 && (CR->sc < c - 1 || (CR->sc == c - 1 && CR->pos < (uint16_t)(CR->ss + CT_SGT + 18) * 8) || (CR->txs == 99 + c && CR->txd < 11))) return 0;   // (the patrons' OBJ palettes: after the scene page is off)
 #endif
-            for (m = 0; m < (CT_SCENEFMT && is_cgb && ((cr_kt[c] == CK_PATRONS && CR->gl >= 38) || (cr_kt[c] == CK_OWNER && CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP])) ? CR_SWAPN : 1); m++) {        // (the scene's and the patrons' OBJ palettes: the screen is blank, four a frame)
+            for (m = 0; m < (CT_SCENEFMT && is_cgb && ((cr_kt[c] == CK_PATRONS && CR->gl >= 38) || (cr_kt[c] == CK_OWNER && CR->gl > ((3 + 3 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP] + 8)) ? CR_SWAPN : 1); m++) {        // (the scene's and the patrons' OBJ palettes: the screen is blank, four a frame)
                 if (cr_load_unit(c, CR->gl)) { CR->gl = 255; break; }
                 CR->gl++;
                 music_pump();                                  // (a unit is a fraction of a frame, a call of three more: the tune's tick falls due in between, not a frame late)
@@ -829,8 +842,8 @@ static void cr_page_pre(uint8_t n) {              // the page's sprites' x, tile
     uint8_t nobj = CR_PT_B[0], k = (CR->ft >> 4) * n;
     OAM_item_t *oo = shadow_OAM + k;
     if (CR->ft & 8) return;
-    so += 4 * k;
-    for (; k < nobj && n; k++, n--, so += 4, oo++) { oo->y = 0; oo->x = so[0]; oo->tile = so[2]; oo->prop = so[3]; }
+    so += 3 * k;
+    for (; k < nobj && n; k++, n--, so += 3, oo++) { oo->y = 0; oo->x = so[0]; oo->tile = (uint8_t)(k << 1); oo->prop = so[2]; }
     CR->ft += 16;
     if (k >= nobj) CR->ft |= 8;
 }
@@ -897,8 +910,8 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                 // (x, tile and flags: written in the frames the scroll waits (above), else here, once)
                 rm = !(CR->ft & 8);
                 CR->ft |= 8;
-                for (k = nobj; k; k--, so += 4, oo++) {
-                    if (rm) { oo->x = so[0]; oo->tile = so[2]; oo->prop = so[3]; }
+                for (k = 0; k < nobj; k++, so += 3, oo++) {
+                    if (rm) { oo->x = so[0]; oo->tile = (uint8_t)(k << 1); oo->prop = so[2]; }
                     ya = y + so[1];
                     oo->y = (uint16_t)(ya - 1) < 159 ? (uint8_t)ya : 0;
                 }
@@ -1119,6 +1132,14 @@ static void cr_leave(void) {
 
 // story_update, every frame of the roll (GS_STORY). 1: the screen changed.
 #if CT_SCENEFMT
+static void cr_hw_sh(uint8_t i) {                 // BG palette i of the page (its RAM copy) to the hardware: eight bytes, each when the screen is not drawing
+    const uint8_t *s = CR_PT_B + CR_SH_BG + 8 * i;
+    uint8_t k;
+    CRITICAL { BCPS_REG = 0x80 | (uint8_t)(i << 3); }
+    for (k = 0; k < 8; k++) CRITICAL { while (STAT_REG & 2) ; BCPD_REG = s[k]; }
+}
+#endif
+#if CT_SCENEFMT
 // A scene page has the screen to itself: its BG palettes (all 8 slots, one a frame) go in while the cards before and after are off the screen (the blank rows above it are longer than
 // the screen) and the three the cards use (0, 1, 5) come back from their RAM copies once the page has gone; the DMG's OBJ shade registers likewise. CR->bp = 100 + card marks whose
 // state CR->bn is (0-7 palettes in, 8-10 coming back, 11 done), whatever a boss left in them.
@@ -1129,7 +1150,7 @@ static void cr_scene_swap(void) {
     st = CR->txd;
     if (st < 8) {
         if ((CR->gc > d || (CR->gc == d && CR->gl == 255)) && CR->pos + 144 <= (uint16_t)(CR->ss + CT_SGT) * 8 && (CT_ZN || CR->pos >= (uint16_t)(CR->ss - 2) * 8)) {         // (the card before has left the screen: its last blank row would change colour)
-            if (is_cgb) { for (n = 0; n < CR_SWAPN && CR->txd < 8; n++) { credits_scene_get(cr_vt[d], 1, CR->txd, tmp); cr_hw_raw(CR->txd, (const uint16_t *)tmp); CR->txd++; } }      // (a blank screen: three palettes a frame, 8 lines each)
+            if (is_cgb) { for (n = 0; n < CR_SWAPN && CR->txd < 8; n++) { cr_hw_sh(CR->txd); CR->txd++; } }      // (a blank screen: three palettes a frame, 8 lines each)
             else { OBP0_REG = 0x90; OBP1_REG = 0xE4; CR->txd = 8; }      // (idx 1-3 = shades 0-2, and 1-3: the artist's two OBJ palettes)
         }
     } else if (st < 11 && CR->pos >= (uint16_t)(CR->ss + CT_SGT + 19) * 8) {         // (a row after the page: the frame that shows its last row has been drawn)
