@@ -716,10 +716,20 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
 }
 
 // the next world row (CR->next): what loads it needs (a few units a call), then the row; 1: it is queued
+#if CT_SCENEFMT
+static uint8_t cr_page_rows_ok(uint8_t c, uint16_t w) {   // a scene card's rows while its loads are not all done: its blank rows, and the page's rows once its tiles are in the ring
+    if (cr_kt[c] != CK_OWNER) return 0;
+    return w - CR->gs <= CT_SGT || CR->gl > ((3 + 4 * CR_PT_B[0] + 31) >> 5) + CR_PT_B[2] + CR_PT_B[CR_PT_NP];
+}
+#endif
+
 static uint8_t cr_gen(void) {
     uint16_t w = CR->next;
     uint8_t c = CR->gc, m, i, v = 0, kd, gate = 0;
     while (c < CR_CARDS && w >= CR->gs + cr_hgt(c) + cr_gap(c)) { CR->gs += cr_hgt(c) + cr_gap(c); c++; CR->gl = 0; }
+#if CT_SCENEFMT
+    if (c != CR->gc) { CR->gc = c; CR->pose = 0; return 0; }          // (a card begins: the sprite stage sees it (CR->gc is in its signature) and has that frame to itself)
+#endif
     CR->gc = c;
     if (c < CR_CARDS && w >= CR->gs && w < CR->gs + cr_hgt(c)) {          // a card's row
 #if CT_SCENEFMT
@@ -736,14 +746,24 @@ static uint8_t cr_gen(void) {
                 CR->gl++;
                 music_pump();                                  // (a unit is a fraction of a frame, a call of three more: the tune's tick falls due in between, not a frame late)
             }
+#if CT_SCENEFMT
+            if (CR->gl != 255 && !cr_page_rows_ok(c, w)) return 0;       // (a scene card's loads take their frames beside its blank rows, which the screen reaches first)
+#else
             if (CR->gl != 255) return 0;
+#endif
+            if (CR->gl == 255) {
             kd = cr_kind(c, &v);
             if (kd == CK_SPIGOTEER) CR->txs = 3 + CR_PT->h;
             else if (kd == CK_DREGS) CR->txd = 3 + CR_PT->h;
 #if CT_SCENEFMT
             return 0;                                      // (the loads done is a frame of its own: the sprites are all written again, the rows wait for the next)
 #endif
+            }
         }
+#if CT_SCENEFMT
+        if (CR->gl != 255 && !cr_page_rows_ok(c, w)) return 0;      // (the loads wait for a free frame: the page's own rows do not go before its tiles)
+        if (w > (CR->scroll >> 3) + CR_AHEAD_C) return 0;           // (a scene card's loads are called a frame at a time, its rows only as far ahead of the screen as the map holds)
+#endif
         music_pump();
         if (!cr_card_row(c, (uint8_t)(w - CR->gs))) return 0;
         music_pump();
@@ -1085,7 +1105,7 @@ static void cr_scene_swap(void) {
             if (is_cgb) { credits_scene_get(cr_vt[d], 1, st, tmp); cr_hw_raw(st, (const uint16_t *)tmp); CR->txd = st + 1; }
             else { OBP0_REG = 0x90; OBP1_REG = 0xE4; CR->txd = 8; }      // (idx 1-3 = shades 0-2, and 1-3: the artist's two OBJ palettes)
         }
-    } else if (st < 11 && CR->pos >= (uint16_t)(CR->ss + CT_SGT + 18) * 8) {
+    } else if (st < 11 && CR->pos >= (uint16_t)(CR->ss + CT_SGT + 20) * 8) {         // (two rows after the page: the frame that shows its last row has been drawn)
         if (is_cgb) { cr_hw(0, st == 8 ? 0 : st == 9 ? 1 : 5); CR->txd = st + 1; }
         else { OBP0_REG = CR_PAL[1]; OBP1_REG = CR_PAL[2]; CR->txd = 11; }
     }
@@ -1136,7 +1156,17 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     }
 #endif
     if (CR->st == 3 && CR->ph >= CR_END_HOLD && (!sound_on || cur_tune != TUNE_CREDITS)) { cr_leave(); return 1; }   // (the roll's end, and the tune over: it ends on its own, cur_tune goes to TUNE_NONE)
-    if (CR->next <= (CR->scroll >> 3) + (CR->next >= CR->wroll ? CR_AHEAD_R : CR_AHEAD_C)) { cr_gen(); busy = 1; }
+    if (CR->next <= (CR->scroll >> 3) + (CR->next >= CR->wroll ? CR_AHEAD_R : CR_AHEAD_C)
+#if CT_SCENEFMT
+        || (CR->gl != 255 && CR->gc < CR_CARDS && cr_kt[CR->gc] == CK_OWNER && CR->next >= CR->gs)         // (a scene card's loads: one unit a frame whether or not a row is wanted)
+#endif
+        ) {
+#if CT_SCENEFMT
+        if (CR->sc < CR_CARDS && (uint16_t)(CR->ss + cr_hgt(CR->sc) + 1) * 8 <= CR->pos) busy = 1;         // (a card leaves the screen this frame: the sprite stage rewrites every sprite, 80 lines, and has the frame to itself)
+        else
+#endif
+        { cr_gen(); busy = 1; }
+        }
     music_pump();
     cr_sprites_v(busy);
     music_pump();
