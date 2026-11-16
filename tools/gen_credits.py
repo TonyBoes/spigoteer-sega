@@ -195,7 +195,7 @@ LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
 LAY["SCENEFMT"] = 1 if CRSCENE else 0
 CRTIGHT = os.environ.get("CRTIGHT", "")           # 1: the scene pages' gaps as small as the palette swap needs (no jump, no hold), the swap several palettes a frame
 CRSPLIT = os.environ.get("CRSPLIT", "")           # 1: the page shares the screen with its neighbours (credits.c: a LYC interrupt swaps the palettes on a blank strip): 2 blank rows (a strip) on each side, no jump
-SGT, SGB = (0, 6) if CRSPLIT == "1" else (int(CRTIGHT), int(CRTIGHT)) if CRTIGHT else (19, 19)                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
+SGT, SGB = (0, int(os.environ.get("CRSGB", "6"))) if CRSPLIT == "1" else (int(CRTIGHT), int(CRTIGHT)) if CRTIGHT else (19, 19)                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
 if CRSCENE:
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]

@@ -22,7 +22,8 @@ sys.path.insert(0, str(ROOT / "tools" / "credits_scenes"))
 from credits_shots import start      # noqa: E402
 import scenes_f as F                 # noqa: E402
 
-DEFAULT = ROOT / "tests" / "approved" / "credits_pages"      # (copies of the artist's round-6 cards, tools/credits_scenes/render_f.py)
+import os      # noqa: E402
+DEFAULT = ROOT / "tests" / "approved" / ("credits_pages" if os.environ.get("CRART") == "7" else "credits_pages8")      # (copies of the artist's round-8 cards; CRART=7: round 6/7's)
 # Known, with the numbers: the Color pages of lodge, bistro, igloo, factory and biker cannot have the approved cream letters on the band and navy behind the owner's name: their cells need 7 BG palettes
 # besides the stage palette (a whole palette [cream, band, free, navy] makes 9; tools/gen_credits.py free_palette proves it), the hardware has 8. Bistro's accordionist is an OBJ (the approved
 # composite draws her into the BG with a ninth palette and moves the room's pixels in her cells).
