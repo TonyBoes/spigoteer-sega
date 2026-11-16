@@ -325,7 +325,10 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 #define CR_SWAPN 1                                  // CRSCENE: palettes a frame while the screen is blank (a load or a swap)
 #define CR_SH_BG 100                                   // CRSCENE: the page's BG palettes (8 x 8 bytes) and OBJ palettes (6 x 6: colours 1-3), as the hardware takes them, in the portrait area (meta 3 + 3 per object: 93 at most; to 200 of its 227)
 #define CR_SH_OB 164                                   // (six OBJ palettes of eight bytes: colour 0 is 0, as the hardware takes them; to 211)
-#define CR_NPRE (CT_SPLIT ? 100 : 96)                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest)
+#ifndef CR_NPRE_S
+#define CR_NPRE_S 40
+#endif
+#define CR_NPRE (CT_SPLIT ? CR_NPRE_S : 96)                                    // CRSCENE: the page's tiles put in the ring before its rows (the ring holds 127: the card on the screen keeps the rest; CRSPLIT: 40, the page shares the screen with the name rows above it, 100 overwrote their tiles and 70 was clean)
 #define CR_PT_NP 96                                  // (CR_PT_B[96]: how many of them this page has)
 #define PBASE (CR->pb)
 #define PPAL  (CR->pp)

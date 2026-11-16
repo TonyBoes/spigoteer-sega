@@ -577,13 +577,19 @@ def test_no_frame_of_the_roll_runs_past_its_vblank(model):
     for it, unpredictably (the drift of 0 to 8 frames the roll's layout used to give it). 2026-11-13: the sprite stage writes only what moved, the roll's steps
     start only if they end by line 96 (cr_room), a tick due in the picture's last lines waits for the VBlank (music_pump_cr), the patrons' sprites are written in
     place: none left over the whole credits (the one gap is the first screen's build, behind the white)."""
+    from conftest import double_speed
     from tick_helpers import FRAME, tick_log
-    with Rom(ROM, model) as gb:
+    noi = ROM.with_suffix(".noi").read_text()
+    ds = model == "cgb" and "DEF _cr_split_isr " in noi      # (a CRSPLIT build on Color runs at double speed, as shipped: owner Q92; the default build and the DMG stay as they were)
+    if ds:
+        FRAME *= 2
+    with (double_speed() if ds else contextmanager(lambda: (yield))()):
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
         stamps = tick_log(gb)
-        noi = ROM.with_suffix(".noi").read_text()
         v = int([x for x in noi.splitlines() if x.startswith("DEF _vq_frame_begin ")][0].split()[2], 16)
         begins = []
         gb.pb.hook_register(v >> 16, v & 0xFFFF, lambda ctx: begins.append(gb.pb._cycles()), None)
