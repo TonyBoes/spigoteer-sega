@@ -318,6 +318,22 @@ static uint8_t cr_spk(uint8_t c, uint8_t v) { return c == CK_SPIGOTEER ? 0 : c =
 #define CR_TXT_DN    52
 #define CR_DMGID(id) ((id) < CR_TXT_DN ? CR_TXT_D + (id) : (id) - CR_TXT_DN < 54 ? (id) - CR_TXT_DN : (id) - CR_TXT_DN + 1)
 #define CR_TXT_CN   CR_RING_C
+#if CT_SPLIT
+// CRSPLIT: the pages need more text tiles at once than 127 (the round-8 pages: 133, with the cards around them 147). Verified free for the length of the card section by
+// tools/dev/credits_vram_owners.py (a canary in every BG id: nothing writes them, nothing shows them): Color bank 0 ids 204-255, DMG ids 80-92, 138-145 and 202-203 (23). The roll keeps its 127.
+static uint8_t cr_rn(void) { return CR->next >= CR->wroll ? 127 : is_cgb ? 127 + 52 : 127 + 23; }
+static uint8_t cr_pid(uint8_t i) {                 // a ring slot's BG tile id (Color: slots 0-126 bank 1 ids 0-126, the rest bank 0 ids 204-255)
+    if (is_cgb) return i < 127 ? i : i - 127 + 204;
+    if (i < 127) return CR_DMGID(i);
+    i -= 127;
+    return i < 13 ? 80 + i : i < 21 ? 138 - 13 + i : 202 - 21 + i;
+}
+#define CR_BK(i) ((i) < 127 ? 8 : 0)
+#else
+#define cr_rn() (is_cgb ? CR_TXT_CN : CT_RING_N)
+#define cr_pid(i) (is_cgb ? (i) : CR_DMGID(i))
+#define CR_BK(i) 8
+#endif
 #if CT_SCENEFMT
 #define CR_OAM_PAT 24                                // CRSCENE: the patrons' OAM entries 24-39 (the page's objects take 0-29: the first to leave the screen share 24-29), the boss's topper 12
 #define CR_OAM_HAT 12
@@ -380,9 +396,9 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
             if (i < np) {
                 credits_scene_get(2 * v + (is_cgb ? 1 : 0), 4, i, buf);
                 id = CR->rt + i;
-                if (id >= CR_TXT_CN) id -= CR_TXT_CN;
-                if (is_cgb) { VBK_REG = VBK_BANK_1; credits_tile_put(buf[0] | buf[1] << 8, id); VBK_REG = VBK_BANK_0; }
-                else { id = CR_DMGID(id); credits_tile_put(buf[0] | buf[1] << 8, id); }
+                if (id >= cr_rn()) id -= cr_rn();
+                if (is_cgb && CR_BK(id)) VBK_REG = VBK_BANK_1;
+                credits_tile_put(buf[0] | buf[1] << 8, cr_pid(id)); VBK_REG = VBK_BANK_0;
                 return 0;
             }
             i -= np;
@@ -695,37 +711,37 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
         }
         if (cell[i] >= 0xE000) {
             id = CR->lr + (uint8_t)(cell[i] & 255);
-            if (id >= (is_cgb ? CR_TXT_CN : CT_RING_N)) id -= is_cgb ? CR_TXT_CN : CT_RING_N;
-            if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT((cell[i] >> 8) & 7) : 0) | 8;
-            else id = CR_DMGID(id);
-            CR->row[CR_BUF[0] + i] = id;
+            if (id >= cr_rn()) id -= cr_rn();
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT((cell[i] >> 8) & 7) : 0) | CR_BK(id);
+            CR->row[CR_BUF[0] + i] = cr_pid(id);
             continue;
         }
 #endif
 #if CT_SCENEFMT
-        if (kd == 3 && (uint8_t)(CR->rt >= CR->lr ? CR->rt - CR->lr : CR->rt + CR_TXT_CN - CR->lr) < CR_PT_B[CR_PT_NP]) {     // (one of the page's preloaded tiles: its ring slot is next, no put)
+        if (kd == 3 && (uint8_t)(CR->rt >= CR->lr ? CR->rt - CR->lr : CR->rt + cr_rn() - CR->lr) < CR_PT_B[CR_PT_NP]) {     // (one of the page's preloaded tiles: its ring slot is next, no put)
             id = CR->rt;
-            if (++CR->rt == CR_TXT_CN) CR->rt = 0;
-            if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_SLOT(cell[i] >> 12) | 8;
-            else id = CR_DMGID(id);
-            CR->row[CR_BUF[0] + i] = id;
+            if (++CR->rt == cr_rn()) CR->rt = 0;
+            if (is_cgb) CR_ATT[CR_BUF[0] + i] = CR_SLOT(cell[i] >> 12) | CR_BK(id);
+            CR->row[CR_BUF[0] + i] = cr_pid(id);
             continue;
         }
 #endif
         if (!cr_room(kd == 3 && !cr_stalled() && !CT_SPLIT ? 24 : 10)) { CR->ld--; break; }              // (the flat and repeated cells above cost no frame time to speak of: only a tile put is asked about)
         if (is_cgb) {
             id = CR->rt;
-            if (++CR->rt == CR_TXT_CN) CR->rt = 0;
-            VBK_REG = VBK_BANK_1; credits_tile_put(cell[i] & 0xFFF, id); VBK_REG = VBK_BANK_0;
+            if (++CR->rt == cr_rn()) CR->rt = 0;
+            if (CR_BK(id)) VBK_REG = VBK_BANK_1;
+            credits_tile_put(cell[i] & 0xFFF, cr_pid(id)); VBK_REG = VBK_BANK_0;
 #if CT_MAPFMT || CT_SCENEFMT
-            CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT(cell[i] >> 12) : kd ? 0 : BGPAL_HUD) | 8;
+            CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT(cell[i] >> 12) : kd ? 0 : BGPAL_HUD) | CR_BK(id);
 #else
             CR_ATT[CR_BUF[0] + i] = (kd ? 0 : BGPAL_HUD) | 8;
 #endif
+            id = cr_pid(id);
         } else {
             id = CR->rt;
-            if (++CR->rt == CT_RING_N) CR->rt = 0;
-            id = CR_DMGID(id);
+            if (++CR->rt == cr_rn()) CR->rt = 0;
+            id = cr_pid(id);
 #if CT_MAPFMT || CT_SCENEFMT
             credits_tile_put(cell[i] & 0xFFF, id);
 #else

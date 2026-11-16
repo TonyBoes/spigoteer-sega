@@ -200,7 +200,8 @@ if CRSCENE:
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
-SCROLL_CGB = 127
+SCROLL_CGB = 179 if os.environ.get("CRSPLIT") == "1" else 127      # CRSPLIT: Color bank 1 ids 0-126 + bank 0 ids 204-255; DMG 127 + ids 80-92, 138-145, 202-203 (credits.c cr_pid)
+SCROLL_DMG = 150 if os.environ.get("CRSPLIT") == "1" else 127
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
 ROLL_POOL = 160                                      # the roll's BG ids (credits.c CR_RING): the most tiles of 21 consecutive rows it may need
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
@@ -464,6 +465,7 @@ def main():
         import copy
         import scenes_lib as SL
         PAGES = {}
+        STAT = {}
         SBP = [0] * 10                                              # CRSPLIT, Color: the BG palette whose colour 3 is the page's blank (navy, as the cards' blank)
         for v in range(10):
             if v in (0, 4, 7):
@@ -602,6 +604,7 @@ def main():
                                 continue
                         ti = tile_of(full, tx_)
                         assert ti < 4096
+                        STAT.setdefault((v, m, bool(auto)), set()).add(ti)
                         if ti in slot_of:
                             cells.append(0xE000 | pl << 8 | slot_of[ti])
                         else:
@@ -768,7 +771,12 @@ def main():
             yy += L["H_BOSS"] + L["G"]
         top = max(cnt)
         peaks[dmg] = max(sum(cnt.get(a + i, 0) for i in range(32)) for a in range(0, top))
-    assert peaks[0] <= (SCROLL_CGB if CRSCENE else SCROLL_RING) and peaks[1] <= SCROLL_RING, f"the scroll's cast needs {peaks} text tiles at once (Color, DMG), the rings have {SCROLL_CGB if CRSCENE else SCROLL_RING}, {SCROLL_RING}"
+    assert os.environ.get("CRSTAT") or peaks[0] <= (SCROLL_CGB if CRSCENE else SCROLL_RING) and peaks[1] <= SCROLL_DMG, f"the scroll's cast needs {peaks} text tiles at once (Color, DMG), the rings have {SCROLL_CGB if CRSCENE else SCROLL_RING}, {SCROLL_DMG}"
+    if os.environ.get('CRSTAT'):
+        for m_ in (1, 0):
+            tx = [STAT.get((v_, m_, True), set()) for v_ in range(10)]
+            ar = [STAT.get((v_, m_, False), set()) for v_ in range(10)]
+            print('CRSTAT model', m_, 'text per page', [len(t) for t in tx], 'union', len(set().union(*tx)), 'art per page', [len(a) for a in ar], 'text also in art', [len(t & a) for t, a in zip(tx, ar)])
     n_all_rows = len(ROWS)
     bp, br = (POOL_BLD0, ids["BLD0"]) if (CRMAP or CRSCENE) else (len(POOL), len(ROWS))      # CRMAP: the buildings' tiles and rows are a second file (a bank of their own: the first would hold 20 KB)
     # (the default build's tables end at n_base_rows / n_base_pool)

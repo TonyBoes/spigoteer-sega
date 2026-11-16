@@ -28,6 +28,7 @@ DEFAULT = ROOT / "tests" / "approved" / "credits_pages"      # (copies of the ar
 # composite draws her into the BG with a ninth palette and moves the room's pixels in her cells).
 CAPACITY = {"lodge", "bistro", "igloo", "factory", "biker"}
 OBJ_PERF = {"bistro"}
+NOFREE = {"bistro", "factory"}      # round 8, Color: every BG palette of these pages is full (4 colours of art), so there is no entry for the navy margin: the margins keep the stage colour
 
 
 def main():
@@ -71,7 +72,7 @@ def main():
             if c:
                 pic_ = int(d[32:136].sum())
                 text_ = int(d[8:32].sum() + d[136:].sum())
-                bad_ = bool((pic_ and keys[v] not in OBJ_PERF) or (text_ and not (model == "cgb" and keys[v] in CAPACITY)))
+                bad_ = bool((pic_ and keys[v] not in OBJ_PERF and not (model == "cgb" and keys[v] in NOFREE)) or (text_ and not (model == "cgb" and keys[v] in CAPACITY)))
                 if not bad_:
                     known.append((model, keys[v]))
                 ys, xs = np.nonzero(d)
