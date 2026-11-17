@@ -2,15 +2,15 @@
  "saloon": {
   "venue": "THE SALOON",
   "owner": "SADIE",
-  "source": "round 9",
+  "source": "round 22",
   "bg_tiles_dmg": 91,
   "bg_tiles_color_flip_merged": 90,
   "bg_palettes": 7,
-  "obj_tiles": 18,
-  "obj_tiles_flip_merged": 18,
-  "obj_palettes_color": 5,
-  "objects": 16,
-  "sprites": 18,
+  "obj_tiles": 20,
+  "obj_tiles_flip_merged": 20,
+  "obj_palettes_color": 7,
+  "objects": 18,
+  "sprites": 20,
   "max_sprites_a_line": 7,
   "edge_cells_as_sprites": 18,
   "owner_only_bg_cells": 29,
@@ -104,19 +104,24 @@
  "biker": {
   "venue": "THE CHROME COW",
   "owner": "GRANNY",
-  "source": "round 9",
+  "source": "round 21",
   "bg_tiles_dmg": 90,
   "bg_tiles_color_flip_merged": 89,
   "bg_palettes": 8,
-  "obj_tiles": 21,
-  "obj_tiles_flip_merged": 21,
-  "obj_palettes_color": 4,
-  "objects": 17,
-  "sprites": 21,
-  "max_sprites_a_line": 7,
+  "obj_tiles": 23,
+  "obj_tiles_flip_merged": 23,
+  "obj_palettes_color": 6,
+  "objects": 20,
+  "sprites": 23,
+  "max_sprites_a_line": 8,
   "edge_cells_as_sprites": 21,
-  "owner_only_bg_cells": 23,
-  "edge_cells_left_as_bg_owner_cells": []
+  "owner_only_bg_cells": 22,
+  "edge_cells_left_as_bg_owner_cells": [
+   [
+    4,
+    6
+   ]
+  ]
  },
  "teahouse": {
   "venue": "THE TEAHOUSE",
@@ -138,7 +143,7 @@
  "zoo": {
   "venue": "THE JUNGLE ZOO",
   "owner": "KIKI",
-  "source": "round 14",
+  "source": "round 22",
   "bg_tiles_dmg": 84,
   "bg_tiles_color_flip_merged": 80,
   "bg_palettes": 8,
@@ -148,11 +153,19 @@
   "objects": 20,
   "sprites": 26,
   "max_sprites_a_line": 8,
-  "edge_cells_as_sprites": 26,
+  "edge_cells_as_sprites": 24,
   "owner_only_bg_cells": 18,
   "edge_cells_left_as_bg_owner_cells": [
    [
+    1,
+    7
+   ],
+   [
     4,
+    6
+   ],
+   [
+    5,
     6
    ]
   ]

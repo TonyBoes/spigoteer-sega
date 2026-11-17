@@ -77,7 +77,8 @@ def picture_mask(path, owner, n=56):
                 out[y][x] = abs(r - 68) + abs(g - 85) + abs(b - 111) < 40
             else:
                 r, g, b = im.getpixel((x, y))
-                out[y][x] = abs(r - 52) + abs(g - 96) + abs(b - 43) < 40
+                tgt = (48, 101, 91) if owner == "granny" else (52, 96, 43)      # his background colours: Kiki green, Granny teal
+                out[y][x] = abs(r - tgt[0]) + abs(g - tgt[1]) + abs(b - tgt[2]) < 40
     if owner == "hana":
         known = [[out[y][x] is not None for x in range(n)] for y in range(n)]
         seen, st = set(), []

@@ -494,6 +494,17 @@ def main():
             vd = GSP.F.VENUES[v]
             for m in (0, 1):
                 sc = GSP.scene(vd, bool(m))
+                if m and vd.key == "biker":                            # (the Chrome Cow's band colour #a03070 is colour 2 of BG 7 (below): the packing puts it where it falls, so its palette trades places with BG 7 and its colour with colour 2 (cells follow))
+                    pl_ = sc["pals"]
+                    j_ = next(i_ for i_, p_ in enumerate(pl_) if "#a03070" in p_ and i_ != 0)
+                    k_ = pl_[j_].index("#a03070")
+                    if k_ != 2:
+                        pl_[j_][k_], pl_[j_][2] = pl_[j_][2], pl_[j_][k_]
+                        sw_ = lambda x_: 2 if x_ == k_ else k_ if x_ == 2 else x_
+                        sc["cells"] = [[None if c_ is None else ((c_[0], sw_(c_[1]), c_[2]) if c_[0] == "f" else (c_[0], [[sw_(x_) for x_ in r_] for r_ in c_[1]], c_[2])) if c_[2] == j_ else c_ for c_ in crow] for crow in sc["cells"]]
+                    if j_ != 7:
+                        pl_[j_], pl_[7] = pl_[7], pl_[j_]
+                        sc["cells"] = [[None if c_ is None else (c_[0], c_[1], 7 if c_[2] == j_ else j_ if c_[2] == 7 else c_[2]) for c_ in crow] for crow in sc["cells"]]
                 stage = sc["stage"]
                 FALLBACK = False
                 patch = False
