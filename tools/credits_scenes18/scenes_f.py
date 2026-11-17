@@ -28,6 +28,8 @@ RING_PAL = {}
 GAP = [(38, 14), (39, 14)] + [(x, 15) for x in range(38, 47)]
 JUNEFILL = None           # round 11, June: None (round 9), "line" (the 3 wall pixels at x 16, rows 32-34 go dark) or "finger" (and the row 33 finger x 10-15)
 GAPFILL = None            # None (round 9), "light" (the rail's light colour, palette colour 0) or "dark" (the brim's dark colour, palette colour 3)
+# owner 2026-11-17 (his hand edit of Coach's brim-tip cell, picture cell (5,3)): these 8 pixels (picture x, y - 16) stay the wall blue: the dark under the brim tip ends on a diagonal
+GAP_KEEP = {(46, 13), (45, 14), (46, 14), (43, 15), (44, 15), (45, 15), (46, 15), (47, 15)}
 # Round 10: the owner's own painting on Coach's round 9 crop (crop at 15,7 -> portrait pixels): the space under the brim tip is clean and light. (x, y, DMG shade); BG pixels
 # only: shade 0 is colour 0 of the room cell's palette, shade 1 its colour 1.
 PAINT = {"sports": [(32, 12, 0)] + [(x, 13, 0) for x in range(32, 41)] + [(41, 13, 1)] + [(x, 14, 0) for x in range(33, 42)] + [(x, 15, 0) for x in range(35, 38)] + [(38, 15, 1)]}
@@ -229,6 +231,12 @@ def build(v, limits=None):
             if cur != new_px:
                 gapchanged.append((x, y, cur[1], new_px[1]))
                 page.px[(BY + cy) * 8 + (16 + y) % 8][(BX + cx) * 8 + x % 8] = new_px
+    if v.key == "sports":                                       # (owner 2026-11-17: the pixels of his edit are the wall blue, whatever the rules above made them)
+        for (x, y) in sorted(GAP_KEEP):
+            cx, cy = x // 8, (16 + y) // 8
+            g, pn = room[(cx, cy)]
+            i_ = [k for k in range(4) if v.pal[pn][k] == "#283c78"][0]
+            page.px[(BY + cy) * 8 + (16 + y) % 8][(BX + cx) * 8 + x % 8] = (i_, v.pal[pn][i_])
     junechanged = []
     if JUNEFILL and v.key == "lodge":
         targets = [(16, 32), (16, 33), (16, 34)] + ([(x, 33) for x in range(10, 16)] if JUNEFILL == "finger" else [])
