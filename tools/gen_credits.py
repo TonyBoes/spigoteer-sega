@@ -30,6 +30,9 @@ VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IG
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 OWNERS = ["SADIE SPURS", "COACH BLITZ", "BIG JUNE", "CHEF COLBY", "AURORA", "MANAGER-BOT 3000", "GRANNY THROTTLE", "HANA", "KEEPER KIKI", "ZIZZ"]      # the story's own names, in venue order
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
+# Owner 2026-11-17: the bosses' pictures centred (ink box, x 80): the body's tiles and the topper move right by this many px (credits.c cr_btile). Measured with
+# tools/dev/credits_boss_centre.py on the roll with all 0: ink box centres -3.5 -1 0 -1 -1.5 -0.5 -4 -4 0 -8.
+BOSS_DX = [4, 1, 0, 1, 2, 1, 4, 4, 0, 8]
 # The patrons' names are the Graphics Atlas plan's (tools/artifacts/palette_plan/plan_data.py NAMES: the three base looks, art variants A, B, C; the Color-only
 # looks are the labels of assets/art/patrons/<group>_x.txt, the plan's EXTRA_LOOKS order). Owner Q80 (2026-11-04, layout A): one card a venue with all 8
 # looks on Color, in rows of 3, 3 and 2, the name under each; the DMG card keeps the three base looks, one row (the first row of the Color card).
@@ -996,6 +999,7 @@ def main():
         h.append(f"#define CT_{key} {ids[key + '0']}   // two rows")
     for key in ("HDR", "OWNER", "PATA", "PATB", "PATC", "BOSS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // ten rows (a venue each)")
+    h += [f"#define CT_BDX {{ {', '.join(str(x) for x in BOSS_DX)} }}   // each boss's body and topper moved right by this many px (BOSS_DX)"]
     h += [f"#define CT_SAL_X {pair_x['SAL']}      // the Spigoteer's sprite's left edge (px): sprite, a tile of air and his two lines, centred as a group",
           f"#define CT_DREGS_X {pair_x['DREGS']}",
           "static const uint8_t ct_cx[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in c) + " }" for c in pat_cx) + " };   // each patron's centre x (px): over his label",

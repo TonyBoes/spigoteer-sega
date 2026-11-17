@@ -143,6 +143,8 @@ typedef char cr_fits[(sizeof(struct cr_state) <= 68 && 200 + sizeof(portrait_t) 
 // ---- the cast: the names are in tools/gen_credits.py (pre-rendered); the owners' portraits are the story's speakers' ----
 static const uint8_t cr_owner[10] = { 2, 3, 4, 5, 6, 7, 11, 8, 10, 9 };   // the venue owner's speaker id (tools/gen_story.py SPEAKERS): Sadie, Coach, June, Colby, Aurora, Manager-Bot, Granny, Hana, Kiki, Zizz
 static const uint8_t cr_hat_dx[10] = { 16, 8, 12, 9, 9, 8, 16, 16, 6, 12 };   // boss.c rows[]: the topper's x from his left edge
+static const uint8_t cr_bdx[10] = CT_BDX;          // each boss's body and topper moved right by this many px (tools/gen_credits.py BOSS_DX: his ink box centred on x 80)
+#define CR_GW(v) (CR->bn + ((cr_bdx[v] + 7) >> 3))    // the columns of his tiles once moved
 static const uint8_t cr_walk[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };   // the pair's walk cycle (po.c walk_cycle's)
 static const uint8_t cr_seq[8] = { 0, 1, 0, 2, 0, 1, 0, 2 };      // the boss's poses (WALK, STOMP, GULP: boss.h BP_*), 16 frames each
 uint8_t boss_big_tex_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;      // each boss file's cast accessor (src/boss_load.h BOSS_CAST_FN)
@@ -366,6 +368,21 @@ static uint8_t cr_pid(uint8_t i) {                 // a ring slot's BG tile id (
 #define PBASE (CR->pb)
 #define PPAL  (CR->pp)
 #define OBJPAL_TOP 0       // the topper's OBJ palette: 0 (the Spigoteer's, restored before the roll), as patrons use 1-7 and the next card's patrons are on the screen with a boss
+static void cr_bfetch(uint8_t v, uint8_t pose, int8_t c, uint8_t r, uint8_t *d) {      // the body tile in column c, row r of a pose (blank outside his columns)
+    uint8_t k;
+    if (c < 0 || c >= CR->bn) { for (k = 0; k < 16; k++) d[k] = 0; return; }
+    cr_boss(v, 0, 2 * cr_boss(v, 1, pose, c, 0) + r, 0, d);
+}
+static void cr_btile(uint8_t v, uint8_t u, uint8_t *buf) {       // unit u of his body: pose u / (2 w), column, row: the tile moved right by cr_bdx px (the tile to its left spills in)
+    uint8_t w = CR_GW(v), S = cr_bdx[v], s = S & 7, p = u / (2 * w), q = u - p * 2 * w, k;
+    int8_t c = (int8_t)(q >> 1) - (int8_t)(S >> 3);
+    cr_bfetch(v, p, c, q & 1, buf);
+    if (s) {
+        cr_bfetch(v, p, c - 1, q & 1, buf + 16);
+        for (k = 0; k < 16; k++) buf[k] = buf[k] >> s | buf[16 + k] << (8 - s);
+    }
+}
+
 static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's loads; 1: there are no more
     uint8_t v = 0, k, n, nch, kd = cr_kind(c, &v), *buf = CR_BUF;
     uint16_t p[4], bg;
@@ -494,13 +511,10 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
         }
         if (i < 5) { cr_boss(v, 5, i - 1, CR_T_HAT + i - 1, 0); return 0; }   // the topper: still and bobbing (4 tiles, one a unit)
         i -= 5;
-        if (i >= CR->bp * 2) return 1;
-        if (is_cgb) cr_boss(v, 4, i, CR_T_BOSS + i, 0);       // his body's tiles, a unit each, straight to VRAM
-        else {                                     // (DMG: the shades one step on)
-            cr_boss(v, 0, i, 0, buf);
-            cr_remap(buf, 16);
-            set_bkg_data(CR_T_BOSS + i, 1, buf);
-        }
+        if (i >= 6 * CR_GW(v)) return 1;
+        cr_btile(v, i, buf);                       // his body's tiles in his three poses, each moved right by cr_bdx px, a unit each
+        if (!is_cgb) cr_remap(buf, 16);            // (DMG: the shades one step on)
+        set_bkg_data(CR_T_BOSS + i, 1, buf);
         return 0;
     } else if (kd == CK_PATRONS) {
         n = is_cgb ? 38 : 18;                      // the three base looks' 18 tiles (bank 0), on Color the five Color-only looks' 20 (bank 1), then the palettes
@@ -767,12 +781,9 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
 }
 
 static void cr_pose_fill(uint8_t *d, uint8_t v, uint8_t pose, uint8_t r) {    // the boss's row r (0, 1) in a pose
-    uint8_t k, L = (20 - CR->bn) >> 1;
+    uint8_t k, w = CR_GW(v), L = (20 - CR->bn) >> 1;
     for (k = 0; k < 20; k++) d[k] = TILE_HUD_BLANK;
-    for (k = 0; k < CR->bn; k++) {
-        d[L + k] = CR_T_BOSS + 2 * cr_boss(v, 1, pose, k, 0) + r;
-        if ((k & 3) == 3) cr_pump();                  // (a pose's row is 0.2 frame: a tick due in it is struck within 0.1, not at its end)
-    }
+    for (k = 0; k < w; k++) d[L + k] = CR_T_BOSS + (pose * w + k) * 2 + r;
 }
 
 // card c's local row r into CR->row / CR_ATT; 1: done, 0: call again (a text row's tiles)
@@ -822,7 +833,7 @@ static uint8_t cr_card_row(uint8_t c, uint8_t r) {
         }
     } else if (kd == CK_BOSS && (r == CT_R_BBODY || r == CT_R_BBODY + 1)) {
         cr_pose_fill(CR->row, v, CR->pose, r - CT_R_BBODY);
-        if (is_cgb) { L = (20 - CR->bn) >> 1; for (k = 0; k < CR->bn; k++) CR_ATT[L + k] = BGPAL_BOSS; }
+        if (is_cgb) { L = (20 - CR->bn) >> 1; for (k = 0; k < CR_GW(v); k++) CR_ATT[L + k] = BGPAL_BOSS; }
     }
     return 1;
 }
@@ -849,7 +860,7 @@ static uint8_t cr_gen(void) {
 #endif
         if (CR->gl != 255 && w - CR->gs >= cr_lrow(c) && !gate) {
             if (!CR->gl) { CR->pb = c == 2 ? CR_T_BOSS : STORY_PORTRAIT_BASE; CR->pp = c == 2 ? BGPAL_STAGE : BGPAL_PATRON; CR->pose = 0; }
-            if (!cr_room(CR->gl < 3 && cr_kt[c] != CK_BOSS && cr_kt[c] != CK_PATRONS ? 52 : 28)) return 0;   // (a portrait's header, map and palettes: 0.3 frame in one call)
+            if (!cr_room(CR->gl < 3 && cr_kt[c] != CK_BOSS && cr_kt[c] != CK_PATRONS ? 52 : cr_kt[c] == CK_BOSS && CR->gl >= 5 ? 56 : 28)) return 0;   // (a portrait's header, map and palettes: 0.3 frame in one call)
 #if CT_SCENEFMT
             if (!CT_SPLIT && is_cgb && cr_kt[c] == CK_PATRONS && CR->gl >= 38 && (CR->sc < c - 1 || (CR->sc == c - 1 && CR->pos < (uint16_t)(CR->ss + CT_SGT + 18) * 8) || (CR->txs == 99 + c && CR->txd < 11))) return 0;   // (the patrons' OBJ palettes: after the scene page is off)
 #endif
@@ -992,7 +1003,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             bw = cs + CT_R_BBODY;
             pose = cr_seq[(t >> 4) & 7];
             if ((pose != CR->pose || CR->pq) && !busy && CR->next >= bw + 3 && CR->next - bw <= 32 && (!sound_on || cr_calm()) && cr_room(30)) cr_pose(v, pose, bw);
-            if (rs || rm || rd) cr_oam(CR_OAM_HAT, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
+            if (rs || rm || rd) cr_oam(CR_OAM_HAT, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + cr_bdx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
 #if CT_SCENEFMT
         } else if (kd == CK_OWNER) {                   // the scene page's sprites (the owner's edge cells): x, tile and flags when all are written (rd), the y when the scroll moved
             if (c == CR->sc) cr_page_pre(6);          // (the page is not on the screen yet: its objects go in, hidden, in the blank before it)
