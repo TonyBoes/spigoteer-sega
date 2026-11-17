@@ -1248,3 +1248,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 OWNER: sent his own Hana cut-out ("Hana outline", round15/owner_hana_mask.jpg, mauve background). Hana round 16 from it (background = border-connected mauve only; her art has mauve marks).
 - 11-16 OWNER Q73: "Coach brim good." Coach round 15 approved.
 - 11-16 Hana round 16 done (owner mask; 634 bg px kept dark, 64 newly room; 7 sprites/line; no palette change). Q74 on Open Questions. His hair is near-black throughout vs our navy strands (same pattern as Kiki pigtails).
+- 11-16 OWNER Q74: "Hana outline is good, but should be dark blue not red." Shape approved; Hana round 17 = Color outline/filled dark in dark navy (her #100818), slots not recolour; DMG unchanged.
