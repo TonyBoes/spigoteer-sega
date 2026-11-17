@@ -1242,3 +1242,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 Round 12 done (June + Kiki from owner masks). June good. Kiki: pigtails olive in Color (not near-black), 9 sprites/line (>8 rule) -> sent back as round 13. Owner's Kiki file has a red mouth vs our orange-brown: ask him.
 - 11-16 Kiki round 13 (near-black pockets via zoo bar_b palette, 8/line). Counter corners turned orange: sent back as round 14. Q71 asks owner: pigtails brown (ours) vs near-black (his file), mouth orange-brown vs red.
 - 11-16 Kiki round 14: counter corners gold again via zoo bar palette slot 3 olive -> near-black #2c1808 (whole bar band; counter darkest pixels now near-black brown). 8/line, 8 BG pal. Q71 updated with it (v700).
+- 11-16 OWNER Q68: "Coach dark fill get rid of blue pixels under brim." -> Coach round 15 (dark fill + every wall-blue pixel under the brim dark).
