@@ -48,3 +48,27 @@
 .... #+..
 ...# ##..
 .... ....
+;
+; PROPOSAL 3 "reserved, as Dregs" (owner Q84: P1 and P2 flap the arms out too far). Measured on Dregs (assets/art/dregs/dregs.txt): his walk1 moves
+; the lower half of both arms (rows 14-18) 1 px outward (24 px changed); his walk2 draws the lower arms in 1-2 px, the hands tucked (10 px changed, rows 16-18). Nothing
+; leaves his silhouette by more than 1 px. Sal gets the same: walk1 both arms from row 14 down 1 px out (26 px); walk2 both hands tucked one row up (10 px).
+@P3_walk1
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+.#-# #-#.
+.#-# #-#.
+.++. .++.
+.+#. .#+.
+.#.. ..#.
+@P3_walk2
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+..#- -#..
+..++ ++..
+..+# #+..
+..## ##..
+.... ....
