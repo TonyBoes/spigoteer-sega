@@ -55,14 +55,14 @@ def splice(frame, st):
 
 
 PROPS = {}
-for p in ("P1", "P2", "P3", "P4", "P5", "P6"):
+for p in ("P1", "P2", "P3", "P4", "P5", "P6", "P7"):
     PROPS[p] = [sal[0], splice(sal[1], S[p + "_walk1"]), splice(sal[2], S[p + "_walk2"]), sal[3], sal[4]]
     # sanity: nothing but x 0-3 / 12-15 of rows 10-18 may differ from the owner's frames
     for k in (1, 2):
         for y in range(24):
             for x in range(16):
                 if PROPS[p][k][y][x] != sal[k][y][x]:
-                    wide = p == "P6"
+                    wide = p in ("P6", "P7")
                     assert 10 <= y <= 18 and (x < (6 if wide else 4) or x >= (10 if wide else 12)), (p, k, x, y)
                     if 4 <= x <= 11:
                         print(f"   {p} frame {k}: torso pixel ({x},{y}) {sal[k][y][x]} -> {PROPS[p][k][y][x]} (under the hand / sleeve)")
@@ -100,7 +100,7 @@ def changed(a, b):
 CELL = 16 * 8
 tiles = []
 rows = []
-for p in ("P1", "P2", "P3", "P4", "P5", "P6"):
+for p in ("P1", "P2", "P3", "P4", "P5", "P6", "P7"):
     for k, name in ((1, "walk1"), (2, "walk2")):
         for model, pal, bg in (("DMG", DMG, BGC["D"]), ("Color", SAL_C, BGC["C"])):
             rows.append((p, name, model, draw(sal[k], pal, 8, bg), draw(PROPS[p][k], pal, 8, bg, changed(sal[k], PROPS[p][k]))))
@@ -108,7 +108,7 @@ for p in ("P1", "P2", "P3", "P4", "P5", "P6"):
             print(f"{p} {name}: {n} pixels changed")
 from PIL import ImageFont
 font = ImageFont.load_default()
-for p in ("P1", "P2", "P3", "P4", "P5", "P6"):
+for p in ("P1", "P2", "P3", "P4", "P5", "P6", "P7"):
     rs = [r for r in rows if r[0] == p]
     W = CELL * 2 + 40 + 120
     H = (24 * 8 + 22) * len(rs) + 8
@@ -124,10 +124,10 @@ for p in ("P1", "P2", "P3", "P4", "P5", "P6"):
 # GIFs at x6: [Sal now | Sal proposal | Dregs] on a DMG row and a Color row; the cycle is the game's walk1, idle, walk2, idle, 10 frames each.
 CYC = [1, 0, 2, 0]
 SC = 6
-for p in ("P1", "P2", "P3", "P4", "P5", "P6"):
+for p in ("P1", "P2", "P3", "P4", "P5", "P6", "P7"):
     gifs = []
     for ph in CYC:
-        panels = [(sal[ph], DMG, SAL_C)] + ([(PROPS["P5"][ph], DMG, SAL_C)] if p == "P6" else [(PROPS["P4"][ph], DMG, SAL_C)] if p == "P5" else []) + [(PROPS[p][ph], DMG, SAL_C), (dregs[ph], DMG, DREGS_C)]
+        panels = [(sal[ph], DMG, SAL_C)] + ([(PROPS["P6" if p == "P7" else "P5"][ph], DMG, SAL_C)] if p in ("P6", "P7") else [(PROPS["P4"][ph], DMG, SAL_C)] if p == "P5" else []) + [(PROPS[p][ph], DMG, SAL_C), (dregs[ph], DMG, DREGS_C)]
         W = len(panels) * (16 * SC + 12) + 12
         H = 2 * (24 * SC + 12) + 12
         im = Image.new("RGB", (W, H), (40, 40, 40))
