@@ -226,6 +226,9 @@ static void cr_sw_ob8(const uint8_t *s) {
 }
 #endif
 
+static void cr_wp(const uint8_t *s) {                  // one BG palette's eight bytes (the VBlank: no STAT to wait for)
+    BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s;
+}
 void cr_pset(uint8_t scene) BANKED {              // one whole set to the hardware (the VBlank: no STAT to wait for)
     if (!is_cgb) {
         OBP0_REG = scene ? 0x90 : CR_PAL[1]; OBP1_REG = scene ? 0xE4 : CR_PAL[2];
@@ -284,7 +287,13 @@ static void cr_split_sync(void) {
         sv0 = pe[0]; sv1 = pe[1];
         cr_qver(CR_PT_B[CR_SH_QV], qp, pe);
     }
-    if (CR_PT_B[CR_SH_HW] != top || (!top && CR_PT_B[CR_SH_DIRTY])) {
+    if (CR_PT_B[CR_SH_HW] == 2 && !top && !CR_PT_B[CR_SH_DIRTY]) {          // (after a swap that put in the stage palette only: BG 0 and 7 back, sixteen bytes)
+        CRITICAL {
+            BCPS_REG = 0x80; cr_wp(CR_PAL);
+            BCPS_REG = 0xB8; cr_wp(CR_PAL + 56);
+        }
+        CR_PT_B[CR_SH_HW] = 0;
+    } else if (CR_PT_B[CR_SH_HW] != top || (!top && CR_PT_B[CR_SH_DIRTY])) {
         cr_pset(top);
         CR_PT_B[CR_SH_HW] = top;
         if (!top) CR_PT_B[CR_SH_DIRTY] = 0;
@@ -325,9 +334,9 @@ void cr_split_isr_b(void) BANKED {
         BCPS_REG = 0xB8; cr_sw1(s7);
         sp0 = q ? CR_PT_B + CR_SH_BG : CR_PAL;
         BCPS_REG = 0x88;
-        for (p = 1; p < 7; p++) cr_sw1(sp0 + 8 * p);
-        if (sl <= 124) cr_sw_ob8(dir ? CR_PAL + 72 : CR_PT_B + CR_SH_OB);
-        CR_PT_B[CR_SH_HW] = !dir;
+        if (dir || sl < 112) for (p = 1; p < 7; p++) cr_sw1(sp0 + 8 * p);          // (the page's picture begins 32 lines below the line: from 112 on only its stage palette (BG 0 and 7: the band, the name) is on the screen, and the interrupt ends by line 138, not 148: the VBlank handler is not late)
+        if (dir ? sl <= 124 : sl < 112) cr_sw_ob8(dir ? CR_PAL + 72 : CR_PT_B + CR_SH_OB);
+        CR_PT_B[CR_SH_HW] = dir || sl < 112 ? !dir : 2;          // (2: the cards' set with BG 0 and 7 the page's)
     } else { LYC_REG = 255; return; }
     ly = LY_REG;
     sl = 255;
