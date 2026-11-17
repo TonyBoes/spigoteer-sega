@@ -198,10 +198,10 @@ def test_the_boss_fight_after_the_swap_and_the_card_is_the_picture_without_them(
     assert len(a.getcolors()) > 3, "the fight, not a blank screen"
     b = boss_shots[var, model]
     # (the regulars at the left edge are drawn by the run's own random picks, so a look with colours the other run's picks did not show may stand there: the colour sets
-    # are taken outside the busts of bars 1 and 3 (x < 40); everything else, his body, the bars, the HUD, must hold the same colours. The Saloon's palette instance 3 on BG 4
+    # are taken outside the busts of bars 1 and 3 (x < 40; a random pick's hat, feather or hair can reach above the bust, so the bands start 6 px early); everything else, his body, the bars, the HUD, must hold the same colours. The Saloon's palette instance 3 on BG 4
     # is pinned in tests/test_plan_items.py)
     def colours(img):
-        return {img.getpixel((x, y)) for y in range(img.height) for x in range(img.width) if not (x < 40 and (40 <= y < 66 or 92 <= y < 116))}
+        return {img.getpixel((x, y)) for y in range(img.height) for x in range(img.width) if not (x < 40 and (34 <= y < 66 or 86 <= y < 116))}
     assert colours(a) == colours(b), "the same colours"
     # (a regular walking in at the left edge is a game frame or so apart between runs of different fades: the picture must be the same everywhere but that entry zone)
     box = Image.frombytes("L", a.size, bytes(abs(x - y) for x, y in zip(a.convert("L").tobytes(), b.convert("L").tobytes()))).getbbox()
