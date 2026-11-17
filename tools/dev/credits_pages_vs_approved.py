@@ -29,6 +29,8 @@ DEFAULT = ROOT / "tests" / "approved" / {"7": "credits_pages", "8": "credits_pag
 # composite draws her into the BG with a ninth palette and moves the room's pixels in her cells).
 CAPACITY = set()      # (round 18 with the line patches and the one black background: the letters and the margins are exact on every Color page)
 OBJ_PERF = {"bistro"}
+ROOM_FALLBACK = {"saloon", "biker", "zoo"}      # round 21 / 22 (Sadie, Granny, Kiki): six OBJ palettes a page, so some edge cells stay BG cells in the owner's palettes and their room pixels take the nearest owner colour
+OWNER_KNOWN = {("cgb", "zoo"): (13, "Kiki's lips and gold: the Color-only accent sprites would need a ninth BG palette, they are the BG's colours")}
 NOFREE = set()      # (Color: Bistro's and Factory's palettes are all full: the page's blank is the black set into the entry with the fewest, darkest art pixels (14 and 30 px), the approved Color cards have those pixels black)
 
 
@@ -77,6 +79,11 @@ def main():
                 pic_ = int(d[32:136].sum())
                 text_ = int(d[8:32].sum() + d[136:].sum())
                 bad_ = bool((pic_ and keys[v] not in OBJ_PERF and not (model == "cgb" and keys[v] in NOFREE)) or (text_ and not (model == "cgb" and keys[v] in CAPACITY)))
+                if keys[v] in ROOM_FALLBACK:      # (the room's pixels in the cells the page keeps as BG, and the ring, may differ; every pixel of the owner's silhouette must not)
+                    own = np.load(build / "credits_pages.npz")[f"own{v}"].astype(bool)
+                    od = int((d & own).sum())
+                    print(f"  {model} {keys[v]}: {od} pixels of the owner's silhouette differ" + (" (known: " + OWNER_KNOWN[(model, keys[v])][1] + ")" if (model, keys[v]) in OWNER_KNOWN else ""))
+                    bad_ = od > OWNER_KNOWN.get((model, keys[v]), (0, ""))[0] or bool(text_ and not (model == "cgb" and keys[v] in CAPACITY))
                 if not bad_:
                     known.append((model, keys[v]))
                 ys, xs = np.nonzero(d)

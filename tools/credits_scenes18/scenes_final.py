@@ -25,17 +25,18 @@ import scenes_f as F          # noqa: E402
 
 MASKS = HERE / "owner_masks"
 LIMITS = {"line": 8, "objs": 23, "pals": 8}
+LIMITS6 = {"line": 8, "objs": 23, "pals": 6}      # (the credits' pages: six OBJ palettes in the shared screen's page set, credits_split.c CR_SH_OB)
 HEART = "#c83028"        # Granny: the heart tattoo on her neck, her bandana red (round 20)
 CONFIG = {
-    "saloon": {"accents": True},
+    "saloon": {"accents": True, "limits": LIMITS6},
     "sports": {"gapfill": "dark15"},
     "lodge": {"mask": ("june", "owner_june_mask.jpg")},
     "bistro": {},
     "igloo": {},
     "factory": {},
-    "biker": {"mask": ("granny", "owner_granny_mask.png"), "limits": LIMITS, "accents": True},
+    "biker": {"mask": ("granny", "owner_granny_mask.png"), "limits": LIMITS6, "accents": True},
     "teahouse": {"mask": ("hana", "owner_hana_mask.jpg"), "slot3": {"stage_a": "#100818", "stage_b": "#100818", "bar": "#100818"}, "limits": LIMITS},
-    "zoo": {"mask": ("kiki", "owner_kiki_mask.png"), "slot3": {"bar": "#2c1808"}, "limits": LIMITS, "accents": True},
+    "zoo": {"mask": ("kiki", "owner_kiki_mask.png"), "slot3": {"bar": "#2c1808"}, "limits": LIMITS6},
     "space": {},
 }
 OWNER_OF = {"saloon": "sadie", "sports": "coach", "lodge": "june", "bistro": "colby", "igloo": "aurora", "factory": "managerbot", "biker": "granny", "teahouse": "hana", "zoo": "kiki", "space": "zizz"}

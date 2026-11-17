@@ -698,6 +698,12 @@ def main():
                     ROWS.append((f"SCN{v}_{m}_{j}", a0, cl))
                     EXTRA[f"SCN{v}_{m}_{j}"] = {"col": a0, "n": len(cl), "cells": cl}
                 PAGES[f"p{v}_{m}"] = page_img
+                if m and sc.get("r") is not None and "fig" in sc["r"]:          # the owner's silhouette on the card (not the outline ring), for tools/dev/credits_pages_vs_approved.py: every pixel in it is the story portrait's
+                    own_ = np.zeros((144, 160), np.uint8)
+                    for (bx_, by_), f_ in sc["r"]["fig"].items():
+                        if f_ != sc["r"]["bgk"]:
+                            own_[32 + GSP.BY * 8 + by_, GSP.BX * 8 + bx_] = 1
+                    PAGES[f"own{v}"] = own_
                 if m:
                     QP[v] = (2 | ink | (4 if bpl else 0) | (8 if BLANKC is not None else 0)) if patch else 0
                 SCN.append(dict(v=v, m=m, sc=sc, ink=ink, su=list(slot_of)))
@@ -952,7 +958,7 @@ def main():
             assert len(sc["objs"]) <= 40 and len(sc["opals"]) <= 7, (e["v"], len(sc["objs"]), len(sc["opals"]))
             meta += [len(sc["objs"]), len(sc["opals"]), len(sc["objs"]) * 2]
             for k, o in enumerate(sc["objs"]):
-                meta += [o["x"] + 8, o["y"], ((1 + o["pal"]) & 7) | o["obp"] << 4]          # (x, y, flags: the tile is twice the slot)
+                meta += [o["x"] + 8, o["y"], ((1 + o["pal"]) & 7) | o["obp"] << 4 | (0x80 if o.get("co") else 0)]          # (x, y, flags: the tile is twice the slot)
             assert len(sc["pals"]) <= 8, (e["v"], "BG palettes", len(sc["pals"]))
             for k in range(8):
                 pp = sc["pals"][k] if k < len(sc["pals"]) else [None] * 4

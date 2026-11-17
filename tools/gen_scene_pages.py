@@ -175,54 +175,244 @@ def _repack(cells, maps, stage):
 OBJ_PERFORMERS = {"bistro": [1]}       # performers drawn as OBJ sprites, not BG art: Bistro's would need 9 BG palettes, the hardware has 8
 
 
-SHAVED = []      # (venue, cx, cy, x, y, from, to): a pixel the page's palette packing could not keep (printed; the committed note names them)
+class PackFail(Exception):
+    def __init__(self, cells, maps, page, r, stage):
+        self.cells, self.maps, self.page, self.r, self.stage = cells, maps, page, r, stage
 
 
-def _shave(cells, maps, key):
-    """The page does not pack into eight BG palettes: the rarest colour of a cell that has four (at most 2 px of it) takes its nearest colour in the cell. -> False when there is none"""
-    best = None
-    for (cx, cy), m in maps.items():
-        if len(m) < 4:
-            continue
-        grid = cells[cy][cx][1]
-        for sh, col in m.items():
-            n = sum(1 for rr in grid for x in rr if x == sh)
-            if n <= 2 and (best is None or n < best[0]):
-                best = (n, cx, cy, sh, col)
-    if best is None:
+EXTRAS_LOG = {}      # venue -> [(ox, oy, hex, replacement)]: pixels of the owner moved into Color-only accent sprites so that the page packs into eight BG palettes (printed, and in the commit message)
+
+
+def _minbins(maps, stage, top=12):
+    """the fewest BG palettes the cells' colour sets pack into (exact search, the band colour in one of them); top + 1 if more than top"""
+    import sys as _s
+    _s.setrecursionlimit(10000)
+    base = {frozenset(m.values()) for m in maps.values()} | {frozenset([stage[2]])}
+    sets = [f for f in base if not any(f < g_ for g_ in base)]
+    sets.sort(key=lambda f: (-len(f), sorted(f)))
+    for nb in range(1, top + 1):
+        bins = []
+        calls = [0]
+
+        def dfs(k):
+            calls[0] += 1
+            if calls[0] > 3000000:
+                return False
+            if k == len(sets):
+                return True
+            f = sets[k]
+            for bn in bins:
+                add = [x for x in sorted(f) if x not in bn]
+                if len(bn) + len(add) <= 4:
+                    bn.extend(add)
+                    if dfs(k + 1):
+                        return True
+                    del bn[len(bn) - len(add):]
+            if len(bins) < nb:
+                bins.append(sorted(f))
+                if dfs(k + 1):
+                    return True
+                bins.pop()
+            return False
+        if dfs(0):
+            return nb
+    return top + 1
+
+
+def _feasible(sets, nb=8):
+    """can these colour sets (each at most four colours) be held by nb palettes of four? (exact)"""
+    import sys as _s
+    _s.setrecursionlimit(10000)
+    sets = sorted(sets, key=lambda f: (-len(f), sorted(f)))
+    bins = []
+    calls = [0]
+
+    def dfs(k):
+        calls[0] += 1
+        if calls[0] > 2000000:
+            return False
+        if k == len(sets):
+            return True
+        f = sets[k]
+        for bn in bins:
+            add = [x for x in sorted(f) if x not in bn]
+            if len(bn) + len(add) <= 4:
+                bn.extend(add)
+                if dfs(k + 1):
+                    return True
+                del bn[len(bn) - len(add):]
+        if len(bins) < nb:
+            bins.append(sorted(f))
+            if dfs(k + 1):
+                return True
+            bins.pop()
         return False
-    n, cx, cy, sh, col = best
-    m, grid = cells[cy][cx]
+    return dfs(0)
 
-    def dist(a, b):
-        return sum((x - y) ** 2 for x, y in zip(hexrgb(a), hexrgb(b)))
-    to = min((k for k in m if k != sh), key=lambda k: dist(m[k], col))
-    for y, rr in enumerate(grid):
-        for x, v_ in enumerate(rr):
-            if v_ == sh:
-                SHAVED.append((key, cx, cy, x, y, col, m[to]))
-                rr[x] = to
-    del m[sh]
-    print("CRSCENE", key, "cell", (cx, cy), ":", n, "px", col, "->", m[to], "(the page would need a ninth BG palette)")
-    return True
+
+def _plan_moves(e, kmax=6, rounds=12, room_ok=False):
+    """The page does not pack into eight BG palettes. Find the fewest pixels to take out of cells: a cell's colour (all its pixels) goes when every one of them is a pixel of the owner (a BG owner cell or the one
+    kept as BG, inside the silhouette, not already a sprite pixel: it becomes a Color-only accent sprite pixel in its exact colour) or the outline ring of a cell of the room (not the story's colour already: it takes
+    the cell's nearest other colour); the BG under a moved pixel takes the cell's nearest remaining colour. The search stays on the cells of an unsatisfiable core (the smallest group of colour sets that
+    cannot be held by eight palettes), deepening the number of pixels, and moves on when a round's best partial move leaves a smaller core. -> (pixels, [(ox, oy, colour, replacement colour, replacement shade, kind)]) or None"""
+    import itertools
+    from collections import Counter
+    fig = e.r["fig"]
+    movable_cell = set(e.r["bg_owner"]) | set(e.r["fallback"])
+    info = {}
+    for (cx, cy), m in e.maps.items():
+        grid = e.cells[cy][cx][1]
+        n, mv, where = Counter(), Counter(), {}
+        for y in range(8):
+            for x in range(8):
+                c = m[grid[y][x]]
+                n[c] += 1
+                bx, by = (cx - BX) * 8 + x, (cy - BY) * 8 + y
+                kind = "room"
+                if (bx, by) in fig and (bx, by) not in e.r.get("overlay_px", ()):
+                    if (cx - BX, cy - BY) in movable_cell:
+                        kind = "own"
+                    elif fig[(bx, by)] == e.r["bgk"]:
+                        kind = "ring"
+                if kind != "room" or room_ok:
+                    mv[c] += 1
+                where.setdefault(c, []).append((x, y, bx, by, kind))
+        info[(cx, cy)] = (m, n, mv, where)
+    band = frozenset([e.stage[2]])
+    dropped = {}                                   # cell -> set of colours already taken out
+
+    def cell_set(pos):
+        return frozenset(c for c in info[pos][1] if c not in dropped.get(pos, ()))
+
+    def all_sets():
+        base = {cell_set(pos) for pos in info} | {band}
+        return [f for f in base if not any(f < g_ for g_ in base)]
+
+    def core(sets):
+        cur = list(sets)
+        for f in list(cur):
+            rest = [g_ for g_ in cur if g_ is not f]
+            if not _feasible(rest):
+                cur = rest
+        return cur
+
+    def drops_in(cs):
+        out = []
+        for pos in info:
+            fs = cell_set(pos)
+            if fs not in cs:
+                continue
+            m, n, mv, where = info[pos]
+            for c in fs:
+                if mv[c] == n[c] and len(fs) > 1:
+                    out.append((n[c], pos, c))
+        return sorted(set(out))
+    total = 0
+    for _ in range(rounds):
+        sets = all_sets()
+        if _feasible(sets):
+            break
+        cs = core(sets)
+        cand = drops_in(set(cs))
+        found = None
+        for K in range(1, kmax + 1):
+            for r_ in range(1, K + 1):
+                for combo in itertools.combinations(cand, r_):
+                    if sum(c[0] for c in combo) != K:
+                        continue
+                    for _n, pos, c in combo:
+                        dropped.setdefault(pos, set()).add(c)
+                    ok = all(len(cell_set(pos)) >= 1 for pos in info) and _feasible(all_sets())
+                    if not ok:
+                        for _n, pos, c in combo:
+                            dropped[pos].discard(c)
+                    else:
+                        found = combo
+                        break
+                if found:
+                    break
+            if found:
+                break
+        if found:
+            total += sum(c[0] for c in found)
+            break
+        # no way out within kmax from this core: take the cheapest drop that shrinks the core, and look again
+        best = None
+        for n_, pos, c in cand:
+            dropped.setdefault(pos, set()).add(c)
+            nc = len(core(all_sets())) if not _feasible(all_sets()) else 0
+            dropped[pos].discard(c)
+            if best is None or (nc, n_) < best[0]:
+                best = ((nc, n_), pos, c)
+        if best is None:
+            return None
+        dropped.setdefault(best[1], set()).add(best[2])
+        total += best[0][1]
+    if not _feasible(all_sets()):
+        return None
+    extras = []
+    for pos, cols in dropped.items():
+        m, n, mv, where = info[pos]
+        keep = [c for c in n if c not in cols]
+        for c in cols:
+            near = min(keep, key=lambda k_: sum((a_ - b_) ** 2 for a_, b_ in zip(hexrgb(k_), hexrgb(c))))
+            nsh = next(k_ for k_, cc in m.items() if cc == near)
+            for (x, y, bx, by, kind) in where[c]:
+                extras.append((bx, by - 16, c, near, nsh, kind))
+    return total, extras
+
+
+EXTRAS_CACHE = {}
 
 
 def scene(v, cgb):
     if ART == "18":                                    # (round 18: its toggles and the Teahouse / Zoo palette slot changes hold while the page is built)
         import scenes_final
         with scenes_final.configured(v.key) as cfg:
-            return _scene(v, cgb, cfg.get("limits"))
-    return _scene(v, cgb, None)
+            if v.key not in EXTRAS_CACHE:                # (the Color page decides which owner pixels become accent sprites; the DMG page is built with the same sprites: the object table is shared)
+                extras = []
+                for _ in range(2):
+                    try:
+                        _scene(v, True, cfg.get("limits"), extras)
+                        break
+                    except PackFail as e:
+                        # round 21 / 22: pixels of the owner (the story's exact colours) that the palettes cannot hold become Color-only accent sprite pixels, the BG under each keeps the cell's nearest colour
+                        if extras:
+                            raise SystemExit(f"{v.key}: the page does not pack even with {len(extras)} pixels moved to sprites") from None
+                        plan = _plan_moves(e)
+                        if plan is None:
+                            raise SystemExit(f"{v.key}: the page does not pack into eight BG palettes and the pixels that would have to move are room pixels") from None
+                        extras.extend(plan[1])
+                        EXTRAS_LOG[v.key] = list(extras)
+                        print("CRSCENE", v.key, ":", sum(1 for q in extras if q[5] == "own"), "pixels of the owner move to Color-only accent sprites", [(x, y, c) for x, y, c, _, _, k in extras if k == "own"], "; ring pixels recoloured", [(x, y, c, r_) for x, y, c, r_, _, k in extras if k == "ring"])
+                EXTRAS_CACHE[v.key] = extras
+            try:
+                return _scene(v, cgb, cfg.get("limits"), EXTRAS_CACHE[v.key])
+            except PackFail:
+                raise SystemExit(f"{v.key}: the page does not pack") from None
+    return _scene(v, cgb, None, [])
 
 
-def _scene(v, cgb, limits):
+def _scene(v, cgb, limits, extras=()):
     import copy
     from scenes_e import perf_sprite
     spr = OBJ_PERFORMERS.get(v.key, [])
-    r = F.build(v, limits)
+    saved_ov = (dict(F.OVERLAYS), set(F.OVERLAY_COLOR_ONLY))
+    try:
+        if extras:
+            F.OVERLAYS[v.key] = list(F.OVERLAYS.get(v.key, [])) + [(ox, oy, h) for ox, oy, h, _, _n, kd in extras if kd == "own"]
+            F.OVERLAY_COLOR_ONLY = set(F.OVERLAY_COLOR_ONLY) | {v.key}
+        r = F.build(v, limits)
+    finally:
+        F.OVERLAYS.clear()
+        F.OVERLAYS.update(saved_ov[0])
+        F.OVERLAY_COLOR_ONLY = saved_ov[1]
     vb = copy.copy(v)
     vb.perf = [p for i, p in enumerate(v.perf) if i not in spr]
     page = F.bg_with_perf(r, vb, cgb)
+    if extras and cgb:
+        for ox, oy, h, rep, nsh, kd in extras:                  # (the BG under a Color-only accent pixel: the cell's nearest other colour, in its shade)
+            page.px[BY * 8 + 16 + oy][BX * 8 + ox] = (nsh, rep)
     stage = [q5(h) for h in v.pal["stage_a"]]
     cells, maps = [], {}
     for cy in range(13):
@@ -252,15 +442,10 @@ def _scene(v, cgb, limits):
     repacked = False
     pals = _pack(list(maps.values()))
     if cgb and len(pals) > 8 - (0 if any(all(p.get(s_) in (None, stage[s_]) for s_ in range(4)) and sum(1 for s_ in range(4) if p.get(s_) == stage[s_]) >= 3 for p in pals) else 1):
-        for _try in range(8):
-            try:
-                pals = _repack(cells, maps, stage)
-                break
-            except SystemExit:                         # (round 22, Granny: one pixel of the story's black heart, #140c18, is a fourth colour in a cell of skin and outline: nine palettes, the hardware has eight)
-                if not _shave(cells, maps, v.key):
-                    raise
-        else:
+        try:
             pals = _repack(cells, maps, stage)
+        except SystemExit:
+            raise PackFail(cells, maps, page, r, stage)
         repacked = True
     # slot 0: the stage palette (the page, the band, the name): the palette that holds it, else a new one
     k0 = 0 if repacked else next((i for i, p in enumerate(pals) if all(p.get(s) in (None, stage[s]) for s in range(4)) and sum(1 for s in range(4) if p.get(s) == stage[s]) >= 3), None)
@@ -283,7 +468,24 @@ def _scene(v, cgb, limits):
             flat = {s for rr in grid for s in rr}
             row.append(("f", flat.pop(), pi) if len(flat) == 1 else ("t", grid, pi))
         out.append(row)
-    objs = [dict(x=(BX + o["cx"]) * 8, y=(BY + o["cy"]) * 8, top=o["top"]["grid"], bot=o["bot"]["grid"] if o["bot"] else None, obp=o["obp"], pal=o["pal"]) for o in r["objs"]]
+    objs = []
+    for o in r["objs"]:
+        t_, b_ = o["top"], o["bot"]
+        co_t = t_ is not None and bool(t_.get("color_only"))
+        co_b = b_ is not None and bool(b_.get("color_only"))
+        if t_ is not None and b_ is not None and co_t != co_b:           # (a Color-only accent half and a plain half in one object: two objects, the accent is flagged)
+            parts = [(t_, None, 0, co_t), (b_, None, 8, co_b)]
+        else:
+            parts = [(t_, b_, 0, co_t or co_b)]
+        for tt, bb, dy, co in parts:
+            if tt is None and bb is not None:
+                tt, bb, dy = bb, None, 8
+            if co and not cgb:
+                continue                                                  # (not drawn on a DMG)
+            od = dict(x=(BX + o["cx"]) * 8, y=(BY + o["cy"]) * 8 + dy, top=tt["grid"], bot=bb["grid"] if bb else None, obp=o["obp"], pal=o["pal"])
+            if co:
+                od["co"] = True
+            objs.append(od)
     opals = [[(h if h else None) for h in p] for p in r["opals"]]
     for i in spr:                                       # a performer as OBJ: columns of 8 x 16 objects, its three colours one OBJ palette, OBP1 on the DMG (idx 1-3 = shades 1-3)
         fr, cols = perf_sprite(v, v.perf[i], cgb)

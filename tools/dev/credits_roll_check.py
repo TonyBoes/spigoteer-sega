@@ -171,10 +171,13 @@ def run(rom, build, model, shots, max_frames):
                     for kk in range(nn):                        # (each object against the scroll of this frame or of the last frames: the sprite stage writes for the next frame's scroll)
                         oy, ox, ot, op = oam[4 * slots[kk]:4 * slots[kk] + 4]
                         match = False
+                        co_ = objs[kk][3] & 0x80                  # (a Color-only accent sprite: hidden on a DMG; the flag bit is the table's, not the OAM's)
                         for sc in set(shist):
                             ya = pt - sc + 48 + objs[kk][1]
-                            if 0 < ya < 160:
-                                match |= (oy, ox, ot, op) == (ya, objs[kk][0], objs[kk][2], objs[kk][3])
+                            if co_ and m == 0:
+                                match |= not (0 < oy < 160) or (ox, ot, op) != (objs[kk][0], objs[kk][2], objs[kk][3] & 0x7F)
+                            elif 0 < ya < 160:
+                                match |= (oy, ox, ot, op) == (ya, objs[kk][0], objs[kk][2], objs[kk][3] & 0x7F)
                             elif not meta.get("split"):
                                 match |= not (0 < oy < 160)         # (in a shared screen a hidden object's slot may show the card above's or below's sprite)
                             else:

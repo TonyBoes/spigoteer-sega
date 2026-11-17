@@ -936,7 +936,7 @@ static void cr_page_pre(uint8_t n) {              // the page's sprites' x, tile
     OAM_item_t *oo;
     if (CR->ft & 8) return;
     so += 3 * k;
-    for (; k < nobj && n; k++, n--, so += 3) { oo = shadow_OAM + cr_pslot(k, nobj); if (oo->tile != (uint8_t)(k << 1) || oo->x != so[0] || oo->prop != so[2]) { oo->y = 0; oo->x = so[0]; oo->tile = (uint8_t)(k << 1); oo->prop = so[2]; } }       // (an object that is on the screen already is left as it is)
+    for (; k < nobj && n; k++, n--, so += 3) { oo = shadow_OAM + cr_pslot(k, nobj); if (oo->tile != (uint8_t)(k << 1) || oo->x != so[0] || oo->prop != (so[2] & 0x7F)) { oo->y = 0; oo->x = so[0]; oo->tile = (uint8_t)(k << 1); oo->prop = so[2] & 0x7F; } }       // (an object that is on the screen already is left as it is)
     CR->ft += 16;
     if (k >= nobj) CR->ft |= 8;
 }
@@ -1013,12 +1013,12 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
                     if (hi < lo) hi = lo;
                     while (hi < nobj && y + so[3 * hi + 1] < 160) {
                         oo = shadow_OAM + (hi < m24 ? 24 + hi : cr_pslots[hi - m24]);
-                        oo->x = so[3 * hi]; oo->tile = (uint8_t)(hi << 1); oo->prop = so[3 * hi + 2];
+                        oo->x = so[3 * hi]; oo->tile = (uint8_t)(hi << 1); oo->prop = so[3 * hi + 2] & 0x7F;      // (flag bit 7: a Color-only accent sprite, not drawn on a DMG)
                         hi++;
                     }
                     for (k = lo; k < hi; k++) {
                         oo = shadow_OAM + (k < m24 ? 24 + k : cr_pslots[k - m24]);
-                        oo->y = (uint8_t)(y8 + so[3 * k + 1]);
+                        oo->y = !is_cgb && (so[3 * k + 2] & 0x80) ? 0 : (uint8_t)(y8 + so[3 * k + 1]);
                     }
                     CR_PT_B[CR_SH_LO] = lo; CR_PT_B[CR_SH_HI] = hi;
                 }
