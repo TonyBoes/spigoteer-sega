@@ -1263,3 +1263,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 OWNER: sent "Granny outline" (round19/owner_granny_mask.png, 56x56, teal background; 925 story-bg px kept, 16 odd red/64 grey to check). Granny round 19 to the art agent; then into the credits build.
 - 11-16 Granny round 19 done (art agent, 123 newly room / 37 newly kept; 8 sprites/line; no slot change). His file has red lips + softer grey lines not in the game portrait (same portrait on main and art branch, 4dfc59af) -> kept game art. Q77 on Open Questions.
 - 11-16 OWNER Q77: "Could you put her heart tattoo back on her neck the games art has it in clack [black]." -> Granny round 20: neck heart tattoo red (as his picture), slots not recolour.
+- 11-16 Granny round 20: heart tattoo red #c83028 as a 1-cell sprite (7 px; DMG shade 0); 20 objects, 8/line, 6 OBJ palettes (check vs credits OBJ palette use at integration). Q78 on Open Questions.
