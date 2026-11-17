@@ -16,6 +16,10 @@ from scenes_e import (Venue, lines, owner_palettes, nearest, show_frames, perf_s
 from scenes_c import read_raw, backdrop_mask
 
 UNDER = True
+# Round 20 (Granny's heart tattoo): sprite pixels drawn over the BG, {venue: [(portrait x, y, hex)]}: OBP1 index 3 (DMG: shade 3, black; Color: the hex, her bandana red) in a sprite of its own
+OVERLAYS = {}
+OVERLAY_SHADE = {}
+OVERLAY_COLOR_ONLY = set()      # venues whose overlays are Color-only sprites (the story's OBJ accents): not drawn on DMG
 PAINT_ON = False         # round 10 (the owner's painting): frozen off, not part of the final set
 # Round 13 (Kiki): the Zoo's lane cells that carry her outline / filled hair pockets use the zoo's own bar_b palette (BG slot of bar_b: colours #234e5c, #e8c880, #a05828 and the
 # near-black #2c1808) instead of bar (whose darkest is the olive #384018): same tiles, same indices.
@@ -115,7 +119,37 @@ def build(v, limits=None):
                     raise SystemExit(f"{v.key}: edge cell ({cx},{cy}) two colours of shade {s}")
             layers[(cx, cy)] = (m, plan_cell(rest, m))
             sprite_cells.append((cx, cy, rest))
-    chosen, sprites = [], []
+    ov_sprites = []
+    overlay_px = set()
+    ovl = [(ox, oy, ohex) for (ox, oy, ohex) in OVERLAYS.get(v.key, ()) if (ox, 16 + oy) in fig]       # (an overlay pixel outside the silhouette is dropped)
+    for (ox, oy, ohex) in ovl:
+        overlay_px.add((ox, 16 + oy))
+    if v.key in OVERLAY_COLOR_ONLY:
+        # Color-only accent sprites (the story's OBJ accents, e.g. Granny's red lips): per cell up to three colours, index by colour, not drawn on DMG
+        cellpts = {}
+        for (ox, oy, ohex) in ovl:
+            cellpts.setdefault((ox // 8, (16 + oy) // 8), []).append((ox % 8, (16 + oy) % 8, ohex))
+        for (ocx, ocy), pts in cellpts.items():
+            hexes = list(dict.fromkeys(h for _, _, h in pts))
+            assert len(hexes) <= 3, (v.key, ocx, ocy, hexes)
+            g8 = [[0] * 8 for _ in range(8)]
+            for (px_, py_, h) in pts:
+                g8[py_][px_] = 1 + hexes.index(h)
+            ov_sprites.append(dict(cx=ocx, cy=ocy, obp=0, grid=g8, tri=hexes + [None] * (3 - len(hexes)), color_only=True))
+    else:
+        byc = {}
+        for (ox, oy, ohex) in ovl:
+            byc.setdefault((ox // 8, (16 + oy) // 8, ohex), []).append((ox % 8, (16 + oy) % 8))
+        osh = OVERLAY_SHADE.get(v.key, 3)                       # the DMG shade of the overlay: 0 = OBP0 idx 1; 1-3 = OBP1 idx 1-3
+        oobp, oidx = (0, 1) if osh == 0 else (1, osh)
+        for (ocx, ocy, ohex), pts in byc.items():
+            g8 = [[0] * 8 for _ in range(8)]
+            for (px_, py_) in pts:
+                g8[py_][px_] = oidx
+            tri = [None, None, None]
+            tri[oidx - 1] = ohex
+            ov_sprites.append(dict(cx=ocx, cy=ocy, obp=oobp, grid=g8, tri=tri))
+    chosen, sprites = [], list(ov_sprites)       # (the overlay sprites count against the per-line / object / palette limits from the start)
     for cx, cy, f in sorted(sprite_cells, key=lambda e: len(e[2])):
         trial = sprites + [dict(cx=cx, cy=cy, obp=o, grid=g_, tri=list(t)) for o, g_, t in layers[(cx, cy)][1]]
         if limits is None or budget_ok(v, [dict(s) for s in trial], limits):
@@ -216,7 +250,7 @@ def build(v, limits=None):
         painted.append((x, y, sh, pn))
     page.box = (BX, BY, BW, BH)
     objs, opals = finalize(sprites)
-    return dict(page=page, fig=fig, under=under, gapchanged=gapchanged, junechanged=junechanged, painted=painted, unpainted=unpainted, sprites=sprites, objs=objs, opals=opals, edge=chosen, bg_owner=bg_owner, fallback=fallback, edge_total=len(edge), bgk=bgk,
+    return dict(page=page, fig=fig, overlay_px=overlay_px, under=under, gapchanged=gapchanged, junechanged=junechanged, painted=painted, unpainted=unpainted, sprites=sprites, objs=objs, opals=opals, edge=chosen, bg_owner=bg_owner, fallback=fallback, edge_total=len(edge), bgk=bgk,
                 outline_cells=len(outline), outline_pixels=sum(len(x) for x in outline.values()), outline_diff_max=max(diffs) if diffs else 0,
                 outline_diff_mean=(sum(diffs) / len(diffs)) if diffs else 0)
 
@@ -293,6 +327,8 @@ def composite(r, v, cgb):
     p2 = bg_with_perf(r, v, cgb)
     px = p2.px
     for sp in r["sprites"]:
+        if sp.get("color_only") and not cgb:
+            continue
         tri = r["opals"][sp["pal"]]
         for y in range(8):
             for x in range(8):
@@ -302,6 +338,8 @@ def composite(r, v, cgb):
                     px[(BY + sp["cy"]) * 8 + y][(BX + sp["cx"]) * 8 + x] = (s, tri[i - 1])
     for (x, y), f in r["fig"].items():
         got = px[BY * 8 + y][BX * 8 + x]
+        if (x, y) in r.get("overlay_px", ()):
+            continue                                   # a tattoo pixel: the sprite draws it red (Color) / black (DMG)
         if f == r["bgk"] and (x // 8, y // 8) not in r["bg_owner"]:
             continue                                   # an outline pixel in an edge cell: the room palette's nearest colour (round 8)
         assert got == f, (v.key, x, y, got, f)        # shade (DMG) and colour (Color) of every other owner pixel

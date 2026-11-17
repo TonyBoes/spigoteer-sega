@@ -1,7 +1,7 @@
 # Credits scene pages: handoff for the credits integrator (final set, round 18)
 
-Branch `worktree-agent-aa21f868f71a0344f`, folder `docs/dev/concepts/credits_scenes_2026-11-13/`. Final cards: `round18/<venue>_card_{dmg,cgb}.png` (160 x 144, as the roll shows the page), sheet `round18/final_sheet_x3.png`,
-per-page data `round18/data/<venue>.json`, costs `round18/costs_final.json`, proof that every card equals the approved round's: `round18/identical_to_approved.json` (20 of 20 identical, pixel for pixel).
+Updated for round 22 (every owner as the story portrait inside the credits silhouette). Branch `worktree-agent-aa21f868f71a0344f`, folder `docs/dev/concepts/credits_scenes_2026-11-13/`. Final cards: `round18/<venue>_card_{dmg,cgb}.png` (160 x 144, as the roll shows the page), sheet `round18/final_sheet_x3.png`,
+per-page data `round18/data/<venue>.json`, costs `round18/costs_final.json`, proof that every card equals the approved round's: `round18/identical_to_approved.json` (14 of 20 identical pixel for pixel to the approved rounds; the Chrome Cow, Saloon and Jungle Zoo cards changed on purpose in rounds 19-22).
 Nothing here touches `src/`, the Makefile or `tests/approved`.
 
 ## What you need from this branch
@@ -23,15 +23,15 @@ Nothing here touches `src/`, the Makefile or `tests/approved`.
 ## Costs per page (final set)
 | page | source round | BG tiles DMG / Color (flips merged) | BG palettes | OBJ tiles | OBJ palettes | objects | max sprites a line | edge cells as sprites | edge cells left as BG owner cells |
 |---|---|---|---|---|---|---|---|---|---|
-| THE SALOON (SADIE) | round 9 | 91 / 90 | 7 | 18 | 5 | 16 | 7 | 18 | 0 |
+| THE SALOON (SADIE) | round 22 | 91 / 90 | 7 | 20 | 7 | 18 | 7 | 18 | 0 |
 | THE STADIUM (COACH) | round 15 | 79 / 79 | 7 | 19 | 5 | 14 | 6 | 19 | 0 |
 | THE LUMBER LODGE (JUNE) | round 12 | 81 / 79 | 8 | 19 | 5 | 15 | 6 | 19 | 0 |
 | THE BISTRO (COLBY) | round 9 | 76 / 74 | 9 | 18 | 5 | 16 | 7 | 18 | 0 |
 | THE IGLOO (AURORA) | round 9 | 82 / 81 | 8 | 17 | 4 | 13 | 7 | 17 | 0 |
 | THE ROBOT FACTORY (MANAGER-BOT) | round 9 | 85 / 83 | 8 | 18 | 3 | 15 | 6 | 18 | 0 |
-| THE CHROME COW (GRANNY) | round 9 | 90 / 89 | 8 | 21 | 4 | 17 | 7 | 21 | 0 |
+| THE CHROME COW (GRANNY) | round 21 | 90 / 89 | 8 | 23 | 6 | 20 | 8 | 21 | 1 |
 | THE TEAHOUSE (HANA) | round 17 | 75 / 74 | 8 | 21 | 2 | 16 | 7 | 21 | 0 |
-| THE JUNGLE ZOO (KIKI) | round 14 | 84 / 80 | 8 | 26 | 5 | 20 | 8 | 26 | 1 |
+| THE JUNGLE ZOO (KIKI) | round 22 | 84 / 80 | 8 | 26 | 5 | 20 | 8 | 24 | 3 |
 | THE SPACE LOUNGE (ZIZZ) | round 9 | 52 / 52 | 6 | 20 | 2 | 14 | 6 | 19 | 0 |
 
 **Known over-limit: the Bistro needs 9 BG palettes (the room's palettes plus the owner's three plus two performers), one more than exist; it was 9 in round 9 and the owners approved the page as it is: the integrator must merge or move one palette (the performers' two BG palettes are the candidates).** Pages over the 69 free BG ids: all except Space (52).
@@ -45,8 +45,13 @@ Limits used: at most 8 sprites a line, at most 8 BG palettes (and 8 OBJ palettes
 
 ## Page-specific edits (all are BG pixels in the room, not the owner's art)
 - **Coach**: 13 room pixels under the brim tip go to the stage palette's darkest (`#101428`, DMG shade 3): portrait pixels (35,14) (36,14) (37,14) (38,14) (39,14) (38,15) and (40..46, 15). No wall blue is left under the brim (x 24-46, rows 11-15).
-- **Kiki**: two background pixels the owner kept, (16, 22) and (40, 29), are art pixels in our nearest palette colours that fit their cells: `#f89848` and `#b89858`. His file's mouth (red) and pigtail (near-black) colours differ from the game's art: the game's art is used.
+- **Kiki** (round 22): every colour is the story's (his mask gives the silhouette only; the two odd pixels of round 12 are dropped); her lips are the story's Color-only OBJ accents, `#d04838` (7 px) and `#a03020` (6 px): Color-only sprite pixels over the BG replacement. 8 sprites a line with them counted; three edge cells ((1,7), (4,6), (5,6)) are BG owner cells to meet that.
+- **Sadie** (round 22): the story's Color-only gold OBJ accents, `#f8d048` (20 px) and `#c88820` (7 px) (the sheriff's star), as Color-only sprite pixels over the BG replacement (skin `#d8a878`); not drawn on DMG.
+- **Granny** (round 21): the silhouette is her own cut-out (`owner_masks/owner_granny_mask.png`, teal (48,101,91) = room; none of her art is cut); EVERY colour is the story portrait's (`assets/story/portraits/granny.txt`): his file gives the mask only. The heart tattoo is the story's black; her lips are the story's two Color-only OBJ accents, X `#a02028` (8 px) and Z `#d84040` (4 px) around portrait (28-31, 32-34): Color-only sprite pixels (one cell, (3, 6); not drawn on DMG, where the story shows the BG replacement `#c87850`) over the BG. Audit against the story portrait: 0 colour and 0 DMG-shade mismatches inside the silhouette. At most 8 sprites a line and 8 BG palettes with the lips counted; one edge cell, (4, 6), is a BG owner cell to meet 8 a line.
 - **June**: his mask, including the two blue specks inside the hat at portrait (14, 13) and (11, 15) (room shows through, as drawn).
+
+## Audit against the story portraits (round 22)
+`round22/audit/audit_story.json` (+ `<owner>_mismatch_x8.png`): for every pixel inside each credits silhouette (the outline ring excepted) the Color colour and the DMG shade against the story portrait's (its Color-only OBJ accents at their own colours): **0 colour and 0 DMG-shade mismatches for all ten owners.** The story's Color-only OBJ accents (Sadie's gold, Granny's and Kiki's lips) are Color-only sprite pixels over the BG replacement, built by `scenes_final` (`accents: True`) and `scenes_f.OVERLAY_COLOR_ONLY`; they are not drawn on DMG.
 
 ## Not in the final set
 The toggles of the earlier rounds (`PAINT_ON`, `GAPFILL` except Coach's, `JUNEFILL`, `RING_PAL`, `JUNE_FIX`, `JUNE_MASK`) stay in the code, off; `scenes_final.CONFIG` is the only place the final choices are set. Older rounds can still be rebuilt by setting them by hand.
