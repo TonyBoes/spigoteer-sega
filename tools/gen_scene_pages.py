@@ -101,7 +101,7 @@ def _repack(cells, maps, stage):
 
     def dfs(sets, k):
         calls[0] += 1
-        if calls[0] > 600000000:
+        if calls[0] > 60000000:
             return False
         if k == len(sets):
             return True
@@ -175,38 +175,6 @@ def _repack(cells, maps, stage):
 OBJ_PERFORMERS = {"bistro": [1]}       # performers drawn as OBJ sprites, not BG art: Bistro's would need 9 BG palettes, the hardware has 8
 
 
-SHAVED = []      # (venue, cx, cy, x, y, from, to): a pixel the page's palette packing could not keep (printed; the committed note names them)
-
-
-def _shave(cells, maps, key):
-    """The page does not pack into eight BG palettes: the rarest colour of a cell that has four (at most 2 px of it) takes its nearest colour in the cell. -> False when there is none"""
-    best = None
-    for (cx, cy), m in maps.items():
-        if len(m) < 4:
-            continue
-        grid = cells[cy][cx][1]
-        for sh, col in m.items():
-            n = sum(1 for rr in grid for x in rr if x == sh)
-            if n <= 2 and (best is None or n < best[0]):
-                best = (n, cx, cy, sh, col)
-    if best is None:
-        return False
-    n, cx, cy, sh, col = best
-    m, grid = cells[cy][cx]
-
-    def dist(a, b):
-        return sum((x - y) ** 2 for x, y in zip(hexrgb(a), hexrgb(b)))
-    to = min((k for k in m if k != sh), key=lambda k: dist(m[k], col))
-    for y, rr in enumerate(grid):
-        for x, v_ in enumerate(rr):
-            if v_ == sh:
-                SHAVED.append((key, cx, cy, x, y, col, m[to]))
-                rr[x] = to
-    del m[sh]
-    print("CRSCENE", key, "cell", (cx, cy), ":", n, "px", col, "->", m[to], "(the page would need a ninth BG palette)")
-    return True
-
-
 def scene(v, cgb):
     if ART == "18":                                    # (round 18: its toggles and the Teahouse / Zoo palette slot changes hold while the page is built)
         import scenes_final
@@ -252,15 +220,7 @@ def _scene(v, cgb, limits):
     repacked = False
     pals = _pack(list(maps.values()))
     if cgb and len(pals) > 8 - (0 if any(all(p.get(s_) in (None, stage[s_]) for s_ in range(4)) and sum(1 for s_ in range(4) if p.get(s_) == stage[s_]) >= 3 for p in pals) else 1):
-        for _try in range(8):
-            try:
-                pals = _repack(cells, maps, stage)
-                break
-            except SystemExit:                         # (round 22, Granny: one pixel of the story's black heart, #140c18, is a fourth colour in a cell of skin and outline: nine palettes, the hardware has eight)
-                if not _shave(cells, maps, v.key):
-                    raise
-        else:
-            pals = _repack(cells, maps, stage)
+        pals = _repack(cells, maps, stage)
         repacked = True
     # slot 0: the stage palette (the page, the band, the name): the palette that holds it, else a new one
     k0 = 0 if repacked else next((i for i, p in enumerate(pals) if all(p.get(s) in (None, stage[s]) for s in range(4)) and sum(1 for s in range(4) if p.get(s) == stage[s]) >= 3), None)
