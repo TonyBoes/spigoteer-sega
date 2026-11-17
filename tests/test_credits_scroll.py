@@ -191,3 +191,50 @@ def test_no_cell_changes_on_screen_but_by_the_scroll(model):
     # no judder: the picture moves a whole px a frame, and a frame that stands still between two that move is a stutter
     stutter = [i for i in range(1, len(shifts) - 1) if shifts[i][0] == 0 and shifts[i - 1][0] and shifts[i + 1][0] and shifts[i - 1][1] == shifts[i][1] == shifts[i + 1][1] == 1]
     assert not stutter, f"the picture stands still for a frame inside a glide at {stutter[:8]}"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb", "cgb-normal"])
+def test_nothing_but_the_end_cards_own_text_shows_after_it(model):
+    """Owner 2026-11-17: "The word COMMUNITY flashes on the screen after THANKS FOR PLAYING." The leave reset SCY to 0 before the wanted scene change's cover (the
+    drink rising over the frozen old scene), so the cover rose over the map's first rows: the roll's old text. With the transitions ON (the harness turns them off), every
+    frame from the settled end card to the cover's end shows no text pixel outside the end card's own box, above the drink."""
+    from PIL import Image  # noqa: F401
+    if model == "cgb-normal":
+        gb = Rom(SCROLL_ROM, "cgb")
+        gb.run(120)
+        hold_stage_anim(gb)
+        title_pick(gb, K_BONUS, K_CREDITS)
+        run_until(gb, lambda: gb.mem("story_phase") == 8, 40)
+        run_until(gb, lambda: gb.read("story_scratch", 70)[LIVE] == 1, 600)
+    else:
+        gb = start(model)
+    with gb:
+        pb = gb.pb
+        pb.memory[0xFFF1] = pb.memory[0xFFF1] & 0x7F        # (the transitions on, as shipped)
+        end = None
+        base = None
+        for n in range(13000):
+            pb.tick(1, True)
+            st = gb.read("story_scratch", 70)
+            if end is None:
+                if st[ST] == 3 and (st[PH] | st[PH + 1] << 8) >= 5:
+                    img = np.asarray(pb.screen.image.convert("RGB")).astype(np.int16)
+                    bg = img[2, 2]
+                    ys, xs = np.nonzero((img != bg).any(axis=2))
+                    assert len(ys), "the end card is on the screen"
+                    end = (int(ys.min()) - 2, int(ys.max()) + 3, int(xs.min()) - 2, int(xs.max()) + 3)
+                    base = bg
+                continue
+            img = np.asarray(pb.screen.image.convert("RGB")).astype(np.int16)
+            ink = (img != base).any(axis=2)
+            if ink.mean() > 0.9:                           # (the cover is up: whole screen)
+                break
+            rows_full = ink.mean(axis=1) > 0.5
+            top = int(np.argmax(rows_full)) if rows_full.any() else 144       # (the drink's top edge)
+            out = ink.copy()
+            out[end[0]:end[1], end[2]:end[3]] = False
+            out[top:] = False
+            assert not out.any(), f"frame {n}: {int(out.sum())} px of something else (rows {np.nonzero(out)[0].min()}-{np.nonzero(out)[0].max()}) above the drink after the end card"
+        else:
+            raise AssertionError("the cover never came")
+        assert end is not None

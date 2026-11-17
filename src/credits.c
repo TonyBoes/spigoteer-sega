@@ -1277,6 +1277,7 @@ static void cr_leave(void) {
     { uint8_t n; for (n = 0; n < BARTENDER_FRAMES; n++) cr_sal(n); }
     trans_cast_set(CR_PAL);                           // the card's own colours, whatever the fade was doing
     TRANS_WANT();                                     // (src/trans.c: the next screen comes up behind the drink)
+    DISPLAY_OFF;                                      // (the cover of the wanted scene change runs here, over the frozen end card: with the scroll reset first it rose over the first rows of the map, the roll's old text ("COMMUNITY") behind the drink)
     SCY_REG = 0;                                      // (the roll's last scroll: the next screen is built from the top; the story's score entry did not reset it)
     if (s) story_end();
     else { title_back = TM_BONUS; title_back_sel = 0; title_enter(); }   // BONUS, the cursor on CREDITS (the first item)
