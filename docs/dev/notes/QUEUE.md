@@ -1249,3 +1249,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 OWNER Q73: "Coach brim good." Coach round 15 approved.
 - 11-16 Hana round 16 done (owner mask; 634 bg px kept dark, 64 newly room; 7 sprites/line; no palette change). Q74 on Open Questions. His hair is near-black throughout vs our navy strands (same pattern as Kiki pigtails).
 - 11-16 OWNER Q74: "Hana outline is good, but should be dark blue not red." Shape approved; Hana round 17 = Color outline/filled dark in dark navy (her #100818), slots not recolour; DMG unchanged.
+- 11-16 OWNER Q72: "Kiki keep game mouth." Kiki round 14 approved as is (pigtails as round 14, game mouth, no pixel changes).
