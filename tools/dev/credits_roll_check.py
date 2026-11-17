@@ -22,6 +22,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
+NAVY2BLACK = False
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "tools" / "dev"))
 
@@ -83,6 +84,8 @@ def run(rom, build, model, shots, max_frames):
             if gb.mem("story_phase") != 8 or (st[ST] == 3 and (st[PH] | st[PH + 1] << 8) >= 40):
                 break
             img = np.asarray(pb.screen.image.convert("RGB")).astype(np.int16)
+            if NAVY2BLACK and model == "cgb":                     # (the reference roll is the old navy build: its navy is the black of the Color roll, #080818)
+                img[(img == (24, 16, 64)).all(axis=2)] = (8, 8, 24)
             oam = bytes(pb.memory[0xFE00:0xFEA0])
             scroll = st[SCROLL] | st[SCROLL + 1] << 8
             pos = st[POS] | st[POS + 1] << 8
@@ -193,6 +196,7 @@ def run(rom, build, model, shots, max_frames):
 
 
 def main():
+    global NAVY2BLACK
     ap = argparse.ArgumentParser()
     ap.add_argument("rom")
     ap.add_argument("build")
@@ -207,7 +211,9 @@ def main():
         frames, bad, seen, cards, bosses, owners, split, bgset = run(Path(a.rom), Path(a.build), model, a.shots, a.max_frames)
         crops = bad.pop("crops")
         if a.ref_rom:
+            NAVY2BLACK = True
             _, rbad, rseen, rcards, rbosses, _, _, _ = run(Path(a.ref_rom), Path(a.ref_build), model, None, a.max_frames)
+            NAVY2BLACK = False
             rcrops = rbad.pop("crops")
             bad["spritepix"] = [(nm_, n_) for nm_, cs_ in crops.items() for (h_, w_, b_), n_ in cs_.items() if (h_, w_, b_) not in rcrops.get(nm_, {})]      # (the Spigoteer's / Dregs's sprites, every frame, are one of the reference roll's pictures of them)
             bad["cards"] = []

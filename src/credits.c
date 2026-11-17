@@ -58,7 +58,11 @@ extern uint8_t overlay_on, joy, story_phase;
 #define BGPAL_BOSS     5
 #define BGPAL_HDR      6      // the venue header's BG palette (CGB): a copy of the HUD's, the fades leave it alone within a venue
 #define COL_GOLD  0x231E      // RGB15(30, 24, 8): the labels (palette 0 colour 1)
+#if CT_SPLIT
+#define COL_BAND  0x0C21      // RGB15(1, 1, 3): the roll's one black #080818 (tools/gen_credits.py NAVY: the band the HUD palette had, colour 3 of every BG palette), the bosses' colour 0
+#else
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
+#endif
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
 #define CR_SLOT(p) (CT_SCENEFMT ? (p) : cr_scene_slot[(p)])   // (CRSCENE: a scene page's palette number is its BG slot; CRMAP's go to the free ones)
@@ -1180,6 +1184,9 @@ void credits_enter(uint8_t from_story) BANKED {
         for (y = 0; y < 32; y++) cr_put(y);
         VBK_REG = VBK_BANK_0;
         for (y = 0; y < 64; y++) { BCPS_REG = y; o[y] = BCPD_REG; OCPS_REG = y; o[64 + y] = OCPD_REG; }   // the palettes as they are (LCD off: readable)
+#if CT_SPLIT
+        for (y = 0; y < 8; y++) ((uint16_t *)o)[4 * y + 3] = BRIGHTEN(COL_BAND);   // colour 3 of every BG palette is the roll's one black #080818 (tools/gen_credits.py NAVY): the cards' blank and the pages' margins
+#endif
         for (y = 0; y < 8; y++) o[8 * BGPAL_HDR + y] = o[8 * BGPAL_HUD + y];   // the header's: the HUD's
 #if CT_MAPFMT || CT_SCENEFMT
         for (y = 0; y < 8; y++) o[y] = o[8 * BGPAL_HUD + y];                   // BG 0 starts as the HUD's: the blank cells use it

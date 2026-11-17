@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gen_art import blocks, IDX  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+NAVY = "#080818"                             # the Color credits' one black: every blank of the roll (the cards' and the pages') and the cards' colour 3 in all eight BG palettes (credits.c credits_enter lifts the same RGB555)
 BAND = 3                                     # the HUD palette's colour 3: the band (a glyph tile is '#' where it is empty)
 
 TITLE = ["CAST OF", "CHARACTERS"]
@@ -498,7 +499,7 @@ def main():
                     sc0 = copy.deepcopy(sc)
                     okfree = False
                     nameonly = False
-                    for seed_, no_ in ((["#f8e8b0", pls[bpl0][2], "#181040"], False), (["#f8e8b0", "#181040"], True)):         # (cream, the band, navy in one palette: letters of the band and the name; else cream and navy: the name only)
+                    for seed_, no_ in ((["#f8e8b0", pls[bpl0][2], NAVY], False), (["#f8e8b0", NAVY], True)):         # (cream, the band, navy in one palette: letters of the band and the name; else cream and navy: the name only)
                         try:
                             free_palette(sc, {0, bpl0}, tgt, seed_)
                             pn, okfree, nameonly = tgt, True, no_
@@ -529,8 +530,25 @@ def main():
                             for cand in (6, 7, 1, 2, 3, 4):
                                 if cand != bpl0 and cand < len(pls) and None in pls[cand]:
                                     cands.append((0 if pls[cand][3] is None else 1, 0, cand, 3 if pls[cand][3] is None else pls[cand].index(None)))
-                        if not cands:                                   # (every palette full: this venue keeps the stage-coloured blank, with the colour step at the swap line: BG 0 colour 3)
-                            print("CRSPLIT", vd.key, "has no free palette entry: blank cells stay the stage colour")
+                        if not cands:                                   # (every palette full: the page's blank is the colour of one used entry, the one whose art pixels are fewest and darkest: set to the black, those pixels shift to it)
+                            for cand in (6, 7, 1, 2, 3, 4):
+                                if cand == bpl0 or cand >= len(pls):
+                                    continue
+                                for ej in range(4):
+                                    if pls[cand][ej] is None:
+                                        continue
+                                    dk_ = sum(abs(a_ - b_) for a_, b_ in zip(SL.hexrgb(SL.q5(pls[cand][ej])), SL.hexrgb(SL.q5(NAVY))))
+                                    npx = 0
+                                    for crow in sc["cells"]:
+                                        for c_ in crow:
+                                            if c_ and c_[2] == cand:
+                                                if c_[0] == "f":
+                                                    npx += 64 if c_[1] == ej else 0
+                                                else:
+                                                    npx += sum(1 for r_ in c_[1] for x_ in r_ if x_ == ej)
+                                    cands.append((2, npx * (dk_ + 1), cand, ej))
+                            print("CRSPLIT", vd.key, "has no free palette entry: the blank is the dark colour", min(cands) if cands else None)
+                        if not cands:
                             sc.clear()
                             sc.update(sc0)
                             BLANKC, SBP[v], FALLBACK = None, 255, True
@@ -544,7 +562,7 @@ def main():
                                 for ci_, c_ in enumerate(crow):
                                     if c_ and c_[2] == pn:
                                         crow[ci_] = (c_[0], sw_[c_[1]] if c_[0] == "f" else [[sw_[x_] for x_ in r_] for r_ in c_[1]], c_[2])
-                        pls[pn][3] = "#181040"
+                        pls[pn][3] = NAVY
                         FALLBACK = True
                     if SBP[v] != 255:
                         BLANKC = 0xF000 | pn << 8 | 3
@@ -555,7 +573,7 @@ def main():
                 inkv = ink if m else None
                 slot_of = {}
                 page_img = np.zeros((144, 160, 3), np.uint8)          # the expected page as the check (tools/dev/credits_roll_check.py) sees it: the generated rows, the palettes as intended, no sprites
-                bg_rgb = SL.cc(SL.hexrgb(SL.q5("#181040" if BLANKC is not None else sc["pals"][0][3]))) if m else SL.DMG_GRAY[3]
+                bg_rgb = SL.cc(SL.hexrgb(SL.q5(NAVY if BLANKC is not None else sc["pals"][0][3]))) if m else SL.DMG_GRAY[3]
                 page_img[:, :] = bg_rgb
                 bpl = 7 if (m and vd.key == "biker") else 0       # the band and the name: the stage palette (slot 0); the Chrome Cow's band is its bar's magenta, which BG 7 holds as colour 2 (the artist's VENUE_BAND)
                 if bpl:
@@ -618,7 +636,7 @@ def main():
                                         for x_ in range(8 * tx_, 8 * tx_ + 8):
                                             if full[y_][x_] == 3:
                                                 full[y_][x_] = 1 - inkv
-                                    ov_[1 - inkv] = "#181040"
+                                    ov_[1 - inkv] = NAVY
                                 cellov[tx_] = ov_
                             elif BLANKC is not None and not FALLBACK and (not nameonly or j == 17):                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
                                 mp_ = {inkv: 0, 2: 1, 3: 3}
