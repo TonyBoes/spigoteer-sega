@@ -50,7 +50,7 @@ def splice(frame, st):
 
 
 PROPS = {}
-for p in ("P1", "P2", "P3"):
+for p in ("P1", "P2", "P3", "P4"):
     PROPS[p] = [sal[0], splice(sal[1], S[p + "_walk1"]), splice(sal[2], S[p + "_walk2"]), sal[3], sal[4]]
     # sanity: nothing but x 0-3 / 12-15 of rows 10-18 may differ from the owner's frames
     for k in (1, 2):
@@ -92,7 +92,7 @@ def changed(a, b):
 CELL = 16 * 8
 tiles = []
 rows = []
-for p in ("P1", "P2", "P3"):
+for p in ("P1", "P2", "P3", "P4"):
     for k, name in ((1, "walk1"), (2, "walk2")):
         for model, pal, bg in (("DMG", DMG, BGC["D"]), ("Color", SAL_C, BGC["C"])):
             rows.append((p, name, model, draw(sal[k], pal, 8, bg), draw(PROPS[p][k], pal, 8, bg, changed(sal[k], PROPS[p][k]))))
@@ -100,7 +100,7 @@ for p in ("P1", "P2", "P3"):
             print(f"{p} {name}: {n} pixels changed")
 from PIL import ImageFont
 font = ImageFont.load_default()
-for p in ("P1", "P2", "P3"):
+for p in ("P1", "P2", "P3", "P4"):
     rs = [r for r in rows if r[0] == p]
     W = CELL * 2 + 40 + 120
     H = (24 * 8 + 22) * len(rs) + 8
@@ -116,7 +116,7 @@ for p in ("P1", "P2", "P3"):
 # GIFs at x6: [Sal now | Sal proposal | Dregs] on a DMG row and a Color row; the cycle is the game's walk1, idle, walk2, idle, 10 frames each.
 CYC = [1, 0, 2, 0]
 SC = 6
-for p in ("P1", "P2", "P3"):
+for p in ("P1", "P2", "P3", "P4"):
     gifs = []
     for ph in CYC:
         W = 3 * (16 * SC + 12) + 12

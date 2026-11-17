@@ -72,3 +72,28 @@
 ..+# #+..
 ..## ##..
 .... ....
+;
+; PROPOSAL 4 "opposite hands, as Dregs" (owner Q86: P1-P3 look like flapping in and out; Dregs has one hand go back while the other goes forward).
+; Dregs frame by frame (see sal_walk_dregs_annotated_x12.png): the FORWARD hand is drawn a row higher and 1 px out (the sleeve steps out 1 px from row 14, the hand
+; and its bottom outline move up one row and clear the hem, so it hangs free of the body). The BACK hand is tucked: the arm is shortened, the hand is not drawn and the
+; sleeve ends on the body outline (it goes behind the body). NOTE: Dregs himself raises the same (left) arm in both frames; P4 alternates the sides as the owner described. walk1: left forward, right back; walk2: left back, right forward.
+@P4_walk1
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+.#-# -#..
+.++# -#..
+.+#. ##..
+.#.. #...
+.... ....
+@P4_walk2
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+..#- #-#.
+..#- #++.
+..## .#+.
+...# ..#.
+.... ....
