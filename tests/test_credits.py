@@ -137,7 +137,10 @@ def set_t(gb, v):                                              # (sound off: the
 
 @contextmanager
 def roll_from_bonus(model, sound=True):
-    with Rom(ROM, model) as gb:
+    from conftest import double_speed
+    with (double_speed() if model == "cgb" else contextmanager(lambda: (yield))()):      # (the Color roll runs at double speed, as shipped: owner Q92; at the tests' normal speed its swap interrupt makes late frames)
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
@@ -181,7 +184,7 @@ def SCROLL_FRAC(f):
 
 def wall(gb, c0):
     """Wall-clock frames since the cycle stamp c0 (an emulator frame is not one wall frame while the LCD is off: the cards are built with it off)."""
-    return int((gb.pb._cycles() - c0) / 70224)
+    return int((gb.pb._cycles() - c0) / (140448 if gb.pb.memory[0xFF4D] & 0x80 else 70224))      # (a Color at double speed counts twice the cycles a frame)
 
 
 def visible_rows(gb):
@@ -190,7 +193,7 @@ def visible_rows(gb):
     return [((scy >> 3) + r) % 32 for r in range(19 if scy & 7 else 18)]
 
 
-ROLL_END = 10297      # frames from the credits' first frame to the roll's leave (its own clock; 10454 until 2026-11-13, when the spigot divider and the REGULARS and BOSS labels went: the cards are 3, 2 and 3 rows shorter)
+ROLL_END = 10700      # frames from the credits' first frame to the roll's leave with the sound off: the smooth scroll lands CR_FLOW_TAIL (100) frames before the tune's length, the end is held, the leave is the tune's length (10454 until 2026-11-13, 10297 for the round-6 timeline; the shared-screen roll 2026-11-17)
 
 
 def lines_on_screen(gb):
@@ -453,7 +456,7 @@ def test_with_the_sound_off_the_roll_ends_when_the_tune_would_have(model):
             gb.run(1)
             n += 1
             assert n < ROLL_END + 200
-        assert ROLL_END - 60 <= n <= ROLL_END + 60, n            # (the roll's own end: 10454 frames; the leave, the drink to the next screen, is part of it)
+        assert ROLL_END - 60 <= n <= ROLL_END + 60, n            # (the roll's own end: the tune's length, 10681-10703 on the two models; the leave, the drink to the next screen, is part of it)
 
 
 def ink(im):
@@ -512,8 +515,13 @@ def test_the_cast_card_names_and_toppers_are_the_games_own():
 def test_no_music_tick_is_lost_through_the_fades_and_the_tune_ends_on_wall_time(model):
     """The real-time stamps of the music's ticks (tests/tick_helpers.py): no interval over 1.6 frames (a stall) from the tune's start to its last
     tick, and the tune's span is its length (one tick a frame) within 2 frames: the fades and the LCD-off builds of the 33 cards cost it nothing."""
+    from conftest import double_speed
     from tick_helpers import FRAME, LATE, tick_log
-    with Rom(ROM, model) as gb:
+    if model == "cgb":
+        FRAME *= 2                                  # (the Color roll runs at double speed, as shipped: its frame is twice the cycles)
+    with (double_speed() if model == "cgb" else contextmanager(lambda: (yield))()):
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)

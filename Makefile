@@ -39,6 +39,13 @@ endif
 #                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)
 GLOW     ?=
 CRCFLAGS ?=
+# The shipped credits (owner-approved 2026-11-17): the shared-screen roll, one smooth scroll, the scene pages of the round 18 set (with the round 21 / 22 art) and the all-black Color background.
+# The older variants stay behind the flags: make CRFLOW= CRSCENE= CRSPLIT= (the roll of cards without pages), CRSPLIT= (the pages with the jump), CRART=8 / 7 (the older art).
+CRFLOW   ?= SMOOTH
+CRSCENE  ?= 1
+CRSPLIT  ?= 1
+CRART    ?= 18
+export CRART
 export GLOW
 export CRFONT
 export CRMAP

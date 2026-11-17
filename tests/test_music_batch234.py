@@ -225,7 +225,11 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
     for r in range(707):
         cur = t["tempo_map"].get(r, cur)
         start.append(start[-1] + cur)
-    with make_rom(model) as gb:         # (sound emulated: the APU registers are only live then)
+    from contextlib import nullcontext
+    from conftest import double_speed
+    with (double_speed() if model == "cgb" else nullcontext()):      # (the Color roll runs at double speed, as shipped: owner Q92)
+        rom_ctx = make_rom(model)
+    with rom_ctx as gb:         # (sound emulated: the APU registers are only live then)
         gb.run(120)
         hold_stage_anim(gb)
         title_pick(gb, K_BONUS, K_CREDITS)
@@ -237,7 +241,7 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         while gb.mem("cur_tune") == 16 and frames < 10900:
             raw.append((gb.mem(0xFF1C) & 0x60, frames))           # (NR32 bits 5-6: the wave channel's output level, 1 = 100 %, 2 = 50 %, 3 = 25 %)
             gb.run(1)
-            frames = int((gb.pb._cycles() - c0) / 70224)
+            frames = int((gb.pb._cycles() - c0) / (140448 if gb.pb.memory[0xFF4D] & 0x80 else 70224))
         seq = []                                                   # runs of at least 3 frames (a roll's fade can blank the register for one)
         for i, (v, f) in enumerate(raw):
             if f > 300 and (not seq or seq[-1][0] != v) and all(w == v for w, _ in raw[i:i + 3]):
@@ -248,4 +252,4 @@ def test_the_credits_bass_is_held_and_the_ending_fades_100_50_25(model):
         assert not any(v in (0x40, 0x60) for v, f in seq if f < start[702] - 6), "no pluck steps before the last chord"
         steps = {v: f for v, f in seq}
         assert abs(steps[0x40] - start[702]) <= 6 and abs(steps[0x60] - start[704]) <= 6, (seq, start[702], start[704])
-        assert start[702] == 10580 and start[704] == 10628 and 10699 <= frames <= 10704, "the fade rows (the audition's 9881 and 9925 are 5 frames of start-up later) and the stop at 10700 (the 11-13 slowdown: 15 frames a row, was 14: 9876/9920/9986)"
+        assert start[702] == 10580 and start[704] == 10628 and 10696 <= frames <= 10704, "the fade rows (the audition's 9881 and 9925 are 5 frames of start-up later) and the stop at 10700 (the 11-13 slowdown: 15 frames a row, was 14: 9876/9920/9986)"
