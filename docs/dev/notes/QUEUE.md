@@ -1311,3 +1311,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 OWNER Q92: "Its fine now." -> import Sal P7 (walk1/walk2 arms) into bartender.txt with Duke P1c and the boss-tile test; full suite to list goldens; then gb-golden-check, supervisor replaces, verify, merge.
 - 11-17 OWNER: "Go ahead and merge the credits too." -> credits branch at 46c05a04 (bosses centred + animated, Dregs full name, owner full names, plain venue font, COMMUNITY fix, brim tip) being verified FULL=1 CBUILD=1 (credits-split3); merge on pass, then main rerun.
 - 11-17 Sal P7 imported (c108adfb) with Duke P1c + boss-tile test on worktree-agent-ad7a6ac9d461ec637; full suite 6106 passed, 6 golden failures (3 Duke cgb bar-4 stale cells, 3 story-map Sal walk), table d587ebb4. gb-golden-check running.
+- 11-17 golden check: 6 EXPECTED; replaced on worktree-agent-ad7a6ac9d461ec637 (67c2f1b3). Plan: after the credits merge, merge main into that branch, then verify, then merge.
