@@ -124,3 +124,6 @@ Q62: I relayed "owner in the foreground, venue behind" in one line; the artist k
 
 ## 2026-11-15: carry the owner's standing choices into every new brief
 The owner had asked for the credits as one smooth scroll; when I briefed the owner-scene wiring I wrote only about the scenes, and the agent kept the glide/hold flow. Before each brief on a feature, list the owner's decisions on it from QUEUE.md and put them in.
+
+## 2026-11-16: an owner's paint-over marks the spot, not the pixels
+The owner brushed light over a dark blob under Coach's brim; I briefed it as an exact pixel grid and the result was a crisp slab past the scene's shapes. He meant "fill that last little bit in". Read a paint-over as where and roughly what; make the smallest change that fits the scene, and offer two readings if the colour is unclear.
