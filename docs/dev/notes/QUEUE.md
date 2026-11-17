@@ -1300,3 +1300,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 Duke hand variants P1a thumb nub / P1b thumb up (f8e417bc); Sal P4 opposite-arm (5456f456; Dregs does not alternate sides, P4 does). Q87 Duke hand, Q88 Sal walk on Open Questions.
 - 11-17 OWNER Q82: "Keep it as is." (confirmed: Classic tips) -> CLASSIC keeps tip_first = 2 (first tip on the 2nd empty mug); no change.
 - 11-17 OWNER Q87: "I didn't ask for fingers. Just a rounded corner fist." -> artist P1c: P1 tapered arm, solid fist, rounded corners only (no groove, thumb or fingers).
+- 11-17 Duke P1c rounded fist (bb5fbfee): solid fist, top-right corner rounded (left corners touch the face). Q89 on Open Questions.
