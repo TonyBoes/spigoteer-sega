@@ -286,7 +286,7 @@ def _plan_moves(e, kmax=6, rounds=12, room_ok=False):
 
     def all_sets():
         base = {cell_set(pos) for pos in info} | {band}
-        return [f for f in base if not any(f < g_ for g_ in base)]
+        return sorted((f for f in base if not any(f < g_ for g_ in base)), key=lambda f: (-len(f), sorted(f)))      # (sorted: the search must not depend on the hash seed)
 
     def core(sets):
         cur = list(sets)
