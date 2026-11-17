@@ -1251,3 +1251,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 OWNER Q74: "Hana outline is good, but should be dark blue not red." Shape approved; Hana round 17 = Color outline/filled dark in dark navy (her #100818), slots not recolour; DMG unchanged.
 - 11-16 OWNER Q72: "Kiki keep game mouth." Kiki round 14 approved as is (pigtails as round 14, game mouth, no pixel changes).
 - 11-16 Hana round 17: teahouse stage_a/stage_b/bar slot 3 -> her navy-black #100818 (367 outline px; side effect 1158 room dark-line px red-black -> navy-black). DMG unchanged. Q75 on Open Questions.
+- 11-16 OWNER Q75: "Hana good now." All owner outlines approved: Coach r15, June r12, Kiki r14, Hana r17, rest r9. Art agent making round 18 final set + HANDOFF; then credits agent integrates, updates tests/approved/credits_pages, Pocket Player crscene.
