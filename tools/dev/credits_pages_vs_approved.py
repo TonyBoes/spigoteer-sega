@@ -23,11 +23,11 @@ from credits_shots import start      # noqa: E402
 import scenes_f as F                 # noqa: E402
 
 import os      # noqa: E402
-DEFAULT = ROOT / "tests" / "approved" / ("credits_pages" if os.environ.get("CRART") == "7" else "credits_pages8")      # (copies of the artist's round-8 cards; CRART=7: round 6/7's)
+DEFAULT = ROOT / "tests" / "approved" / {"7": "credits_pages", "8": "credits_pages8"}.get(os.environ.get("CRART", "18"), "credits_pages18")      # (copies of the artist's round-8 cards; CRART=7: round 6/7's)
 # Known, with the numbers: the Color pages of lodge, bistro, igloo, factory and biker cannot have the approved cream letters on the band and navy behind the owner's name: their cells need 7 BG palettes
 # besides the stage palette (a whole palette [cream, band, free, navy] makes 9; tools/gen_credits.py free_palette proves it), the hardware has 8. Bistro's accordionist is an OBJ (the approved
 # composite draws her into the BG with a ninth palette and moves the room's pixels in her cells).
-CAPACITY = {"lodge", "bistro", "igloo", "factory", "biker"}
+CAPACITY = {"lodge", "bistro", "igloo", "factory", "biker", "zoo"}      # (round 18: the Zoo too: the near-black slot 3 of its bar palette adds colours, its cells need all eight palettes)
 OBJ_PERF = {"bistro"}
 NOFREE = {"bistro", "factory"}      # round 8, Color: every BG palette of these pages is full (4 colours of art), so there is no entry for the navy margin: the margins keep the stage colour
 
@@ -68,6 +68,9 @@ def main():
                 fail = True
                 continue
             img = got[v][0]
+            if a.shots:
+                Path(a.shots).mkdir(parents=True, exist_ok=True)
+                Image.fromarray(img.astype(np.uint8)).save(Path(a.shots) / f"{model}_{keys[v]}_roll.png")
             d = (np.abs(img - ap_).sum(axis=2) > 0)
             c = int(d.sum())
             if c:
