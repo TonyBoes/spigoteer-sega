@@ -785,10 +785,12 @@ void set_lyc(uint8_t x) {
 // The credits' cast cards on a DMG (src/credits.c): BGP is one palette for the whole background, but a venue's name stays at the top through the
 // fades of its three cards, so the frame is split: lines 0-15 (the header) with the header's BGP, then the card's (story_scratch + 68 / + 69: both
 // written by trans.c trans_cast and credits.c). Installed in place of lcd_isr by credits_enter, put back by its end.
+#ifndef CR_SPLIT_BUILD                                // (CRSPLIT=1: credits.c cr_split_isr does this too, and the 25 bytes pay for its stub)
 void cast_isr(void) {
     if (LYC_REG) { BGP_REG = story_scratch[69]; LYC_REG = 0; }
     else { BGP_REG = story_scratch[68]; LYC_REG = 16; }
 }
+#endif
 
 // Milk Run (src/mr.c) splits the frame: its street scrolls under a HUD row that does not. mr_enter swaps this handler in
 // for lcd_isr (mg.c's lcd_normal puts lcd_isr back, so no other screen pays a cycle for it). LYC walks MR_SPLIT_LY (SCX =

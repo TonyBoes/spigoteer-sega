@@ -20,15 +20,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gen_art import blocks, IDX  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+NAVY = "#080818"                             # the Color credits' one black: every blank of the roll (the cards' and the pages') and the cards' colour 3 in all eight BG palettes (credits.c credits_enter lifts the same RGB555)
 BAND = 3                                     # the HUD palette's colour 3: the band (a glyph tile is '#' where it is empty)
 
 TITLE = ["CAST OF", "CHARACTERS"]
 SAL = ["SAL TAPLEY", "THE SPIGOTEER"]
-DREGS = ["DREGS", "RIVAL"]
+DREGS = ["DREGS DRIBBLETON", "THE RIVAL"]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
-OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]      # the story's own names, in venue order
+OWNERS = ["SADIE SPURS", "COACH BLITZ", "BIG JUNE", "CHEF COLBY", "AURORA", "MANAGER-BOT 3000", "GRANNY THROTTLE", "HANA", "KEEPER KIKI", "ZIZZ"]      # the story's own names, in venue order
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
+# Owner 2026-11-17: the bosses' pictures centred (ink box, x 80): the body's tiles and the topper move right by this many px (credits.c cr_btile). Measured with
+# tools/dev/credits_boss_centre.py on the roll with all 0: ink box centres -3.5 -1 0 -1 -1.5 -0.5 -4 -4 0 -8.
+BOSS_DX = [4, 1, 0, 1, 2, 1, 4, 4, 0, 8]
+# Owner 2026-11-17: "the yeti doesn't really do much of an animation": the poses each card cycles (WALK STOMP HAPPY STOMP, 16 frames each; art pose indices WALK 0, STOMP 1, GULP 2, WINCE 3, HAPPY 4): STOMP is the pose
+# every boss differs most from, HAPPY the one that differs most from STOMP (tools/dev/credits_boss_poses.py: 125-284 px a step; the old cycle WALK STOMP WALK GULP had steps of 30-88 px
+# between WALK and GULP, 32-37 for the Yeti, Mothership, Sasquatch's and Leo's). Three poses, not four: a fourth made the DMG roll run frames past their VBlank (more tile units).
+BOSS_POSES = [(0, 1, 4)] * 10
 # The patrons' names are the Graphics Atlas plan's (tools/artifacts/palette_plan/plan_data.py NAMES: the three base looks, art variants A, B, C; the Color-only
 # looks are the labels of assets/art/patrons/<group>_x.txt, the plan's EXTRA_LOOKS order). Owner Q80 (2026-11-04, layout A): one card a venue with all 8
 # looks on Color, in rows of 3, 3 and 2, the name under each; the DMG card keeps the three base looks, one row (the first row of the Color card).
@@ -167,25 +175,51 @@ LAY_G, LAY_LG = 2, 12
 LAY = dict(G=LAY_G, LG=LAY_LG, MAPFMT=0, FONTFMT=0, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG, R_OLBL=LAY_LG + 5, R_PORT=LAY_LG + 7, R_ONAME=LAY_LG + 15,
            H_OWN=LAY_LG + 16, R_PA=3, R_PN=5, H_PAT=14, R_BBODY=3, R_BNAME=7, H_BOSS=11,
            OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 8), OFF_PAT=56, OFF_BOSS=40)
+SPLIT_ = os.environ.get("CRSPLIT") == "1" or os.environ.get("CRGAPS") == "1"          # (the shared-screen roll: one gap of about 64 px between the cards round a page, 2026-11-16; the other builds keep their layout; CRGAPS=1: the roll without pages that tools/dev/credits_roll_check.py --ref-rom compares with)
+LAY["H_SD"] = int(os.environ.get("CRHSD", 18 if SPLIT_ else LAY["H_SD"]))          # (the cast cards' rows: Sal and Dregs; their blank rows below the name are the gap to the next card)
+LAY["H_BOSS"] = int(os.environ.get("CRHB", 13 if SPLIT_ else LAY["H_BOSS"]))        # (a boss card's rows: the blank rows below his name are the gap to the next venue's page. 11 stays: with 10 or 9 the DMG roll runs 7-8 frames past their VBlank (the next page's loads start in these rows), 8 and 7 fail the roll check too: CRHB experiments, tools/dev/credits_gaps.py)
+LAY["H_PAT"] = int(os.environ.get("CRHP", 17 if SPLIT_ else LAY["H_PAT"]))        # (the patrons card's rows: the blank rows below its last names are the gap to the boss)
+LAY["GAP_TITLE"] = int(os.environ.get("CRGT", 7 if SPLIT_ else LAY["GAP_TITLE"]))   # (the blank rows between the title and Sal)
 LABELS = ["OWNER"]
 # Proposals, off by default (owner 2026-11-13, nothing goes into the default build until he picks): make BUILD=out/b_crA OUT=out/o_crA CRFONT=A CRMAP=A unlocked
 #   CRFONT=A  the venue's name in the HUD font as the story map's panel and the menus set it, 8x8, on the 3-row stripe (middle row)
 #   CRFONT=B  the same, on a 1-row stripe (the story map's chapter tag: a ribbon), the stripe's other two rows blank
-#   CRMAP=A   a title page of its own for each venue (a card before the owner's): the building from the story map above the name
-#   CRMAP=B   the same page with the building beside the name (the name in two lines on a 2-row stripe)
+#   CRMAP=B   a title page of its own for each venue (a card before the owner's): the WHOLE building from the story map on the left, the name beside it (2-3 short lines on a stripe)
 CRFONT = os.environ.get("CRFONT", "")
+CRHFONT = os.environ.get("CRHFONT") or "plain"      # the page band's heading font (owner Q81 2026-11-17: option 3): "plain" the HUD font as it is, 8x8, in the band's middle row of the full stripe (the CRFONT=A look); "tall" the HUD font stretched to 8x16 (until then), "bold" tall with 2 px strokes, "ribbon" 8x8 on a one-row stripe
+assert CRHFONT in ("tall", "bold", "plain", "ribbon"), CRHFONT
 CRMAP = os.environ.get("CRMAP", "")
-assert CRFONT in ("", "A", "B") and CRMAP in ("", "A", "B"), (CRFONT, CRMAP)
-if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the owner's card starts at OWNER
-    BH = 4
-    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4,
-               H_VEN=LAY_LG + (BH + 1 + 3 + 6 if CRMAP == "A" else BH + 9), R_VB=LAY_LG, R_VBAND=LAY_LG + BH + 1, OFF_VEN=8 * (LAY_LG + (4 if CRMAP == "A" else 2)))
-# the building crops: the story map's own cells (assets/smap/world_c.png, a venue's sign and facade, 6 x 4 cells, native size), each in the map's palette of its cells
-BUILD_CROP = {0: (4, 21), 1: (3, 2), 2: (54, 21), 3: (22, 4), 4: (52, 6), 5: (54, 39), 6: (54, 57), 7: (24, 55), 8: (7, 54), 9: (4, 38)}   # (col, row) in the map's cells, venue order
-BUILD_W = 6
-LAY["MAPFMT"] = {"": 0, "A": 1, "B": 2}[CRMAP]
+CRSCENE = os.environ.get("CRSCENE", "")       # 1: the owner scene pages (the artist's round 6, tools/gen_scene_pages.py) replace the OWNER card
+assert CRSCENE in ("", "1"), CRSCENE
+CRFLOW = os.environ.get("CRFLOW", "")       # SMOOTH: no stops: the whole credits move up at one constant speed, set from the tune's length (owner 2026-11-13: "all one long smooth scroll matched to the song length")
+assert CRFLOW in ("", "SMOOTH"), CRFLOW
+assert CRFONT in ("", "A", "B") and CRMAP in ("", "B"), (CRFONT, CRMAP)
+# The whole buildings of the story map (assets/smap/world_c.png), venue order: (col, row, width, height) in the map's cells, every tile of the building (sign, roof, base, its own ground line;
+# the Chrome Cow's milk tank and parked bikes, the factory's roof crates, the space lounge's tower, plane and runway). Neighbouring trees, piles and roads are left out.
+SCENE_PALS = 7                                      # the BG palettes a scene may use on Color: slots 2, 3, 4, 6, 7, then 5 and 1 (credits.c cr_scene_slot)
+SLOT5_ROW, SLOT1_ROW = 4, 7                         # the first scene row a palette may have cells in, to go in slot 5 / slot 1 (the rows enter after the previous boss's body / name have scrolled off)
+VGAP = {0: 20}                                      # the blank rows above a venue's scene (7 after a boss; 20 after Dregs, whose portrait uses BG 5-7)
+VGAP_DEF = 7
+SCENE_W, SCENE_H = 16, 12                           # every venue's picture: this many cells of the map (the stadium, the largest building, is 12 x 10), the building inside it
+SCENE_AT = {9: (3, 36)}                             # (the scene's first cell where it is not centred on the building: the Space Lounge's shows its UFO and the mountain)
+BUILD_BOX = {0: (3, 21, 9, 7), 1: (1, 1, 12, 10), 2: (54, 20, 6, 7), 3: (20, 4, 9, 7), 4: (51, 5, 8, 7), 5: (52, 36, 10, 9), 6: (50, 55, 12, 9), 7: (24, 55, 10, 7), 8: (6, 54, 8, 7), 9: (4, 36, 7, 7)}
+if CRMAP:                  # the venue's card (CK_VENUE) takes the band; the owner's card starts at OWNER; the venue card's rows are LG blank, the building (BH rows), VPAD blank
+    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=11, R_DIV=6, OFF_OWN=8 * 5 + 4, VPAD=16)
+LAY["MAPFMT"] = {"": 0, "B": 2}[CRMAP]
+LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
+LAY["SCENEFMT"] = 1 if CRSCENE else 0
+CRTIGHT = os.environ.get("CRTIGHT", "")           # 1: the scene pages' gaps as small as the palette swap needs (no jump, no hold), the swap several palettes a frame
+CRSPLIT = os.environ.get("CRSPLIT", "")           # 1: the page shares the screen with its neighbours (credits.c: a LYC interrupt swaps the palettes on a blank strip): 2 blank rows (a strip) on each side, no jump
+# CRSPLIT: 6 blank rows below the page, the least that is clean on every build (2026-11-16, the stress builds CRSGB=n, tools/dev/credits_roll_check.py, credits_overrun_probe.py): Color asm is clean down to 4
+# (3: the swap out is still writing palettes when the next card's first ink comes, scan faults); the DMG at 4 has a scan and a page fault of one frame and two more Dregs frames (5 is clean); the C twin
+# (ASM_CR_SPLIT=0) has a one-frame fault on the Chrome Cow's page below 6. CRHB (the boss card's rows, 11) and CRHSD (Sal's and Dregs's, 16) cannot go lower either: see the commit message.
+SGT, SGB = (0, int(os.environ.get("CRSGB", "6"))) if CRSPLIT == "1" else (int(CRTIGHT), int(CRTIGHT)) if CRTIGHT else (19, 19)                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
+if CRSCENE:
+    LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
 LAY["FONTFMT"] = {"": 0, "A": 1, "B": 2}[CRFONT]
 BAND_H = 24                                          # the venue band: 3 rows, the name's 8x16 letters centred in it
+SCROLL_CGB = 179 if os.environ.get("CRSPLIT") == "1" else 127      # CRSPLIT: Color bank 1 ids 0-126 + bank 0 ids 204-255; DMG 127 + ids 80-92, 138-145, 202-203 (credits.c cr_pid)
+SCROLL_DMG = 150 if os.environ.get("CRSPLIT") == "1" else 127
 SCROLL_RING = 127                                    # the text ring of the cast (credits.c): DMG BG ids 204-255 + 0-75 but 54, Color VRAM bank 1 ids 0-126
 ROLL_POOL = 160                                      # the roll's BG ids (credits.c CR_RING): the most tiles of 21 consecutive rows it may need
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
@@ -279,6 +313,13 @@ def main():
     pair_x = {}
     for key, lines in (("SAL", SAL), ("DREGS", DREGS)):
         w = max(ink_width(t) for t in lines)
+        if key == "DREGS":                          # (owner 2026-11-17: his full name and title, DREGS DRIBBLETON / THE RIVAL: the name is too wide for the sprite beside it, so it stands alone, centred, and the sprite goes beside the shorter title)
+            wl = ink_width(lines[1])
+            left = (160 - (16 + 8 + wl)) // 2
+            pair_x[key] = left
+            add(f"{key}0", centred(lines[0]))
+            add(f"{key}1", centred(lines[1], left + 24 + wl // 2))
+            continue
         g = 16 + 8 + w
         left = (160 - g) // 2
         pair_x[key] = left
@@ -374,48 +415,416 @@ def main():
         for j in range(3):
             cut_row(f"BAND{v}_{j}", img[8 * j:8 * j + 8], 2, EXTRA)
     stripe = tile_of([[2] * 160 for _ in range(8)], 0)
-    BLD_COL = []                                      # each venue's building palette: the story map's palette of the crop's cells (the commonest), colours light to dark
+    CH = []
+    SCN = []                                          # CRSCENE: per (venue, model) the page's data for the engine
+    if CRSCENE:
+        import gen_scene_pages as GSP
+        ids["BLD0"] = len(ROWS)
+        POOL_BLD0 = len(POOL)
+        solid = [tile_of([[k] * 160 for _ in range(8)], 0) for k in range(4)]     # (the four flat tiles: BG ids 77-80 on both machines, loaded once)
+        ids["SOLID"] = solid
+        ids["SCN0"] = len(ROWS)
+
+        def free_palette(sc, keep, tgt, seed=None):                       # BG palette tgt wholly free: the cells outside the kept palettes are packed again into the other palettes by their colours (a cell's shades and pixels are renumbered: the same colours)
+            import random
+            pls0 = sc["pals"]
+            fixed = sorted(keep)
+            cellsl = [(cy, cx, c_) for cy, crow in enumerate(sc["cells"]) for cx, c_ in enumerate(crow) if c_ and c_[2] not in keep]
+            def colset(c_):
+                sh = {c_[1]} if c_[0] == "f" else {x for r_ in c_[1] for x in r_}
+                return {x: pls0[c_[2]][x] for x in sh}
+            infos = [(cy, cx, c_, colset(c_)) for cy, cx, c_ in cellsl]
+            slots = sorted((i for i in range(8) if i not in keep and i != tgt), key=lambda i: (i in (6, 7, 1, 2, 3, 4), i))
+            if seed:                                           # (tgt is not wholly free: it holds the seed colours, cells whose colours fit with them may join)
+                slots = [tgt] + slots      # (BG 5 first: its colour 3 is not the cards' navy; 6 and 7 last)
+            # (tgt None: every other palette is a slot, packed as tight as the search finds)
+            uniq = sorted({frozenset(i[3].values()) for i in infos}, key=lambda f: (-len(f), sorted(f)))
+            bins = [list(seed)] if seed else []
+            import sys as _s
+            _s.setrecursionlimit(10000)
+            calls = [0]
+
+            def dfs(k):
+                calls[0] += 1
+                if calls[0] > 2000000:
+                    return False
+                if k == len(uniq):
+                    return True
+                f = uniq[k]
+                for bn in bins:
+                    add = [x for x in sorted(f) if x not in bn]
+                    if len(bn) + len(add) <= 4:
+                        bn += add
+                        if dfs(k + 1):
+                            return True
+                        del bn[len(bn) - len(add):]
+                if len(bins) < len(slots):
+                    bins.append(sorted(f))
+                    if dfs(k + 1):
+                        return True
+                    bins.pop()
+                return False
+            if not dfs(0):
+                raise ValueError(f"{vd.key}: the page cells do not pack into {len(slots)} palettes ({calls[0]} tries, {len(uniq)} colour sets, {len({c for f in uniq for c in f})} colours)")
+            while len(bins) < len(slots):
+                bins.append([])
+            newp = {i: [None] * 4 for i in slots}
+            for bi, i in enumerate(slots):
+                if seed and bi == 0:                            # (the seed's own places: cream 0, the band colour 1 where there is one, navy 3)
+                    newp[i][0] = seed[0]
+                    newp[i][3] = seed[-1]
+                    if len(seed) == 3:
+                        newp[i][1] = seed[1]
+                    for col in bins[0]:
+                        if col not in newp[i]:
+                            newp[i][newp[i].index(None)] = col
+                    continue
+                for j, col in enumerate(bins[bi]):
+                    newp[i][j] = col
+            for cy, cx, c_, cl in infos:
+                f = set(cl.values())
+                bi = next(bi for bi, bn in enumerate(bins) if f <= set(bn))
+                i = slots[bi]
+                mp = {sh: newp[i].index(col) for sh, col in cl.items()}
+                sc["cells"][cy][cx] = (c_[0], mp[c_[1]], i) if c_[0] == "f" else (c_[0], [[mp[x] for x in r_] for r_ in c_[1]], i)
+            for i in slots:
+                pls0[i] = newp[i]
+            if tgt is not None and not seed:
+                pls0[tgt] = [None] * 4
+            return tgt
+
+        def lum(h):
+            r_, g_, b_ = (int(h[k:k + 2], 16) for k in (1, 3, 5))
+            return 3 * r_ + 6 * g_ + b_
+
+        import numpy as np
+        import copy
+        import scenes_lib as SL
+        PAGES = {}
+        STAT = {}
+        QP = [0] * 10                                               # CRSPLIT, Color: 0, or 2 + the ink's entry (+ 4 the band palette is BG 7, + 8 the name's row is cream on navy): credits_split.c's line patches
+        SBP = [0] * 10                                              # CRSPLIT, Color: the BG palette whose colour 3 is the page's blank (navy, as the cards' blank)
+        for v in range(10):
+            if v in (0, 4, 7):
+                CH.append((POOL_BLD0, ids["BLD0"]) if v == 0 else (len(POOL), len(ROWS)))        # (three bank files: a bank holds 16 KB)
+            vd = GSP.F.VENUES[v]
+            for m in (0, 1):
+                sc = GSP.scene(vd, bool(m))
+                if m and vd.key == "biker":                            # (the Chrome Cow's band colour #a03070 is colour 2 of BG 7 (below): the packing puts it where it falls, so its palette trades places with BG 7 and its colour with colour 2 (cells follow))
+                    pl_ = sc["pals"]
+                    j_ = next(i_ for i_, p_ in enumerate(pl_) if "#a03070" in p_ and i_ != 0)
+                    k_ = pl_[j_].index("#a03070")
+                    if k_ != 2:
+                        pl_[j_][k_], pl_[j_][2] = pl_[j_][2], pl_[j_][k_]
+                        sw_ = lambda x_: 2 if x_ == k_ else k_ if x_ == 2 else x_
+                        sc["cells"] = [[None if c_ is None else ((c_[0], sw_(c_[1]), c_[2]) if c_[0] == "f" else (c_[0], [[sw_(x_) for x_ in r_] for r_ in c_[1]], c_[2])) if c_[2] == j_ else c_ for c_ in crow] for crow in sc["cells"]]
+                    if j_ != 7:
+                        pl_[j_], pl_[7] = pl_[7], pl_[j_]
+                        sc["cells"] = [[None if c_ is None else (c_[0], c_[1], 7 if c_[2] == j_ else j_ if c_[2] == 7 else c_[2]) for c_ in crow] for crow in sc["cells"]]
+                stage = sc["stage"]
+                FALLBACK = False
+                patch = False
+                BLANKC = None                                          # CRSPLIT, Color: ONE whole BG palette of the page (6 or 7: the cards' BG 6 / 7 have colour 3 navy all roll long) is [cream, the band's colour, free, navy]:
+                if CRSPLIT == "1" and m:                               # the page's blank cells (and the card's blank rows around the page: credits.c cr_card_row) are its flat colour 3 (navy in the page's set and in the cards': the swap changes
+                    pls = sc["pals"]                                   # nothing on them), the venue name's and the owner name's letters are cream on the band / on navy, as the approved composites have them
+                    bpl0 = 7 if vd.key == "biker" else 0
+                    while len(pls) < 8:
+                        pls.append([None] * 4)
+                    tgt = 6 if bpl0 == 7 else 7
+                    sc0 = copy.deepcopy(sc)
+                    okfree = False
+                    nameonly = False
+                    for seed_, no_ in ((["#f8e8b0", pls[bpl0][2], NAVY], False), (["#f8e8b0", NAVY], True)):         # (cream, the band, navy in one palette: letters of the band and the name; else cream and navy: the name only)
+                        try:
+                            free_palette(sc, {0, bpl0}, tgt, seed_)
+                            pn, okfree, nameonly = tgt, True, no_
+                            break
+                        except ValueError as e_:
+                            print("CRSPLIT", e_, "(seed of", len(seed_), "colours)")
+                    if not okfree:
+                        e_ = ValueError("no seed packs")
+                    try:
+                        if not okfree:
+                            raise e_
+                    except ValueError as e_:                            # (more colours than the 6 other palettes hold: the letters keep the stage palette's ink, the blank palette is the one with a free colour 0 / 3: colours 0 and 3 trade places in its cells)
+                        print("CRSPLIT", e_)
+                        sc.clear()
+                        sc.update(sc0)
+                        pls = sc["pals"]
+                        cands = []
+                        for cand in (6, 7, 1, 2, 3, 4):                 # (the cards' BG 1-4, 6 and 7 have colour 3 navy all roll long)
+                            if cand == bpl0 or cand >= len(pls):
+                                continue
+                            ncl = sum(1 for crow in sc["cells"] for c_ in crow if c_ and c_[2] == cand)
+                            if pls[cand][3] is None:
+                                cands.append((0, ncl, cand, 3))
+                            elif None in pls[cand]:
+                                cands.append((1, ncl, cand, pls[cand].index(None)))
+                        if not cands:                                   # (all full: pack the cells again by colour into every palette, and see)
+                            free_palette(sc, {0, bpl0}, None)
+                            for cand in (6, 7, 1, 2, 3, 4):
+                                if cand != bpl0 and cand < len(pls) and None in pls[cand]:
+                                    cands.append((0 if pls[cand][3] is None else 1, 0, cand, 3 if pls[cand][3] is None else pls[cand].index(None)))
+                        if not cands:                                   # (every palette full: the page's blank is the colour of one used entry, the one whose art pixels are fewest and darkest: set to the black, those pixels shift to it)
+                            for cand in (6, 7, 1, 2, 3, 4):
+                                if cand == bpl0 or cand >= len(pls):
+                                    continue
+                                for ej in range(4):
+                                    if pls[cand][ej] is None:
+                                        continue
+                                    dk_ = sum(abs(a_ - b_) for a_, b_ in zip(SL.hexrgb(SL.q5(pls[cand][ej])), SL.hexrgb(SL.q5(NAVY))))
+                                    npx = 0
+                                    for crow in sc["cells"]:
+                                        for c_ in crow:
+                                            if c_ and c_[2] == cand:
+                                                if c_[0] == "f":
+                                                    npx += 64 if c_[1] == ej else 0
+                                                else:
+                                                    npx += sum(1 for r_ in c_[1] for x_ in r_ if x_ == ej)
+                                    cands.append((2, npx * (dk_ + 1), cand, ej))
+                            print("CRSPLIT", vd.key, "has no free palette entry: the blank is the dark colour", min(cands) if cands else None)
+                        if not cands:
+                            sc.clear()
+                            sc.update(sc0)
+                            BLANKC, SBP[v], FALLBACK = None, 255, True
+                    if SBP[v] != 255 and not okfree:
+                        _, _, pn, fj = min(cands)
+                        if fj != 3:
+                            sw_ = {i_: i_ for i_ in range(4)}
+                            sw_[fj], sw_[3] = 3, fj
+                            pls[pn][fj], pls[pn][3] = pls[pn][3], pls[pn][fj]
+                            for crow in sc["cells"]:
+                                for ci_, c_ in enumerate(crow):
+                                    if c_ and c_[2] == pn:
+                                        crow[ci_] = (c_[0], sw_[c_[1]] if c_[0] == "f" else [[sw_[x_] for x_ in r_] for r_ in c_[1]], c_[2])
+                        pls[pn][3] = NAVY
+                        FALLBACK = True
+                    if SBP[v] != 255:
+                        BLANKC = 0xF000 | pn << 8 | 3
+                        SBP[v] = pn
+                if CRSPLIT == "1" and m and not (okfree and not nameonly):       # (the letters could not get a palette of their own: credits_split.c writes cream into the stage palette's ink entry while the band is drawn, and cream on navy for the name's row)
+                    patch = True
+                ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
+                inkv = ink if m else None
+                slot_of = {}
+                page_img = np.zeros((144, 160, 3), np.uint8)          # the expected page as the check (tools/dev/credits_roll_check.py) sees it: the generated rows, the palettes as intended, no sprites
+                bg_rgb = SL.cc(SL.hexrgb(SL.q5(NAVY if BLANKC is not None else sc["pals"][0][3]))) if m else SL.DMG_GRAY[3]
+                page_img[:, :] = bg_rgb
+                bpl = 7 if (m and vd.key == "biker") else 0       # the band and the name: the stage palette (slot 0); the Chrome Cow's band is its bar's magenta, which BG 7 holds as colour 2 (the artist's VENUE_BAND)
+                if bpl:
+                    assert sc["pals"][7][2] == "#a03070" and sc["pals"][7][1], sc["pals"][7]
+                px_, x0_, x1_ = strip(VENUES[v])
+                dxb = 80 - (x0_ + x1_ + 1) // 2
+                big = [px_[y // 2] for y in range(16)]
+                ys = [y for y in range(16) if any(c != BAND for c in big[y])]
+                topb = 4                                              # (the approved composite: the 16 lines of the name start 4 below the band's top, tools/credits_scenes/scenes_lib.py page_card)
+                band = [[2] * 160 for _ in range(BAND_H)]
+                if CRHFONT in ("plain", "ribbon"):            # ("ribbon": the stripe is that row alone, the band's other rows blank)
+                    if CRHFONT == "ribbon":
+                        band = [[BAND] * 160 if not 8 <= yy < 16 else [2] * 160 for yy in range(BAND_H)]
+                    for y in range(8):
+                        for x in range(len(px_[0])):
+                            if px_[y][x] != BAND:
+                                band[8 + y][x + dxb] = px_[y][x] if inkv is None else inkv
+                else:
+                    for y in range(16):
+                        for x in range(len(px_[0])):
+                            smear = CRHFONT == "bold" and x > 0 and big[y][x - 1] != BAND
+                            if big[y][x] != BAND or smear:
+                                src_ = big[y][x] if big[y][x] != BAND else big[y][x - 1]
+                                band[y + topb][x + dxb] = src_ if inkv is None else inkv
+                npx, nx0, nx1 = strip(OWNERS[v])
+                dxn = 80 - (nx0 + nx1 + 1) // 2
+                for j in range(1, 18):
+                    full = [[BAND] * 160 for _ in range(8)]
+                    specs = [None] * 20
+                    if 1 <= j <= 3:
+                        full = [list(rw) for rw in band[8 * (j - 1):8 * j]]
+                        auto = True
+                    elif j == 17:
+                        for y in range(8):
+                            for x in range(len(npx[0])):
+                                if npx[y][x] != BAND:
+                                    full[y][x + dxn] = npx[y][x] if inkv is None else inkv
+                        auto = True
+                    else:
+                        auto = False
+                        for tx_, c in enumerate(sc["cells"][j - 4]):
+                            if c is None:
+                                continue
+                            specs[tx_] = c
+                            if c[0] == "t":
+                                for y in range(8):
+                                    for x in range(8):
+                                        full[y][8 * tx_ + x] = c[1][y][x]
+                            else:
+                                for y in range(8):
+                                    for x in range(8):
+                                        full[y][8 * tx_ + x] = c[1]
+                    cells = []
+                    cellpl = {}
+                    cellov = {}
+                    for tx_ in range(20):
+                        flat = {p for y in range(8) for p in full[y][8 * tx_:8 * tx_ + 8]}
+                        if auto:
+                            pl = bpl
+                            if flat == {3}:
+                                cells.append(BLANKC if BLANKC is not None else 0xFFFF)
+                                continue
+                            if flat == {2}:
+                                cells.append(0xF000 | bpl << 8 | 2)
+                                continue
+                            if patch:                                       # (the letters keep the stage palette's shades; their colours are patched at the lines: cream ink, and navy behind the name where the page's blank is navy)
+                                ov_ = {inkv: "#f8e8b0"}
+                                if BLANKC is not None and j == 17:
+                                    for y_ in range(8):
+                                        for x_ in range(8 * tx_, 8 * tx_ + 8):
+                                            if full[y_][x_] == 3:
+                                                full[y_][x_] = 1 - inkv
+                                    ov_[1 - inkv] = NAVY
+                                cellov[tx_] = ov_
+                            elif BLANKC is not None and not FALLBACK and (not nameonly or j == 17):                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
+                                mp_ = {inkv: 0, 2: 1, 3: 3}
+                                for y_ in range(8):
+                                    for x_ in range(8 * tx_, 8 * tx_ + 8):
+                                        full[y_][x_] = mp_[full[y_][x_]]
+                                pl = (BLANKC >> 8) & 7
+                                cellpl[tx_] = pl
+                        else:
+                            if specs[tx_] is None:
+                                cells.append(BLANKC if BLANKC is not None else 0xFFFF)
+                                continue
+                            pl = specs[tx_][2]
+                            if specs[tx_][0] == "f":
+                                cells.append(0xF000 | pl << 8 | specs[tx_][1])
+                                continue
+                        ti = tile_of(full, tx_)
+                        assert ti < 4096
+                        STAT.setdefault((v, m, bool(auto)), set()).add(ti)
+                        if ti in slot_of:
+                            cells.append(0xE000 | pl << 8 | slot_of[ti])
+                        else:
+                            slot_of[ti] = len(slot_of)
+                            cells.append(ti | pl << 12)
+                    live = [k for k, c in enumerate(cells) if c != 0xFFFF]
+                    a0, a1 = (live[0], live[-1]) if live else (0, -1)
+                    cl = cells[a0:a1 + 1]
+                    for tx_, ce_ in enumerate(cells):
+                        if ce_ == 0xFFFF:
+                            continue
+                        if BLANKC is not None and ce_ == BLANKC:
+                            page_img[8 * j:8 * j + 8, 8 * tx_:8 * tx_ + 8] = bg_rgb
+                            continue
+                        pl_ = cellpl.get(tx_, bpl) if auto else specs[tx_][2]
+                        for y_ in range(8):
+                            for x_ in range(8):
+                                sh_ = full[y_][8 * tx_ + x_]
+                                hx_ = cellov[tx_].get(sh_) if tx_ in cellov and sh_ in cellov[tx_] else (sc["pals"][pl_][sh_] if pl_ < len(sc["pals"]) else None)
+                                page_img[8 * j + y_, 8 * tx_ + x_] = ((SL.cc(SL.hexrgb(SL.q5(hx_))) if hx_ else (0, 0, 0)) if m else SL.DMG_GRAY[sh_])
+                    ROWS.append((f"SCN{v}_{m}_{j}", a0, cl))
+                    EXTRA[f"SCN{v}_{m}_{j}"] = {"col": a0, "n": len(cl), "cells": cl}
+                PAGES[f"p{v}_{m}"] = page_img
+                if m and sc.get("r") is not None and "fig" in sc["r"]:          # the owner's silhouette on the card (not the outline ring), for tools/dev/credits_pages_vs_approved.py: every pixel in it is the story portrait's
+                    own_ = np.zeros((144, 160), np.uint8)
+                    for (bx_, by_), f_ in sc["r"]["fig"].items():
+                        if f_ != sc["r"]["bgk"]:
+                            own_[32 + GSP.BY * 8 + by_, GSP.BX * 8 + bx_] = 1
+                    PAGES[f"own{v}"] = own_
+                if m:
+                    QP[v] = (2 | ink | (4 if bpl else 0) | (8 if BLANKC is not None else 0)) if patch else 0
+                SCN.append(dict(v=v, m=m, sc=sc, ink=ink, su=list(slot_of)))
+    BLD_COL, BLD_INFO, SCENE_REPORT, NPALS = [], [], [], []                       # each venue's building palette: the story map's palette of the building's cells (the commonest), colours light to dark
     if CRMAP:
         from PIL import Image
         wj = json.loads((ROOT / "assets/smap/world.json").read_text())
         wim = Image.open(ROOT / "assets/smap/world_c.png")
         ids["BLD0"] = len(ROWS)
+        POOL_BLD0 = len(POOL)
+        solid = [tile_of([[k] * 160 for _ in range(8)], 0) for k in range(4)]     # (the four flat tiles: BG ids 77-80 on both machines, loaded once)
+        ids["SOLID"] = solid
         for v in range(10):
-            c0, r0 = BUILD_CROP[v]
+            if v == 5:
+                POOL_SPLIT, ROW_SPLIT = len(POOL), len(ROWS)    # (venues 0-4 in credits_text2.c, 5-9 in credits_text3.c: a bank holds 16 KB)
+            c0, r0, bwc, bhc = BUILD_BOX[v]
+            bx0, by0 = SCENE_AT.get(v, (c0 + bwc // 2 - SCENE_W // 2, r0 + bhc // 2 - SCENE_H // 2))
+            bx0 = max(0, min(wj["cw"] - SCENE_W, bx0))
+            by0 = max(0, min(wj["ch"] - SCENE_H, by0))
             pals = {}
-            for cy in range(4):
-                for cx in range(BUILD_W):
-                    pn = wj["cell_pal"][r0 + cy][c0 + cx]
+            for cy in range(SCENE_H):
+                for cx in range(SCENE_W):
+                    pn = wj["pal_names"][ord(wj["cell_pal"][by0 + cy][bx0 + cx]) - 48]
                     pals[pn] = pals.get(pn, 0) + 1
-            pn = max(pals, key=pals.get)
-            BLD_COL.append([rgb555("#%02x%02x%02x" % tuple(c)) for c in wj["pal_rgb"][wj["pal_names"][ord(pn) - 48]]])
-            bpx = [[wim.getpixel((c0 * 8 + x, r0 * 8 + y)) for x in range(8 * BUILD_W)] for y in range(32)]   # the map's own pixels, indices 0-3 light to dark
-            ox = 56 if CRMAP == "A" else 8
-            lines = ["THE", VENUES[v][4:]] if len(VENUES[v].split()) == 2 else [VENUES[v].split()[0] + " " + VENUES[v].split()[1], " ".join(VENUES[v].split()[2:])]
-            for j in range(4):
+            order = sorted(pals, key=lambda k: -pals[k])
+            minrow = {}
+            for cy in range(SCENE_H):
+                for cx in range(SCENE_W):
+                    nm_ = wj["pal_names"][ord(wj["cell_pal"][by0 + cy][bx0 + cx]) - 48]
+                    minrow[nm_] = min(minrow.get(nm_, 99), cy)
+
+            def pcol(nm):
+                return wj["pal_rgb"][nm]
+            # BG slots of a scene's palettes (credits.c cr_scene_slot): 2, 3, 4, 6, 7 free when the scene is loaded, then 5 (the previous boss's: written when his body rows have scrolled off the
+            # top) and 1 (the HUD's: when his name has), so a palette that goes there must have no cell above SLOT5_ROW / SLOT1_ROW (the scene's rows that enter only after that)
+            extras = []
+            rest = list(order)
+            for want in ([] if len(order) <= 5 else [SLOT5_ROW] if len(order) == 6 else [SLOT1_ROW, SLOT5_ROW]):
+                cand = [nm for nm in reversed(rest) if minrow[nm] >= want]
+                assert cand, (VENUES[v], "no palette fits slot", want, minrow)
+                extras.append(cand[0])
+                rest.remove(cand[0])
+            kept = rest + extras[::-1]                    # indices 0-4 the free slots (the commonest first), then slot 5's palette, then slot 1's
+            SCENE_REPORT.append((VENUES[v], len(order), {"slot 5": extras[-1] if extras else None, "slot 1": extras[0] if len(extras) > 1 else None}))
+            remap = {nm: nm for nm in order}
+            slot_pal = {nm: k for k, nm in enumerate(kept)}                       # the scene's palette number of each map palette
+            BLD_COL.append([[rgb555("#%02x%02x%02x" % tuple(c)) for c in pcol(nm)] for nm in kept] + [[0, 0, 0, 0]] * (SCENE_PALS - len(kept)))
+            NPALS.append(len(kept))
+            # the scene: ONE size for every venue (SCENE_W x SCENE_H cells of the map), the building in it with the map's own ground and props around it (map pixels only); the name on a stripe under it
+            assert bx0 <= c0 and c0 + bwc <= bx0 + SCENE_W and by0 <= r0 and r0 + bhc <= by0 + SCENE_H, (VENUES[v], "the building is not inside its scene")
+            bpx = [[wim.getpixel((bx0 * 8 + x, by0 * 8 + y)) for x in range(8 * SCENE_W)] for y in range(8 * SCENE_H)]   # the map's own pixels, indices 0-3 light to dark
+            bc0 = (20 - SCENE_W) // 2
+            name = VENUES[v]
+            tx, t0, t1 = strip(name)
+            assert t1 - t0 + 1 <= 152, (name, t1 - t0 + 1)
+            ids_first = len(ROWS)
+            slot_of = {}                                   # a tile of the scene is put in the ring once: its later cells name that slot (0xFE00 + the slot's number in the scene)
+            for j in range(SCENE_H + 1):
                 full = [[BAND] * 160 for _ in range(8)]
-                bg = BAND
-                if CRMAP == "B" and j in (1, 2):
+                if j < SCENE_H:
                     for y in range(8):
-                        full[y] = [2] * 160            # the stripe (colour 2) right of the building
-                    bg = 2
-                for y in range(8):
-                    for x in range(8 * BUILD_W):
-                        full[y][ox + x] = bpx[8 * j + y][x]
-                if CRMAP == "B" and j in (1, 2):
-                    tx, t0, t1 = strip(lines[j - 1])
-                    cxm = 108 - (t0 + t1 + 1) // 2
-                    assert 64 <= t0 + cxm and t1 + cxm < 156, (lines, t0 + cxm, t1 + cxm)
+                        for x in range(8 * SCENE_W):
+                            full[y][8 * bc0 + x] = bpx[8 * j + y][x]
+                else:
+                    for y in range(8):
+                        full[y] = [2] * 160
+                    cxm = 80 - (t0 + t1 + 1) // 2
                     for y in range(8):
                         for x in range(len(tx[0])):
                             if tx[y][x] != BAND:
                                 full[y][x + cxm] = tx[y][x]
-                    for k in range(BUILD_W):
-                        assert any(full[y][ox + 8 * k + x] != 2 for y in range(8) for x in range(8)), "a building cell is all stripe"
-                if CRMAP == "A":
-                    for k in range(BUILD_W):
-                        assert any(full[y][ox + 8 * k + x] != BAND for y in range(8) for x in range(8)), f"venue {v}: a building cell is all colour 3 (it would be cut as blank)"
-                cut_row(f"BLD{v}_{j}", full, bg, EXTRA)
+                cells = []
+                for tx_ in range(20):
+                    px_ = [full[y][8 * tx_:8 * tx_ + 8] for y in range(8)]
+                    flat = {p for rw in px_ for p in rw}
+                    mc = bx0 + tx_ - bc0
+                    sp = slot_pal[remap[wj["pal_names"][ord(wj["cell_pal"][by0 + j][mc]) - 48]]] if (j < SCENE_H and 0 <= tx_ - bc0 < SCENE_W) else 0    # the cell's scene palette
+                    if j < SCENE_H and bc0 <= tx_ < bc0 + SCENE_W and len(flat) == 1:
+                        cells.append(0xF000 | sp << 8 | flat.pop())             # a flat tile of the scene (the ground's colour above all): a fixed BG tile, no ring slot
+                    elif len(flat) == 1 and flat == ({2} if j == SCENE_H else {BAND}):
+                        cells.append(0xFFFF)                                     # the stripe (prefilled) or the page
+                    else:
+                        ti = tile_of(full, tx_)
+                        assert ti < 4096
+                        if ti in slot_of:
+                            cells.append(0xE000 | sp << 8 | slot_of[ti])        # (the slot's tile is in the ring already: this cell only names it, with its own palette)
+                        else:
+                            slot_of[ti] = len(slot_of)
+                            cells.append(ti | sp << 12)
+                live = [k for k, c in enumerate(cells) if c != 0xFFFF]
+                a0, a1 = (live[0], live[-1]) if live else (0, -1)
+                cl = cells[a0:a1 + 1]
+                ROWS.append((f"BLD{v}_{j}", a0, cl))
+                EXTRA[f"BLD{v}_{j}"] = {"col": a0, "n": len(cl), "cells": cl}
+            BLD_INFO.append((ids_first - ids["BLD0"], SCENE_H + 1, SCENE_H, 1, bc0, 0, [name]))
     # the stripe's colour on Color: the venue's stage palette colour 2 (biker: its bar's colour 2, the stage's is a bright green)
     vd = ROOT / "assets/approved/venues"
     band_col = []
@@ -425,7 +834,7 @@ def main():
     # the cast's text ring: the most tiles any 32 consecutive world rows hold (credits.c builds up to 30 rows ahead of the screen's top)
     L = LAY
     def n(name):
-        return sum(1 for c in EXTRA.get(name, INFO.get(name))["cells"] if c != 0xFFFF)
+        return sum(1 for c in EXTRA.get(name, INFO.get(name))["cells"] if c < 0xE000)
     world = {}
     def put(y, name):
         world[y] = world.get(y, 0) + n(name)
@@ -445,13 +854,13 @@ def main():
         cnt = dict(world)
         for v in range(10):
             if CRMAP:
-                items = [(L["R_VB"] + j, f"BLD{v}_{j}") for j in range(4)]
-                if CRMAP == "A":
-                    items += [(L["R_VBAND"] + j, f"BAND{v}_{j}") for j in range(3)]
+                items = [(VGAP.get(v, VGAP_DEF) + jj, f"BLD{v}_{jj}") for jj in range(BLD_INFO[v][1])]
                 for off, name in items:
                     cnt[yy + off] = cnt.get(yy + off, 0) + n(name)
-                yy += L["H_VEN"] + L["G"]
+                yy += VGAP.get(v, VGAP_DEF) + BLD_INFO[v][1] + L["VPAD"] + L["G"]
                 items = [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
+            elif CRSCENE:
+                items = [(SGT + j, f"SCN{v}_{0 if dmg else 1}_{j}") for j in range(1, 18)]
             else:
                 items = [(L["R_BAND"] + j, f"BAND{v}_{j}") for j in range(3)] + [(L["R_OLBL"], "LBL_OWNER"), (L["R_ONAME"], f"OWNER{v}")]
             for off, name in items:
@@ -466,8 +875,14 @@ def main():
             yy += L["H_BOSS"] + L["G"]
         top = max(cnt)
         peaks[dmg] = max(sum(cnt.get(a + i, 0) for i in range(32)) for a in range(0, top))
-    assert max(peaks.values()) <= SCROLL_RING, f"the scroll's cast needs {peaks} text tiles at once, the ring has {SCROLL_RING}"
+    assert os.environ.get("CRSTAT") or peaks[0] <= (SCROLL_CGB if CRSCENE else SCROLL_RING) and peaks[1] <= SCROLL_DMG, f"the scroll's cast needs {peaks} text tiles at once (Color, DMG), the rings have {SCROLL_CGB if CRSCENE else SCROLL_RING}, {SCROLL_DMG}"
+    if os.environ.get('CRSTAT'):
+        for m_ in (1, 0):
+            tx = [STAT.get((v_, m_, True), set()) for v_ in range(10)]
+            ar = [STAT.get((v_, m_, False), set()) for v_ in range(10)]
+            print('CRSTAT model', m_, 'text per page', [len(t) for t in tx], 'union', len(set().union(*tx)), 'art per page', [len(a) for a in ar], 'text also in art', [len(t & a) for t, a in zip(tx, ar)])
     n_all_rows = len(ROWS)
+    bp, br = (POOL_BLD0, ids["BLD0"]) if (CRMAP or CRSCENE) else (len(POOL), len(ROWS))      # CRMAP: the buildings' tiles and rows are a second file (a bank of their own: the first would hold 20 KB)
     # (the default build's tables end at n_base_rows / n_base_pool)
     n_rows = n_base_rows
     flat, offs = [], []
@@ -485,6 +900,7 @@ def main():
             pool_b += [lo, hi]
     flat_all = flat
     flat = flat_all[:n_flat_base]
+    f_br = offs[br] if br < len(offs) else len(flat_all)
 
     def arr(name, vals, ty="uint8_t"):
         return f"static const {ty} {name}[{len(vals)}] = {{ " + ", ".join(str(v) for v in vals) + " };"
@@ -494,20 +910,24 @@ def main():
          arr("ct_pool", pool_b[:n_base_pool * 16]), arr("ct_off", offs[:n_base_rows], "uint16_t"), arr("ct_cell", flat, "uint16_t"),
          arr("ct_col", [r[1] for r in ROWS[:n_base_rows]]), arr("ct_len", lens[:n_base_rows]), "",
          "#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and tiles (after the others': the default build does not have them)",
-         arr("ct_pool2", pool_b[n_base_pool * 16:]), arr("ct_off2", [o - n_flat_base for o in offs[n_base_rows:]], "uint16_t"), arr("ct_cell2", flat_all[n_flat_base:], "uint16_t"),
-         arr("ct_col2", [r[1] for r in ROWS[n_base_rows:]]), arr("ct_len2", lens[n_base_rows:]), "#endif", "",
+         arr("ct_pool2", pool_b[n_base_pool * 16:bp * 16]), arr("ct_off2", [o - n_flat_base for o in offs[n_base_rows:br]], "uint16_t"), arr("ct_cell2", flat_all[n_flat_base:f_br], "uint16_t"),
+         arr("ct_col2", [r[1] for r in ROWS[n_base_rows:br]]), arr("ct_len2", lens[n_base_rows:br]), "#endif", "",
          "// pool tile idx to BG tile `to` (one tile: a library write with the LCD on takes a twentieth of a frame)",
          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED {",
          "#ifdef CREDITS_SCROLL",
+         (f"    if (idx >= {POOL_SPLIT}) {{ credits_tile_put4(idx - {POOL_SPLIT}, to); return; }}\n    if (idx >= {bp}) {{ credits_tile_put3(idx - {bp}, to); return; }}" if CRMAP else ""),
+         ("\n".join(f"    if (idx >= {CH[k][0]}) {{ credits_tile_put{3 + k}(idx - {CH[k][0]}, to); return; }}" for k in (2, 1, 0)) if CRSCENE else ""),
          f"    if (idx >= {n_base_pool}) {{ set_bkg_data(to, 1, ct_pool2 + ((idx - {n_base_pool}) << 4)); return; }}",
          "#endif",
          "    set_bkg_data(to, 1, ct_pool + (idx << 4));", "}", "",
          "// row r's cells: dst[0] the first column, dst[1] the count (0: nothing on the row), then the pool index of each (16 bits, 0xFFFF: empty)",
-         "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED {",
+         "uint8_t credits_row_get(uint16_t r, uint8_t *dst) BANKED {",
          "    uint8_t i, n;",
          "    uint16_t *d = (uint16_t *)(dst + 2);",
          "    const uint16_t *s;",
          "#ifdef CREDITS_SCROLL",
+         (f"    if (r >= {ROW_SPLIT}) return credits_row_get4(r - {ROW_SPLIT}, dst);\n    if (r >= {br}) return credits_row_get3(r - {br}, dst);" if CRMAP else ""),
+         ("\n".join(f"    if (r >= {CH[k][1]}) return credits_row_get{3 + k}(r - {CH[k][1]}, dst);" for k in (2, 1, 0)) if CRSCENE else ""),
          f"    if (r >= {n_base_rows}) {{",
          f"        r -= {n_base_rows};",
          "        n = ct_len2[r]; s = ct_cell2 + ct_off2[r]; dst[0] = ct_col2[r]; dst[1] = n;",
@@ -520,12 +940,83 @@ def main():
          "    for (i = 0; i != n; i++) d[i] = s[i];",
          "    return n;", "}", ""]
     (out / "credits_text.c").write_text(resolve_scroll("\n".join(c)))
+    if CRMAP or CRSCENE:
+        def bld_file(name, tag, p0, p1, r0_, r1_):
+            f0, f1 = offs[r0_], (offs[r1_] if r1_ < len(offs) else len(flat_all))
+            c3 = ["// generated by tools/gen_credits.py -- do not edit (CRMAP: the buildings' scenes, a bank of their own)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
+                  arr("ct_pool" + tag, pool_b[p0 * 16:p1 * 16]), arr("ct_off" + tag, [o - f0 for o in offs[r0_:r1_]], "uint16_t"), arr("ct_cell" + tag, flat_all[f0:f1], "uint16_t"),
+                  arr("ct_col" + tag, [r[1] for r in ROWS[r0_:r1_]]), arr("ct_len" + tag, lens[r0_:r1_]), "",
+                  f"void credits_tile_put{tag}(uint16_t idx, uint8_t to) BANKED {{ set_bkg_data(to, 1, ct_pool{tag} + (idx << 4)); }}", "",
+                  f"uint8_t credits_row_get{tag}(uint8_t r, uint8_t *dst) BANKED {{", f"    uint8_t i, n = ct_len{tag}[r];", "    uint16_t *d = (uint16_t *)(dst + 2);", f"    const uint16_t *s = ct_cell{tag} + ct_off{tag}[r];",
+                  f"    dst[0] = ct_col{tag}[r]; dst[1] = n;", "    for (i = 0; i != n; i++) d[i] = s[i];", "    return n;", "}", ""]
+            (out / name).write_text("\n".join(c3))
+        if CRMAP:
+            bld_file("credits_text2.c", "3", bp, POOL_SPLIT, br, ROW_SPLIT)
+            bld_file("credits_text3.c", "4", POOL_SPLIT, len(POOL), ROW_SPLIT, len(ROWS))
+    if CRSCENE:
+        ends = CH[1:] + [(len(POOL), len(ROWS))]
+        for k in range(3):
+            bld_file(f"credits_text{2 + k}.c", str(3 + k), CH[k][0], ends[k][0], CH[k][1], ends[k][1])
+    if CRSCENE:
+        tl, tof, tn, meta, moff, bgp, opp = [], [], [], [], [], [], []
+        su, suoff = [], []                                  # each page's tiles in the order its rows first use them (v * 2 + model): the engine puts them in the ring before the rows are built
+
+        def t2(grid):
+            out_ = []
+            for y in range(8):
+                lo = hi = 0
+                for x in range(8):
+                    lo |= (grid[y][x] & 1) << (7 - x)
+                    hi |= (grid[y][x] >> 1) << (7 - x)
+                out_ += [lo, hi]
+            return out_
+        for e in SCN:
+            suoff.append(len(su))
+            su += e["su"]
+            if e["m"] != 1:
+                continue
+            sc = e["sc"]
+            tof.append(len(tl))
+            for o in sc["objs"]:
+                tl += t2(o["top"]) + (t2(o["bot"]) if o["bot"] else [0] * 16)
+            tn.append(len(sc["objs"]) * 2)
+            moff.append(len(meta))
+            assert len(sc["objs"]) <= 40 and len(sc["opals"]) <= 7, (e["v"], len(sc["objs"]), len(sc["opals"]))
+            meta += [len(sc["objs"]), len(sc["opals"]), len(sc["objs"]) * 2]
+            for k, o in enumerate(sc["objs"]):
+                meta += [o["x"] + 8, o["y"], ((1 + o["pal"]) & 7) | o["obp"] << 4 | (0x80 if o.get("co") else 0)]          # (x, y, flags: the tile is twice the slot)
+            assert len(sc["pals"]) <= 8, (e["v"], "BG palettes", len(sc["pals"]))
+            for k in range(8):
+                pp = sc["pals"][k] if k < len(sc["pals"]) else [None] * 4
+                bgp += [rgb555(h_) if h_ else 0 for h_ in pp]
+            for k in range(7):
+                pp = sc["opals"][k] if k < len(sc["opals"]) else [None] * 3
+                opp += [rgb555(h_) if h_ else 0 for h_ in pp]
+        sf = ["// generated by tools/gen_credits.py -- do not edit (CRSCENE: the scene pages' sprites, tiles and palettes)", "#pragma bank 255", "#include <gb/gb.h>", "#include <stdint.h>", '#include "credits_text.h"', "",
+              arr("ct_stile", tl), arr("ct_stoff", tof, "uint16_t"), arr("ct_smeta", meta), arr("ct_smoff", moff, "uint16_t"), arr("ct_sbg", bgp, "uint16_t"), arr("ct_sop", opp, "uint16_t"), arr("ct_su", su, "uint16_t"), arr("ct_suoff", suoff + [len(su)], "uint16_t"), "",
+              "// kind 0: object tile i (16 bytes); 1: BG palette i (4 words); 2: OBJ palette i (3 words: colours 1-3); 3: the scene's meta (n objects, OBJ palettes, tiles, then x, y in the picture and flags a object, three bytes); returns the tile count",
+              "uint8_t credits_scene_get(uint8_t v, uint8_t kind, uint8_t i, uint8_t *dst) BANKED {",
+              "    uint8_t k, n;", "    const uint8_t *s;",
+              "    if (kind == 0) { s = ct_stile + ct_stoff[v] + ((uint16_t)i << 4); for (k = 0; k != 16; k++) dst[k] = s[k]; return 0; }",
+              "    if (kind == 1) { s = (const uint8_t *)(ct_sbg + v * 32 + i * 4); for (k = 0; k != 8; k++) dst[k] = s[k]; return 0; }",
+              "    if (kind == 2) { s = (const uint8_t *)(ct_sop + v * 21 + i * 3); for (k = 0; k != 6; k++) dst[k] = s[k]; return 0; }",
+              "    if (kind == 4) { n = (uint8_t)(ct_suoff[v + 1] - ct_suoff[v]); if (i < n) { dst[0] = (uint8_t)ct_su[ct_suoff[v] + i]; dst[1] = (uint8_t)(ct_su[ct_suoff[v] + i] >> 8); } return n; }",
+              "    s = ct_smeta + ct_smoff[v]; n = 3 + 3 * s[0]; k = s[2]; s += (uint16_t)i << 5;   // (32 bytes a call: a unit of the credits' loads is a fraction of a frame)",
+              "    n -= i << 5; if (n > 32) n = 32;", "    for (i = 0; i != n; i++) dst[i] = s[i];", "    return k;", "}", ""]
+        (out / "credits_scene.c").write_text("\n".join(sf))
+        objs_ = []
+        for o_ in moff:
+            nn_ = meta[o_]
+            objs_.append([[meta[o_ + 3 + 3 * k_], meta[o_ + 4 + 3 * k_], 2 * k_, meta[o_ + 5 + 3 * k_]] for k_ in range(nn_)])
+        np.savez(out / "credits_pages.npz", meta=np.array(json.dumps({"objs": objs_, "sgt": SGT, "sgb": SGB, "split": CRSPLIT == "1"})), **PAGES)
     h = ["// generated by tools/gen_credits.py -- do not edit", "#ifndef CREDITS_TEXT_H", "#define CREDITS_TEXT_H", "#include <stdint.h>", "",
          f"#define CT_POOL_TILES {n_base_pool}   // unique tiles ({n_base_pool * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
     for key in ("TITLE", "SAL", "DREGS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // two rows")
     for key in ("HDR", "OWNER", "PATA", "PATB", "PATC", "BOSS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // ten rows (a venue each)")
+    h += ["#define CT_BPOSE { " + ", ".join("{ " + ", ".join(str(x) for x in ps) + " }" for ps in BOSS_POSES) + " }"]
+    h += [f"#define CT_BDX {{ {', '.join(str(x) for x in BOSS_DX)} }}   // each boss's body and topper moved right by this many px (BOSS_DX)"]
     h += [f"#define CT_SAL_X {pair_x['SAL']}      // the Spigoteer's sprite's left edge (px): sprite, a tile of air and his two lines, centred as a group",
           f"#define CT_DREGS_X {pair_x['DREGS']}",
           "static const uint8_t ct_cx[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in c) + " }" for c in pat_cx) + " };   // each patron's centre x (px): over his label",
@@ -534,22 +1025,48 @@ def main():
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
           "static const uint8_t ct_lp[10][8] = { " + ", ".join("{ " + ", ".join(str(x) for x in lp) + " }" for lp in LOOK_PAL) + " };   // each look's OBJ palette (Color): 1 + the index here (OBJ 0 is the Spigoteer's, kept for the roll)",
           "static const uint16_t ct_pcol[10][7][3] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in (pc + [0, 0, 0])[:3]) + " }" for pc in pcs + [[]] * (7 - len(pcs))) + " }" for pcs in PAL_COLS) + " };   // the palettes' colours 1-3 (RGB555, before BRIGHTEN)",
-          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", ""]
+          "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint16_t r, uint8_t *dst) BANKED;", "void credits_tile_put3(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get3(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put4(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get4(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put5(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get5(uint8_t r, uint8_t *dst) BANKED;", "void credits_tile_put6(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get6(uint8_t r, uint8_t *dst) BANKED;", "uint8_t credits_scene_get(uint8_t v, uint8_t kind, uint8_t i, uint8_t *dst) BANKED;", ""]
     h += ["#ifdef CREDITS_SCROLL   // the scrolling credits' own rows and layout (rows of the world: tools/gen_credits.py LAY)",
           f"#define CT_LBL {ids['LBL0']}   // the label OWNER",
           f"#define CT_BAND {ids['BAND0']}   // the venue band: three rows a venue, CT_BAND + 3 v + j", f"#define CT_STRIPE {stripe}   // the stripe's tile (pool index; colour 2 all over)",
           "static const uint16_t ct_bandcol[10] = { " + ", ".join(str(c) for c in band_col) + " };   // the stripe's colour on Color (RGB555, before BRIGHTEN)"]
+    if CRSCENE:
+        zy = 8 + LAY["H_TITLE"] + LAY["GAP_TITLE"] + 2 * (LAY["H_SD"] + LAY["G"])         # the scene pages' blank stretches (CRFLOW=SMOOTH): the screen shows nothing while the roll waits CT_ZD frames (palettes, sprites, loads) and then goes on past the blank
+        zones, ostart = [], []
+        for v in range(10):
+            pt = zy + SGT
+            ostart.append(zy)
+            zones += [(zy - 4) * 8, (pt - 17) * 8, (pt + 19) * 8, (zy + SGT + 18 + SGB + LAY["G"] - 15) * 8]        # in: from the previous card's ink (the boss's name, Dregs's sprite: 4 rows short of the page's card) to the page about to enter; out: from the page's end to the next card about to enter
+            zy += LAY["H_OWN"] + LAY["G"] + LAY["H_PAT"] + LAY["G"] + LAY["H_BOSS"] + LAY["G"]
+        zskip = sum(zones[2 * i + 1] - zones[2 * i] for i in range(20))
+        if CRTIGHT:
+            zones, zskip = [0, 0], 0
+        if CRSPLIT == "1":
+            zones, zskip = [0, 0], 0
+        h += [f"#define CT_ZN {0 if (CRTIGHT or CRSPLIT == '1') else 20}", "#define CT_ZD 32", f"#define CT_SPLIT {1 if CRSPLIT == '1' else 0}", "static const uint16_t ct_ostart[10] = { " + ", ".join(str(x) for x in ostart) + " };   // the world row each owner card (scene page) starts at", f"#define CT_ZSKIP {zskip}", f"static const uint16_t ct_zone[{len(zones)}] = {{ " + ", ".join(str(z) for z in zones) + " };   // from, to (world px) of each stretch: a venue's in, then out"]
+        h += [f"#define CT_SCN {ids['SCN0']}   // the scene pages' rows: 17 a (venue, model), CT_SCN + 17 (2 v + is_cgb) + j - 1", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)"]
+        if CRSPLIT == "1":
+            h += ["static const uint8_t ct_qp[10] = { " + ", ".join(str(x) for x in QP) + " };   // CRSPLIT, Color: the line patches of a page's letters (see gen_credits.py QP)"]
+            h += ["static const uint8_t ct_sbp[10] = { " + ", ".join(str(x) for x in SBP) + " };   // CRSPLIT, Color: each page's BG palette whose colour 3 is navy: the blank cells of the page and the blank rows of its card around it"]
     if CRMAP:
-        h += [f"#define CT_BLD {ids['BLD0']}   // the building rows: four a venue, CT_BLD + 4 v + j",
-              "static const uint16_t ct_bldcol[10][4] = { " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in BLD_COL) + " };   // the building's palette (RGB555, before BRIGHTEN), light to dark"]
+        h += [f"#define CT_BLD {ids['BLD0']}   // the building rows (a venue's start: ct_boff)", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)",
+              "static const uint8_t ct_vg[10] = { " + ", ".join(str(VGAP.get(v, VGAP_DEF)) for v in range(10)) + " };   // the blank rows above a venue's scene", "static const uint8_t ct_snp[10] = { " + ", ".join(str(n) for n in NPALS) + " };   // a scene's palettes", "static const uint16_t ct_scol[10][7][4] = { " + ", ".join("{ " + ", ".join("{ " + ", ".join(str(c) for c in cols) + " }" for cols in sc) + " }" for sc in BLD_COL) + " };   // each scene's palettes (the map's own: RGB555, before BRIGHTEN), light to dark; the cells name them (credits.c CR_SCENE_SLOT)",
+              "static const uint8_t ct_boff[10] = { " + ", ".join(str(b[0]) for b in BLD_INFO) + " };   // a venue's first building row, from CT_BLD",
+              "static const uint8_t ct_bh[10] = { " + ", ".join(str(b[1]) for b in BLD_INFO) + " };    // the building's rows",
+              "static const uint8_t ct_bs0[10] = { " + ", ".join(str(b[2]) for b in BLD_INFO) + " };   // the first row of the name's stripe, from the building's top",
+              "static const uint8_t ct_bnl[10] = { " + ", ".join(str(b[3]) for b in BLD_INFO) + " };   // the name's lines (a stripe row each)",
+              "static const uint8_t ct_bc0[10] = { " + ", ".join(str(b[4]) for b in BLD_INFO) + " };   // the building's first column",
+              "static const uint8_t ct_bc1[10] = { " + ", ".join(str(b[5]) for b in BLD_INFO) + " };   // its end (the stripe's first column)"]
     h += [f"#define CT_{k} {v}" for k, v in LAY.items()]
     h += [f"#define CT_ROLL2_N {len(roll2)}   // the scroll's roll: a blank row after each line of an entry", f"#define CT_ROLL2_BAND {band2}   // its sprites' band (the roll's row 14, moved)",
           "static const uint8_t ct_roll2[CT_ROLL2_N] = { " + ", ".join(str(r) for r in roll2) + " };"]
     h += [f"#define CT_RING_N {SCROLL_RING}   // the cast's text ring (peak {peaks})", "#endif", "", "#endif", ""]
     (out / "credits_text.h").write_text(resolve_scroll("\n".join(h)))
-    js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "roll2_ids": roll2, "roll2_band": band2, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
+    js = {"bld": [list(b[:6]) + [b[6]] for b in BLD_INFO] if CRMAP else [], "rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "roll2_ids": roll2, "roll2_band": band2, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
           "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "look_pal": LOOK_PAL, "pal_cols": PAL_COLS, "pool": len(POOL), "ring_peak": peak, "extra": EXTRA, "layout": LAY, "ring_peaks": {str(k): v for k, v in peaks.items()}, "title": TITLE}
     (out / "credits_text.json").write_text(json.dumps(js, indent=1))
+    for nm_, np_, mg_ in SCENE_REPORT:
+        print(f"scene {nm_}: {np_} map palettes" + (f", extras: {mg_}" if np_ > 5 else ""))
     print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, one row each")
 
 

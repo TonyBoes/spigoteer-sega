@@ -1,12 +1,12 @@
-# The scrolling credits, the game's only credits (src/credits.c "the scrolling credits"): run against the default ROM.
-# It is a playtest build of its own, not the default ROM: these tests skip when that ROM has not been built.
+# The scrolling credits, the game's only credits (src/credits.c "the scrolling credits"): run against the default ROM. Since 2026-11-17 the default roll is the shipped one: the shared-screen roll
+# with the scene pages, ONE smooth scroll (CRFLOW=SMOOTH: no stops, no holds, no glides), set from the tune's length (owner 2026-11-13: "all one long smooth scroll matched to the song length").
 #
-#   timeline  the screen holds at each stop for the frames the owner asked for (a venue: 180 band and owner, 270 regulars, 180 boss), glides between
-#             stops in whole px a frame that only ever speed up and slow down, and SCY follows
+#   timeline  the picture moves up at one constant speed (the px a frame the generator and the tune's length give), a whole px at a time, SCY follows; every venue passes in the frames its rows take
 #   no pops   no 8x8 cell of the picture changes except by the scroll (sprites masked: their edges move, and the boss's body rows, which are his animation);
 #             a window of the cast by default, the whole roll with CREDITS_SCAN_FULL=1
 import json
 import os
+import re
 
 import numpy as np
 import pytest
@@ -64,67 +64,56 @@ def holds_and_glides(gb, frames):
     return out
 
 
+def ostarts():
+    """the world row each venue's scene page starts at (build/credits_text.h ct_ostart; the Color table: the DMG's cards are as tall)"""
+    h = (ROOT / "build" / "credits_text.h").read_text()
+    return [int(x) for x in re.search(r"ct_ostart\[10\] = \{([^}]*)\}", h).group(1).split(",")]
+
+
+def speed(gb):
+    """the roll's px a frame: CR->ts (8.16) as cr_flow_init computed it from the roll's length and the tune's"""
+    st = gb.read("story_scratch", 70)
+    return u16(st, 36) / 65536
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_cast_holds_and_glides_by_frames(model):
+def test_the_roll_moves_at_one_constant_speed(model):
+    """No stops: CR->k and CR->st stay 0, the timeline moves a whole px at a time (0 or 1 a frame, the speed being under 1), never stands still for 3 frames in a row, and over 1500 frames
+    it goes the px the speed says (the fade in at the start aside); SCY is the published scroll."""
     with start(model) as gb:
+        v = speed(gb)
+        assert 0.3 < v < 0.9, v
         tl = holds_and_glides(gb, 1500)
-        # the stops: the card index k runs 0, 1, 2 ... and each hold has the asked number of frames (the first one is cut by the frames the fade-in took)
-        runs = []
-        for k, st, pos, sc, sy in tl:
-            if runs and runs[-1][0] == k and runs[-1][1] == st:
-                runs[-1][2] += 1
-            else:
-                runs.append([k, st, 1])
-        holds = [(k, n) for k, st, n in runs if st == 0]
-        assert [k for k, n in holds][:3] == [0, 1, 2], runs
-        for k, n in holds[1:3]:
-            assert n == HOLDS[k] or n == HOLDS[k] + 1, (k, n)
-        # a glide's speeds: whole px, up to 4, and only ever up then down; the hold is still
-        prev = tl[0][2]
-        sp = []
-        for k, st, pos, sc, sy in tl[1:]:
-            sp.append(pos - prev)
-            prev = pos
-        peak = sp.index(max(sp)) if max(sp) else 0
-        assert max(sp) == 4 and min(sp) >= 0
-        # (each glide: non-decreasing to its peak plateau then non-increasing)
-        i = 0
-        while i < len(sp):
-            if sp[i] == 0:
-                i += 1
-                continue
-            j = i
-            while j < len(sp) and sp[j] != 0:
-                j += 1
-            g = sp[i:j]
-            up = 0
-            while up + 1 < len(g) and g[up + 1] >= g[up]:
-                up += 1
-            assert all(g[x + 1] <= g[x] for x in range(up, len(g) - 1)), g
-            assert g[0] == 1 and g[-1] == 1 and len(g) >= 32 and len(g) <= 100, g
-            i = j
-        # SCY is the published scroll (it moves in the VBlank only)
-        assert all(sy == sc & 255 for k, st, pos, sc, sy in tl[2:]) or sum(sy != sc & 255 for k, st, pos, sc, sy in tl[2:]) < 3
+        assert all(k == 0 and st == 0 for k, st, pos, sc, sy in tl), "no stop and no glide: one smooth scroll"
+        sp = [b[2] - a[2] for a, b in zip(tl, tl[1:])]
+        assert min(sp) >= 0 and max(sp) <= 1, "a whole px a frame at most"
+        still = max((len(g) for g in re.findall(r"0+", "".join(str(x) for x in sp))), default=0)
+        assert still <= 2, f"the picture stands still for {still} frames in a row"
+        got = tl[-1][2] - tl[0][2]
+        assert abs(got - v * (len(tl) - 1)) <= 3, (got, v * (len(tl) - 1))
+        assert sum(sy != sc & 255 for k, st, pos, sc, sy in tl[2:]) < 3
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_venue_holds_180_270_180_frames(model):
+def test_each_venue_passes_in_the_frames_its_rows_take(model):
+    """The frames between one scene page's top reaching the screen's top and the next one's are (their rows * 8) / the speed, to 3 frames: the same constant speed through the cards, the pages, the
+    patrons and the bosses (no hold, whatever the card)."""
+    os_ = ostarts()
     with start(model) as gb:
-        runs, last = [], None
-        for _ in range(4200):
+        v = speed(gb)
+        first = {}
+        for n in range(3400):
             gb.run(1)
-            st = gb.read("story_scratch", 70)
-            key = (st[K], st[ST])
-            if last == key:
-                runs[-1][2] += 1
-            else:
-                runs.append([key[0], key[1], 1])
-            last = key
-            if st[K] > 6:
+            pos = u16(gb.read("story_scratch", 70), POS)
+            for i in range(3):
+                if i not in first and pos >= os_[i] * 8:
+                    first[i] = n
+            if len(first) == 3:
                 break
-        holds = {k: n for k, s, n in runs if s == 0}
-        for k, want in zip((3, 4, 5), VENUE_HOLDS):
-            assert holds[k] in (want, want + 1), (k, holds)
+        assert len(first) == 3, first
+        for i in (0, 1):
+            want = (os_[i + 1] - os_[i]) * 8 / v
+            assert abs((first[i + 1] - first[i]) - want) <= 3, (i, first, want)
 
 
 def sprite_mask(oam):
@@ -202,3 +191,85 @@ def test_no_cell_changes_on_screen_but_by_the_scroll(model):
     # no judder: the picture moves a whole px a frame, and a frame that stands still between two that move is a stutter
     stutter = [i for i in range(1, len(shifts) - 1) if shifts[i][0] == 0 and shifts[i - 1][0] and shifts[i + 1][0] and shifts[i - 1][1] == shifts[i][1] == shifts[i + 1][1] == 1]
     assert not stutter, f"the picture stands still for a frame inside a glide at {stutter[:8]}"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb", "cgb-normal"])
+def test_nothing_but_the_end_cards_own_text_shows_after_it(model):
+    """Owner 2026-11-17: "The word COMMUNITY flashes on the screen after THANKS FOR PLAYING." The leave reset SCY to 0 before the wanted scene change's cover (the
+    drink rising over the frozen old scene), so the cover rose over the map's first rows: the roll's old text. With the transitions ON (the harness turns them off), every
+    frame from the settled end card to the cover's end shows no text pixel outside the end card's own box, above the drink."""
+    from PIL import Image  # noqa: F401
+    if model == "cgb-normal":
+        gb = Rom(SCROLL_ROM, "cgb")
+        gb.run(120)
+        hold_stage_anim(gb)
+        title_pick(gb, K_BONUS, K_CREDITS)
+        run_until(gb, lambda: gb.mem("story_phase") == 8, 40)
+        run_until(gb, lambda: gb.read("story_scratch", 70)[LIVE] == 1, 600)
+    else:
+        gb = start(model)
+    with gb:
+        pb = gb.pb
+        pb.memory[0xFFF1] = pb.memory[0xFFF1] & 0x7F        # (the transitions on, as shipped)
+        end = None
+        base = None
+        for n in range(13000):
+            pb.tick(1, True)
+            st = gb.read("story_scratch", 70)
+            if end is None:
+                if st[ST] == 3 and (st[PH] | st[PH + 1] << 8) >= 5:
+                    img = np.asarray(pb.screen.image.convert("RGB")).astype(np.int16)
+                    bg = img[2, 2]
+                    ys, xs = np.nonzero((img != bg).any(axis=2))
+                    assert len(ys), "the end card is on the screen"
+                    end = (int(ys.min()) - 2, int(ys.max()) + 3, int(xs.min()) - 2, int(xs.max()) + 3)
+                    base = bg
+                continue
+            img = np.asarray(pb.screen.image.convert("RGB")).astype(np.int16)
+            ink = (img != base).any(axis=2)
+            if ink.mean() > 0.9:                           # (the cover is up: whole screen)
+                break
+            rows_full = ink.mean(axis=1) > 0.5
+            top = int(np.argmax(rows_full)) if rows_full.any() else 144       # (the drink's top edge)
+            out = ink.copy()
+            out[end[0]:end[1], end[2]:end[3]] = False
+            out[top:] = False
+            assert not out.any(), f"frame {n}: {int(out.sum())} px of something else (rows {np.nonzero(out)[0].min()}-{np.nonzero(out)[0].max()}) above the drink after the end card"
+        else:
+            raise AssertionError("the cover never came")
+        assert end is not None
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_boss_changes_pose_about_every_16_frames_while_he_is_on_screen(model):
+    """Owner 2026-11-17: "the yeti doesn't really do much of an animation while he's on screen". Each boss cycles WALK, STOMP, HAPPY, STOMP, 16 frames a pose; the
+    pose rewrite no longer waits for a frame with no row built (the next page's loads made that most of them: 4-8 changes in the 4 s he is on screen, now 15-17)."""
+    L = lay()
+    w = 8
+    heights = [(L["H_TITLE"], L["GAP_TITLE"]), (L["H_SD"], L["G"]), (L["H_SD"], L["G"])]
+    for v in range(10):
+        heights += [(L["H_OWN"], L["G"]), (L["H_PAT"], L["G"]), (L["H_BOSS"], L["G"])]
+    body = []
+    for i, (h, g) in enumerate(heights):
+        if i >= 3 and (i - 3) % 3 == 2:
+            body.append(w + L["R_BBODY"])
+        w += h + g
+    last = [None] * 10
+    changes = [0] * 10
+    with start(model) as gb:
+        pb = gb.pb
+        for n in range(13000):
+            pb.tick(1, True)
+            st = gb.read("story_scratch", 70)
+            if gb.mem("story_phase") != 8 or (st[ST] == 3 and u16(st, PH) >= 40):
+                break
+            sc = u16(st, SCROLL)
+            for v in range(10):
+                top = body[v] * 8 - sc
+                if not (-16 <= top and top + 16 <= 144):
+                    continue
+                ids = bytes(pb.memory[0x9800 + (body[v] & 31) * 32 + c] for c in range(20))
+                if last[v] is not None and ids != last[v]:
+                    changes[v] += 1
+                last[v] = ids
+    assert min(changes) >= 12, f"pose changes while on screen, per boss: {changes}"

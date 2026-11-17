@@ -37,7 +37,7 @@ everything you need is local. The owner pushes to GitHub himself.
   with its diff bounding box (from a read-only script that writes nothing under `tests/golden/`) and the reason, and
   commit with those failures left in, saying so.
 - **Budgets:** WRAM is nearly exhausted: add NO new WRAM globals; use the existing unions, `story_scratch` or
-  `BOSS_OWN`. Report `WRAM_LO` / `WRAM_HI_0` and `romusage` before and after. ROM0 has 477 B free in the default build (`build/game.gb`, with the debug menu; the tightest, so the rule means this one): keep it, never let it shrink. Measure it with the `ROM0 real: ... bytes free` line that `make` prints (`python3 tools/rom0free.py build/game.map`, from the linker map: _CODE, _HOME, _INITIALIZER, _GSINIT, _GSFINAL against 0x4000); `romusage`'s ROM_0 free column (818 B today) overstates it by 341 B. `build/release.gb` (no debug menu) has 804 B and `build/game-c.gb` 85 B: not the budget.
+  `BOSS_OWN`. Report `WRAM_LO` / `WRAM_HI_0` and `romusage` before and after. ROM0 has 494 B free in the default build (`build/game.gb`, with the debug menu; the tightest, so the rule means this one): keep it, never let it shrink. Measure it with the `ROM0 real: ... bytes free` line that `make` prints (`python3 tools/rom0free.py build/game.map`, from the linker map: _CODE, _HOME, _INITIALIZER, _GSINIT, _GSFINAL against 0x4000); `romusage`'s ROM_0 free column (835 B today) overstates it by 341 B. `build/release.gb` (no debug menu) has 821 B and `build/game-c.gb` 90 B: not the budget.
   Never raise a perf guard; if one fails, stop and report.
 - **Assembly:** only within the authorised asm pass, behind a define. Every asm routine keeps its C version built
   (`make cfall`) and tested. Never delete the C path.

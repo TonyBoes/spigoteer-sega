@@ -38,11 +38,28 @@ endif
 #   make BUILD=out/b_glowA OUT=out/o_glowA GLOW=A unlocked  GLOW=A: the bistro oven's CGB palette pulse (src/glow.c); GLOW=B: a halo in the BG tiles
 #                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)
 GLOW     ?=
+CRCFLAGS ?=
+# The shipped credits (owner-approved 2026-11-17): the shared-screen roll, one smooth scroll, the scene pages of the round 18 set (with the round 21 / 22 art) and the all-black Color background.
+# The older variants stay behind the flags: make CRFLOW= CRSCENE= CRSPLIT= (the roll of cards without pages), CRSPLIT= (the pages with the jump), CRART=8 / 7 (the older art).
+CRFLOW   ?= SMOOTH
+CRSCENE  ?= 1
+CRSPLIT  ?= 1
+CRART    ?= 18
+export CRART
 export GLOW
 export CRFONT
+export CRHFONT
 export CRMAP
+export CRFLOW
+export CRSCENE
+export CRTIGHT
+export CRSPLIT
 ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
+endif
+LCCFLAGS += $(CRCFLAGS)
+ifeq ($(CRSPLIT),1)
+LCCFLAGS += -DCR_SPLIT_BUILD
 endif
 
 # Playtest variant (owner 2026-11-12): every tune playable in BONUS > SOUNDTRACK, for listening to music changes in test ROMs:
@@ -63,7 +80,14 @@ VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c $(BUILD)/story_motion.c
 PRACTICE_C := $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c
-GEN      := $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/looks.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(BUILD)/music_pat25.c $(BUILD)/music_pat26.c $(STORY_C) $(BUILD)/credits_text.c
+# CRMAP (the credits' venue title pages with the story map's buildings, a proposal): the buildings' tiles are a second generated file, a bank of its own
+ifneq ($(CRMAP),)
+CRMAP_GEN := $(BUILD)/credits_text2.c $(BUILD)/credits_text3.c
+endif
+ifneq ($(CRSCENE),)
+CRMAP_GEN := $(BUILD)/credits_text2.c $(BUILD)/credits_text3.c $(BUILD)/credits_text4.c $(BUILD)/credits_scene.c
+endif
+GEN      := $(CRMAP_GEN) $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/looks.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(BUILD)/music_pat25.c $(BUILD)/music_pat26.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 10 (build/music_pat10.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -100,7 +124,7 @@ $(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md a
 	python3 tools/gen_story.py $(BUILD) $(OUT)/preview
 
 # The credits' pre-rendered text (src/credits.c): every cast label and roll line cut into centred tiles -> build/credits_text.c (banked), .h, .json (tests)
-$(BUILD)/credits_text.c $(BUILD)/credits_text.h: tools/gen_credits.py tools/gen_art.py assets/tiles/bar.txt assets/tiles/story.txt | $(BUILD)
+$(BUILD)/credits_text.c $(BUILD)/credits_text.h: tools/gen_credits.py tools/gen_art.py tools/gen_scene_pages.py $(wildcard tools/credits_scenes/*.py tools/credits_scenes8/*.py tools/credits_scenes18/*.py tools/credits_scenes18/owner_masks/*) assets/tiles/bar.txt assets/tiles/story.txt | $(BUILD)
 	python3 tools/gen_credits.py $(BUILD)
 
 # Perfect pour (story): per-venue sparkle / overflow frames and the catch cue -> build/pour_art.h (src/pour.c's bank),
@@ -209,6 +233,9 @@ $(SMAPW_C) $(BUILD)/smap_world.h $(BUILD)/smap_world.json &: tools/gen_smap_worl
 # `make -B` and comparing with the rules). Without them an incremental `make` kept stale generated files after editing one of these.
 $(BUILD)/art.c: assets/tiles/story.txt src/layout.h tools/artifacts/palette_plan/plan_slots.json
 $(BUILD)/boss_art.h: $(wildcard assets/approved/venues/*_tilt.txt)
+$(BUILD)/credits_text2.c $(BUILD)/credits_text3.c $(BUILD)/credits_text4.c $(BUILD)/credits_scene.c: $(BUILD)/credits_text.c
+	@test -f $@
+
 $(BUILD)/credits_text.c: $(wildcard assets/approved/venues/*_pal.json) $(wildcard assets/art/patrons/*_x.txt) $(wildcard tools/artifacts/palette_plan/*.py) tools/artifacts/palette_plan/plan_slots.json
 $(BUILD)/looks.c: src/game.h tools/artifacts/palette_plan/plan_slots.json
 $(BUILD)/smap_world.h: src/order.h
