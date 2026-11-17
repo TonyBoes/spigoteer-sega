@@ -1025,6 +1025,9 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             }
 #endif
         } else if (kd == CK_PATRONS
+#if CT_SPLIT
+                   && (CR->gc > c || (CR->gc == c && CR->gl == 255))        // (the card's poses and palettes are in: on a late frame (the C twin) its sprites came up with the previous venue's looks for a frame)
+#endif
 #if CT_SCENEFMT
                    && (CT_SPLIT || !(c == CR->sc + 1 && CR->pos < (uint16_t)(CR->ss + CT_SGT + 19) * 8))       // (the scene page's sprites hold OAM until the page has gone: the patrons' share its slots; then at once, the card's own rows are not yet in view)
 #endif
@@ -1327,7 +1330,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         return 0;
     }
     if (is_cgb) cr_pump();                              // (Color: the frame's tick first, so the main loop's own never has to be the late one)
-    if (LY_REG >= 144 || (uint16_t)(CR->pos - CR->scroll) > 3) CR->scroll = CR->pos;               // (a lag of more than 3 px moves the picture in mid-frame, the top lines tear for a frame: an update that always starts late (the swap interrupt at line 135 ran into the next frame: normal speed) must not freeze the picture at the line that makes it late) (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
+    if (LY_REG >= 144 || (uint16_t)(CR->pos - CR->scroll) > 48) CR->scroll = CR->pos;               // (a lag of more than 48 px (about 85 frames: the C twin's swap interrupt late for a stretch holds the picture 30 frames and catches up in the VBlank by itself) moves the picture in mid-frame, the top lines tear for a frame: an update that always starts late (the swap interrupt at line 135 ran into the next frame: normal speed) must not freeze the picture at the line that makes it late) (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
     SCY_REG = (uint8_t)CR->scroll;
 #if CT_SPLIT
     cr_split_frame();
