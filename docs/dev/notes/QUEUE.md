@@ -1310,3 +1310,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 Sal P7 (292539be): left forward hand out-left (as Dregs), right in front (P6); right hand 2 px in + a row up vs Dregs 1 px in at rest row. Q92 on Open Questions.
 - 11-17 OWNER Q92: "Its fine now." -> import Sal P7 (walk1/walk2 arms) into bartender.txt with Duke P1c and the boss-tile test; full suite to list goldens; then gb-golden-check, supervisor replaces, verify, merge.
 - 11-17 OWNER: "Go ahead and merge the credits too." -> credits branch at 46c05a04 (bosses centred + animated, Dregs full name, owner full names, plain venue font, COMMUNITY fix, brim tip) being verified FULL=1 CBUILD=1 (credits-split3); merge on pass, then main rerun.
+- 11-17 Sal P7 imported (c108adfb) with Duke P1c + boss-tile test on worktree-agent-ad7a6ac9d461ec637; full suite 6106 passed, 6 golden failures (3 Duke cgb bar-4 stale cells, 3 story-map Sal walk), table d587ebb4. gb-golden-check running.
