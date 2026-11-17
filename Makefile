@@ -48,6 +48,7 @@ CRART    ?= 18
 export CRART
 export GLOW
 export CRFONT
+export CRHFONT
 export CRMAP
 export CRFLOW
 export CRSCENE
