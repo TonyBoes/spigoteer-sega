@@ -193,15 +193,36 @@ __asm
 __endasm;
 }
 #else
-static void cr_bg64(const uint8_t *s) { uint8_t k; for (k = 0; k < 64; k++) BCPD_REG = s[k]; }
-static void cr_ob64(const uint8_t *s) { uint8_t k; for (k = 0; k < 64; k++) OCPD_REG = s[k]; }
-static void cr_ob48(const uint8_t *s) { uint8_t k; for (k = 0; k < 48; k++) OCPD_REG = s[k]; }
-static void cr_hb(void) { while (!(STAT_REG & 2)) ; while (STAT_REG & 2) ; }          // (the next HBlank)
-static void cr_sw1(const uint8_t *s) { uint8_t k; cr_hb(); for (k = 0; k < 8; k++) BCPD_REG = s[k]; }
+static void cr_wn(const uint8_t *s, uint8_t n) {         // n x 16 bytes to the port the caller named (the C twin of _cr_wn: a pointer, sixteen stores a pass, no index arithmetic: the set must be in before the first line is drawn)
+    do {
+        BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++;
+        BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++;
+    } while (--n);
+}
+static void cr_wo(const uint8_t *s, uint8_t n) {
+    do {
+        OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++;
+        OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++;
+    } while (--n);
+}
+static void cr_bg64(const uint8_t *s) { cr_wn(s, 4); }
+static void cr_ob64(const uint8_t *s) { cr_wo(s, 4); }
+static void cr_ob48(const uint8_t *s) { cr_wo(s, 3); }
+// The interrupt's writers, in C. The poll for the HBlank is INLINE in each (no call between seeing the HBlank and the first store: a function's return
+// and a pop cost ~40 cycles of the ~250 the HBlank has, and a palette that does not fit takes a second line: 25 lines for a swap, not 20, and the VBlank handler comes after the
+// latest line its drain may start at). Line 144 on ends the wait (the writes are free then), as _cr_sw1's first loop does.
+static void cr_sw1(const uint8_t *s) {
+    for (;;) { if (LY_REG >= 144) break; if (STAT_REG & 2) { while (STAT_REG & 2) ; break; } }
+    BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s++; BCPD_REG = *s;
+}
 static void cr_sw_ob8(const uint8_t *s) {
-    uint8_t p, k;
+    uint8_t p;
     OCPS_REG = 0x88;
-    for (p = 0; p < 6; p++) { cr_hb(); for (k = 0; k < 8; k++) OCPD_REG = *s++; }
+    for (p = 0; p < 6; p++) {
+        while (!(STAT_REG & 2)) ;
+        while (STAT_REG & 2) ;
+        OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++; OCPD_REG = *s++;
+    }
 }
 #endif
 
