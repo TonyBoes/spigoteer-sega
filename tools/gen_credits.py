@@ -433,14 +433,14 @@ def main():
                     return True
                 f = uniq[k]
                 for bn in bins:
-                    add = [x for x in f if x not in bn]
+                    add = [x for x in sorted(f) if x not in bn]
                     if len(bn) + len(add) <= 4:
                         bn += add
                         if dfs(k + 1):
                             return True
                         del bn[len(bn) - len(add):]
                 if len(bins) < len(slots):
-                    bins.append(list(f))
+                    bins.append(sorted(f))
                     if dfs(k + 1):
                         return True
                     bins.pop()

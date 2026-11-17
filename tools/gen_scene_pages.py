@@ -107,14 +107,14 @@ def _repack(cells, maps, stage):
             return True
         f = sets[k]
         for bn in bins:
-            add = [x for x in f if x not in bn]
+            add = [x for x in sorted(f) if x not in bn]
             if len(bn) + len(add) <= 4:
                 bn.extend(add)
                 if dfs(sets, k + 1):
                     return True
                 del bn[len(bn) - len(add):]
         if len(bins) < nbmax[0]:
-            bins.append(list(f))
+            bins.append(sorted(f))
             if dfs(sets, k + 1):
                 return True
             bins.pop()
