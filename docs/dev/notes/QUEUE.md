@@ -1244,3 +1244,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 Kiki round 14: counter corners gold again via zoo bar palette slot 3 olive -> near-black #2c1808 (whole bar band; counter darkest pixels now near-black brown). 8/line, 8 BG pal. Q71 updated with it (v700).
 - 11-16 OWNER Q68: "Coach dark fill get rid of blue pixels under brim." -> Coach round 15 (dark fill + every wall-blue pixel under the brim dark).
 - 11-16 OWNER Q70: "June looks good now." June round 12 approved as is (hat specks kept as he drew them).
+- 11-16 OWNER Q71: "Kiki's pigtails are better, but no mouth dots." Pigtails stay as round 14. "No mouth dots" has two readings -> Q72 (keep game mouth / remove lone dark pixels by the mouth). Coach round 15 done (13 px dark, no wall blue under brim) -> Q73.
