@@ -1329,7 +1329,9 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         CR->ls = (uint8_t)sys_time;                        // (the timeline counts frames from here)
         return 0;
     }
+#if !CT_SPLIT
     if (is_cgb) cr_pump();                              // (Color: the frame's tick first, so the main loop's own never has to be the late one)
+#endif
     if (LY_REG >= 144 || (uint16_t)(CR->pos - CR->scroll) > 48) CR->scroll = CR->pos;               // (a lag of more than 48 px (about 85 frames: the C twin's swap interrupt late for a stretch holds the picture 30 frames and catches up in the VBlank by itself) moves the picture in mid-frame, the top lines tear for a frame: an update that always starts late (the swap interrupt at line 135 ran into the next frame: normal speed) must not freeze the picture at the line that makes it late) (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
     SCY_REG = (uint8_t)CR->scroll;
 #if CT_SPLIT

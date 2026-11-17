@@ -263,7 +263,10 @@ static void cr_split_plan(uint16_t sc) {          // the plan for the frame that
         if (sc < u) { if (u - sc <= 135) { line = (uint8_t)(u - sc); dir = 0; } break; }          // (the page's band starts 8 lines below the line: its stage palette must be in before; the swap ends by line 144 from 124 up (a palette a line, 14 of them), else the OBJ ones wait for the next frame)
         if (sc < w) { top = 1; if (w - sc <= 124) { line = (uint8_t)(w - sc); dir = 1; } break; }
     }
-    if (line < (KEY1_REG & 0x80 ? 2 : 12)) { if (!dir) top = 1; else top = 0; line = 255; }          // (the strip is at the top: the interrupt could not come in time (a late frame) and the lines before it are blank: the other set from the start)
+    if (line < (KEY1_REG & 0x80 ? 2 : 12)) {
+        if (is_cgb && line + (dir ? 16 : 8) >= (KEY1_REG & 0x80 ? 2 : 12) + (dir ? 8 : 2)) line = KEY1_REG & 0x80 ? 2 : 12;          // (the lines above the page are not blank in the other set: the swap goes later, into the rows that are navy in both (the strip 16 lines; the page's row 0 8 lines, its stage palette first) if they are long enough for it)
+        else { if (!dir) top = 1; else top = 0; line = 255; }          // (the page is at the top and the interrupt could not come in time (a late frame): the other set from the start)
+    }
     if (is_cgb && !CR_NOQP && v < 10 && ct_qp[v] && (top || (line != 255 && !dir))) {          // (a page whose letters are patched: the band's end and the name's row are lines of the picture)
         int16_t yp = (int16_t)u - (int16_t)sc, be = yp + 32, nt = yp + 136;
         if (top) qv = nt <= 9 ? 2 : be > 3 ? 1 : 0;        // (an event for one of the first lines would be armed after the line has passed on a late frame and the chain would stall: those lines take the next version at once)

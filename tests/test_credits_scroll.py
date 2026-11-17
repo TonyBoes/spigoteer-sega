@@ -161,7 +161,6 @@ def scan(model, frames):
                     a, b = img[0:144 - d], prev[d:144]
                     m = mhist[-1][0:144 - d] | mhist[-2][d:144] | mhist[-3][d:144]
                     diff = (np.abs(a - b).sum(axis=2) > 0) & ~m
-                    diff[0:3] = False                       # (the first lines: a frame that starts late (the swap interrupt ran into the next frame) writes the palette set into them, so they show the previous set for a frame: 3 frames in 1500)
                     diffs.append(int(diff.sum()))
                     if best is None or diff.sum() < best[1].sum():
                         best = (d, diff)
