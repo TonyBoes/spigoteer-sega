@@ -27,7 +27,7 @@ DEFAULT = ROOT / "tests" / "approved" / {"7": "credits_pages", "8": "credits_pag
 # Known, with the numbers: the Color pages of lodge, bistro, igloo, factory and biker cannot have the approved cream letters on the band and navy behind the owner's name: their cells need 7 BG palettes
 # besides the stage palette (a whole palette [cream, band, free, navy] makes 9; tools/gen_credits.py free_palette proves it), the hardware has 8. Bistro's accordionist is an OBJ (the approved
 # composite draws her into the BG with a ninth palette and moves the room's pixels in her cells).
-CAPACITY = {"lodge", "bistro", "igloo", "factory", "biker", "zoo"}      # (round 18: the Zoo too: the near-black slot 3 of its bar palette adds colours, its cells need all eight palettes)
+CAPACITY = {"bistro", "factory"}      # (round 18 with the line patches: the letters are exact everywhere; bistro and factory keep their stage-coloured margins, no palette entry for navy)
 OBJ_PERF = {"bistro"}
 NOFREE = {"bistro", "factory"}      # round 8, Color: every BG palette of these pages is full (4 colours of art), so there is no entry for the navy margin: the margins keep the stage colour
 

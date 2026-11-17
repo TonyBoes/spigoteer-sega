@@ -477,6 +477,7 @@ def main():
         import scenes_lib as SL
         PAGES = {}
         STAT = {}
+        QP = [0] * 10                                               # CRSPLIT, Color: 0, or 2 + the ink's entry (+ 4 the band palette is BG 7, + 8 the name's row is cream on navy): credits_split.c's line patches
         SBP = [0] * 10                                              # CRSPLIT, Color: the BG palette whose colour 3 is the page's blank (navy, as the cards' blank)
         for v in range(10):
             if v in (0, 4, 7):
@@ -486,6 +487,7 @@ def main():
                 sc = GSP.scene(vd, bool(m))
                 stage = sc["stage"]
                 FALLBACK = False
+                patch = False
                 BLANKC = None                                          # CRSPLIT, Color: ONE whole BG palette of the page (6 or 7: the cards' BG 6 / 7 have colour 3 navy all roll long) is [cream, the band's colour, free, navy]:
                 if CRSPLIT == "1" and m:                               # the page's blank cells (and the card's blank rows around the page: credits.c cr_card_row) are its flat colour 3 (navy in the page's set and in the cards': the swap changes
                     pls = sc["pals"]                                   # nothing on them), the venue name's and the owner name's letters are cream on the band / on navy, as the approved composites have them
@@ -547,6 +549,8 @@ def main():
                     if SBP[v] != 255:
                         BLANKC = 0xF000 | pn << 8 | 3
                         SBP[v] = pn
+                if CRSPLIT == "1" and m and not (okfree and not nameonly):       # (the letters could not get a palette of their own: credits_split.c writes cream into the stage palette's ink entry while the band is drawn, and cream on navy for the name's row)
+                    patch = True
                 ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
                 inkv = ink if m else None
                 slot_of = {}
@@ -596,6 +600,7 @@ def main():
                                         full[y][8 * tx_ + x] = c[1]
                     cells = []
                     cellpl = {}
+                    cellov = {}
                     for tx_ in range(20):
                         flat = {p for y in range(8) for p in full[y][8 * tx_:8 * tx_ + 8]}
                         if auto:
@@ -606,7 +611,16 @@ def main():
                             if flat == {2}:
                                 cells.append(0xF000 | bpl << 8 | 2)
                                 continue
-                            if BLANKC is not None and not FALLBACK and (not nameonly or j == 17):                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
+                            if patch:                                       # (the letters keep the stage palette's shades; their colours are patched at the lines: cream ink, and navy behind the name where the page's blank is navy)
+                                ov_ = {inkv: "#f8e8b0"}
+                                if BLANKC is not None and j == 17:
+                                    for y_ in range(8):
+                                        for x_ in range(8 * tx_, 8 * tx_ + 8):
+                                            if full[y_][x_] == 3:
+                                                full[y_][x_] = 1 - inkv
+                                    ov_[1 - inkv] = "#181040"
+                                cellov[tx_] = ov_
+                            elif BLANKC is not None and not FALLBACK and (not nameonly or j == 17):                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
                                 mp_ = {inkv: 0, 2: 1, 3: 3}
                                 for y_ in range(8):
                                     for x_ in range(8 * tx_, 8 * tx_ + 8):
@@ -642,11 +656,13 @@ def main():
                         for y_ in range(8):
                             for x_ in range(8):
                                 sh_ = full[y_][8 * tx_ + x_]
-                                hx_ = sc["pals"][pl_][sh_] if pl_ < len(sc["pals"]) else None
+                                hx_ = cellov[tx_].get(sh_) if tx_ in cellov and sh_ in cellov[tx_] else (sc["pals"][pl_][sh_] if pl_ < len(sc["pals"]) else None)
                                 page_img[8 * j + y_, 8 * tx_ + x_] = ((SL.cc(SL.hexrgb(SL.q5(hx_))) if hx_ else (0, 0, 0)) if m else SL.DMG_GRAY[sh_])
                     ROWS.append((f"SCN{v}_{m}_{j}", a0, cl))
                     EXTRA[f"SCN{v}_{m}_{j}"] = {"col": a0, "n": len(cl), "cells": cl}
                 PAGES[f"p{v}_{m}"] = page_img
+                if m:
+                    QP[v] = (2 | ink | (4 if bpl else 0) | (8 if BLANKC is not None else 0)) if patch else 0
                 SCN.append(dict(v=v, m=m, sc=sc, ink=ink, su=list(slot_of)))
     BLD_COL, BLD_INFO, SCENE_REPORT, NPALS = [], [], [], []                       # each venue's building palette: the story map's palette of the building's cells (the commonest), colours light to dark
     if CRMAP:
@@ -959,6 +975,7 @@ def main():
         h += [f"#define CT_ZN {0 if (CRTIGHT or CRSPLIT == '1') else 20}", "#define CT_ZD 32", f"#define CT_SPLIT {1 if CRSPLIT == '1' else 0}", "static const uint16_t ct_ostart[10] = { " + ", ".join(str(x) for x in ostart) + " };   // the world row each owner card (scene page) starts at", f"#define CT_ZSKIP {zskip}", f"static const uint16_t ct_zone[{len(zones)}] = {{ " + ", ".join(str(z) for z in zones) + " };   // from, to (world px) of each stretch: a venue's in, then out"]
         h += [f"#define CT_SCN {ids['SCN0']}   // the scene pages' rows: 17 a (venue, model), CT_SCN + 17 (2 v + is_cgb) + j - 1", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)"]
         if CRSPLIT == "1":
+            h += ["static const uint8_t ct_qp[10] = { " + ", ".join(str(x) for x in QP) + " };   // CRSPLIT, Color: the line patches of a page's letters (see gen_credits.py QP)"]
             h += ["static const uint8_t ct_sbp[10] = { " + ", ".join(str(x) for x in SBP) + " };   // CRSPLIT, Color: each page's BG palette whose colour 3 is navy: the blank cells of the page and the blank rows of its card around it"]
     if CRMAP:
         h += [f"#define CT_BLD {ids['BLD0']}   // the building rows (a venue's start: ct_boff)", "static const uint16_t ct_solid[4] = { " + ", ".join(str(x) for x in ids["SOLID"]) + " };   // the four flat tiles' pool indices (BG ids CR_SOLID_ID + 0..3)",

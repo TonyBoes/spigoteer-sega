@@ -10,6 +10,9 @@
 #include "asm_cfg.h"
 
 #if CT_SPLIT
+#ifndef CR_NOQP
+#define CR_NOQP 0
+#endif
 #define CR_SCROLL (*(uint16_t *)(story_scratch + 20))                 // struct cr_state's scroll (credits.c)
 #define CR_PAL ((uint8_t *)story_scratch + 72)                          // the card's colours (CGB: 128 bytes; DMG: BGP, OBP0, OBP1, the first OBP1)
 #define CR_PT_B ((uint8_t *)story_scratch + 200)       // CRSCENE: the scene page's meta, where the owner's portrait used to be
@@ -21,6 +24,10 @@
 #define CR_SH_HI 218
 #define CR_SH_V 219                                    //          the first venue whose page the plan has not left behind
 #define CR_SH_DIR 216                                  //          0: cards' -> page's, 1: page's -> cards'
+#define CR_SH_E1 220                                   // the line the band's end is patched at (255: none)
+#define CR_SH_E2 221                                   // the line the name's row is patched at
+#define CR_SH_QV 222                                   // the stage palette's version at the top of the screen: 0 the page's, 1 cream ink, 2 cream ink and navy
+#define CR_HUD ((const uint16_t *)(CR_PAL + 8))          // the cards' HUD palette (BG 1), as the hardware takes it (lifted once at the roll's start): colour 0 the letters cream #f8e8b0, colour 3 the cards' navy #181040
 #define CR_SH_BG 100                                   // CRSCENE: the page's BG palettes (8 x 8 bytes) and OBJ palettes (6 x 8: colour 0 is 0), as the hardware takes them
 #define CR_SH_OB 164
 // CRCFLAGS=-DCR_DBG: empty banked calls at the split's steps, for tools/dev/credits_split_trace.py (a hook on each logs LY); nothing in a build without it
@@ -181,12 +188,26 @@ void cr_pset(uint8_t scene) BANKED {              // one whole set to the hardwa
     }
 }
 
+static void cr_qver(uint8_t qv, uint8_t qp, uint16_t *e) {       // the stage palette's entries 0 and 1 (BG 7's for the Chrome Cow) in version qv: 0 the page's, 1 cream ink, 2 cream ink and, where the page's blank is navy, navy behind it
+    if (qv) { e[qp & 1] = CR_HUD[0]; if (qv == 2 && (qp & 8)) e[1 - (qp & 1)] = CR_HUD[3]; }
+}
+static void cr_qpal(uint8_t qv, uint8_t qp) {      // the entries as the RAM copy of the page's set holds them, in version qv, to the hardware in the next HBlank
+    uint16_t e[2];
+    uint8_t pal = qp & 4 ? 7 : 0;
+    const uint16_t *s = (const uint16_t *)(CR_PT_B + CR_SH_BG + 8 * pal);
+    e[0] = s[0]; e[1] = s[1];
+    cr_qver(qv, qp, e);
+    while (STAT_REG & 2) ;
+    BCPS_REG = 0x80 | (uint8_t)(pal << 3);
+    BCPD_REG = (uint8_t)e[0]; BCPD_REG = (uint8_t)(e[0] >> 8); BCPD_REG = (uint8_t)e[1]; BCPD_REG = (uint8_t)(e[1] >> 8);
+}
+
 static void cr_split_plan(void) {                 // this frame's top set, and the line (if any) the interrupt swaps at, from the scroll the frame shows
-    uint16_t sc = CR_SCROLL, u, w;
+    uint16_t sc = CR_SCROLL, u = 0, w;
     uint8_t v = CR_PT_B[CR_SH_V], top = 0, line = 255, dir = 0;      // (the roll only goes forward: the venues behind the screen are not asked again, a scan from the first cost 5 lines)
     if (v && sc < (uint16_t)(ct_ostart[v - 1] + CT_SGT + 19) * 8) v = 0;
     for (; v < 10; v++) {
-        u = (ct_ostart[v] + CT_SGT) * 8;             // the swap line before the page: the top of its row 0 (flat navy in a palette that is navy in both sets, 8 lines: the page set goes in by the time its band begins), the cards set above, the page set below
+        u = (ct_ostart[v] + CT_SGT) * 8;             // the swap line before the page: the top of its row 0 (flat navy in a palette that is navy in both sets, 8 lines: the page set goes in by the time its band begins), the cards' set above, the page's below
         w = (ct_ostart[v] + CT_SGT + 19) * 8;        // the strip after it
         if (sc < u) { if (u - sc <= 135) { line = (uint8_t)(u - sc); dir = 0; } break; }          // (the page's band starts 8 lines below the line: its stage palette must be in before; the swap ends by line 144 from 124 up (a palette a line, 14 of them), else the OBJ ones wait for the next frame)
         if (sc < w) { top = 1; if (w - sc <= 124) { line = (uint8_t)(w - sc); dir = 1; } break; }
@@ -194,20 +215,30 @@ static void cr_split_plan(void) {                 // this frame's top set, and t
     CR_PT_B[CR_SH_V] = v;
     if (line < (KEY1_REG & 0x80 ? 2 : 12)) { if (!dir) top = 1; else top = 0; line = 255; }          // (the strip is at the top: the interrupt could not come in time (a late frame) and the lines before it are blank: the other set from the start)
     CR_PT_B[CR_SH_TOP] = top; CR_PT_B[CR_SH_LINE] = line; CR_PT_B[CR_SH_DIR] = dir;
+    CR_PT_B[CR_SH_E1] = CR_PT_B[CR_SH_E2] = 255; CR_PT_B[CR_SH_QV] = 0;
+    if (!CR_NOQP && is_cgb && v < 10 && ct_qp[v] && (top || (line != 255 && !dir))) {          // (a page whose letters are patched: the band's end and the name's row are lines of the picture)
+        int16_t yp = (int16_t)u - (int16_t)sc, be = yp + 32, nt = yp + 136;
+        if (top) CR_PT_B[CR_SH_QV] = nt <= 9 ? 2 : be > 3 ? 1 : 0;        // (an event for one of the first lines would be armed after the line has passed on a late frame and the chain would stall: those lines take the next version at once)
+        if (be > 3 && be < 147) CR_PT_B[CR_SH_E1] = be > 6 ? (uint8_t)(be - 3) : 3;         // (the write is in the HBlank at the end of the line, and the interrupt is a line or two late: 3 lines early; the band's letters end 4 lines above its end, the picture's last lines do not use the ink)
+        if (nt > 9 && nt < 147) CR_PT_B[CR_SH_E2] = (uint8_t)(nt - 3);
+    }
 }
 
 static void cr_split_sync(void) {
-    uint8_t top = CR_PT_B[CR_SH_TOP];
+    uint8_t top = CR_PT_B[CR_SH_TOP], qp = !CR_NOQP && is_cgb && top && CR_PT_B[CR_SH_V] < 10 ? ct_qp[CR_PT_B[CR_SH_V]] : 0;
+    uint16_t *pe = (uint16_t *)(CR_PT_B + CR_SH_BG + (qp & 4 ? 56 : 0)), sv0 = pe[0], sv1 = pe[1];
+    if (qp) cr_qver(CR_PT_B[CR_SH_QV], qp, pe);       // (the last frame ended with the name's version: this one starts as the page has it, or in the band's: the RAM copy has it for the set's write, then goes back)
     if (CR_PT_B[CR_SH_HW] != top || (!top && CR_PT_B[CR_SH_DIRTY])) {
         cr_pset(top);
         CR_PT_B[CR_SH_HW] = top;
         if (!top) CR_PT_B[CR_SH_DIRTY] = 0;
-    }
+    } else if (qp) CRITICAL { cr_qpal(0, qp); }
+    if (qp) { pe[0] = sv0; pe[1] = sv1; }
 }
 
 void cr_split_isr_b(void) BANKED {
-    uint8_t ly = LYC_REG, sl = CR_PT_B[CR_SH_LINE], dir = CR_PT_B[CR_SH_DIR], p, q;
-    const uint8_t *sp;
+    uint8_t ly = LYC_REG, sl = CR_PT_B[CR_SH_LINE], dir = CR_PT_B[CR_SH_DIR], p, q, e1, e2, qp, qb[8];
+    const uint8_t *sp, *s7, *sp0;
     cr_dbg_c();
     if (!is_cgb) {                                   // (the DMG: the header's BGP at 0 and 16 as main.c cast_isr, and the page's shade registers at the split line)
         uint8_t nx = 0;
@@ -220,16 +251,34 @@ void cr_split_isr_b(void) BANKED {
         return;
     }
     if (LY_REG < ly) return;                         // (an interrupt before the line the LYC names: a stray one, seen at line 0 right after a set write: the real one is still to come)
-    if (ly != sl) { LYC_REG = 255; return; }
-    q = dir ? 0 : 1;
-    sp = q ? CR_PT_B + CR_SH_BG : CR_PAL;
-    BCPS_REG = 0x80; cr_sw1(sp);                     // BG 0 and 7 first (the stage palette: the band and the name; the Chrome Cow's band is BG 7's), then 1-6, then OBJ 1-6: a palette a line, in its HBlank
-    BCPS_REG = 0xB8; cr_sw1(sp + 56);
-    BCPS_REG = 0x88;
-    for (p = 1; p < 7; p++) cr_sw1(sp + 8 * p);
-    if (sl <= 124) cr_sw_ob8(dir ? CR_PAL + 72 : CR_PT_B + CR_SH_OB);
-    CR_PT_B[CR_SH_HW] = !dir;
-    LYC_REG = 255;
+    e1 = CR_PT_B[CR_SH_E1]; e2 = CR_PT_B[CR_SH_E2];
+    qp = CR_PT_B[CR_SH_V] < 10 ? ct_qp[CR_PT_B[CR_SH_V]] : 0;
+    if (ly == e1 || ly == e2) cr_qpal(ly == e2 ? 2 : 0, qp);
+    else if (ly == sl) {
+        q = dir ? 0 : 1;
+        sp = q ? CR_PT_B + CR_SH_BG : CR_PAL;
+        s7 = sp + 56;
+        if (q && qp) {                               // (a page's letters are patched: the stage palette goes in with the band's cream ink; its end is the next line)
+            const uint8_t *src = qp & 4 ? s7 : sp;
+            for (p = 0; p < 8; p++) qb[p] = src[p];
+            ((uint16_t *)qb)[qp & 1] = CR_HUD[0];
+            if (qp & 4) s7 = qb; else sp = qb;
+            sp0 = sp;
+        } else sp0 = sp;
+        BCPS_REG = 0x80; cr_sw1(sp0);                // BG 0 and 7 first (the stage palette: the band and the name; the Chrome Cow's band is BG 7's), then 1-6, then OBJ 1-6: a palette a line, in its HBlank
+        BCPS_REG = 0xB8; cr_sw1(s7);
+        sp0 = q ? CR_PT_B + CR_SH_BG : CR_PAL;
+        BCPS_REG = 0x88;
+        for (p = 1; p < 7; p++) cr_sw1(sp0 + 8 * p);
+        if (sl <= 124) cr_sw_ob8(dir ? CR_PAL + 72 : CR_PT_B + CR_SH_OB);
+        CR_PT_B[CR_SH_HW] = !dir;
+    } else { LYC_REG = 255; return; }
+    ly = LY_REG;
+    sl = 255;
+    if (CR_PT_B[CR_SH_LINE] > ly && CR_PT_B[CR_SH_LINE] < sl) sl = CR_PT_B[CR_SH_LINE];
+    if (e1 > ly && e1 < sl) sl = e1;
+    if (e2 > ly && e2 < sl) sl = e2;
+    LYC_REG = sl;
     cr_dbg_d();
 }
 
@@ -237,7 +286,13 @@ void cr_split_isr_b(void) BANKED {
 void cr_split_frame(void) BANKED {                 // every frame of the roll, in credits_update after the scroll register: the plan, the interrupt's line, the set the top of the screen shows
     cr_dbg_a();
     cr_split_plan();
-    LYC_REG = CR_PT_B[CR_SH_LINE] != 255 ? CR_PT_B[CR_SH_LINE] : (is_cgb ? 255 : 0);       // (a DMG's chain goes on from line 0: the header. BEFORE the set goes in: a line near the top would be gone by the time the write is made)
+    if (!is_cgb) LYC_REG = CR_PT_B[CR_SH_LINE] != 255 ? CR_PT_B[CR_SH_LINE] : 0;       // (a DMG's chain goes on from line 0: the header. BEFORE the set goes in: a line near the top would be gone by the time the write is made)
+    else {                                           // (Color: the first of the swap's line and the two patches')
+        uint8_t l = CR_PT_B[CR_SH_LINE];
+        if (CR_PT_B[CR_SH_E1] < l) l = CR_PT_B[CR_SH_E1];
+        if (CR_PT_B[CR_SH_E2] < l) l = CR_PT_B[CR_SH_E2];
+        LYC_REG = l;
+    }
     cr_dbg_e();
     cr_split_sync();
     cr_dbg_b();
