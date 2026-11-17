@@ -1301,3 +1301,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 OWNER Q82: "Keep it as is." (confirmed: Classic tips) -> CLASSIC keeps tip_first = 2 (first tip on the 2nd empty mug); no change.
 - 11-17 OWNER Q87: "I didn't ask for fingers. Just a rounded corner fist." -> artist P1c: P1 tapered arm, solid fist, rounded corners only (no groove, thumb or fingers).
 - 11-17 Duke P1c rounded fist (bb5fbfee): solid fist, top-right corner rounded (left corners touch the face). Q89 on Open Questions.
+- 11-17 OWNER Q89: "I think this revision is close enough." -> import Duke P1c (rounded solid fist, tapered arm) on the artist branch; then golden check + verify + merge. Q88: "give his arms just a little bit more movement higher." -> Sal P5 (P4 + a bit more swing, starting higher up the arm).
