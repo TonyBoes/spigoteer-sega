@@ -1252,3 +1252,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-16 OWNER Q72: "Kiki keep game mouth." Kiki round 14 approved as is (pigtails as round 14, game mouth, no pixel changes).
 - 11-16 Hana round 17: teahouse stage_a/stage_b/bar slot 3 -> her navy-black #100818 (367 outline px; side effect 1158 room dark-line px red-black -> navy-black). DMG unchanged. Q75 on Open Questions.
 - 11-16 OWNER Q75: "Hana good now." All owner outlines approved: Coach r15, June r12, Kiki r14, Hana r17, rest r9. Art agent making round 18 final set + HANDOFF; then credits agent integrates, updates tests/approved/credits_pages, Pocket Player crscene.
+- 11-16 Round 18 final set ready (aa21f868f71a0344f round18/, 20/20 cards identical to approved rounds, HANDOFF.md). Sent to credits agent a1c0bef4c09df6eb1: CRART=18 default, tests/approved/credits_pages18, all roll checks, budgets, unlocked ROM for Pocket Player.
