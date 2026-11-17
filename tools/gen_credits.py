@@ -168,8 +168,11 @@ LAY_G, LAY_LG = 2, 12
 LAY = dict(G=LAY_G, LG=LAY_LG, MAPFMT=0, FONTFMT=0, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG, R_OLBL=LAY_LG + 5, R_PORT=LAY_LG + 7, R_ONAME=LAY_LG + 15,
            H_OWN=LAY_LG + 16, R_PA=3, R_PN=5, H_PAT=14, R_BBODY=3, R_BNAME=7, H_BOSS=11,
            OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 8), OFF_PAT=56, OFF_BOSS=40)
-LAY["H_SD"] = int(os.environ.get("CRHSD", LAY["H_SD"]))          # (the cast cards' rows: Sal and Dregs; their blank rows below the name are the gap to the next card)
-LAY["H_BOSS"] = int(os.environ.get("CRHB", LAY["H_BOSS"]))        # (a boss card's rows: the blank rows below his name are the gap to the next venue's page. 11 stays: with 10 or 9 the DMG roll runs 7-8 frames past their VBlank (the next page's loads start in these rows), 8 and 7 fail the roll check too: CRHB experiments, tools/dev/credits_gaps.py)
+SPLIT_ = os.environ.get("CRSPLIT") == "1" or os.environ.get("CRGAPS") == "1"          # (the shared-screen roll: one gap of about 64 px between the cards round a page, 2026-11-16; the other builds keep their layout; CRGAPS=1: the roll without pages that tools/dev/credits_roll_check.py --ref-rom compares with)
+LAY["H_SD"] = int(os.environ.get("CRHSD", 18 if SPLIT_ else LAY["H_SD"]))          # (the cast cards' rows: Sal and Dregs; their blank rows below the name are the gap to the next card)
+LAY["H_BOSS"] = int(os.environ.get("CRHB", 13 if SPLIT_ else LAY["H_BOSS"]))        # (a boss card's rows: the blank rows below his name are the gap to the next venue's page. 11 stays: with 10 or 9 the DMG roll runs 7-8 frames past their VBlank (the next page's loads start in these rows), 8 and 7 fail the roll check too: CRHB experiments, tools/dev/credits_gaps.py)
+LAY["H_PAT"] = int(os.environ.get("CRHP", 17 if SPLIT_ else LAY["H_PAT"]))        # (the patrons card's rows: the blank rows below its last names are the gap to the boss)
+LAY["GAP_TITLE"] = int(os.environ.get("CRGT", 7 if SPLIT_ else LAY["GAP_TITLE"]))   # (the blank rows between the title and Sal)
 LABELS = ["OWNER"]
 # Proposals, off by default (owner 2026-11-13, nothing goes into the default build until he picks): make BUILD=out/b_crA OUT=out/o_crA CRFONT=A CRMAP=A unlocked
 #   CRFONT=A  the venue's name in the HUD font as the story map's panel and the menus set it, 8x8, on the 3-row stripe (middle row)

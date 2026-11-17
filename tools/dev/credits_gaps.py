@@ -38,7 +38,7 @@ def world(rom, model, max_frames=11000):
             continue
         last = w
         img = np.asarray(gb.pb.screen.image.convert("RGB")).astype(np.int16)
-        for ln in range(16, 128):
+        for ln in range(96, 128):
             rows[w + ln] = img[ln]
         if gb.mem("story_phase") != 8:
             break

@@ -202,7 +202,7 @@ def main():
     ap.add_argument("build")
     ap.add_argument("--models", default="dmg,cgb")
     ap.add_argument("--shots")
-    ap.add_argument("--ref-rom", help="the same roll without scene pages (CRFLOW=SMOOTH alone): every other card must look as it does there, at the same row of its own")
+    ap.add_argument("--ref-rom", help="the same roll without scene pages (CRFLOW=SMOOTH alone; CRGAPS=1 as well when the split build has CRSPLIT's card heights, which is the default now: build/ref with `CRGAPS=1 CRFLOW=SMOOTH make BUILD=out/b_ref OUT=out/o_ref unlocked`): every other card must look as it does there, at the same row of its own")
     ap.add_argument("--ref-build")
     ap.add_argument("--max-frames", type=int, default=12500)
     a = ap.parse_args()

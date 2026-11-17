@@ -609,7 +609,11 @@ def test_no_frame_of_the_roll_runs_past_its_vblank(model):
 def test_sals_pictures_are_in_obj_vram_at_the_end_card_and_after_the_credits(model):
     """The scene pages load their sprite tiles into OBJ 0-49, where Sal's pictures are, and nothing loaded his back: the end card's Spigoteer and the title were garbage.
     Sal's tiles (OBJ 0-55) as they are on the title before the credits are the same once the roll's band shows the Spigoteer and again after the return to the title."""
-    with Rom(ROM, model) as gb:
+    from conftest import double_speed
+    ds = model == "cgb" and "DEF _cr_split_isr " in ROM.with_suffix(".noi").read_text()      # (a CRSPLIT build on Color runs at double speed, as shipped: at the tests' normal speed its pages stall the roll)
+    with (double_speed() if ds else contextmanager(lambda: (yield))()):
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
