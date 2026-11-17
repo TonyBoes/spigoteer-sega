@@ -124,6 +124,7 @@ struct cr_state {
 #define CR_SH_V 219                                    //          the first venue whose page the plan has not left behind
 #define CR_SH_DIR 216                                  //          0: cards' -> page's, 1: page's -> cards'
 #if CT_SPLIT
+extern uint8_t vq_held;
 void cr_split_isr(void) NONBANKED;
 void cr_split_isr_b(void) BANKED;
 static void cr_pump(void);
@@ -1350,7 +1351,11 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         if (CR->sc < CR_CARDS && (uint16_t)(CR->ss + cr_hgt(CR->sc) + 1 - (CR->sc + 1 < CR_CARDS && cr_kt[CR->sc + 1] == CK_OWNER ? 3 : 0)) * 8 <= CR->pos) busy = 1;         // (a card leaves the screen this frame: the sprite stage rewrites every sprite, 80 lines, and has the frame to itself)
         else
 #endif
+#if CT_SPLIT
+        { if (!vq_held) cr_gen(); busy = 1; }               // (the last row's queue entry points at CR->row: while its drain waits (a late VBlank handler: the swap interrupt ran to line 148) no row may begin)
+#else
         { cr_gen(); busy = 1; }
+#endif
         }
     cr_pump();
     cr_sprites_v(busy);
