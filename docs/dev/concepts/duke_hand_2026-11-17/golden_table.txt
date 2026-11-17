@@ -1,0 +1,16 @@
+Goldens that change with the Duke P1c (28789f9b) and Sal P7 (c108adfb) art commits, full suite on the merged branch
+(make test: 6 failed, 6106 passed, 83 skipped). bbox = x0,y0,x1,y1 inclusive, from tools/dev/golden_bbox.py (read-only). All left
+failing; none replaced. Picture: golden_table_sheet.png (old | new | diff).
+
+golden                          | px | bbox          | reason
+boss_duke.cgb                   | 37 | 25,114,31,126 | Duke GULP: the bar-4 figure at the left is drawn from BG tile ids 214-217 = Duke's pairs 21/22, so it shows the new GULP forearm
+boss_duke_entrance_ride.cgb     | 37 | 25,114,31,126 | same (Duke GULP via the bar-4 tile pairs)
+boss_duke_tell.cgb              | 37 | 25,114,31,126 | same (Duke GULP via the bar-4 tile pairs)
+story_map_scroll_walking.cgb    | 19 | 73,98,85,104  | Sal walk arms (walk frame on the story map)
+story_map_scroll_walking.dmg    | 18 | 73,98,85,104  | Sal walk arms
+story_map_top_route_peaks.dmg   | 19 | 73,88,85,94   | Sal walk arms
+
+Failing tests: tests/test_boss_duke.py::test_entrance_goldens[cgb], ::test_the_fight_follows_the_last_call[cgb],
+::test_the_rev_tell_and_the_lurch[cgb]; tests/test_story_map.py::test_golden_scroll_map_halfway_on_a_leg[cgb],
+::test_golden_scroll_map_halfway_on_a_leg[dmg], ::test_golden_scroll_map_the_top_route_with_the_peaks[dmg].
+No failure outside these goldens. Budgets: ROM0 real 477 B free, WRAM unchanged (no code change), BOSS_ART_PAIRS 24.
