@@ -16,11 +16,12 @@ for line in (here / "gulp_arm.txt").read_text().split("\n"):
         cur.append(line)
 g = old.index("@GULP")
 for name, rows in strips.items():
-    assert len(rows) == 13 and all(len(r) == 16 for r in rows), name
+    assert len(rows) in (13, 14) and all(len(r) == 16 for r in rows), name
+    first = 2 if len(rows) == 13 else 1          # 14 rows: the strip starts at GULP row 1 (a thumb above the fist)
     new = list(old)
     for i, r in enumerate(rows):
-        row = new[g + 1 + 2 + i]
+        row = new[g + 1 + first + i]
         assert len(row) == 40
-        new[g + 1 + 2 + i] = row[:24] + r
+        new[g + 1 + first + i] = row[:24] + r
     (out / f"duke_{name}.txt").write_text("\n".join(new))
 print("ok")
