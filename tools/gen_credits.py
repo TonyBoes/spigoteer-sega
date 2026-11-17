@@ -182,8 +182,8 @@ LABELS = ["OWNER"]
 #   CRFONT=B  the same, on a 1-row stripe (the story map's chapter tag: a ribbon), the stripe's other two rows blank
 #   CRMAP=B   a title page of its own for each venue (a card before the owner's): the WHOLE building from the story map on the left, the name beside it (2-3 short lines on a stripe)
 CRFONT = os.environ.get("CRFONT", "")
-CRHFONT = os.environ.get("CRHFONT", "")      # mock of the page band's heading font (owner 2026-11-17): "" today (the HUD font stretched to 8x16), "bold" (the same, strokes 2 px wide), "plain" (8x8 on the full stripe), "ribbon" (8x8 on a one-row stripe)
-assert CRHFONT in ("", "bold", "plain", "ribbon"), CRHFONT
+CRHFONT = os.environ.get("CRHFONT") or "plain"      # the page band's heading font (owner Q81 2026-11-17: option 3): "plain" the HUD font as it is, 8x8, in the band's middle row of the full stripe (the CRFONT=A look); "tall" the HUD font stretched to 8x16 (until then), "bold" tall with 2 px strokes, "ribbon" 8x8 on a one-row stripe
+assert CRHFONT in ("tall", "bold", "plain", "ribbon"), CRHFONT
 CRMAP = os.environ.get("CRMAP", "")
 CRSCENE = os.environ.get("CRSCENE", "")       # 1: the owner scene pages (the artist's round 6, tools/gen_scene_pages.py) replace the OWNER card
 assert CRSCENE in ("", "1"), CRSCENE
@@ -615,7 +615,7 @@ def main():
                 ys = [y for y in range(16) if any(c != BAND for c in big[y])]
                 topb = 4                                              # (the approved composite: the 16 lines of the name start 4 below the band's top, tools/credits_scenes/scenes_lib.py page_card)
                 band = [[2] * 160 for _ in range(BAND_H)]
-                if CRHFONT in ("plain", "ribbon"):            # (mock, off by default: the HUD font as it is, 8x8, in the band's middle row; "ribbon": the stripe is that row alone, the band's other rows blank)
+                if CRHFONT in ("plain", "ribbon"):            # ("ribbon": the stripe is that row alone, the band's other rows blank)
                     if CRHFONT == "ribbon":
                         band = [[BAND] * 160 if not 8 <= yy < 16 else [2] * 160 for yy in range(BAND_H)]
                     for y in range(8):
