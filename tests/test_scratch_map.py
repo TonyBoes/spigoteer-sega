@@ -77,7 +77,7 @@ USERS = {
     "jukebox.ROWS": (0, 9 * 20, "jukebox.c JB_ROW(k)"), "jukebox.METER": (180, 190, "jukebox.c struct jb_meter: the bars' levels and the DMG note-start state"),
     # the credits: CR (struct cr_state), the DMG header's two BGPs (main.c cast_isr), the card's colours, the owner's portrait, a staging buffer
     "credits.CR": (0, 68, "credits.c struct cr_state"), "credits.BGP": (68, 70, "cast_isr: header BGP, card BGP"),
-    "credits.PAL": (72, 200, "CR_PAL: 128 bytes"), "credits.PT": (200, 427, "CR_PT: portrait_t (227 bytes, credits.c cr_fits)"),
+    "credits.PLAN": (70, 72, "credits_split.c (CRSPLIT): the next frame's plan, CR_PS_P and CR_PS_L (made at the end of the update, copied at the frame's start); the rest of the plan is in credits.PT"), "credits.PAL": (72, 200, "CR_PAL: 128 bytes"), "credits.PT": (200, 427, "CR_PT: portrait_t (227 bytes, credits.c cr_fits); CRSCENE: the page meta 200-293, np 296, BG palette shadow 300-363, OBJ shadow 364-399"),
     "credits.BUF": (427, 491, "CR_BUF: 64 bytes after the portrait"),
     # a picture scene (the INTRO, the finale's pictures): story.c PS_* and the generated burst (gen_story.py)
     "pic.FX_W": (0, 2, "PS_FX, PS_W"), "pic.ROWS": (2, 38, "PS_ROWS"), "pic.TILES": (40, 88, "PS_TILES"), "pic.PALS": (88, 128, "PS_PALS"),
@@ -100,14 +100,14 @@ GROUPS = {
     "the story map": ["smap.TABLES", "smap.V", "smap.STAGE"],
     "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ART", "mglist.STAGE", "ol.STATE"],
     "the soundtrack": ["jukebox.ROWS", "jukebox.METER", "ol.STATE"],
-    "the credits": ["credits.CR", "credits.BGP", "credits.PAL", "credits.PT", "credits.BUF"],
+    "the credits": ["credits.CR", "credits.BGP", "credits.PLAN", "credits.PAL", "credits.PT", "credits.BUF"],
     "a picture scene": ["pic.FX_W", "pic.ROWS", "pic.TILES", "pic.PALS", "pic.OUT", "pic.PB_T", "pic.CURSOR", "pic.STAGE", "pic.RCUR", "pic.RSTAGE", "pic.SPARKS", "pic.WATER", "pic.SKY"],
     "a venue scene": ["scene.BD_MAP", "scene.BD_ATTR"],
 }
 
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
-        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
+        "src/boss_sumo.c": 1, "src/credits.c": 10, "src/credits_split.c": 8, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
         "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 3, "src/rush.h": 2, "src/scratch.h": 6, "src/showlights.h": 1, "src/smap.c": 23, "src/smap_cloud.c": 27, "src/smap_eng.c": 6, "src/smap_priv.h": 3,
         "src/story.c": 23, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 

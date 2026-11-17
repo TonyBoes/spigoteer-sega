@@ -75,4 +75,9 @@
 #define ASM_CLOUD ASM_PASS
 #endif
 
+// the credits' palette split (credits.c CRSPLIT: cr_bg8 / cr_ob8 / cr_ob6, eight bytes to a palette register: a palette in one HBlank)
+#ifndef ASM_CR_SPLIT
+#define ASM_CR_SPLIT ASM_PASS
+#endif
+
 #endif

@@ -35,7 +35,7 @@ assert len(CARD_START) == 33 and CARD_START[-1] + CARD_F == ROLL
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
-OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]   # the story's own names (build/story_data.c st_names), in venue order
+OWNERS = ["SADIE SPURS", "COACH BLITZ", "BIG JUNE", "CHEF COLBY", "AURORA", "MANAGER-BOT 3000", "GRANNY THROTTLE", "HANA", "KEEPER KIKI", "ZIZZ"]   # the story's full names (docs/story.md; Aurora, Hana and Zizz have no surname there), in venue order
 CT = json.loads((ROOT / "build" / "credits_text.json").read_text())          # the pre-rendered text (tools/gen_credits.py): every row, its cells, its ink boxes
 _pool_src = (ROOT / "build" / "credits_text.c").read_text()
 POOL = bytes(int(x) for x in re.search(r"ct_pool\[\d+\] = \{ ([^}]*) \}", _pool_src).group(1).split(","))
@@ -43,7 +43,7 @@ TEXT_ROWS = CT["rows"]
 LABELS = CT["patrons"]                                          # the patrons' labels, in the order they stand (slot A, B, C)
 assert len(LABELS) == 10 and CT["venues"] == VENUES and CT["owners"] == OWNERS and CT["bosses"] == BOSSES
 # every card's lines, top to bottom (words of a row joined by one space): 0 the title, 1 the Spigoteer, 2 Dregs, then per venue the owner, the patrons, the boss
-CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS", "RIVAL"]]
+CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS DRIBBLETON", "THE RIVAL"]]
 
 for v in range(10):
     CARDS.append([VENUES[v], OWNERS[v]])                    # (the venue is the header, the top rows, through all three cards)
@@ -137,7 +137,10 @@ def set_t(gb, v):                                              # (sound off: the
 
 @contextmanager
 def roll_from_bonus(model, sound=True):
-    with Rom(ROM, model) as gb:
+    from conftest import double_speed
+    with (double_speed() if model == "cgb" else contextmanager(lambda: (yield))()):      # (the Color roll runs at double speed, as shipped: owner Q92; at the tests' normal speed its swap interrupt makes late frames)
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
@@ -181,7 +184,7 @@ def SCROLL_FRAC(f):
 
 def wall(gb, c0):
     """Wall-clock frames since the cycle stamp c0 (an emulator frame is not one wall frame while the LCD is off: the cards are built with it off)."""
-    return int((gb.pb._cycles() - c0) / 70224)
+    return int((gb.pb._cycles() - c0) / (140448 if gb.pb.memory[0xFF4D] & 0x80 else 70224))      # (a Color at double speed counts twice the cycles a frame)
 
 
 def visible_rows(gb):
@@ -190,7 +193,7 @@ def visible_rows(gb):
     return [((scy >> 3) + r) % 32 for r in range(19 if scy & 7 else 18)]
 
 
-ROLL_END = 10297      # frames from the credits' first frame to the roll's leave (its own clock; 10454 until 2026-11-13, when the spigot divider and the REGULARS and BOSS labels went: the cards are 3, 2 and 3 rows shorter)
+ROLL_END = 10700      # frames from the credits' first frame to the roll's leave with the sound off: the smooth scroll lands CR_FLOW_TAIL (100) frames before the tune's length, the end is held, the leave is the tune's length (10454 until 2026-11-13, 10297 for the round-6 timeline; the shared-screen roll 2026-11-17)
 
 
 def lines_on_screen(gb):
@@ -453,7 +456,7 @@ def test_with_the_sound_off_the_roll_ends_when_the_tune_would_have(model):
             gb.run(1)
             n += 1
             assert n < ROLL_END + 200
-        assert ROLL_END - 60 <= n <= ROLL_END + 60, n            # (the roll's own end: 10454 frames; the leave, the drink to the next screen, is part of it)
+        assert ROLL_END - 60 <= n <= ROLL_END + 60, n            # (the roll's own end: the tune's length, 10681-10703 on the two models; the leave, the drink to the next screen, is part of it)
 
 
 def ink(im):
@@ -512,8 +515,13 @@ def test_the_cast_card_names_and_toppers_are_the_games_own():
 def test_no_music_tick_is_lost_through_the_fades_and_the_tune_ends_on_wall_time(model):
     """The real-time stamps of the music's ticks (tests/tick_helpers.py): no interval over 1.6 frames (a stall) from the tune's start to its last
     tick, and the tune's span is its length (one tick a frame) within 2 frames: the fades and the LCD-off builds of the 33 cards cost it nothing."""
+    from conftest import double_speed
     from tick_helpers import FRAME, LATE, tick_log
-    with Rom(ROM, model) as gb:
+    if model == "cgb":
+        FRAME *= 2                                  # (the Color roll runs at double speed, as shipped: its frame is twice the cycles)
+    with (double_speed() if model == "cgb" else contextmanager(lambda: (yield))()):
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
@@ -577,13 +585,19 @@ def test_no_frame_of_the_roll_runs_past_its_vblank(model):
     for it, unpredictably (the drift of 0 to 8 frames the roll's layout used to give it). 2026-11-13: the sprite stage writes only what moved, the roll's steps
     start only if they end by line 96 (cr_room), a tick due in the picture's last lines waits for the VBlank (music_pump_cr), the patrons' sprites are written in
     place: none left over the whole credits (the one gap is the first screen's build, behind the white)."""
+    from conftest import double_speed
     from tick_helpers import FRAME, tick_log
-    with Rom(ROM, model) as gb:
+    noi = ROM.with_suffix(".noi").read_text()
+    ds = model == "cgb" and "DEF _cr_split_isr " in noi      # (a CRSPLIT build on Color runs at double speed, as shipped: owner Q92; the default build and the DMG stay as they were)
+    if ds:
+        FRAME *= 2
+    with (double_speed() if ds else contextmanager(lambda: (yield))()):
+        gb = Rom(ROM, model)
+    with gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
         stamps = tick_log(gb)
-        noi = ROM.with_suffix(".noi").read_text()
         v = int([x for x in noi.splitlines() if x.startswith("DEF _vq_frame_begin ")][0].split()[2], 16)
         begins = []
         gb.pb.hook_register(v >> 16, v & 0xFFFF, lambda ctx: begins.append(gb.pb._cycles()), None)
@@ -597,3 +611,30 @@ def test_no_frame_of_the_roll_runs_past_its_vblank(model):
         s = stamps[n0:][3:]
         span = (s[-1] - s[0]) / FRAME
         assert abs(span - (len(s) - 1)) <= 2, ("the tune's length follows the frames", span, len(s))
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_sals_pictures_are_in_obj_vram_at_the_end_card_and_after_the_credits(model):
+    """The scene pages load their sprite tiles into OBJ 0-49, where Sal's pictures are, and nothing loaded his back: the end card's Spigoteer and the title were garbage.
+    Sal's tiles (OBJ 0-55) as they are on the title before the credits are the same once the roll's band shows the Spigoteer and again after the return to the title."""
+    from conftest import double_speed
+    ds = model == "cgb" and "DEF _cr_split_isr " in ROM.with_suffix(".noi").read_text()      # (a CRSPLIT build on Color runs at double speed, as shipped: at the tests' normal speed its pages stall the roll)
+    with (double_speed() if ds else contextmanager(lambda: (yield))()):
+        gb = Rom(ROM, model)
+    with gb:
+        gb.run(120)
+        gb.model_name = model
+        hold_stage_anim(gb)
+
+        def sal():
+            return bytes(gb.pb.memory[0, 0x8000:0x8000 + 56 * 16])      # (bank 0: the Color looks are in bank 1)
+        before = sal()
+        title_pick(gb, K_BONUS, K_CREDITS)
+        run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
+        run_until(gb, lambda: gb.read("story_scratch", 70)[62] == 3, TUNE_FRAMES + 200)      # (the roll's end: CR->st 3, the band with the Spigoteer is on the screen)
+        gb.run(60)
+        assert sal() == before, "the end card's Spigoteer (the roll's band) has his pictures"
+        run_until(gb, lambda: state(gb) == TITLE, 1500)
+        gb.run(60)
+        assert state(gb) == TITLE
+        assert sal() == before, "the title after the credits has Sal's pictures"
