@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 1f365d81-9c39-4e65-b0fc-e3d166beadd7
-  modified: 2026-11-11T23:27:08.355Z
+  modified: 2026-11-17T11:10:38.107Z
 ---
 
 Owner, 2026-10-21: he wants a list I keep updated with every open question and its images and files. Each question stays concise but explains enough that he knows exactly what to answer.
@@ -17,6 +17,7 @@ The Open Questions page is at https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d.
 **Why:** he lost track of what was a question versus a report. One canonical list fixes that.
 **How to apply:**
 - Whenever I ask a new Qn or he answers one, update the page: add or remove the card, update the count and the stamp, and republish the same file path or URL.
+- Owner 2026-11-17: "Why didn't you clear the open questions page?" An answered card is REMOVED (after the answer is in QUEUE.md), never left with an "Answered" line. 0 open means an empty page.
 - Owner 2026-11-03: "The questions in the open questions artefact don't seem to be questions." Every card's highlighted ask is a full question ending in "?" that says what to answer (e.g. "Which peacock should get the next pass: A (side view) or B (facing you)?"), never a bare option list like "A side view · B facing you". The index line is phrased as the question too. Each option's meaning goes in the bullets in plain words.
 - In chat, still state new questions briefly and point to the page.
 - Source now lives in the repo: tools/artifacts/open_questions/ (index.html + media/).
