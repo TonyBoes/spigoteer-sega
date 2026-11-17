@@ -27,9 +27,9 @@ DEFAULT = ROOT / "tests" / "approved" / {"7": "credits_pages", "8": "credits_pag
 # Known, with the numbers: the Color pages of lodge, bistro, igloo, factory and biker cannot have the approved cream letters on the band and navy behind the owner's name: their cells need 7 BG palettes
 # besides the stage palette (a whole palette [cream, band, free, navy] makes 9; tools/gen_credits.py free_palette proves it), the hardware has 8. Bistro's accordionist is an OBJ (the approved
 # composite draws her into the BG with a ninth palette and moves the room's pixels in her cells).
-CAPACITY = {"bistro", "factory"}      # (round 18 with the line patches: the letters are exact everywhere; bistro and factory keep their stage-coloured margins, no palette entry for navy)
+CAPACITY = set()      # (round 18 with the line patches and the one black background: the letters and the margins are exact on every Color page)
 OBJ_PERF = {"bistro"}
-NOFREE = {"bistro", "factory"}      # round 8, Color: every BG palette of these pages is full (4 colours of art), so there is no entry for the navy margin: the margins keep the stage colour
+NOFREE = set()      # (Color: Bistro's and Factory's palettes are all full: the page's blank is the black set into the entry with the fewest, darkest art pixels (14 and 30 px), the approved Color cards have those pixels black)
 
 
 def main():
