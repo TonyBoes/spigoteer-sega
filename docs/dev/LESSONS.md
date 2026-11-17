@@ -130,3 +130,6 @@ The owner brushed light over a dark blob under Coach's brim; I briefed it as an 
 
 ## 2026-11-16: an unexplained mark gets a one-line check, not a guess
 The owner drew a line by June's neck with no words; I guessed "dark stops here" and the agent built the opposite of "dark up to here". When a mark has two readings, say both in one line and ask before an agent builds either.
+
+## 2026-11-16: an owner cut-out gives the silhouette only
+The owner sent pictures of Kiki and Granny to set their outline; I let their colours (red mouth, red heart) into the art and offered them as choices. He wanted the story portrait exactly, inside his silhouette. Take only the mask from such a picture, and check the credits pixels against the story portrait, not against our own earlier render, which had already merged Granny's lip reds away.
