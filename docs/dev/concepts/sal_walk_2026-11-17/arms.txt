@@ -1,0 +1,50 @@
+; Sal's walk, arm proposals (2026-11-17). HAND-PLACED: each line is one pixel row (rows 10..18 of the 16x24 frame):
+; the left arm's 4 columns (x 0-3), a space, the right arm's 4 columns (x 12-15). Everything else (head, hat, face, torso x 4-11,
+; legs) is the owner's walk1 / walk2 as they are. build.py only splices these strips into the owner's frames, previews and marks.
+; '-' sleeve (cream), '+' skin, '#' ink, '.' transparent. Same 3 indices as bartender.txt.
+;
+; PROPOSAL 1 "pendulum": one arm swings out and forward (the sleeve angles away from the torso, the hand a row higher and out at the
+; edge), the other is pulled back (a row shorter, tucked). walk1 swings the left arm, walk2 the right. Idle (between steps) hangs.
+@P1_walk1
+...# #...
+..#- -#..
+.#-# -#..
+#-#. -#..
+#-#. -#..
+++#. ++..
++#.. #+..
+#... ##..
+.... ....
+@P1_walk2
+...# #...
+..#- -#..
+..#- #-#.
+..#- .#-#
+..#- .#-#
+..++ .#++
+..+# ..#+
+..## ...#
+.... ....
+;
+; PROPOSAL 2 "Dregs's pattern": walk1 both arms flare out one pixel (hands out and down a pixel); walk2 the left forearm comes up and
+; points forward (cream sleeve, skin fist, ink top and bottom), the right arm is tucked back.
+@P2_walk1
+...# #...
+..#- -#..
+..#- -#..
+.#-# #-#.
+.#-# #-#.
+.#-# #-#.
+.++. .++.
+.+#. .#+.
+.#.. ..#.
+@P2_walk2
+...# #...
+#### -#..
+++-- -#..
+++-- -#..
+#### -#..
+.... ++..
+.... #+..
+...# ##..
+.... ....
