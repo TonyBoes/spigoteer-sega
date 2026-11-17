@@ -400,7 +400,7 @@ def main():
         ids["SOLID"] = solid
         ids["SCN0"] = len(ROWS)
 
-        def free_palette(sc, keep, tgt):                       # BG palette tgt wholly free: the cells outside the kept palettes are packed again into the other palettes by their colours (a cell's shades and pixels are renumbered: the same colours)
+        def free_palette(sc, keep, tgt, seed=None):                       # BG palette tgt wholly free: the cells outside the kept palettes are packed again into the other palettes by their colours (a cell's shades and pixels are renumbered: the same colours)
             import random
             pls0 = sc["pals"]
             fixed = sorted(keep)
@@ -409,10 +409,12 @@ def main():
                 sh = {c_[1]} if c_[0] == "f" else {x for r_ in c_[1] for x in r_}
                 return {x: pls0[c_[2]][x] for x in sh}
             infos = [(cy, cx, c_, colset(c_)) for cy, cx, c_ in cellsl]
-            slots = sorted((i for i in range(8) if i not in keep and i != tgt), key=lambda i: (i in (6, 7, 1, 2, 3, 4), i))      # (BG 5 first: its colour 3 is not the cards' navy; 6 and 7 last)
+            slots = sorted((i for i in range(8) if i not in keep and i != tgt), key=lambda i: (i in (6, 7, 1, 2, 3, 4), i))
+            if seed:                                           # (tgt is not wholly free: it holds the seed colours, cells whose colours fit with them may join)
+                slots = [tgt] + slots      # (BG 5 first: its colour 3 is not the cards' navy; 6 and 7 last)
             # (tgt None: every other palette is a slot, packed as tight as the search finds)
             uniq = sorted({frozenset(i[3].values()) for i in infos}, key=lambda f: (-len(f), sorted(f)))
-            bins = []
+            bins = [list(seed)] if seed else []
             import sys as _s
             _s.setrecursionlimit(10000)
             calls = [0]
@@ -443,6 +445,15 @@ def main():
                 bins.append([])
             newp = {i: [None] * 4 for i in slots}
             for bi, i in enumerate(slots):
+                if seed and bi == 0:                            # (the seed's own places: cream 0, the band colour 1 where there is one, navy 3)
+                    newp[i][0] = seed[0]
+                    newp[i][3] = seed[-1]
+                    if len(seed) == 3:
+                        newp[i][1] = seed[1]
+                    for col in bins[0]:
+                        if col not in newp[i]:
+                            newp[i][newp[i].index(None)] = col
+                    continue
                 for j, col in enumerate(bins[bi]):
                     newp[i][j] = col
             for cy, cx, c_, cl in infos:
@@ -453,7 +464,7 @@ def main():
                 sc["cells"][cy][cx] = (c_[0], mp[c_[1]], i) if c_[0] == "f" else (c_[0], [[mp[x] for x in r_] for r_ in c_[1]], i)
             for i in slots:
                 pls0[i] = newp[i]
-            if tgt is not None:
+            if tgt is not None and not seed:
                 pls0[tgt] = [None] * 4
             return tgt
 
@@ -484,9 +495,19 @@ def main():
                     tgt = 6 if bpl0 == 7 else 7
                     sc0 = copy.deepcopy(sc)
                     okfree = False
+                    nameonly = False
+                    for seed_, no_ in ((["#f8e8b0", pls[bpl0][2], "#181040"], False), (["#f8e8b0", "#181040"], True)):         # (cream, the band, navy in one palette: letters of the band and the name; else cream and navy: the name only)
+                        try:
+                            free_palette(sc, {0, bpl0}, tgt, seed_)
+                            pn, okfree, nameonly = tgt, True, no_
+                            break
+                        except ValueError as e_:
+                            print("CRSPLIT", e_, "(seed of", len(seed_), "colours)")
+                    if not okfree:
+                        e_ = ValueError("no seed packs")
                     try:
-                        free_palette(sc, {0, bpl0}, tgt)
-                        pn, okfree = tgt, True
+                        if not okfree:
+                            raise e_
                     except ValueError as e_:                            # (more colours than the 6 other palettes hold: the letters keep the stage palette's ink, the blank palette is the one with a free colour 0 / 3: colours 0 and 3 trade places in its cells)
                         print("CRSPLIT", e_)
                         sc.clear()
@@ -524,8 +545,6 @@ def main():
                         pls[pn][3] = "#181040"
                         FALLBACK = True
                     if SBP[v] != 255:
-                        if not FALLBACK:
-                            pls[pn] = ["#f8e8b0", pls[bpl0][2], None, "#181040"]
                         BLANKC = 0xF000 | pn << 8 | 3
                         SBP[v] = pn
                 ink = 0 if lum(stage[0]) >= lum(stage[1]) else 1       # the stage palette's lighter of colours 0 and 1 is the band's and the name's ink on Color (its colour 2 is the band, 3 the page)
@@ -587,7 +606,7 @@ def main():
                             if flat == {2}:
                                 cells.append(0xF000 | bpl << 8 | 2)
                                 continue
-                            if BLANKC is not None and not FALLBACK:                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
+                            if BLANKC is not None and not FALLBACK and (not nameonly or j == 17):                          # (letters: cream on the band / on navy, in the free palette: shades 0 cream, 1 band, 3 navy)
                                 mp_ = {inkv: 0, 2: 1, 3: 3}
                                 for y_ in range(8):
                                     for x_ in range(8 * tx_, 8 * tx_ + 8):
