@@ -50,7 +50,7 @@ def splice(frame, st):
 
 
 PROPS = {}
-for p in ("P1", "P2", "P3", "P4"):
+for p in ("P1", "P2", "P3", "P4", "P5"):
     PROPS[p] = [sal[0], splice(sal[1], S[p + "_walk1"]), splice(sal[2], S[p + "_walk2"]), sal[3], sal[4]]
     # sanity: nothing but x 0-3 / 12-15 of rows 10-18 may differ from the owner's frames
     for k in (1, 2):
@@ -92,7 +92,7 @@ def changed(a, b):
 CELL = 16 * 8
 tiles = []
 rows = []
-for p in ("P1", "P2", "P3", "P4"):
+for p in ("P1", "P2", "P3", "P4", "P5"):
     for k, name in ((1, "walk1"), (2, "walk2")):
         for model, pal, bg in (("DMG", DMG, BGC["D"]), ("Color", SAL_C, BGC["C"])):
             rows.append((p, name, model, draw(sal[k], pal, 8, bg), draw(PROPS[p][k], pal, 8, bg, changed(sal[k], PROPS[p][k]))))
@@ -100,7 +100,7 @@ for p in ("P1", "P2", "P3", "P4"):
             print(f"{p} {name}: {n} pixels changed")
 from PIL import ImageFont
 font = ImageFont.load_default()
-for p in ("P1", "P2", "P3", "P4"):
+for p in ("P1", "P2", "P3", "P4", "P5"):
     rs = [r for r in rows if r[0] == p]
     W = CELL * 2 + 40 + 120
     H = (24 * 8 + 22) * len(rs) + 8
@@ -116,14 +116,15 @@ for p in ("P1", "P2", "P3", "P4"):
 # GIFs at x6: [Sal now | Sal proposal | Dregs] on a DMG row and a Color row; the cycle is the game's walk1, idle, walk2, idle, 10 frames each.
 CYC = [1, 0, 2, 0]
 SC = 6
-for p in ("P1", "P2", "P3", "P4"):
+for p in ("P1", "P2", "P3", "P4", "P5"):
     gifs = []
     for ph in CYC:
-        W = 3 * (16 * SC + 12) + 12
+        panels = [(sal[ph], DMG, SAL_C)] + ([(PROPS["P4"][ph], DMG, SAL_C)] if p == "P5" else []) + [(PROPS[p][ph], DMG, SAL_C), (dregs[ph], DMG, DREGS_C)]
+        W = len(panels) * (16 * SC + 12) + 12
         H = 2 * (24 * SC + 12) + 12
         im = Image.new("RGB", (W, H), (40, 40, 40))
         for ri, (bg_d, bg_c) in enumerate(((BGC["D"], DMG), (BGC["C"], None))):
-            for ci, (fr, pal_dmg, pal_col) in enumerate(((sal[ph], DMG, SAL_C), (PROPS[p][ph], DMG, SAL_C), (dregs[ph], DMG, DREGS_C))):
+            for ci, (fr, pal_dmg, pal_col) in enumerate(panels):
                 pal = pal_dmg if ri == 0 else pal_col
                 bg = BGC["D"] if ri == 0 else BGC["C"]
                 im.paste(draw(fr, pal, SC, bg), (12 + ci * (16 * SC + 12), 12 + ri * (24 * SC + 12)))

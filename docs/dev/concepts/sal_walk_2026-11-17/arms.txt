@@ -97,3 +97,26 @@
 ..## .#+.
 ...# ..#.
 .... ....
+;
+; PROPOSAL 5 (owner Q88: "a little bit more movement higher"): P4 with the motion starting at the elbow, not only at the hand. The forward arm steps out 1 px
+; from row 12 (was 14) and its hand comes up two rows (was one); the back arm is cut at row 15 (was 16): sleeve ends in a cuff, hand tucked. Still 1 px out at most.
+@P5_walk1
+...# #...
+..#- -#..
+.#-# -#..
+.#-# -#..
+.++# -#..
+.+#. ##..
+.#.. #...
+.... #...
+.... ....
+@P5_walk2
+...# #...
+..#- -#..
+..#- #-#.
+..#- #-#.
+..#- #++.
+..## .#+.
+...# ..#.
+...# ....
+.... ....
