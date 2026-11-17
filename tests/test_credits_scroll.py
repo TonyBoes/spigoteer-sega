@@ -238,3 +238,38 @@ def test_nothing_but_the_end_cards_own_text_shows_after_it(model):
         else:
             raise AssertionError("the cover never came")
         assert end is not None
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_boss_changes_pose_about_every_16_frames_while_he_is_on_screen(model):
+    """Owner 2026-11-17: "the yeti doesn't really do much of an animation while he's on screen". Each boss cycles WALK, STOMP, HAPPY, STOMP, 16 frames a pose; the
+    pose rewrite no longer waits for a frame with no row built (the next page's loads made that most of them: 4-8 changes in the 4 s he is on screen, now 15-17)."""
+    L = lay()
+    w = 8
+    heights = [(L["H_TITLE"], L["GAP_TITLE"]), (L["H_SD"], L["G"]), (L["H_SD"], L["G"])]
+    for v in range(10):
+        heights += [(L["H_OWN"], L["G"]), (L["H_PAT"], L["G"]), (L["H_BOSS"], L["G"])]
+    body = []
+    for i, (h, g) in enumerate(heights):
+        if i >= 3 and (i - 3) % 3 == 2:
+            body.append(w + L["R_BBODY"])
+        w += h + g
+    last = [None] * 10
+    changes = [0] * 10
+    with start(model) as gb:
+        pb = gb.pb
+        for n in range(13000):
+            pb.tick(1, True)
+            st = gb.read("story_scratch", 70)
+            if gb.mem("story_phase") != 8 or (st[ST] == 3 and u16(st, PH) >= 40):
+                break
+            sc = u16(st, SCROLL)
+            for v in range(10):
+                top = body[v] * 8 - sc
+                if not (-16 <= top and top + 16 <= 144):
+                    continue
+                ids = bytes(pb.memory[0x9800 + (body[v] & 31) * 32 + c] for c in range(20))
+                if last[v] is not None and ids != last[v]:
+                    changes[v] += 1
+                last[v] = ids
+    assert min(changes) >= 12, f"pose changes while on screen, per boss: {changes}"

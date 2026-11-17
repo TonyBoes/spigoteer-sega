@@ -57,7 +57,7 @@ uint8_t fn(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED { \
         left = BOSS_ART_PAIRS * 32 - (uint16_t)a * 16; \
         n = left > 16 ? 16 : (uint8_t)left; \
         src = boss_art_body + (uint16_t)a * 16; \
-        for (i = 0; i != n; i++) dst[i] = src[i]; \
+        { uint8_t *d = dst; for (i = n; i; i--) *d++ = *src++; } \
         return n >> 4; \
     } \
     if (cmd == 4) { set_bkg_data(b, 1, boss_art_body + (uint16_t)a * 16); return 0; } \

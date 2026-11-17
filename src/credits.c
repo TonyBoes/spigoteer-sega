@@ -146,7 +146,7 @@ static const uint8_t cr_hat_dx[10] = { 16, 8, 12, 9, 9, 8, 16, 16, 6, 12 };   //
 static const uint8_t cr_bdx[10] = CT_BDX;          // each boss's body and topper moved right by this many px (tools/gen_credits.py BOSS_DX: his ink box centred on x 80)
 #define CR_GW(v) (CR->bn + ((cr_bdx[v] + 7) >> 3))    // the columns of his tiles once moved
 static const uint8_t cr_walk[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };   // the pair's walk cycle (po.c walk_cycle's)
-static const uint8_t cr_seq[8] = { 0, 1, 0, 2, 0, 1, 0, 2 };      // the boss's poses (WALK, STOMP, GULP: boss.h BP_*), 16 frames each
+static const uint8_t cr_bpose[10][3] = CT_BPOSE;      // each boss's three poses (boss.h BP_*; slot 0 WALK, slot 1 STOMP: the topper's bob), cycled 0 1 2 1, 16 frames each (tools/gen_credits.py BOSS_POSES)
 uint8_t boss_big_tex_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;      // each boss file's cast accessor (src/boss_load.h BOSS_CAST_FN)
 uint8_t boss_mascot_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;
 uint8_t boss_sasquatch_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;
@@ -376,6 +376,7 @@ static void cr_bfetch(uint8_t v, uint8_t pose, int8_t c, uint8_t r, uint8_t *d) 
 static void cr_btile(uint8_t v, uint8_t u, uint8_t *buf) {       // unit u of his body: pose u / (2 w), column, row: the tile moved right by cr_bdx px (the tile to its left spills in)
     uint8_t w = CR_GW(v), S = cr_bdx[v], s = S & 7, p = u / (2 * w), q = u - p * 2 * w, k;
     int8_t c = (int8_t)(q >> 1) - (int8_t)(S >> 3);
+    p = cr_bpose[v][p];
     cr_bfetch(v, p, c, q & 1, buf);
     if (s) {
         cr_bfetch(v, p, c - 1, q & 1, buf + 16);
@@ -1001,8 +1002,9 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             else cr_fig(CR_OAM_DRG, y + 14, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
         } else if (kd == CK_BOSS) {
             bw = cs + CT_R_BBODY;
-            pose = cr_seq[(t >> 4) & 7];
-            if ((pose != CR->pose || CR->pq) && !busy && CR->next >= bw + 3 && CR->next - bw <= 32 && (!sound_on || cr_calm()) && cr_room(30)) cr_pose(v, pose, bw);
+            pose = (t >> 4) & 3;
+            if (pose == 3) pose = 1;
+            if ((pose != CR->pose || CR->pq) && CR->next >= bw + 3 && CR->next - bw <= 32 && (!sound_on || cr_calm()) && cr_room(30)) cr_pose(v, pose, bw);
             if (rs || rm || rd) cr_oam(CR_OAM_HAT, y0 + 8 * CT_R_BBODY + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + cr_bdx[v] + 8, CR_T_HAT + (CR->pose == 1 ? 2 : 0), is_cgb ? OBJPAL_TOP : S_PALETTE);
 #if CT_SCENEFMT
         } else if (kd == CK_OWNER) {                   // the scene page's sprites (the owner's edge cells): x, tile and flags when all are written (rd), the y when the scroll moved
