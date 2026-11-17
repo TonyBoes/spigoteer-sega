@@ -127,3 +127,6 @@ The owner had asked for the credits as one smooth scroll; when I briefed the own
 
 ## 2026-11-16: an owner's paint-over marks the spot, not the pixels
 The owner brushed light over a dark blob under Coach's brim; I briefed it as an exact pixel grid and the result was a crisp slab past the scene's shapes. He meant "fill that last little bit in". Read a paint-over as where and roughly what; make the smallest change that fits the scene, and offer two readings if the colour is unclear.
+
+## 2026-11-16: an unexplained mark gets a one-line check, not a guess
+The owner drew a line by June's neck with no words; I guessed "dark stops here" and the agent built the opposite of "dark up to here". When a mark has two readings, say both in one line and ask before an agent builds either.
