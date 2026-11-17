@@ -69,7 +69,7 @@ def run(rom, build, model, shots, max_frames):
         exp = [pages[f"p{v}_{m}"].astype(np.int16) for v in range(10)]
     else:                                          # (a build without scene pages: the scan only)
         meta, sgt, exp, owners = {"objs": [], "split": False}, 0, [], []
-    bad = {"scan": [], "page": [], "sprites": []}
+    bad = {"scan": [], "page": [], "sprites": [], "perline": []}
     crops = {}
     bgs = None                                             # the page's colours, the cards' and the pages': in a shared screen the blank rows change colour at the strip, which is by design
     with start(rom, model) as gb:
@@ -87,6 +87,14 @@ def run(rom, build, model, shots, max_frames):
             if NAVY2BLACK and model == "cgb":                     # (the reference roll is the old navy build: its navy is the black of the Color roll, #080818)
                 img[(img == (24, 16, 64)).all(axis=2)] = (8, 8, 24)
             oam = bytes(pb.memory[0xFE00:0xFEA0])
+            hh = 16 if pb.memory[0xFF40] & 4 else 8                  # (at most 8 sprites on any line: the scene / credits rule, the hardware's limit is 10)
+            pl = np.zeros(144, np.int16)
+            for k_ in range(40):
+                oy_, ox_ = oam[4 * k_], oam[4 * k_ + 1]
+                if 0 < oy_ < 160 and 0 < ox_ < 168:
+                    pl[max(0, oy_ - 16):max(0, min(144, oy_ - 16 + hh))] += 1
+            if pl.max() > 8 and len(bad["perline"]) < 50:
+                bad["perline"].append((n, int(pl.max())))
             scroll = st[SCROLL] | st[SCROLL + 1] << 8
             pos = st[POS] | st[POS + 1] << 8
             shist = (shist + [scroll, pos])[-6:]

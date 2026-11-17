@@ -282,6 +282,11 @@ static void cr_oam(uint8_t n, int16_t y, uint8_t x, uint8_t tile, uint8_t prop) 
     o->y = (uint8_t)y; o->x = x; o->tile = tile; o->prop = prop;
 }
 
+static void cr_oam_band(uint8_t n, int16_t y, uint8_t x, uint8_t tile, uint8_t prop) {      // the roll's band: OAM 0-3 are its own (the pages have gone): off the screen is hidden whatever tile the entry holds (the pose changes: an entry of the old pose left at the top edge stayed, 10 sprites on line 0)
+    if (y < 1 || y > 159) { shadow_OAM[n].y = 0; return; }
+    cr_oam(n, y, x, tile, prop);
+}
+
 static void cr_fig(uint8_t n, int16_t y, uint8_t x, uint8_t base, uint8_t prop, uint8_t flip) {   // the Spigoteer's four entries (x: left edge)
     uint8_t a = flip ? 2 : 0, b = flip ? 0 : 2, p = flip ? prop | S_FLIPX : prop;
     cr_oam(n, y, x + 8, base + a, p);
@@ -1065,7 +1070,13 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             cr_oam(5 + 2 * k, y + 8 - bob, 24 + 32 * k + 16, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
         }
         pose = ((t >> 4) & 3) == 1 ? BT_CATCH : BT_IDLE;
-        cr_fig(0, y, CR_BT_X, OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
+        {
+            uint8_t base = OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME;
+            cr_oam_band(0, y, CR_BT_X + 8, base, OBJPAL_BARTENDER);
+            cr_oam_band(1, y, CR_BT_X + 16, base + 2, OBJPAL_BARTENDER);
+            cr_oam_band(2, y + 16, CR_BT_X + 8, base + 4, OBJPAL_BARTENDER);
+            cr_oam_band(3, y + 16, CR_BT_X + 16, base + 6, OBJPAL_BARTENDER);
+        }
     }
 }
 
@@ -1316,7 +1327,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         return 0;
     }
     if (is_cgb) cr_pump();                              // (Color: the frame's tick first, so the main loop's own never has to be the late one)
-    if (LY_REG >= 144) CR->scroll = CR->pos;               // (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
+    if (LY_REG >= 144 || (uint16_t)(CR->pos - CR->scroll) > 3) CR->scroll = CR->pos;               // (a lag of more than 3 px moves the picture in mid-frame, the top lines tear for a frame: an update that always starts late (the swap interrupt at line 135 ran into the next frame: normal speed) must not freeze the picture at the line that makes it late) (SCY moves in the VBlank only, and FIRST: the update can start in the VBlank's last lines, the main loop's ISR work is before it; an update that starts late would tear the top lines, the next frame catches up)
     SCY_REG = (uint8_t)CR->scroll;
 #if CT_SPLIT
     cr_split_frame();

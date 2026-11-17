@@ -34,4 +34,4 @@ def test_the_c_twin_of_the_split_gives_a_clean_roll(ctwin, model):
     frames, bad, *_ = run(rom, bdir, model, None, 11000)
     bad.pop("crops", None)
     assert frames > 10000
-    assert not {k: v[:3] for k, v in bad.items() if k in ("scan", "page", "sprites") and v}, {k: len(v) for k, v in bad.items() if v}
+    assert not {k: v[:3] for k, v in bad.items() if k in ("scan", "page", "sprites", "perline") and v}, {k: len(v) for k, v in bad.items() if v}
