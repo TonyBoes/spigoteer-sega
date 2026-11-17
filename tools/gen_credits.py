@@ -25,7 +25,7 @@ BAND = 3                                     # the HUD palette's colour 3: the b
 
 TITLE = ["CAST OF", "CHARACTERS"]
 SAL = ["SAL TAPLEY", "THE SPIGOTEER"]
-DREGS = ["DREGS", "RIVAL"]
+DREGS = ["DREGS DRIBBLETON", "THE RIVAL"]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]      # the story's own names, in venue order
@@ -304,6 +304,13 @@ def main():
     pair_x = {}
     for key, lines in (("SAL", SAL), ("DREGS", DREGS)):
         w = max(ink_width(t) for t in lines)
+        if key == "DREGS":                          # (owner 2026-11-17: his full name and title, DREGS DRIBBLETON / THE RIVAL: the name is too wide for the sprite beside it, so it stands alone, centred, and the sprite goes beside the shorter title)
+            wl = ink_width(lines[1])
+            left = (160 - (16 + 8 + wl)) // 2
+            pair_x[key] = left
+            add(f"{key}0", centred(lines[0]))
+            add(f"{key}1", centred(lines[1], left + 24 + wl // 2))
+            continue
         g = 16 + 8 + w
         left = (160 - g) // 2
         pair_x[key] = left

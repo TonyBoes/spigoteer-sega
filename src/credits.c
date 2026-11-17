@@ -721,7 +721,8 @@ static uint8_t cr_tstep(uint16_t r, uint8_t kd) {
         }
         if (cell[i] >= 0xE000) {
             id = CR->lr + (uint8_t)(cell[i] & 255);
-            if (id >= cr_rn()) id -= cr_rn();
+            if (id < CR->lr) id += (uint8_t)(256 - cr_rn());          // (8 bits: the Color ring is 179 slots, a page that starts at 175 passes 255 and the sum wraps)
+            else if (id >= cr_rn()) id -= cr_rn();
             if (is_cgb) CR_ATT[CR_BUF[0] + i] = (kd == 3 ? CR_SLOT((cell[i] >> 8) & 7) : 0) | CR_BK(id);
             CR->row[CR_BUF[0] + i] = cr_pid(id);
             continue;
@@ -986,7 +987,7 @@ static void cr_sprites_v(uint8_t busy) {                   // the cards' sprites
             y = y0 + 8 * (kd == CK_SPIGOTEER ? CR->txs : CR->txd) + 12;
             if (!(rs || rm || rd)) {}
             else if (kd == CK_SPIGOTEER) cr_fig(CR_OAM_SPG, y, CT_SAL_X, OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
-            else cr_fig(CR_OAM_DRG, y, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
+            else cr_fig(CR_OAM_DRG, y + 14, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
         } else if (kd == CK_BOSS) {
             bw = cs + CT_R_BBODY;
             pose = cr_seq[(t >> 4) & 7];
