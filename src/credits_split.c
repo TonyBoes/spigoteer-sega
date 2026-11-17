@@ -24,6 +24,12 @@
 #define CR_SH_HI 218
 #define CR_SH_V 219                                    //          the first venue whose page the plan has not left behind
 #define CR_SH_DIR 216                                  //          0: cards' -> page's, 1: page's -> cards'
+#define CR_PS_P (story_scratch[70])                                      // the NEXT frame's plan, made at the end of this frame's update (the frame's start only copies it): v | top << 4 | dir << 5
+#define CR_PS_L (story_scratch[71])                                      //          the swap's line
+#define CR_PS_1 223                                    //          the band's patch line
+#define CR_PS_2 224                                    //          the name's patch line
+#define CR_PS_Q 225                                    //          the top version
+#define CR_PS_T 226                                    //          the scroll's low byte it is made for
 #define CR_SH_E1 220                                   // the line the band's end is patched at (255: none)
 #define CR_SH_E2 221                                   // the line the name's row is patched at
 #define CR_SH_QV 222                                   // the stage palette's version at the top of the screen: 0 the page's, 1 cream ink, 2 cream ink and navy
@@ -50,7 +56,7 @@ static void cr_ob64(const uint8_t *s) __naked {    // 64 bytes at DE to OCPD (th
     (void)s;
 __asm
     ld   c, #0x6B
-    ld   b, #16
+    ld   b, #4
     jr   _cr_wn
 __endasm;
 }
@@ -58,19 +64,43 @@ static void cr_bg64(const uint8_t *s) __naked {    // the same to BCPD
     (void)s;
 __asm
     ld   c, #0x69
-    ld   b, #16
+    ld   b, #4
     jr   _cr_wn
 __endasm;
 }
-static void cr_ob48(const uint8_t *s) __naked {    // 48 bytes (six OBJ palettes) to OCPD; B x 4 bytes from DE to the port in C: the others come in here
+static void cr_ob48(const uint8_t *s) __naked {    // 48 bytes (six OBJ palettes) to OCPD; B x 16 bytes from DE to the port in C: the others come in here
     (void)s;
 __asm
     ld   c, #0x6B
-    ld   b, #12
+    ld   b, #3
 _cr_wn:
     ld   h, d
     ld   l, e
 1$:
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
     ld   a, (hl+)
     ldh  (c), a
     ld   a, (hl+)
@@ -202,9 +232,9 @@ static void cr_qpal(uint8_t qv, uint8_t qp) {      // the entries as the RAM cop
     BCPD_REG = (uint8_t)e[0]; BCPD_REG = (uint8_t)(e[0] >> 8); BCPD_REG = (uint8_t)e[1]; BCPD_REG = (uint8_t)(e[1] >> 8);
 }
 
-static void cr_split_plan(void) {                 // this frame's top set, and the line (if any) the interrupt swaps at, from the scroll the frame shows
-    uint16_t sc = CR_SCROLL, u = 0, w;
-    uint8_t v = CR_PT_B[CR_SH_V], top = 0, line = 255, dir = 0;      // (the roll only goes forward: the venues behind the screen are not asked again, a scan from the first cost 5 lines)
+static void cr_split_plan(uint16_t sc) {          // the plan for the frame that shows scroll sc: its top set, the line (if any) the interrupt swaps at, the patch lines: into the PS bytes
+    uint16_t u = 0, w;
+    uint8_t v = CR_PT_B[CR_SH_V], top = 0, line = 255, dir = 0, e1 = 255, e2 = 255, qv = 0;      // (the roll only goes forward: the venues behind the screen are not asked again, a scan from the first cost 5 lines)
     if (v && sc < (uint16_t)(ct_ostart[v - 1] + CT_SGT + 19) * 8) v = 0;
     for (; v < 10; v++) {
         u = (ct_ostart[v] + CT_SGT) * 8;             // the swap line before the page: the top of its row 0 (flat navy in a palette that is navy in both sets, 8 lines: the page set goes in by the time its band begins), the cards' set above, the page's below
@@ -212,22 +242,24 @@ static void cr_split_plan(void) {                 // this frame's top set, and t
         if (sc < u) { if (u - sc <= 135) { line = (uint8_t)(u - sc); dir = 0; } break; }          // (the page's band starts 8 lines below the line: its stage palette must be in before; the swap ends by line 144 from 124 up (a palette a line, 14 of them), else the OBJ ones wait for the next frame)
         if (sc < w) { top = 1; if (w - sc <= 124) { line = (uint8_t)(w - sc); dir = 1; } break; }
     }
-    CR_PT_B[CR_SH_V] = v;
     if (line < (KEY1_REG & 0x80 ? 2 : 12)) { if (!dir) top = 1; else top = 0; line = 255; }          // (the strip is at the top: the interrupt could not come in time (a late frame) and the lines before it are blank: the other set from the start)
-    CR_PT_B[CR_SH_TOP] = top; CR_PT_B[CR_SH_LINE] = line; CR_PT_B[CR_SH_DIR] = dir;
-    CR_PT_B[CR_SH_E1] = CR_PT_B[CR_SH_E2] = 255; CR_PT_B[CR_SH_QV] = 0;
-    if (!CR_NOQP && is_cgb && v < 10 && ct_qp[v] && (top || (line != 255 && !dir))) {          // (a page whose letters are patched: the band's end and the name's row are lines of the picture)
+    if (is_cgb && !CR_NOQP && v < 10 && ct_qp[v] && (top || (line != 255 && !dir))) {          // (a page whose letters are patched: the band's end and the name's row are lines of the picture)
         int16_t yp = (int16_t)u - (int16_t)sc, be = yp + 32, nt = yp + 136;
-        if (top) CR_PT_B[CR_SH_QV] = nt <= 9 ? 2 : be > 3 ? 1 : 0;        // (an event for one of the first lines would be armed after the line has passed on a late frame and the chain would stall: those lines take the next version at once)
-        if (be > 3 && be < 147) CR_PT_B[CR_SH_E1] = be > 6 ? (uint8_t)(be - 3) : 3;         // (the write is in the HBlank at the end of the line, and the interrupt is a line or two late: 3 lines early; the band's letters end 4 lines above its end, the picture's last lines do not use the ink)
-        if (nt > 9 && nt < 147) CR_PT_B[CR_SH_E2] = (uint8_t)(nt - 3);
+        if (top) qv = nt <= 9 ? 2 : be > 3 ? 1 : 0;        // (an event for one of the first lines would be armed after the line has passed on a late frame and the chain would stall: those lines take the next version at once)
+        if (be > 3 && be < 147) e1 = be > 6 ? (uint8_t)(be - 3) : 3;         // (the write is in the HBlank at the end of the line, and the interrupt is a line or two late: 3 lines early; the band's letters end 4 lines above its end, the picture's last lines do not use the ink)
+        if (nt > 9 && nt < 147) e2 = (uint8_t)(nt - 3);
     }
+    CR_PS_P = v | top << 4 | dir << 5; CR_PS_L = line; CR_PT_B[CR_PS_1] = e1; CR_PT_B[CR_PS_2] = e2; CR_PT_B[CR_PS_Q] = qv; CR_PT_B[CR_PS_T] = (uint8_t)sc;
 }
 
 static void cr_split_sync(void) {
-    uint8_t top = CR_PT_B[CR_SH_TOP], qp = !CR_NOQP && is_cgb && top && CR_PT_B[CR_SH_V] < 10 ? ct_qp[CR_PT_B[CR_SH_V]] : 0;
-    uint16_t *pe = (uint16_t *)(CR_PT_B + CR_SH_BG + (qp & 4 ? 56 : 0)), sv0 = pe[0], sv1 = pe[1];
-    if (qp) cr_qver(CR_PT_B[CR_SH_QV], qp, pe);       // (the last frame ended with the name's version: this one starts as the page has it, or in the band's: the RAM copy has it for the set's write, then goes back)
+    uint8_t top = CR_PT_B[CR_SH_TOP], qp = is_cgb && top && CR_PT_B[CR_SH_V] < 10 ? ct_qp[CR_PT_B[CR_SH_V]] : 0;
+    uint16_t *pe = 0, sv0 = 0, sv1 = 0;
+    if (qp) {                                         // (the last frame ended with the name's version: this one starts as the page has it, or in the band's: the RAM copy has it for the set's write, then goes back)
+        pe = (uint16_t *)(CR_PT_B + CR_SH_BG + (qp & 4 ? 56 : 0));
+        sv0 = pe[0]; sv1 = pe[1];
+        cr_qver(CR_PT_B[CR_SH_QV], qp, pe);
+    }
     if (CR_PT_B[CR_SH_HW] != top || (!top && CR_PT_B[CR_SH_DIRTY])) {
         cr_pset(top);
         CR_PT_B[CR_SH_HW] = top;
@@ -283,12 +315,21 @@ void cr_split_isr_b(void) BANKED {
 }
 
 
-void cr_split_frame(void) BANKED {                 // every frame of the roll, in credits_update after the scroll register: the plan, the interrupt's line, the set the top of the screen shows
+void cr_split_pre(void) BANKED {                   // the end of credits_update: the scroll the next frame shows is the timeline's position now
+    cr_split_plan(*(uint16_t *)(story_scratch + 22));
+}
+
+void cr_split_frame(void) BANKED {                 // every frame of the roll, in credits_update after the scroll register: the plan (made at the end of the last update, or now on a late frame), the interrupt's line, the set the top of the screen shows
+    uint8_t p, l;
     cr_dbg_a();
-    cr_split_plan();
-    if (!is_cgb) LYC_REG = CR_PT_B[CR_SH_LINE] != 255 ? CR_PT_B[CR_SH_LINE] : 0;       // (a DMG's chain goes on from line 0: the header. BEFORE the set goes in: a line near the top would be gone by the time the write is made)
+    if (CR_PT_B[CR_PS_T] != (uint8_t)CR_SCROLL) cr_split_plan(CR_SCROLL);
+    p = CR_PS_P;
+    CR_PT_B[CR_PS_T]++;                              // (used)
+    CR_PT_B[CR_SH_V] = p & 15; CR_PT_B[CR_SH_TOP] = (p >> 4) & 1; CR_PT_B[CR_SH_DIR] = p >> 5;
+    l = CR_PT_B[CR_SH_LINE] = CR_PS_L;
+    CR_PT_B[CR_SH_E1] = CR_PT_B[CR_PS_1]; CR_PT_B[CR_SH_E2] = CR_PT_B[CR_PS_2]; CR_PT_B[CR_SH_QV] = CR_PT_B[CR_PS_Q];
+    if (!is_cgb) LYC_REG = l != 255 ? l : 0;         // (a DMG's chain goes on from line 0: the header. BEFORE the set goes in: a line near the top would be gone by the time the write is made)
     else {                                           // (Color: the first of the swap's line and the two patches')
-        uint8_t l = CR_PT_B[CR_SH_LINE];
         if (CR_PT_B[CR_SH_E1] < l) l = CR_PT_B[CR_SH_E1];
         if (CR_PT_B[CR_SH_E2] < l) l = CR_PT_B[CR_SH_E2];
         LYC_REG = l;

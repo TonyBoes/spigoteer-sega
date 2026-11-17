@@ -125,6 +125,7 @@ void cr_split_isr_b(void) BANKED;
 static void cr_pump(void);
 void cr_pset(uint8_t scene) BANKED;           // (src/credits_split.c: the palette work of the shared screen, a bank of its own)
 void cr_split_frame(void) BANKED;
+void cr_split_pre(void) BANKED;
 #else
 #define cr_pump() music_pump()
 #endif
@@ -1193,6 +1194,7 @@ void credits_enter(uint8_t from_story) BANKED {
     }
 #if CT_SPLIT
     CR_PT_B[CR_SH_DIRTY] = 0; CR_PT_B[CR_SH_HW] = 0; CR_PT_B[CR_SH_TOP] = 0; CR_PT_B[CR_SH_LINE] = 255; CR_PT_B[CR_SH_DIR] = 0; CR_PT_B[CR_SH_V] = 0;
+    story_scratch[70] = 0; story_scratch[71] = 255; CR_PT_B[223] = 255; CR_PT_B[224] = 255; CR_PT_B[225] = 0; CR_PT_B[226] = 0;      // (credits_split.c's plan for the first frame: scroll 0, no line)
     CRITICAL { remove_LCD(lcd_isr); add_LCD(cr_split_isr); }   // the palette split (and, on a DMG, the header's), to cr_leave
     LYC_REG = is_cgb ? 255 : 0;
 #endif
@@ -1346,5 +1348,8 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     cr_pump();
     cr_sprites_v(busy);
     cr_pump();
+#if CT_SPLIT
+    cr_split_pre();                                     // (the next frame's plan, so that its start has only the set to write)
+#endif
     return 0;
 }
