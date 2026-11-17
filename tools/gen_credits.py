@@ -168,6 +168,8 @@ LAY_G, LAY_LG = 2, 12
 LAY = dict(G=LAY_G, LG=LAY_LG, MAPFMT=0, FONTFMT=0, H_TITLE=3, GAP_TITLE=8, H_SD=16, R_DIV=LAY_LG, R_BAND=LAY_LG, R_OLBL=LAY_LG + 5, R_PORT=LAY_LG + 7, R_ONAME=LAY_LG + 15,
            H_OWN=LAY_LG + 16, R_PA=3, R_PN=5, H_PAT=14, R_BBODY=3, R_BNAME=7, H_BOSS=11,
            OFF_TITLE=12, OFF_SD=52, OFF_OWN=8 * (LAY_LG + 8), OFF_PAT=56, OFF_BOSS=40)
+LAY["H_SD"] = int(os.environ.get("CRHSD", LAY["H_SD"]))          # (the cast cards' rows: Sal and Dregs; their blank rows below the name are the gap to the next card)
+LAY["H_BOSS"] = int(os.environ.get("CRHB", LAY["H_BOSS"]))        # (a boss card's rows: the blank rows below his name are the gap to the next venue's page. 11 stays: with 10 or 9 the DMG roll runs 7-8 frames past their VBlank (the next page's loads start in these rows), 8 and 7 fail the roll check too: CRHB experiments, tools/dev/credits_gaps.py)
 LABELS = ["OWNER"]
 # Proposals, off by default (owner 2026-11-13, nothing goes into the default build until he picks): make BUILD=out/b_crA OUT=out/o_crA CRFONT=A CRMAP=A unlocked
 #   CRFONT=A  the venue's name in the HUD font as the story map's panel and the menus set it, 8x8, on the 3-row stripe (middle row)
@@ -196,6 +198,9 @@ LAY["FLOWFMT"] = {"": 0, "SMOOTH": 1}[CRFLOW]
 LAY["SCENEFMT"] = 1 if CRSCENE else 0
 CRTIGHT = os.environ.get("CRTIGHT", "")           # 1: the scene pages' gaps as small as the palette swap needs (no jump, no hold), the swap several palettes a frame
 CRSPLIT = os.environ.get("CRSPLIT", "")           # 1: the page shares the screen with its neighbours (credits.c: a LYC interrupt swaps the palettes on a blank strip): 2 blank rows (a strip) on each side, no jump
+# CRSPLIT: 6 blank rows below the page, the least that is clean on every build (2026-11-16, the stress builds CRSGB=n, tools/dev/credits_roll_check.py, credits_overrun_probe.py): Color asm is clean down to 4
+# (3: the swap out is still writing palettes when the next card's first ink comes, scan faults); the DMG at 4 has a scan and a page fault of one frame and two more Dregs frames (5 is clean); the C twin
+# (ASM_CR_SPLIT=0) has a one-frame fault on the Chrome Cow's page below 6. CRHB (the boss card's rows, 11) and CRHSD (Sal's and Dregs's, 16) cannot go lower either: see the commit message.
 SGT, SGB = (0, int(os.environ.get("CRSGB", "6"))) if CRSPLIT == "1" else (int(CRTIGHT), int(CRTIGHT)) if CRTIGHT else (19, 19)                                   # CRSCENE: blank rows above and below a scene page (18 rows: the screen): the cards before and after are off the screen while its palettes are in
 if CRSCENE:
     LAY.update(R_OLBL=0, R_PORT=2, R_ONAME=10, H_OWN=SGT + 18 + SGB, R_DIV=6, OFF_OWN=8 * SGT + 72, SGT=SGT, SGB=SGB)
