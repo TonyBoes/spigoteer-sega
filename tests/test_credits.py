@@ -35,7 +35,7 @@ assert len(CARD_START) == 33 and CARD_START[-1] + CARD_F == ROLL
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
-OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]   # the story's own names (build/story_data.c st_names), in venue order
+OWNERS = ["SADIE SPURS", "COACH BLITZ", "BIG JUNE", "CHEF COLBY", "AURORA", "MANAGER-BOT 3000", "GRANNY THROTTLE", "HANA", "KEEPER KIKI", "ZIZZ"]   # the story's full names (docs/story.md; Aurora, Hana and Zizz have no surname there), in venue order
 CT = json.loads((ROOT / "build" / "credits_text.json").read_text())          # the pre-rendered text (tools/gen_credits.py): every row, its cells, its ink boxes
 _pool_src = (ROOT / "build" / "credits_text.c").read_text()
 POOL = bytes(int(x) for x in re.search(r"ct_pool\[\d+\] = \{ ([^}]*) \}", _pool_src).group(1).split(","))
@@ -43,7 +43,7 @@ TEXT_ROWS = CT["rows"]
 LABELS = CT["patrons"]                                          # the patrons' labels, in the order they stand (slot A, B, C)
 assert len(LABELS) == 10 and CT["venues"] == VENUES and CT["owners"] == OWNERS and CT["bosses"] == BOSSES
 # every card's lines, top to bottom (words of a row joined by one space): 0 the title, 1 the Spigoteer, 2 Dregs, then per venue the owner, the patrons, the boss
-CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS", "RIVAL"]]
+CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS DRIBBLETON", "THE RIVAL"]]
 
 for v in range(10):
     CARDS.append([VENUES[v], OWNERS[v]])                    # (the venue is the header, the top rows, through all three cards)

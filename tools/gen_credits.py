@@ -28,7 +28,7 @@ SAL = ["SAL TAPLEY", "THE SPIGOTEER"]
 DREGS = ["DREGS DRIBBLETON", "THE RIVAL"]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
-OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]      # the story's own names, in venue order
+OWNERS = ["SADIE SPURS", "COACH BLITZ", "BIG JUNE", "CHEF COLBY", "AURORA", "MANAGER-BOT 3000", "GRANNY THROTTLE", "HANA", "KEEPER KIKI", "ZIZZ"]      # the story's own names, in venue order
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
 # The patrons' names are the Graphics Atlas plan's (tools/artifacts/palette_plan/plan_data.py NAMES: the three base looks, art variants A, B, C; the Color-only
 # looks are the labels of assets/art/patrons/<group>_x.txt, the plan's EXTRA_LOOKS order). Owner Q80 (2026-11-04, layout A): one card a venue with all 8
