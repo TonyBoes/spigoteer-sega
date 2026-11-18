@@ -1,0 +1,171 @@
+; Sal's walk, arm proposals (2026-11-17). HAND-PLACED: each line is one pixel row (rows 10..18 of the 16x24 frame):
+; the left arm's 4 columns (x 0-3), a space, the right arm's 4 columns (x 12-15). Everything else (head, hat, face, torso x 4-11,
+; legs) is the owner's walk1 / walk2 as they are. build.py only splices these strips into the owner's frames, previews and marks.
+; '-' sleeve (cream), '+' skin, '#' ink, '.' transparent. Same 3 indices as bartender.txt.
+;
+; PROPOSAL 1 "pendulum": one arm swings out and forward (the sleeve angles away from the torso, the hand a row higher and out at the
+; edge), the other is pulled back (a row shorter, tucked). walk1 swings the left arm, walk2 the right. Idle (between steps) hangs.
+@P1_walk1
+...# #...
+..#- -#..
+.#-# -#..
+#-#. -#..
+#-#. -#..
+++#. ++..
++#.. #+..
+#... ##..
+.... ....
+@P1_walk2
+...# #...
+..#- -#..
+..#- #-#.
+..#- .#-#
+..#- .#-#
+..++ .#++
+..+# ..#+
+..## ...#
+.... ....
+;
+; PROPOSAL 2 "Dregs's pattern": walk1 both arms flare out one pixel (hands out and down a pixel); walk2 the left forearm comes up and
+; points forward (cream sleeve, skin fist, ink top and bottom), the right arm is tucked back.
+@P2_walk1
+...# #...
+..#- -#..
+..#- -#..
+.#-# #-#.
+.#-# #-#.
+.#-# #-#.
+.++. .++.
+.+#. .#+.
+.#.. ..#.
+@P2_walk2
+...# #...
+#### -#..
+++-- -#..
+++-- -#..
+#### -#..
+.... ++..
+.... #+..
+...# ##..
+.... ....
+;
+; PROPOSAL 3 "reserved, as Dregs" (owner Q84: P1 and P2 flap the arms out too far). Measured on Dregs (assets/art/dregs/dregs.txt): his walk1 moves
+; the lower half of both arms (rows 14-18) 1 px outward (24 px changed); his walk2 draws the lower arms in 1-2 px, the hands tucked (10 px changed, rows 16-18). Nothing
+; leaves his silhouette by more than 1 px. Sal gets the same: walk1 both arms from row 14 down 1 px out (26 px); walk2 both hands tucked one row up (10 px).
+@P3_walk1
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+.#-# #-#.
+.#-# #-#.
+.++. .++.
+.+#. .#+.
+.#.. ..#.
+@P3_walk2
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+..#- -#..
+..++ ++..
+..+# #+..
+..## ##..
+.... ....
+;
+; PROPOSAL 4 "opposite hands, as Dregs" (owner Q86: P1-P3 look like flapping in and out; Dregs has one hand go back while the other goes forward).
+; Dregs frame by frame (see sal_walk_dregs_annotated_x12.png): the FORWARD hand is drawn a row higher and 1 px out (the sleeve steps out 1 px from row 14, the hand
+; and its bottom outline move up one row and clear the hem, so it hangs free of the body). The BACK hand is tucked: the arm is shortened, the hand is not drawn and the
+; sleeve ends on the body outline (it goes behind the body). NOTE: Dregs himself raises the same (left) arm in both frames; P4 alternates the sides as the owner described. walk1: left forward, right back; walk2: left back, right forward.
+@P4_walk1
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+.#-# -#..
+.++# -#..
+.+#. ##..
+.#.. #...
+.... ....
+@P4_walk2
+...# #...
+..#- -#..
+..#- -#..
+..#- -#..
+..#- #-#.
+..#- #++.
+..## .#+.
+...# ..#.
+.... ....
+;
+; PROPOSAL 5 (owner Q88: "a little bit more movement higher"): P4 with the motion starting at the elbow, not only at the hand. The forward arm steps out 1 px
+; from row 12 (was 14) and its hand comes up two rows (was one); the back arm is cut at row 15 (was 16): sleeve ends in a cuff, hand tucked. Still 1 px out at most.
+@P5_walk1
+...# #...
+..#- -#..
+.#-# -#..
+.#-# -#..
+.++# -#..
+.+#. ##..
+.#.. #...
+.... #...
+.... ....
+@P5_walk2
+...# #...
+..#- -#..
+..#- #-#.
+..#- #-#.
+..#- #++.
+..## .#+.
+...# ..#.
+...# ....
+.... ....
+;
+; PROPOSAL 6 (owner Q90: his hand swings out away from the body; Dregs's hand swings in front of the body). Strips here are 6 wide: x0-5 | x10-15, so the
+; forward hand can sit over the torso edge (those torso pixels are listed by build.py). Dregs's walk2 right hand lands on x10-11 (idle x11-12): it covers the torso's
+; right edge pixel (x10), skin against the dark jacket, with ink outline x12-13 on its outer side. Sal: the forward hand lands on x10-11 (right) / x4-5 (left) over the
+; torso edge, rows 15-16, the sleeve stepping inward from row 14; the back arm is P5's (cuff on row 15, hand tucked). Nothing steps out past the idle outline.
+@P6_walk1
+...##- ###...
+..#-#- ##-#..
+..#-## ##-#..
+..#-## ##-#..
+..#--# ##-#..
+..#-++ ####..
+...#++ -##...
+...### ###...
+....## ##....
+@P6_walk2
+...##- ###...
+..#-#- ##-#..
+..#-## ##-#..
+..#-## ##-#..
+..#-## #--#..
+..#### ++-#..
+...#-# ++#...
+...### ###...
+....## ##....
+;
+; PROPOSAL 7 (owner Q91: the left arm must go out to the left, as Dregs's, not cross the body). Right side exactly P6 (hand in front of the body, sleeve angled in).
+; Left side as Dregs's left when forward: the elbow area steps out 1 px from row 12 (P5), the hand a row higher than idle (rows 15-16) and 1 px out, clear of the
+; torso (x1-2, torso edge x4 untouched). Back arms as P6. compare_dregs.py checks each side against Dregs's measurements.
+@P7_walk1
+...##- ###...
+..#-#- ##-#..
+.#-### ##-#..
+.#-### ##-#..
+.#-### ##-#..
+.++### ####..
+.+#.-# -##...
+.#..## ###...
+....## ##....
+@P7_walk2
+...##- ###...
+..#-#- ##-#..
+..#-## ##-#..
+..#-## ##-#..
+..#-## #--#..
+..#### ++-#..
+...#-# ++#...
+...### ###...
+....## ##....
