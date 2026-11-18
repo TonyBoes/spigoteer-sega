@@ -103,3 +103,8 @@ Project skills (they load when a task needs them): `gb-toolchain`, `spigoteer-mu
 
 `docs/dev/`: `SUPERVISOR.md` (the supervisor's procedure), `notes/QUEUE.md`, `LESSONS.md`, handoffs,
 `memory_snapshot/`. Review pages and how to republish them: `tools/artifacts/README.md`.
+
+**New session (or a new machine): read `docs/dev/memory_snapshot/MEMORY.md` and the notes it links before anything else.**
+They are the owner's standing rules, copied from the auto-memory. If your memory directory is empty (a fresh sandbox), copy
+`docs/dev/memory_snapshot/*.md` into it. Then read the newest `docs/dev/notes/HANDOFF_*.md`. Keep the snapshot in step: after
+every memory change, copy the file into `docs/dev/memory_snapshot/` and commit it.
