@@ -9,7 +9,7 @@ import re
 
 import pytest
 from po_helpers import po_win
-from conftest import (POS_OF, VEN_AT, clear_regulars, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROM, ROOT, check_golden, hold_stage_anim,
+from conftest import (POS_OF, VEN_AT, clear_regulars, unpaint_patron, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROM, ROOT, check_golden, hold_stage_anim,
                       menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
@@ -597,6 +597,7 @@ def clear_bars(gb):
     """Nobody left and the quota spawned: the level clears on the next frame."""
     gb.write("quota", gb.mem("spawned"))
     for i in range(16):
+        unpaint_patron(gb, i)
         gb.write(gb.addr("patron_state") + i, 0)
     gb.write("patrons_live", 0)
     for i in range(20):

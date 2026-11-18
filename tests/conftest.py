@@ -242,10 +242,32 @@ def mark_lists_dirty(gb):
     _rom_write(gb, "lists_ok", 0)
 
 
+def unpaint_patron(gb, i):
+    """What remove_patron (src/patrons.c) does for the drawing: mark the patron's 4 columns dirty (tiles and CGB attributes: mark_dirty_attrs)
+    and forget his draw, so the cells are recomposed without him. Poking patron_state alone left his figure on the screen (under a boss's
+    tiles). Call it before the poke that empties his slot."""
+    d = gb.pb.memory[gb.addr("patron_draw") + i]
+    if gb.pb.memory[gb.addr("patron_state") + i] == 0 or d == 255:
+        gb.write(gb.addr("patron_draw") + i, 255)
+        return
+    b = gb.pb.memory[gb.addr("patron_bar") + i] & 3
+    x0 = (d & 0x7F) >> 3
+    x1 = min(x0 + 3, 20)
+    for nm in ("dirty", "attr"):
+        a0, a1 = gb.addr(nm + "_x0") + b, gb.addr(nm + "_x1") + b
+        if x0 < gb.pb.memory[a0]:
+            gb.write(a0, x0)
+        if x1 > gb.pb.memory[a1]:
+            gb.write(a1, x1)
+    gb.write("vram_pending", 1)
+    gb.write(gb.addr("patron_draw") + i, 255)
+
+
 def clear_regulars(gb):
     """Every regular off the bars (a boss fight ends only when none is left: src/boss.c boss_frame): the tests that
     want the outro now call this after the meter is empty."""
     for i in range(MAX_PATRONS):
+        unpaint_patron(gb, i)
         gb.write(gb.addr("patron_state") + i, 0)
     gb.write("patrons_live", 0)
 
