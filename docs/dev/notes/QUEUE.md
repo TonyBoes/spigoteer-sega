@@ -1320,3 +1320,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 82 boss goldens: golden-check 82 EXPECTED; replaced on worktree-agent-a5e431ed9b068b14d (d651e6c0). verify helperrepaint running.
 - 11-17 MERGED boss helper repaint + 82 goldens (verify helperrepaint PASS 6161). Main rerun after the credits-bank merge (combined).
 - 11-17 credits bank room (5ade738d): card loads moved to src/credits_load.c (+credits_priv.h); credits.o 16245 -> 13175 B (3209 B headroom); ROM0 494; roll checks 0 asm+C; banks re-placed (15: 26 B free, 6/9: 34 B). main merged in; verify crbank FULL=1 CBUILD=1 running.
+- 11-17 MERGED credits bank room (verify crbank PASS; branch contained main, so no separate main rerun). Pocket Player main sha1 c5c5343bf8 (v132). Both "do those" items done.
