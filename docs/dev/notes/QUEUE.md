@@ -1318,3 +1318,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 OWNER: "Go ahead and do those." -> (1) gb-worker: boss test helpers repaint like remove_patron, trace non-golden breaks, golden table (~71) for golden-check; (2) gb-worker: free ~1 KB in the credits code bank, no behaviour change.
 - 11-17 boss helper repaint 7f47cf49 (test-only): 82 golden PNGs change (stale start patrons gone), no non-golden breaks, yeti stray OAM not reproduced. gb-golden-check running.
 - 11-17 82 boss goldens: golden-check 82 EXPECTED; replaced on worktree-agent-a5e431ed9b068b14d (d651e6c0). verify helperrepaint running.
+- 11-17 MERGED boss helper repaint + 82 goldens (verify helperrepaint PASS 6161). Main rerun after the credits-bank merge (combined).
