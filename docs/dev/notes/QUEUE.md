@@ -1315,3 +1315,4 @@ On the bend fixes—I just played the latest main ROM. They are not in it."
 - 11-17 MERGED credits (verify credits-split3 PASS). ROM0 floor now 494 B (CLAUDE.md updated: release 821, game-c 90, romusage 835). Next: main rerun after the Duke/Sal merge (combined).
 - 11-17 MERGED Duke P1c + Sal P7 + boss patron-tile test (7 goldens replaced, all checked; vault cgb found by verify). Main rerun mainrerun5 (FULL=1) started; then Pocket Player main ROM.
 - 11-17 Main rerun mainrerun5 FULL=1 PASS at fdf6b7ac (6162 passed, 50 skips, fade 22, OBJ=0 sha1 equal, ROM0 494). Pocket Player v131: main = sha1 36b7e34803 (credits + Duke fist + Sal walk); crscene test entry removed.
+- 11-17 OWNER: "Go ahead and do those." -> (1) gb-worker: boss test helpers repaint like remove_patron, trace non-golden breaks, golden table (~71) for golden-check; (2) gb-worker: free ~1 KB in the credits code bank, no behaviour change.
