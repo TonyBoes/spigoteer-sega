@@ -45,7 +45,7 @@
 - [Plan is the spec](plan-is-the-spec.md) — the Atlas patron plan already decides slots/keg/splits; implement it, never re-ask the owner (Q90 withdrawn 11-01)
 - [Record decisions immediately](record-decisions-immediately.md) — owner 11-01: write every decision/plan/procedure down in the same reply; procedure in SUPERVISOR.md
 - [Color perf at double speed](color-perf-double-speed.md) — owner Q92 11-01: [cgb] speed checks run at double speed as shipped; DMG strict
-- [C build: speed not required](c-build-speed-not-required.md) — owner 11-01: C speed fails ok; C tests on HOLD until the patron import is done (asm only)
+- [C build: speed not required](c-build-speed-not-required.md) — owner 11-01: C speed fails ok; hold LIFTED 11-12 (C tests being fixed)
 - [No flashing lights](no-flashing-lights.md) — owner 11-04: stage colours fade, never cut or flash; check GIFs for strobing before showing
 - [Art: consistency, only flagged changes](art-consistency-only-flagged.md) — change only what the owner flagged (tower, not tavern roof, 11-04); same buildings/props/texture at every time of day
 - [No music changes without OK](no-music-changes-without-ok.md) — never repeat/stretch/cut a song to fit timing without the owner's OK; let the music run out (owner 11-05)
@@ -54,6 +54,6 @@
 - [Map Atlas artifact](map-atlas-artifact.md) — story map tiles/palettes/walk load page; make map-atlas + republish after map merges
 - [Open Questions plain layout](open-questions-plain-layout.md) — one plain question per card, choices by name, picture under each choice, answer line; no letters/codes
 - [Verify stages](verify-quick-for-map-art.md) — verify.sh default ~2.5 min (per-object make ~15 s clean, parallel stages); FULL=1 adds make -B, release-only tests, slow fade (engine/fade/timing/music, releases); CBUILD=1 adds C-build pytest; QUICK=1 no-op
-- [Supervisor never runs full suites](supervisor-no-full-runs.md) — every full make test / verify.sh goes to gb-runner, incl. the rerun on main (owner 11-09)
 - [One full test run](one-full-test-run.md) — owner Q12 11-08: agents run targeted tests, verify is the one full run, main reruns only if other merges landed
-- [Merge before review](merge-before-review.md) — owner 11-09: only a fix for a problem already on main may merge before review; report line 1 says so with the reason
+- [Supervisor: no full runs](supervisor-no-full-runs.md) — owner 11-09: full make test / verify.sh always go to gb-runner, incl. main reruns
+- [Merge before review](merge-before-review.md) — owner 11-09: only fixes for problems already on main merge before review; first line of the report says so

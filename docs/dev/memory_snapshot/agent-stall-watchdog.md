@@ -11,3 +11,5 @@ Replaced 2026-10-25: re-arming a Monitor every 30 min. Each re-arm and each chec
 
 **Why:** the owner had to ask about stuck agents four times; once an agent hung for 5.5 h on a single tool call after a permission denial. He also pays for every supervisor turn.
 **How to apply:** brief agents not to retry denied commands, and give each one an explicit stopping point. Trust the watchdog rather than polling.
+
+UPDATE 2026-11-06: the script keeps a single instance (out/watchdog.pid) and kills the previous one on start. Always pass EVERY running agent ID in one call; starting a second watchdog silently unwatches the first set.
